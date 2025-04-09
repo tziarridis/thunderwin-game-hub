@@ -13,7 +13,11 @@ import {
   Zap,
   Clock,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Plus,
+  Minus,
+  History,
+  RefreshCw
 } from "lucide-react";
 
 // Mock game data
@@ -73,6 +77,15 @@ const GameDetails = () => {
     amount: number;
     message: string;
   } | null>(null);
+  const [gameHistory, setGameHistory] = useState<{
+    timestamp: Date;
+    bet: number;
+    outcome: "win" | "lose";
+    amount: number;
+  }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [quickBetAmounts, setQuickBetAmounts] = useState<number[]>([5, 10, 25, 50, 100]);
+  const [favorited, setFavorited] = useState(false);
 
   useEffect(() => {
     // Simulate API call
@@ -81,6 +94,24 @@ const GameDetails = () => {
       const foundGame = mockGames.find(g => g.id === id);
       setGame(foundGame || null);
       setLoading(false);
+      
+      // Initialize bet amount based on game min/max
+      if (foundGame) {
+        setBetAmount(Math.max(foundGame.minBet, Math.min(10, foundGame.maxBet)));
+        
+        // Generate quick bet amounts based on min/max
+        const min = foundGame.minBet;
+        const max = foundGame.maxBet;
+        const spread = max - min;
+        
+        setQuickBetAmounts([
+          Math.round(min + spread * 0.05),
+          Math.round(min + spread * 0.1),
+          Math.round(min + spread * 0.2),
+          Math.round(min + spread * 0.3),
+          Math.round(min + spread * 0.5)
+        ]);
+      }
     }, 800);
   }, [id]);
 
@@ -118,15 +149,24 @@ const GameDetails = () => {
       
       updateBalance(newBalance);
       
-      setGameResult({
+      const result = {
         outcome: isWin ? "win" : "lose",
         amount: isWin ? winAmount : betAmount,
         message: isWin 
           ? `Congratulations! You won ${winAmount.toFixed(2)}!` 
           : "Better luck next time!"
-      });
+      };
       
+      setGameResult(result);
       setIsPlaying(false);
+      
+      // Add to game history
+      setGameHistory(prev => [{
+        timestamp: new Date(),
+        bet: betAmount,
+        outcome: isWin ? "win" : "lose",
+        amount: isWin ? winAmount : betAmount
+      }, ...prev.slice(0, 9)]); // Keep last 10 games
       
       toast({
         title: isWin ? "You Won!" : "You Lost",
@@ -148,6 +188,40 @@ const GameDetails = () => {
     if (betAmount < game.maxBet) {
       setBetAmount(prev => Math.min(game.maxBet, prev + 5));
     }
+  };
+  
+  const handleSetBetAmount = (amount: number) => {
+    if (amount >= game.minBet && amount <= game.maxBet) {
+      setBetAmount(amount);
+    }
+  };
+  
+  const toggleFavorite = () => {
+    setFavorited(!favorited);
+    toast({
+      title: favorited ? "Removed from Favorites" : "Added to Favorites",
+      description: favorited 
+        ? `${game.title} has been removed from your favorites.` 
+        : `${game.title} has been added to your favorites.`,
+    });
+  };
+  
+  const handleMaxBet = () => {
+    if (user && user.balance > 0) {
+      const maxPossible = Math.min(game.maxBet, user.balance);
+      setBetAmount(maxPossible);
+    } else {
+      setBetAmount(game.maxBet);
+    }
+  };
+  
+  const handleShare = () => {
+    // Copy the game URL to clipboard
+    navigator.clipboard.writeText(window.location.href);
+    toast({
+      title: "Link Copied",
+      description: "Game link has been copied to clipboard!",
+    });
   };
 
   if (loading) {
@@ -201,7 +275,7 @@ const GameDetails = () => {
               />
               
               {/* Play overlay */}
-              {!isPlaying && (
+              {!isPlaying && !gameResult && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                   <Button 
                     size="lg"
@@ -237,69 +311,188 @@ const GameDetails = () => {
                       ? `$${gameResult.amount.toFixed(2)}` 
                       : gameResult.message}
                   </p>
-                  <Button 
-                    className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                    onClick={handlePlay}
-                  >
-                    Play Again
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button 
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                      onClick={handlePlay}
+                    >
+                      Play Again
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setGameResult(null)}
+                    >
+                      Back to Game
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
             
             {/* Game Controls */}
             <div className="thunder-card mt-6 p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <p className="text-white/70 mb-2">Your Bet Amount:</p>
-                  <div className="flex items-center space-x-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={decreaseBet}
-                      disabled={betAmount <= game.minBet}
-                    >
-                      -
-                    </Button>
-                    <div className="bg-white/5 px-4 py-2 rounded-md min-w-[100px] text-center">
-                      <span className="text-casino-thunder-green font-semibold">${betAmount.toFixed(2)}</span>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-white/70 mb-2">Your Bet Amount:</p>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={decreaseBet}
+                        disabled={betAmount <= game.minBet}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <div className="bg-white/5 px-4 py-2 rounded-md min-w-[100px] text-center">
+                        <span className="text-casino-thunder-green font-semibold">${betAmount.toFixed(2)}</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={increaseBet}
+                        disabled={betAmount >= game.maxBet}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
                     <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={increaseBet}
-                      disabled={betAmount >= game.maxBet}
+                      variant={favorited ? "default" : "outline"} 
+                      size="sm"
+                      onClick={toggleFavorite}
+                      className={favorited ? "bg-red-500 hover:bg-red-600 text-white" : ""}
                     >
-                      +
+                      <Heart className={`h-4 w-4 mr-2 ${favorited ? "fill-current" : ""}`} />
+                      {favorited ? "Favorited" : "Favorite"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleShare}
+                    >
+                      <Share className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
+                    <Button 
+                      size="sm"
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                      onClick={handlePlay}
+                      disabled={isPlaying || !isAuthenticated || (user && user.balance < betAmount)}
+                    >
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      {isAuthenticated 
+                        ? (user && user.balance < betAmount 
+                            ? "Deposit Needed" 
+                            : "Place Bet")
+                        : "Login to Play"}
                     </Button>
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-3">
-                  <Button variant="outline" size="sm">
-                    <Heart className="h-4 w-4 mr-2" />
-                    Favorite
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Share className="h-4 w-4 mr-2" />
-                    Share
-                  </Button>
+                {/* Quick bet buttons */}
+                <div>
+                  <p className="text-white/70 mb-2">Quick Bet:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {quickBetAmounts.map((amount) => (
+                      <Button 
+                        key={amount} 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSetBetAmount(amount)}
+                        className={betAmount === amount ? "border-casino-thunder-green text-casino-thunder-green" : ""}
+                      >
+                        ${amount}
+                      </Button>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleMaxBet}
+                      className="text-yellow-500 border-yellow-500/50 hover:border-yellow-500"
+                    >
+                      Max
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Game History Toggle */}
+                <div className="flex justify-between items-center">
                   <Button 
+                    variant="outline" 
                     size="sm"
-                    className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                    onClick={handlePlay}
-                    disabled={isPlaying || !isAuthenticated || (user && user.balance < betAmount)}
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-white/70 hover:text-casino-thunder-green"
                   >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    {isAuthenticated 
-                      ? (user && user.balance < betAmount 
-                          ? "Deposit Needed" 
-                          : "Place Bet")
-                      : "Login to Play"}
+                    <History className="h-4 w-4 mr-2" />
+                    {showHistory ? "Hide History" : "Show History"}
                   </Button>
+                  
+                  {user && (
+                    <div className="text-white/70 text-sm">
+                      Balance: <span className="text-casino-thunder-green font-bold">${user.balance.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+            
+            {/* Game History */}
+            {showHistory && (
+              <div className="thunder-card mt-6 p-4">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <History className="mr-2 text-casino-thunder-green" />
+                  Game History
+                </h3>
+                
+                {gameHistory.length === 0 ? (
+                  <p className="text-white/70 text-center py-4">No game history yet. Start playing!</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/10">
+                          <th className="text-left py-2 px-4 text-white/70">Time</th>
+                          <th className="text-left py-2 px-4 text-white/70">Bet</th>
+                          <th className="text-left py-2 px-4 text-white/70">Outcome</th>
+                          <th className="text-left py-2 px-4 text-white/70">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gameHistory.map((item, index) => (
+                          <tr key={index} className="border-b border-white/5">
+                            <td className="py-2 px-4 text-white/80">
+                              {item.timestamp.toLocaleTimeString()}
+                            </td>
+                            <td className="py-2 px-4 text-white/80">
+                              ${item.bet.toFixed(2)}
+                            </td>
+                            <td className="py-2 px-4">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                item.outcome === "win" 
+                                  ? "bg-green-500/20 text-green-500" 
+                                  : "bg-red-500/20 text-red-500"
+                              }`}>
+                                {item.outcome === "win" ? "Win" : "Loss"}
+                              </span>
+                            </td>
+                            <td className={`py-2 px-4 font-medium ${
+                              item.outcome === "win" 
+                                ? "text-green-500" 
+                                : "text-red-500"
+                            }`}>
+                              {item.outcome === "win" ? "+" : "-"}${item.amount.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           
           {/* Game Info */}
@@ -356,9 +549,19 @@ const GameDetails = () => {
               </span>
             </div>
             
+            <div className="bg-white/5 rounded-lg p-4 mb-6">
+              <h3 className="text-lg font-semibold text-white mb-3">How to Play</h3>
+              <ol className="text-white/80 space-y-2 list-decimal pl-5">
+                <li>Set your bet amount using the controls</li>
+                <li>Click the "Play Now" button to start</li>
+                <li>Wait for the outcome to be determined</li>
+                <li>Collect your winnings or try again!</li>
+              </ol>
+            </div>
+            
             <div className="mt-6">
               <Button 
-                className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-3"
                 onClick={handlePlay}
                 disabled={isPlaying || !isAuthenticated || (user && user.balance < betAmount)}
               >
@@ -369,6 +572,35 @@ const GameDetails = () => {
                       : "Play Now")
                   : "Login to Play"}
               </Button>
+              
+              {/* Similar Games Suggestion */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-white mb-3">You Might Also Like</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {mockGames
+                    .filter(g => g.id !== id)
+                    .slice(0, 2)
+                    .map(similarGame => (
+                      <div 
+                        key={similarGame.id} 
+                        className="thunder-card overflow-hidden cursor-pointer"
+                        onClick={() => navigate(`/casino/game/${similarGame.id}`)}
+                      >
+                        <div className="h-24 overflow-hidden">
+                          <img 
+                            src={similarGame.image} 
+                            alt={similarGame.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="p-2">
+                          <h4 className="text-sm font-medium text-white truncate">{similarGame.title}</h4>
+                          <p className="text-xs text-white/60">{similarGame.provider}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
