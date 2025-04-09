@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				casino: {
+					'thunder-green': '#00FF66',
+					'thunder-dark': '#121212',
+					'thunder-darker': '#0A0A0A',
+					'thunder-light': '#F9FAFB',
+					'thunder-gray': '#1E1E1E',
+					'thunder-accent': '#3FE077',
+					'thunder-highlight': '#00CC52',
 				}
 			},
 			borderRadius: {
@@ -84,11 +94,27 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				lightning: {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.5' },
+				},
+				pulse: {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.6' },
+				},
+				scale: {
+					'0%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(1.05)' },
+					'100%': { transform: 'scale(1)' },
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'lightning': 'lightning 2s ease-in-out infinite',
+				'pulse': 'pulse 1.5s infinite',
+				'scale': 'scale 1.5s infinite',
 			}
 		}
 	},
