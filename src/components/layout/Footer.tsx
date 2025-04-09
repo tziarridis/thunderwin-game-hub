@@ -8,7 +8,8 @@ import {
   CreditCard,
   Lock,
   Award,
-  Globe
+  Globe,
+  DollarSign
 } from "lucide-react";
 
 const Footer = () => {
