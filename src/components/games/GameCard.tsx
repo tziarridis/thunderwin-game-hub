@@ -2,8 +2,10 @@
 import { cn } from "@/lib/utils";
 import { Play, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface GameCardProps {
+  id?: string;
   title: string;
   image: string;
   provider: string;
@@ -13,6 +15,7 @@ interface GameCardProps {
 }
 
 const GameCard = ({ 
+  id = "1", // Default ID if none provided
   title, 
   image, 
   provider, 
@@ -31,13 +34,17 @@ const GameCard = ({
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-end p-4">
-          <Button 
-            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-4 w-full"
-          >
-            <Play className="mr-2 h-4 w-4" />
-            Play Now
-          </Button>
-          <Button variant="outline" className="w-full">Demo</Button>
+          <Link to={`/casino/game/${id}`}>
+            <Button 
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-4 w-full"
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Play Now
+            </Button>
+          </Link>
+          <Link to={`/casino/game/${id}`}>
+            <Button variant="outline" className="w-full">Demo</Button>
+          </Link>
         </div>
 
         {/* Tags */}

@@ -72,67 +72,79 @@ const GameGrid = () => {
       {/* Games Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         <GameCard 
+          id="1"
           title="Lightning Roulette" 
           image="https://images.unsplash.com/photo-1531059224353-8e56cd9eb9b2?auto=format&fit=crop&q=80&w=400"
           provider="Evolution Gaming"
           isPopular={true}
         />
         <GameCard 
+          id="2"
           title="Book of Dead" 
           image="https://images.unsplash.com/photo-1596838132731-3301c3fd4317?auto=format&fit=crop&q=80&w=400"
           provider="Play'n GO"
           isPopular={true}
         />
         <GameCard 
+          id="3"
           title="Sweet Bonanza" 
           image="https://images.unsplash.com/photo-1586899028174-e7098604235b?auto=format&fit=crop&q=80&w=400"
           provider="Pragmatic Play"
           isNew={true}
         />
         <GameCard 
+          id="4"
           title="Mega Fortune" 
           image="https://images.unsplash.com/photo-1611159063981-b8c8c4301869?auto=format&fit=crop&q=80&w=400"
           provider="NetEnt"
         />
         <GameCard 
+          id="5"
           title="Gonzo's Quest" 
           image="https://images.unsplash.com/photo-1594842084112-0e399ef9754b?auto=format&fit=crop&q=80&w=400"
           provider="NetEnt"
         />
         <GameCard 
+          id="6"
           title="Starburst" 
           image="https://images.unsplash.com/photo-1634368949489-91a7977de894?auto=format&fit=crop&q=80&w=400"
           provider="NetEnt"
           isPopular={true}
         />
         <GameCard 
+          id="7"
           title="Crazy Time" 
           image="https://images.unsplash.com/photo-1629784575520-7ab3e4a2fa7a?auto=format&fit=crop&q=80&w=400"
           provider="Evolution Gaming"
           isNew={true}
         />
         <GameCard 
+          id="8"
           title="Gates of Olympus" 
           image="https://images.unsplash.com/photo-1533709752211-118fcaf03312?auto=format&fit=crop&q=80&w=400"
           provider="Pragmatic Play"
         />
         <GameCard 
+          id="9"
           title="Wolf Gold" 
           image="https://images.unsplash.com/photo-1616616839508-0fd2f3b9fa5a?auto=format&fit=crop&q=80&w=400"
           provider="Pragmatic Play"
         />
         <GameCard 
+          id="10"
           title="Monopoly Live" 
           image="https://images.unsplash.com/photo-1604871000636-074fa5117945?auto=format&fit=crop&q=80&w=400"
           provider="Evolution Gaming"
           isPopular={true}
         />
         <GameCard 
+          id="11"
           title="Reactoonz" 
           image="https://images.unsplash.com/photo-1614128418646-a0f6c549da93?auto=format&fit=crop&q=80&w=400"
           provider="Play'n GO"
         />
         <GameCard 
+          id="12"
           title="Big Bass Bonanza" 
           image="https://images.unsplash.com/photo-1560953814-e638733735af?auto=format&fit=crop&q=80&w=400"
           provider="Pragmatic Play"

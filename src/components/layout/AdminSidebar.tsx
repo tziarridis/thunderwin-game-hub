@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { 
   LayoutDashboard, 
@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SidebarLinkProps {
   to: string;
@@ -36,6 +37,13 @@ const SidebarLink = ({ to, icon, label, expanded }: SidebarLinkProps) => (
 
 const AdminSidebar = () => {
   const [expanded, setExpanded] = useState(true);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className={`bg-casino-thunder-darker border-r border-white/5 h-screen fixed top-0 left-0 transition-all duration-300 ${
@@ -129,7 +137,10 @@ const AdminSidebar = () => {
       </div>
       
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/5">
-        <button className="flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors w-full">
+        <button 
+          className="flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors w-full"
+          onClick={handleLogout}
+        >
           <LogOut size={20} className="text-white/60" />
           {expanded && <span className="ml-3">Logout</span>}
         </button>
