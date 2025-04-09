@@ -1,0 +1,620 @@
+
+import { useState } from "react";
+import { 
+  Search, 
+  Filter, 
+  Download, 
+  ChevronLeft, 
+  ChevronRight,
+  Eye,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// Mock transaction data
+const mockTransactions = [
+  {
+    id: "TRX-10045",
+    userId: "USR-1001",
+    userName: "John Doe",
+    type: "deposit",
+    amount: 500.00,
+    currency: "USD",
+    status: "completed",
+    method: "Credit Card",
+    date: "2025-04-08T15:30:22Z"
+  },
+  {
+    id: "TRX-10044",
+    userId: "USR-1002",
+    userName: "Alice Smith",
+    type: "withdraw",
+    amount: 250.00,
+    currency: "USD",
+    status: "completed",
+    method: "Bank Transfer",
+    date: "2025-04-08T14:22:10Z"
+  },
+  {
+    id: "TRX-10043",
+    userId: "USR-1003",
+    userName: "Robert Johnson",
+    type: "deposit",
+    amount: 1000.00,
+    currency: "USD",
+    status: "completed",
+    method: "Bitcoin",
+    date: "2025-04-08T12:15:45Z"
+  },
+  {
+    id: "TRX-10042",
+    userId: "USR-1001",
+    userName: "John Doe",
+    type: "withdraw",
+    amount: 300.00,
+    currency: "USD",
+    status: "pending",
+    method: "Bank Transfer",
+    date: "2025-04-08T10:05:33Z"
+  },
+  {
+    id: "TRX-10041",
+    userId: "USR-1004",
+    userName: "Emma Wilson",
+    type: "deposit",
+    amount: 750.00,
+    currency: "USD",
+    status: "completed",
+    method: "Credit Card",
+    date: "2025-04-07T22:43:12Z"
+  },
+  {
+    id: "TRX-10040",
+    userId: "USR-1005",
+    userName: "Michael Brown",
+    type: "deposit",
+    amount: 250.00,
+    currency: "USD",
+    status: "failed",
+    method: "Credit Card",
+    date: "2025-04-07T21:30:56Z"
+  },
+  {
+    id: "TRX-10039",
+    userId: "USR-1006",
+    userName: "Sarah Davis",
+    type: "withdraw",
+    amount: 1200.00,
+    currency: "USD",
+    status: "completed",
+    method: "Bitcoin",
+    date: "2025-04-07T18:22:39Z"
+  },
+  {
+    id: "TRX-10038",
+    userId: "USR-1007",
+    userName: "Thomas Miller",
+    type: "deposit",
+    amount: 500.00,
+    currency: "USD",
+    status: "completed",
+    method: "Credit Card",
+    date: "2025-04-07T16:10:44Z"
+  },
+  {
+    id: "TRX-10037",
+    userId: "USR-1002",
+    userName: "Alice Smith",
+    type: "deposit",
+    amount: 300.00,
+    currency: "USD",
+    status: "completed",
+    method: "Credit Card",
+    date: "2025-04-07T14:56:23Z"
+  },
+  {
+    id: "TRX-10036",
+    userId: "USR-1004",
+    userName: "Emma Wilson",
+    type: "withdraw",
+    amount: 450.00,
+    currency: "USD",
+    status: "cancelled",
+    method: "Bank Transfer",
+    date: "2025-04-07T12:33:11Z"
+  },
+  {
+    id: "TRX-10035",
+    userId: "USR-1001",
+    userName: "John Doe",
+    type: "deposit",
+    amount: 1000.00,
+    currency: "USD",
+    status: "completed",
+    method: "Bitcoin",
+    date: "2025-04-06T23:45:32Z"
+  },
+];
+
+const AdminTransactions = () => {
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredTransactions, setFilteredTransactions] = useState(mockTransactions);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  const transactionsPerPage = 8;
+  
+  // Calculate pagination
+  const indexOfLastTransaction = currentPage * transactionsPerPage;
+  const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;
+  const currentTransactions = filteredTransactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
+  const totalPages = Math.ceil(filteredTransactions.length / transactionsPerPage);
+  
+  const handleSelectRow = (transactionId: string) => {
+    if (selectedRows.includes(transactionId)) {
+      setSelectedRows(selectedRows.filter(id => id !== transactionId));
+    } else {
+      setSelectedRows([...selectedRows, transactionId]);
+    }
+  };
+  
+  const handleSelectAll = () => {
+    if (selectedRows.length === currentTransactions.length) {
+      setSelectedRows([]);
+    } else {
+      setSelectedRows(currentTransactions.map(transaction => transaction.id));
+    }
+  };
+  
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    
+    filterTransactions(query, statusFilter, typeFilter);
+  };
+  
+  const toggleStatusFilter = (status: string) => {
+    const newStatusFilter = statusFilter.includes(status)
+      ? statusFilter.filter(s => s !== status)
+      : [...statusFilter, status];
+      
+    setStatusFilter(newStatusFilter);
+    filterTransactions(searchQuery, newStatusFilter, typeFilter);
+  };
+  
+  const toggleTypeFilter = (type: string) => {
+    const newTypeFilter = typeFilter.includes(type)
+      ? typeFilter.filter(t => t !== type)
+      : [...typeFilter, type];
+      
+    setTypeFilter(newTypeFilter);
+    filterTransactions(searchQuery, statusFilter, newTypeFilter);
+  };
+  
+  const filterTransactions = (query: string, statuses: string[], types: string[]) => {
+    let results = mockTransactions;
+    
+    // Apply search query
+    if (query) {
+      results = results.filter(transaction => 
+        transaction.id.toLowerCase().includes(query) || 
+        transaction.userName.toLowerCase().includes(query) ||
+        transaction.userId.toLowerCase().includes(query)
+      );
+    }
+    
+    // Apply status filters
+    if (statuses.length > 0) {
+      results = results.filter(transaction => statuses.includes(transaction.status));
+    }
+    
+    // Apply type filters
+    if (types.length > 0) {
+      results = results.filter(transaction => types.includes(transaction.type));
+    }
+    
+    setFilteredTransactions(results);
+    setCurrentPage(1); // Reset to first page on filter change
+  };
+  
+  const clearFilters = () => {
+    setStatusFilter([]);
+    setTypeFilter([]);
+    setSearchQuery("");
+    setFilteredTransactions(mockTransactions);
+  };
+  
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
+      case "cancelled":
+        return "bg-gray-100 text-gray-800";
+      default:
+        return "bg-blue-100 text-blue-800";
+    }
+  };
+  
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-4 w-4 mr-1" />;
+      case "pending":
+        return <Clock className="h-4 w-4 mr-1" />;
+      case "failed":
+        return <XCircle className="h-4 w-4 mr-1" />;
+      case "cancelled":
+        return <AlertCircle className="h-4 w-4 mr-1" />;
+      default:
+        return null;
+    }
+  };
+  
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+
+  return (
+    <div className="py-8 px-4">
+      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold">Transaction Management</h1>
+        
+        <div className="flex gap-3">
+          <Button 
+            variant="outline" 
+            className={`flex items-center ${showFilters ? 'text-casino-thunder-green border-casino-thunder-green' : ''}`}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            {showFilters ? "Hide Filters" : "Show Filters"}
+          </Button>
+          <Button variant="outline" className="flex items-center">
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        </div>
+      </div>
+      
+      {/* Transaction Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="thunder-card p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-white/60 text-sm">Total Transactions</p>
+              <h3 className="text-2xl font-bold">{mockTransactions.length}</h3>
+            </div>
+            <div className="bg-white/10 p-3 rounded-full">
+              <Clock className="h-6 w-6 text-casino-thunder-green" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="thunder-card p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-white/60 text-sm">Total Deposits</p>
+              <h3 className="text-2xl font-bold">
+                ${mockTransactions
+                  .filter(t => t.type === "deposit" && t.status === "completed")
+                  .reduce((sum, t) => sum + t.amount, 0)
+                  .toLocaleString()}
+              </h3>
+            </div>
+            <div className="bg-white/10 p-3 rounded-full">
+              <ArrowDownLeft className="h-6 w-6 text-green-500" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="thunder-card p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-white/60 text-sm">Total Withdrawals</p>
+              <h3 className="text-2xl font-bold">
+                ${mockTransactions
+                  .filter(t => t.type === "withdraw" && t.status === "completed")
+                  .reduce((sum, t) => sum + t.amount, 0)
+                  .toLocaleString()}
+              </h3>
+            </div>
+            <div className="bg-white/10 p-3 rounded-full">
+              <ArrowUpRight className="h-6 w-6 text-red-500" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="thunder-card p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-white/60 text-sm">Pending Transactions</p>
+              <h3 className="text-2xl font-bold">
+                {mockTransactions.filter(t => t.status === "pending").length}
+              </h3>
+            </div>
+            <div className="bg-white/10 p-3 rounded-full">
+              <AlertCircle className="h-6 w-6 text-yellow-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Filters */}
+      {showFilters && (
+        <div className="thunder-card p-4 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold">Filters</h3>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-white/70 hover:text-casino-thunder-green"
+            >
+              Clear All
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-white/80 mb-2 text-sm font-medium">Transaction Status</h4>
+              <div className="flex flex-wrap gap-2">
+                {["completed", "pending", "failed", "cancelled"].map(status => (
+                  <Button 
+                    key={status}
+                    variant="outline"
+                    size="sm"
+                    className={`capitalize ${
+                      statusFilter.includes(status) ? "border-casino-thunder-green text-casino-thunder-green" : ""
+                    }`}
+                    onClick={() => toggleStatusFilter(status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="text-white/80 mb-2 text-sm font-medium">Transaction Type</h4>
+              <div className="flex flex-wrap gap-2">
+                {["deposit", "withdraw"].map(type => (
+                  <Button 
+                    key={type}
+                    variant="outline"
+                    size="sm"
+                    className={`capitalize ${
+                      typeFilter.includes(type) ? "border-casino-thunder-green text-casino-thunder-green" : ""
+                    }`}
+                    onClick={() => toggleTypeFilter(type)}
+                  >
+                    {type}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+            <Search className="w-5 h-5 text-gray-400" />
+          </div>
+          <input
+            type="search"
+            className="thunder-input w-full pl-10"
+            placeholder="Search transactions by ID, user name, or user ID..."
+            value={searchQuery}
+            onChange={handleSearch}
+          />
+        </div>
+      </div>
+      
+      {/* Transactions Table */}
+      <div className="thunder-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-white/10">
+            <thead>
+              <tr>
+                <th className="px-4 py-3 text-left">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
+                      checked={selectedRows.length === currentTransactions.length && currentTransactions.length > 0}
+                      onChange={handleSelectAll}
+                    />
+                  </div>
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Transaction
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  User
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Method
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/10">
+              {currentTransactions.map((transaction) => (
+                <tr key={transaction.id} className="hover:bg-white/5">
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
+                      checked={selectedRows.includes(transaction.id)}
+                      onChange={() => handleSelectRow(transaction.id)}
+                    />
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                    {transaction.id}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
+                        {transaction.userName.charAt(0)}
+                      </div>
+                      <div className="ml-3">
+                        <div className="text-sm font-medium">{transaction.userName}</div>
+                        <div className="text-xs text-white/60">ID: {transaction.userId}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className={`flex items-center text-sm ${
+                      transaction.type === "deposit" ? "text-green-500" : "text-red-500"
+                    }`}>
+                      {transaction.type === "deposit" ? (
+                        <ArrowDownLeft className="h-4 w-4 mr-1" />
+                      ) : (
+                        <ArrowUpRight className="h-4 w-4 mr-1" />
+                      )}
+                      <span className="capitalize">{transaction.type}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className={`text-sm font-medium ${
+                      transaction.type === "deposit" ? "text-green-500" : "text-red-500"
+                    }`}>
+                      {transaction.type === "deposit" ? "+" : "-"}${transaction.amount.toFixed(2)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    {transaction.method}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    {formatDate(transaction.date)}
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(transaction.status)}`}>
+                      {getStatusIcon(transaction.status)}
+                      <span className="capitalize">{transaction.status}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-white/60">
+                Showing <span className="font-medium">{indexOfFirstTransaction + 1}</span> to{' '}
+                <span className="font-medium">
+                  {Math.min(indexOfLastTransaction, filteredTransactions.length)}
+                </span>{' '}
+                of <span className="font-medium">{filteredTransactions.length}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="rounded-l-md"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button 
+                      key={pageNum}
+                      variant="outline" 
+                      className={currentPage === pageNum ? "bg-white/10" : ""}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+                
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="rounded-r-md"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminTransactions;

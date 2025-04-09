@@ -149,22 +149,23 @@ const GameDetails = () => {
       
       updateBalance(newBalance);
       
-      const result = {
-        outcome: isWin ? "win" : "lose",
+      const outcome: "win" | "lose" = isWin ? "win" : "lose";
+      
+      setGameResult({
+        outcome: outcome,
         amount: isWin ? winAmount : betAmount,
         message: isWin 
           ? `Congratulations! You won ${winAmount.toFixed(2)}!` 
           : "Better luck next time!"
-      };
+      });
       
-      setGameResult(result);
       setIsPlaying(false);
       
       // Add to game history
       setGameHistory(prev => [{
         timestamp: new Date(),
         bet: betAmount,
-        outcome: isWin ? "win" : "lose",
+        outcome: outcome,
         amount: isWin ? winAmount : betAmount
       }, ...prev.slice(0, 9)]); // Keep last 10 games
       

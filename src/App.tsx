@@ -11,6 +11,8 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
+import AdminGames from "./pages/admin/Games";
+import AdminTransactions from "./pages/admin/Transactions";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import GameDetails from "./pages/casino/GameDetails";
@@ -51,9 +53,9 @@ const App = () => (
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} />
               <Route path="users" element={<AdminUsers />} />
-              <Route path="transactions" element={<AdminDashboard />} />
+              <Route path="transactions" element={<AdminTransactions />} />
+              <Route path="games" element={<AdminGames />} />
               <Route path="reports" element={<AdminDashboard />} />
-              <Route path="games" element={<AdminDashboard />} />
               <Route path="support" element={<AdminDashboard />} />
               <Route path="logs" element={<AdminDashboard />} />
               <Route path="security" element={<AdminDashboard />} />
