@@ -12,7 +12,8 @@ import {
   Calendar,
   Edit,
   Upload,
-  BadgeDollarSign
+  BadgeDollarSign,
+  Gift
 } from "lucide-react";
 
 const Profile = () => {
