@@ -1,5 +1,5 @@
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import GameGrid from "@/components/games/GameGrid";
 import PromotionSlider from "@/components/promotions/PromotionSlider";
@@ -13,7 +13,7 @@ import {
   DollarSign
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { toast } from "@/components/ui/sonner";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
@@ -27,7 +27,14 @@ const Index = () => {
     const gamesSection = document.getElementById('games-section');
     if (gamesSection) {
       gamesSection.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      toast.error("Games section not found");
     }
+  };
+
+  const handleViewPromotion = (promotionName: string) => {
+    toast.info(`Viewing promotion: ${promotionName}`);
+    navigate('/promotions');
   };
 
   return (
@@ -69,9 +76,21 @@ const Index = () => {
 
             {/* Features */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mt-12">
-              <FeatureItem icon={<Trophy />} text="Weekly Tournaments" />
-              <FeatureItem icon={<Zap />} text="Fast Payouts" />
-              <FeatureItem icon={<Shield />} text="Secure Gaming" />
+              <FeatureItem 
+                icon={<Trophy />} 
+                text="Weekly Tournaments" 
+                onClick={() => navigate('/casino')}
+              />
+              <FeatureItem 
+                icon={<Zap />} 
+                text="Fast Payouts" 
+                onClick={() => navigate('/transactions')}
+              />
+              <FeatureItem 
+                icon={<Shield />} 
+                text="Secure Gaming" 
+                onClick={() => navigate('/vip')}
+              />
             </div>
           </div>
         </div>
@@ -111,21 +130,28 @@ const Index = () => {
               icon={<Zap size={40} />}
               title="Lightning Fast Payouts"
               description="Get your winnings quickly with our rapid withdrawal system."
+              onClick={() => navigate('/transactions')}
             />
             <WhyChooseCard 
               icon={<Wallet size={40} />}
               title="Generous Bonuses"
               description="Enjoy massive welcome bonuses and regular promotions."
+              onClick={() => navigate('/promotions')}
             />
             <WhyChooseCard 
               icon={<Shield size={40} />}
               title="Safe & Secure"
               description="Play with confidence on our fully encrypted platform."
+              onClick={() => navigate('/settings')}
             />
             <WhyChooseCard 
               icon={<Clock size={40} />}
               title="24/7 Support"
               description="Our support team is always available to assist you."
+              onClick={() => {
+                toast.info("Support is available 24/7");
+                navigate('/settings');
+              }}
             />
           </div>
         </div>
@@ -150,18 +176,21 @@ const Index = () => {
               description="Get a 100% match up to $1,000 + 50 free spins on your first deposit."
               image="https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400"
               endDate="Ongoing"
+              onClick={() => handleViewPromotion("Welcome Bonus")}
             />
             <PromotionCard 
               title="Thunder Thursday"
               description="Every Thursday, get 50 free spins when you deposit $50 or more."
               image="https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400"
               endDate="Every Thursday"
+              onClick={() => handleViewPromotion("Thunder Thursday")}
             />
             <PromotionCard 
               title="Weekend Reload"
               description="Reload your account during weekends and get a 75% bonus up to $500."
               image="https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400"
               endDate="Every Weekend"
+              onClick={() => handleViewPromotion("Weekend Reload")}
             />
           </div>
         </div>
@@ -188,8 +217,19 @@ const Index = () => {
   );
 };
 
-const FeatureItem = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
-  <div className="flex items-center space-x-2">
+const FeatureItem = ({ 
+  icon, 
+  text, 
+  onClick 
+}: { 
+  icon: React.ReactNode; 
+  text: string;
+  onClick?: () => void;
+}) => (
+  <div 
+    className="flex items-center space-x-2 cursor-pointer hover:text-casino-thunder-green transition-colors" 
+    onClick={onClick}
+  >
     <div className="text-casino-thunder-green">
       {icon}
     </div>
@@ -200,13 +240,18 @@ const FeatureItem = ({ icon, text }: { icon: React.ReactNode; text: string }) =>
 const WhyChooseCard = ({ 
   icon, 
   title, 
-  description 
+  description,
+  onClick
 }: { 
   icon: React.ReactNode; 
   title: string; 
   description: string;
+  onClick?: () => void;
 }) => (
-  <div className="bg-casino-thunder-gray/50 border border-white/5 rounded-lg p-6 text-center hover:border-casino-thunder-green/30 transition-all duration-300">
+  <div 
+    className="bg-casino-thunder-gray/50 border border-white/5 rounded-lg p-6 text-center hover:border-casino-thunder-green/30 transition-all duration-300 cursor-pointer" 
+    onClick={onClick}
+  >
     <div className="text-casino-thunder-green mb-4 flex justify-center">
       {icon}
     </div>

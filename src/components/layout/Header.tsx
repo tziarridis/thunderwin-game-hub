@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { 
   User, 
@@ -32,6 +32,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -45,6 +46,10 @@ const Header = () => {
       currency: 'USD',
       minimumFractionDigits: 2
     }).format(balance);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
@@ -64,11 +69,36 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-4">
-            <NavItem icon={<Home size={18} />} text="Home" to="/" />
-            <NavItem icon={<Gamepad2 size={18} />} text="Casino" to="/casino" />
-            <NavItem icon={<Trophy size={18} />} text="Sports" to="/sports" />
-            <NavItem icon={<Gift size={18} />} text="Promotions" to="/promotions" />
-            <NavItem icon={<BadgeDollarSign size={18} />} text="VIP" to="/vip" />
+            <NavItem 
+              icon={<Home size={18} />} 
+              text="Home" 
+              to="/" 
+              isActive={isActive("/")}
+            />
+            <NavItem 
+              icon={<Gamepad2 size={18} />} 
+              text="Casino" 
+              to="/casino" 
+              isActive={isActive("/casino")}
+            />
+            <NavItem 
+              icon={<Trophy size={18} />} 
+              text="Sports" 
+              to="/sports" 
+              isActive={isActive("/sports")}
+            />
+            <NavItem 
+              icon={<Gift size={18} />} 
+              text="Promotions" 
+              to="/promotions" 
+              isActive={isActive("/promotions")}
+            />
+            <NavItem 
+              icon={<BadgeDollarSign size={18} />} 
+              text="VIP" 
+              to="/vip" 
+              isActive={isActive("/vip")}
+            />
           </nav>
 
           {/* Auth Buttons */}
@@ -112,7 +142,7 @@ const Header = () => {
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => navigate("/admin")}>
-                          <Settings className="mr-2 h-4 w-4" />
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
                           Admin Dashboard
                         </DropdownMenuItem>
                       </>
@@ -169,11 +199,41 @@ const Header = () => {
       {isMenuOpen && (
         <div className="md:hidden thunder-gradient border-t border-white/5">
           <div className="px-4 pt-2 pb-3 space-y-1 sm:px-5">
-            <MobileNavItem icon={<Home size={18} />} text="Home" to="/" onClick={() => setIsMenuOpen(false)} />
-            <MobileNavItem icon={<Gamepad2 size={18} />} text="Casino" to="/casino" onClick={() => setIsMenuOpen(false)} />
-            <MobileNavItem icon={<Trophy size={18} />} text="Sports" to="/sports" onClick={() => setIsMenuOpen(false)} />
-            <MobileNavItem icon={<Gift size={18} />} text="Promotions" to="/promotions" onClick={() => setIsMenuOpen(false)} />
-            <MobileNavItem icon={<BadgeDollarSign size={18} />} text="VIP" to="/vip" onClick={() => setIsMenuOpen(false)} />
+            <MobileNavItem 
+              icon={<Home size={18} />} 
+              text="Home" 
+              to="/" 
+              onClick={() => setIsMenuOpen(false)}
+              isActive={isActive("/")}
+            />
+            <MobileNavItem 
+              icon={<Gamepad2 size={18} />} 
+              text="Casino" 
+              to="/casino" 
+              onClick={() => setIsMenuOpen(false)}
+              isActive={isActive("/casino")}
+            />
+            <MobileNavItem 
+              icon={<Trophy size={18} />} 
+              text="Sports" 
+              to="/sports" 
+              onClick={() => setIsMenuOpen(false)}
+              isActive={isActive("/sports")}
+            />
+            <MobileNavItem 
+              icon={<Gift size={18} />} 
+              text="Promotions" 
+              to="/promotions" 
+              onClick={() => setIsMenuOpen(false)}
+              isActive={isActive("/promotions")}
+            />
+            <MobileNavItem 
+              icon={<BadgeDollarSign size={18} />} 
+              text="VIP" 
+              to="/vip" 
+              onClick={() => setIsMenuOpen(false)}
+              isActive={isActive("/vip")}
+            />
             
             {isAuthenticated && (
               <>
@@ -183,11 +243,35 @@ const Header = () => {
                     <span className="font-medium">Balance: {user?.balance ? formatBalance(user.balance) : "$0.00"}</span>
                   </div>
                 </div>
-                <MobileNavItem icon={<User size={18} />} text="Profile" to="/profile" onClick={() => setIsMenuOpen(false)} />
-                <MobileNavItem icon={<Wallet size={18} />} text="Transactions" to="/transactions" onClick={() => setIsMenuOpen(false)} />
-                <MobileNavItem icon={<Settings size={18} />} text="Settings" to="/settings" onClick={() => setIsMenuOpen(false)} />
+                <MobileNavItem 
+                  icon={<User size={18} />} 
+                  text="Profile" 
+                  to="/profile" 
+                  onClick={() => setIsMenuOpen(false)}
+                  isActive={isActive("/profile")}
+                />
+                <MobileNavItem 
+                  icon={<Wallet size={18} />} 
+                  text="Transactions" 
+                  to="/transactions" 
+                  onClick={() => setIsMenuOpen(false)}
+                  isActive={isActive("/transactions")}
+                />
+                <MobileNavItem 
+                  icon={<Settings size={18} />} 
+                  text="Settings" 
+                  to="/settings" 
+                  onClick={() => setIsMenuOpen(false)}
+                  isActive={isActive("/settings")}
+                />
                 {user?.email === "admin@example.com" && (
-                  <MobileNavItem icon={<Settings size={18} />} text="Admin Dashboard" to="/admin" onClick={() => setIsMenuOpen(false)} />
+                  <MobileNavItem 
+                    icon={<LayoutDashboard size={18} />} 
+                    text="Admin Dashboard" 
+                    to="/admin" 
+                    onClick={() => setIsMenuOpen(false)}
+                    isActive={isActive("/admin")}
+                  />
                 )}
                 <button 
                   className="w-full flex items-center px-3 py-2 text-base font-medium text-white hover:text-red-400 hover:bg-white/5 rounded-md transition-colors"
@@ -248,10 +332,24 @@ const Header = () => {
   );
 };
 
-const NavItem = ({ icon, text, to }: { icon: React.ReactNode; text: string; to: string }) => (
+const NavItem = ({ 
+  icon, 
+  text, 
+  to, 
+  isActive = false 
+}: { 
+  icon: React.ReactNode; 
+  text: string; 
+  to: string;
+  isActive?: boolean;
+}) => (
   <Link 
     to={to} 
-    className="px-3 py-2 text-sm font-medium text-white hover:text-casino-thunder-green transition-colors flex items-center"
+    className={`px-3 py-2 text-sm font-medium transition-colors flex items-center ${
+      isActive 
+        ? 'text-casino-thunder-green' 
+        : 'text-white hover:text-casino-thunder-green'
+    }`}
   >
     {icon && <span className="mr-2">{icon}</span>}
     {text}
@@ -262,16 +360,22 @@ const MobileNavItem = ({
   icon, 
   text, 
   to, 
-  onClick 
+  onClick,
+  isActive = false
 }: { 
   icon: React.ReactNode; 
   text: string; 
   to: string;
   onClick?: () => void;
+  isActive?: boolean;
 }) => (
   <Link 
     to={to} 
-    className="block px-3 py-2 text-base font-medium text-white hover:text-casino-thunder-green hover:bg-white/5 rounded-md transition-colors flex items-center"
+    className={`block px-3 py-2 text-base font-medium hover:bg-white/5 rounded-md transition-colors flex items-center ${
+      isActive 
+        ? 'text-casino-thunder-green bg-white/5' 
+        : 'text-white hover:text-casino-thunder-green'
+    }`}
     onClick={onClick}
   >
     {icon && <span className="mr-3">{icon}</span>}
