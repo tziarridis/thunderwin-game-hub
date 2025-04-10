@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Search, 
   Filter, 
@@ -12,145 +12,49 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Mock transaction data
-const mockTransactions = [
-  {
-    id: "TRX-10045",
-    userId: "USR-1001",
-    userName: "John Doe",
-    type: "deposit",
-    amount: 500.00,
-    currency: "USD",
-    status: "completed",
-    method: "Credit Card",
-    date: "2025-04-08T15:30:22Z"
-  },
-  {
-    id: "TRX-10044",
-    userId: "USR-1002",
-    userName: "Alice Smith",
-    type: "withdraw",
-    amount: 250.00,
-    currency: "USD",
-    status: "completed",
-    method: "Bank Transfer",
-    date: "2025-04-08T14:22:10Z"
-  },
-  {
-    id: "TRX-10043",
-    userId: "USR-1003",
-    userName: "Robert Johnson",
-    type: "deposit",
-    amount: 1000.00,
-    currency: "USD",
-    status: "completed",
-    method: "Bitcoin",
-    date: "2025-04-08T12:15:45Z"
-  },
-  {
-    id: "TRX-10042",
-    userId: "USR-1001",
-    userName: "John Doe",
-    type: "withdraw",
-    amount: 300.00,
-    currency: "USD",
-    status: "pending",
-    method: "Bank Transfer",
-    date: "2025-04-08T10:05:33Z"
-  },
-  {
-    id: "TRX-10041",
-    userId: "USR-1004",
-    userName: "Emma Wilson",
-    type: "deposit",
-    amount: 750.00,
-    currency: "USD",
-    status: "completed",
-    method: "Credit Card",
-    date: "2025-04-07T22:43:12Z"
-  },
-  {
-    id: "TRX-10040",
-    userId: "USR-1005",
-    userName: "Michael Brown",
-    type: "deposit",
-    amount: 250.00,
-    currency: "USD",
-    status: "failed",
-    method: "Credit Card",
-    date: "2025-04-07T21:30:56Z"
-  },
-  {
-    id: "TRX-10039",
-    userId: "USR-1006",
-    userName: "Sarah Davis",
-    type: "withdraw",
-    amount: 1200.00,
-    currency: "USD",
-    status: "completed",
-    method: "Bitcoin",
-    date: "2025-04-07T18:22:39Z"
-  },
-  {
-    id: "TRX-10038",
-    userId: "USR-1007",
-    userName: "Thomas Miller",
-    type: "deposit",
-    amount: 500.00,
-    currency: "USD",
-    status: "completed",
-    method: "Credit Card",
-    date: "2025-04-07T16:10:44Z"
-  },
-  {
-    id: "TRX-10037",
-    userId: "USR-1002",
-    userName: "Alice Smith",
-    type: "deposit",
-    amount: 300.00,
-    currency: "USD",
-    status: "completed",
-    method: "Credit Card",
-    date: "2025-04-07T14:56:23Z"
-  },
-  {
-    id: "TRX-10036",
-    userId: "USR-1004",
-    userName: "Emma Wilson",
-    type: "withdraw",
-    amount: 450.00,
-    currency: "USD",
-    status: "cancelled",
-    method: "Bank Transfer",
-    date: "2025-04-07T12:33:11Z"
-  },
-  {
-    id: "TRX-10035",
-    userId: "USR-1001",
-    userName: "John Doe",
-    type: "deposit",
-    amount: 1000.00,
-    currency: "USD",
-    status: "completed",
-    method: "Bitcoin",
-    date: "2025-04-06T23:45:32Z"
-  },
-];
+import { Transaction } from "@/types";
+import { transactionsApi } from "@/services/apiService";
+import { useToast } from "@/components/ui/use-toast";
 
 const AdminTransactions = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredTransactions, setFilteredTransactions] = useState(mockTransactions);
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  
   const transactionsPerPage = 8;
+  const { toast } = useToast();
+  
+  // Fetch transactions on component mount
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setLoading(true);
+      try {
+        const data = await transactionsApi.getTransactions();
+        setTransactions(data);
+        setFilteredTransactions(data);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load transactions",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchTransactions();
+  }, [toast]);
   
   // Calculate pagination
   const indexOfLastTransaction = currentPage * transactionsPerPage;
@@ -200,7 +104,7 @@ const AdminTransactions = () => {
   };
   
   const filterTransactions = (query: string, statuses: string[], types: string[]) => {
-    let results = mockTransactions;
+    let results = transactions;
     
     // Apply search query
     if (query) {
@@ -229,7 +133,7 @@ const AdminTransactions = () => {
     setStatusFilter([]);
     setTypeFilter([]);
     setSearchQuery("");
-    setFilteredTransactions(mockTransactions);
+    setFilteredTransactions(transactions);
   };
   
   const getStatusBadgeClass = (status: string) => {
@@ -266,6 +170,19 @@ const AdminTransactions = () => {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
+  
+  // Calculate totals for deposits and withdrawals
+  const totalDeposits = transactions
+    .filter(t => t.type === "deposit" && t.status === "completed")
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const totalWithdrawals = transactions
+    .filter(t => t.type === "withdraw" && t.status === "completed")
+    .reduce((sum, t) => sum + t.amount, 0);
+    
+  const pendingTransactions = transactions
+    .filter(t => t.status === "pending")
+    .length;
 
   return (
     <div className="py-8 px-4">
@@ -294,7 +211,7 @@ const AdminTransactions = () => {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-white/60 text-sm">Total Transactions</p>
-              <h3 className="text-2xl font-bold">{mockTransactions.length}</h3>
+              <h3 className="text-2xl font-bold">{transactions.length}</h3>
             </div>
             <div className="bg-white/10 p-3 rounded-full">
               <Clock className="h-6 w-6 text-casino-thunder-green" />
@@ -307,10 +224,7 @@ const AdminTransactions = () => {
             <div>
               <p className="text-white/60 text-sm">Total Deposits</p>
               <h3 className="text-2xl font-bold">
-                ${mockTransactions
-                  .filter(t => t.type === "deposit" && t.status === "completed")
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toLocaleString()}
+                ${totalDeposits.toLocaleString()}
               </h3>
             </div>
             <div className="bg-white/10 p-3 rounded-full">
@@ -324,10 +238,7 @@ const AdminTransactions = () => {
             <div>
               <p className="text-white/60 text-sm">Total Withdrawals</p>
               <h3 className="text-2xl font-bold">
-                ${mockTransactions
-                  .filter(t => t.type === "withdraw" && t.status === "completed")
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toLocaleString()}
+                ${totalWithdrawals.toLocaleString()}
               </h3>
             </div>
             <div className="bg-white/10 p-3 rounded-full">
@@ -341,7 +252,7 @@ const AdminTransactions = () => {
             <div>
               <p className="text-white/60 text-sm">Pending Transactions</p>
               <h3 className="text-2xl font-bold">
-                {mockTransactions.filter(t => t.status === "pending").length}
+                {pendingTransactions}
               </h3>
             </div>
             <div className="bg-white/10 p-3 rounded-full">
@@ -389,7 +300,7 @@ const AdminTransactions = () => {
             <div>
               <h4 className="text-white/80 mb-2 text-sm font-medium">Transaction Type</h4>
               <div className="flex flex-wrap gap-2">
-                {["deposit", "withdraw"].map(type => (
+                {["deposit", "withdraw", "bet", "win"].map(type => (
                   <Button 
                     key={type}
                     variant="outline"
@@ -426,112 +337,122 @@ const AdminTransactions = () => {
       
       {/* Transactions Table */}
       <div className="thunder-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-white/10">
-            <thead>
-              <tr>
-                <th className="px-4 py-3 text-left">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                      checked={selectedRows.length === currentTransactions.length && currentTransactions.length > 0}
-                      onChange={handleSelectAll}
-                    />
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Transaction
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Amount
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Method
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {currentTransactions.map((transaction) => (
-                <tr key={transaction.id} className="hover:bg-white/5">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                      checked={selectedRows.includes(transaction.id)}
-                      onChange={() => handleSelectRow(transaction.id)}
-                    />
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                    {transaction.id}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 text-left">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
-                        {transaction.userName.charAt(0)}
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium">{transaction.userName}</div>
-                        <div className="text-xs text-white/60">ID: {transaction.userId}</div>
-                      </div>
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
+                        checked={selectedRows.length === currentTransactions.length && currentTransactions.length > 0}
+                        onChange={handleSelectAll}
+                      />
                     </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className={`flex items-center text-sm ${
-                      transaction.type === "deposit" ? "text-green-500" : "text-red-500"
-                    }`}>
-                      {transaction.type === "deposit" ? (
-                        <ArrowDownLeft className="h-4 w-4 mr-1" />
-                      ) : (
-                        <ArrowUpRight className="h-4 w-4 mr-1" />
-                      )}
-                      <span className="capitalize">{transaction.type}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <div className={`text-sm font-medium ${
-                      transaction.type === "deposit" ? "text-green-500" : "text-red-500"
-                    }`}>
-                      {transaction.type === "deposit" ? "+" : "-"}${transaction.amount.toFixed(2)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {transaction.method}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {formatDate(transaction.date)}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(transaction.status)}`}>
-                      {getStatusIcon(transaction.status)}
-                      <span className="capitalize">{transaction.status}</span>
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </td>
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Transaction
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Amount
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Method
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {currentTransactions.map((transaction) => (
+                  <tr key={transaction.id} className="hover:bg-white/5">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
+                        checked={selectedRows.includes(transaction.id)}
+                        onChange={() => handleSelectRow(transaction.id)}
+                      />
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                      {transaction.id}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
+                          {transaction.userName.charAt(0)}
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium">{transaction.userName}</div>
+                          <div className="text-xs text-white/60">ID: {transaction.userId}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className={`flex items-center text-sm ${
+                        transaction.type === "deposit" || transaction.type === "win" 
+                          ? "text-green-500" 
+                          : "text-red-500"
+                      }`}>
+                        {transaction.type === "deposit" || transaction.type === "win" ? (
+                          <ArrowDownLeft className="h-4 w-4 mr-1" />
+                        ) : (
+                          <ArrowUpRight className="h-4 w-4 mr-1" />
+                        )}
+                        <span className="capitalize">{transaction.type}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-medium ${
+                        transaction.type === "deposit" || transaction.type === "win"
+                          ? "text-green-500" 
+                          : "text-red-500"
+                      }`}>
+                        {transaction.type === "deposit" || transaction.type === "win" ? "+" : "-"}${transaction.amount.toFixed(2)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      {transaction.method}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      {formatDate(transaction.date)}
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(transaction.status)}`}>
+                        {getStatusIcon(transaction.status)}
+                        <span className="capitalize">{transaction.status}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
         
         {/* Pagination */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">

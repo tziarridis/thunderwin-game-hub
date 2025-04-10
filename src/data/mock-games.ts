@@ -1,5 +1,5 @@
 
-// Mock game data with extended details
+// Mock game data - this is used to initialize the local storage
 export const mockGames = [
   {
     id: "1",
@@ -12,7 +12,8 @@ export const mockGames = [
     minBet: 1,
     maxBet: 1000,
     volatility: "High",
-    releaseDate: "2021-04-12"
+    releaseDate: "2021-04-12",
+    description: "Lightning Roulette is an exciting game that builds on the classic Roulette format with electrifying multipliers that can boost your win up to 500x!"
   },
   {
     id: "2",
@@ -25,7 +26,8 @@ export const mockGames = [
     minBet: 0.10,
     maxBet: 100,
     volatility: "High",
-    releaseDate: "2020-07-23"
+    releaseDate: "2020-07-23",
+    description: "Join Rich Wilde on an adventure through ancient Egypt in search of the mystical Book of Dead. Trigger free spins and expanding symbols for big wins!"
   },
   {
     id: "3",
@@ -38,7 +40,8 @@ export const mockGames = [
     minBet: 0.20,
     maxBet: 125,
     volatility: "Medium",
-    releaseDate: "2023-01-05"
+    releaseDate: "2023-01-05",
+    description: "A candy-filled wonderland awaits with tumbling reels and sweet multipliers. Land 8 or more of the same candy symbols to win!"
   },
   {
     id: "4",
@@ -50,7 +53,8 @@ export const mockGames = [
     minBet: 0.25,
     maxBet: 50,
     volatility: "High",
-    releaseDate: "2019-09-15"
+    releaseDate: "2019-09-15",
+    description: "Live the life of luxury and chase three progressive jackpots in this glamorous slot game that has made many millionaires!"
   },
   {
     id: "5",
@@ -62,7 +66,8 @@ export const mockGames = [
     minBet: 0.20,
     maxBet: 50,
     volatility: "Medium",
-    releaseDate: "2018-06-22"
+    releaseDate: "2018-06-22",
+    description: "Join Gonzo on his quest to find the lost city of gold, El Dorado! Features innovative Avalanche reels and increasing multipliers."
   },
   {
     id: "6",
@@ -75,7 +80,8 @@ export const mockGames = [
     minBet: 0.10,
     maxBet: 100,
     volatility: "Low",
-    releaseDate: "2017-11-14"
+    releaseDate: "2017-11-14",
+    description: "A classic jewel-themed slot with expanding wilds and wins in both directions. Simple yet captivating with vibrant colors and exciting gameplay."
   },
   {
     id: "7",
@@ -88,7 +94,8 @@ export const mockGames = [
     minBet: 1,
     maxBet: 2000,
     volatility: "High",
-    releaseDate: "2023-03-18"
+    releaseDate: "2023-03-18",
+    description: "The craziest live game show ever with a money wheel and four exciting bonus games: Cash Hunt, Pachinko, Coin Flip, and Crazy Time!"
   },
   {
     id: "8",
@@ -100,7 +107,8 @@ export const mockGames = [
     minBet: 0.20,
     maxBet: 125,
     volatility: "High",
-    releaseDate: "2021-02-25"
+    releaseDate: "2021-02-25",
+    description: "Zeus himself hosts this mythological adventure with tumbling wins and multiplier symbols that can combine for massive potential!"
   },
   {
     id: "9",
@@ -112,7 +120,8 @@ export const mockGames = [
     minBet: 0.25,
     maxBet: 125,
     volatility: "Medium",
-    releaseDate: "2019-08-10"
+    releaseDate: "2019-08-10",
+    description: "Howl at the moon in this wildlife-themed slot featuring Money Respins, giant symbols, and three jackpots including the Mega Jackpot!"
   },
   {
     id: "10",
@@ -125,7 +134,8 @@ export const mockGames = [
     minBet: 0.50,
     maxBet: 500,
     volatility: "High",
-    releaseDate: "2020-05-20"
+    releaseDate: "2020-05-20",
+    description: "A live game show based on the world's favorite board game! Land on 2-roll or 4-roll to enter a 3D bonus game with Mr. Monopoly himself."
   },
   {
     id: "11",
@@ -137,7 +147,8 @@ export const mockGames = [
     minBet: 0.20,
     maxBet: 100,
     volatility: "High",
-    releaseDate: "2018-12-05"
+    releaseDate: "2018-12-05",
+    description: "These cute aliens bring cluster pays and cascading wins with multiple special features that can lead to the mighty Gargantoon!"
   },
   {
     id: "12",
@@ -150,7 +161,8 @@ export const mockGames = [
     minBet: 0.10,
     maxBet: 250,
     volatility: "Medium",
-    releaseDate: "2022-11-30"
+    releaseDate: "2022-11-30",
+    description: "Cast your line and reel in the big wins! Collect fishermen during free spins to gather all the money symbols on the screen."
   },
   {
     id: "13",
@@ -163,7 +175,8 @@ export const mockGames = [
     minBet: 5,
     maxBet: 10000,
     volatility: "Low",
-    releaseDate: "2019-01-15"
+    releaseDate: "2019-01-15",
+    description: "Experience the ultimate VIP treatment with professional dealers and high betting limits in this classic casino card game."
   },
   {
     id: "14",
@@ -175,7 +188,8 @@ export const mockGames = [
     minBet: 1,
     maxBet: 500,
     volatility: "Medium",
-    releaseDate: "2018-03-22"
+    releaseDate: "2018-03-22",
+    description: "The classic European Roulette with a single zero pocket offers better odds than American Roulette. Place your bets and watch the wheel spin!"
   },
   {
     id: "15",
@@ -189,7 +203,8 @@ export const mockGames = [
     minBet: 0.10,
     maxBet: 100,
     volatility: "High",
-    releaseDate: "2022-06-14"
+    releaseDate: "2022-06-14",
+    description: "Watch the plane take off and cash out before it flies away! This multiplier crash game lets you decide when to collect your winnings."
   },
   {
     id: "16",
@@ -202,6 +217,7 @@ export const mockGames = [
     minBet: 0.25,
     maxBet: 6.25,
     volatility: "High",
-    releaseDate: "2017-05-16"
+    releaseDate: "2017-05-16",
+    description: "The most famous progressive jackpot slot of all time! This African safari-themed game has created numerous millionaires worldwide."
   }
 ];

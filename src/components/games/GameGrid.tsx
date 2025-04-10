@@ -12,236 +12,61 @@ import {
   SlidersHorizontal,
   X,
   ArrowUpDown,
-  Trophy
+  Trophy,
+  Loader2
 } from "lucide-react";
-
-// Mock game data with extended details
-const mockGames = [
-  {
-    id: "1",
-    title: "Lightning Roulette",
-    image: "https://images.unsplash.com/photo-1531059224353-8e56cd9eb9b2?auto=format&fit=crop&q=80&w=400",
-    provider: "Evolution Gaming",
-    category: "live",
-    isPopular: true,
-    rtp: 97.3,
-    minBet: 1,
-    maxBet: 1000,
-    volatility: "High",
-    releaseDate: "2021-04-12"
-  },
-  {
-    id: "2",
-    title: "Book of Dead",
-    image: "https://images.unsplash.com/photo-1596838132731-3301c3fd4317?auto=format&fit=crop&q=80&w=400",
-    provider: "Play'n GO",
-    category: "slots",
-    isPopular: true,
-    rtp: 96.2,
-    minBet: 0.10,
-    maxBet: 100,
-    volatility: "High",
-    releaseDate: "2020-07-23"
-  },
-  {
-    id: "3",
-    title: "Sweet Bonanza",
-    image: "https://images.unsplash.com/photo-1586899028174-e7098604235b?auto=format&fit=crop&q=80&w=400",
-    provider: "Pragmatic Play",
-    category: "slots",
-    isNew: true,
-    rtp: 96.5,
-    minBet: 0.20,
-    maxBet: 125,
-    volatility: "Medium",
-    releaseDate: "2023-01-05"
-  },
-  {
-    id: "4",
-    title: "Mega Fortune",
-    image: "https://images.unsplash.com/photo-1611159063981-b8c8c4301869?auto=format&fit=crop&q=80&w=400",
-    provider: "NetEnt",
-    category: "jackpot",
-    rtp: 96.0,
-    minBet: 0.25,
-    maxBet: 50,
-    volatility: "High",
-    releaseDate: "2019-09-15"
-  },
-  {
-    id: "5",
-    title: "Gonzo's Quest",
-    image: "https://images.unsplash.com/photo-1594842084112-0e399ef9754b?auto=format&fit=crop&q=80&w=400",
-    provider: "NetEnt",
-    category: "slots",
-    rtp: 95.7,
-    minBet: 0.20,
-    maxBet: 50,
-    volatility: "Medium",
-    releaseDate: "2018-06-22"
-  },
-  {
-    id: "6",
-    title: "Starburst",
-    image: "https://images.unsplash.com/photo-1634368949489-91a7977de894?auto=format&fit=crop&q=80&w=400",
-    provider: "NetEnt",
-    category: "slots",
-    isPopular: true,
-    rtp: 96.1,
-    minBet: 0.10,
-    maxBet: 100,
-    volatility: "Low",
-    releaseDate: "2017-11-14"
-  },
-  {
-    id: "7",
-    title: "Crazy Time",
-    image: "https://images.unsplash.com/photo-1629784575520-7ab3e4a2fa7a?auto=format&fit=crop&q=80&w=400",
-    provider: "Evolution Gaming",
-    category: "live",
-    isNew: true,
-    rtp: 96.8,
-    minBet: 1,
-    maxBet: 2000,
-    volatility: "High",
-    releaseDate: "2023-03-18"
-  },
-  {
-    id: "8",
-    title: "Gates of Olympus",
-    image: "https://images.unsplash.com/photo-1533709752211-118fcaf03312?auto=format&fit=crop&q=80&w=400",
-    provider: "Pragmatic Play",
-    category: "slots",
-    rtp: 96.5,
-    minBet: 0.20,
-    maxBet: 125,
-    volatility: "High",
-    releaseDate: "2021-02-25"
-  },
-  {
-    id: "9",
-    title: "Wolf Gold",
-    image: "https://images.unsplash.com/photo-1616616839508-0fd2f3b9fa5a?auto=format&fit=crop&q=80&w=400",
-    provider: "Pragmatic Play",
-    category: "slots",
-    rtp: 96.0,
-    minBet: 0.25,
-    maxBet: 125,
-    volatility: "Medium",
-    releaseDate: "2019-08-10"
-  },
-  {
-    id: "10",
-    title: "Monopoly Live",
-    image: "https://images.unsplash.com/photo-1604871000636-074fa5117945?auto=format&fit=crop&q=80&w=400",
-    provider: "Evolution Gaming",
-    category: "live",
-    isPopular: true,
-    rtp: 96.3,
-    minBet: 0.50,
-    maxBet: 500,
-    volatility: "High",
-    releaseDate: "2020-05-20"
-  },
-  {
-    id: "11",
-    title: "Reactoonz",
-    image: "https://images.unsplash.com/photo-1614128418646-a0f6c549da93?auto=format&fit=crop&q=80&w=400",
-    provider: "Play'n GO",
-    category: "slots",
-    rtp: 96.1,
-    minBet: 0.20,
-    maxBet: 100,
-    volatility: "High",
-    releaseDate: "2018-12-05"
-  },
-  {
-    id: "12",
-    title: "Big Bass Bonanza",
-    image: "https://images.unsplash.com/photo-1560953814-e638733735af?auto=format&fit=crop&q=80&w=400",
-    provider: "Pragmatic Play",
-    category: "slots",
-    isNew: true,
-    rtp: 96.7,
-    minBet: 0.10,
-    maxBet: 250,
-    volatility: "Medium",
-    releaseDate: "2022-11-30"
-  },
-  {
-    id: "13",
-    title: "Blackjack VIP",
-    image: "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?auto=format&fit=crop&q=80&w=400",
-    provider: "Evolution Gaming",
-    category: "table",
-    isPopular: true,
-    rtp: 99.5,
-    minBet: 5,
-    maxBet: 10000,
-    volatility: "Low",
-    releaseDate: "2019-01-15"
-  },
-  {
-    id: "14",
-    title: "European Roulette",
-    image: "https://images.unsplash.com/photo-1606167668584-78701c57f13d?auto=format&fit=crop&q=80&w=400",
-    provider: "NetEnt",
-    category: "table",
-    rtp: 97.3,
-    minBet: 1,
-    maxBet: 500,
-    volatility: "Medium",
-    releaseDate: "2018-03-22"
-  },
-  {
-    id: "15",
-    title: "Aviator",
-    image: "https://images.unsplash.com/photo-1630925920b3-5380c4cb55ae?auto=format&fit=crop&q=80&w=400",
-    provider: "Spribe",
-    category: "crash",
-    isNew: true,
-    isPopular: true,
-    rtp: 97.0,
-    minBet: 0.10,
-    maxBet: 100,
-    volatility: "High",
-    releaseDate: "2022-06-14"
-  },
-  {
-    id: "16",
-    title: "Mega Moolah",
-    image: "https://images.unsplash.com/photo-1596731430254-9cb38ceda2e1?auto=format&fit=crop&q=80&w=400",
-    provider: "Microgaming",
-    category: "jackpot",
-    isPopular: true,
-    rtp: 88.1,
-    minBet: 0.25,
-    maxBet: 6.25,
-    volatility: "High",
-    releaseDate: "2017-05-16"
-  }
-];
+import { gamesApi } from "@/services/apiService";
+import { Game } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
 
 const GameGrid = () => {
   const [activeCategory, setActiveCategory] = useState("popular");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [filteredGames, setFilteredGames] = useState(mockGames);
+  const [allGames, setAllGames] = useState<Game[]>([]);
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [visibleGames, setVisibleGames] = useState(12);
   const [sortOption, setSortOption] = useState("popular");
   const [providerFilter, setProviderFilter] = useState<string[]>([]);
   const [rtpFilter, setRtpFilter] = useState<[number, number]>([90, 100]);
   const [volatilityFilter, setVolatilityFilter] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const { toast } = useToast();
+  
+  // Fetch games on component mount
+  useEffect(() => {
+    const fetchGames = async () => {
+      setLoading(true);
+      try {
+        const data = await gamesApi.getGames();
+        setAllGames(data);
+      } catch (error) {
+        console.error("Failed to fetch games:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load games",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchGames();
+  }, [toast]);
   
   // Get unique list of providers
-  const providers = Array.from(new Set(mockGames.map(game => game.provider)));
+  const providers = Array.from(new Set(allGames.map(game => game.provider)));
   
   // Get unique list of volatility levels
-  const volatilityLevels = Array.from(new Set(mockGames.map(game => game.volatility)));
+  const volatilityLevels = Array.from(new Set(allGames.map(game => game.volatility)));
   
   // Handle search and filtering
   useEffect(() => {
-    let result = [...mockGames];
+    if (allGames.length === 0) return;
+    
+    let result = [...allGames];
     
     // Category filter
     if (activeCategory !== "popular") {
@@ -304,7 +129,8 @@ const GameGrid = () => {
     }
     
     setFilteredGames(result);
-  }, [activeCategory, searchQuery, sortOption, providerFilter, rtpFilter, volatilityFilter]);
+    setVisibleGames(12); // Reset visible games when filtering changes
+  }, [allGames, activeCategory, searchQuery, sortOption, providerFilter, rtpFilter, volatilityFilter]);
   
   const handleLoadMore = () => {
     setVisibleGames(prev => Math.min(prev + 12, filteredGames.length));
@@ -331,6 +157,21 @@ const GameGrid = () => {
     setRtpFilter([90, 100]);
     setVolatilityFilter([]);
     setSearchQuery("");
+  };
+  
+  const handleToggleFavorite = async (gameId: string) => {
+    try {
+      const isFavorite = await gamesApi.toggleFavorite(gameId);
+      
+      // Update the game in the local state
+      setAllGames(prev => 
+        prev.map(game => 
+          game.id === gameId ? { ...game, isFavorite } : game
+        )
+      );
+    } catch (error) {
+      console.error("Failed to toggle favorite:", error);
+    }
   };
 
   return (
@@ -407,50 +248,74 @@ const GameGrid = () => {
           </Button>
           
           <div className="relative">
-            <Button variant="outline" className="flex items-center">
+            <Button 
+              variant="outline" 
+              className="flex items-center"
+              onClick={() => setShowSortMenu(!showSortMenu)}
+            >
               <ArrowUpDown size={16} className="mr-2" />
               Sort
             </Button>
-            <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-casino-thunder-dark z-10 border border-white/10 hidden group-hover:block">
-              <div className="rounded-md ring-1 ring-black ring-opacity-5 py-1">
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'popular' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('popular')}
-                >
-                  Popular First
-                </button>
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'new_first' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('new_first')}
-                >
-                  Newest First
-                </button>
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'name_asc' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('name_asc')}
-                >
-                  Name (A-Z)
-                </button>
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'name_desc' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('name_desc')}
-                >
-                  Name (Z-A)
-                </button>
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'rtp_high' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('rtp_high')}
-                >
-                  Highest RTP
-                </button>
-                <button
-                  className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'rtp_low' ? 'text-casino-thunder-green' : ''}`}
-                  onClick={() => setSortOption('rtp_low')}
-                >
-                  Lowest RTP
-                </button>
+            {showSortMenu && (
+              <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-casino-thunder-dark z-10 border border-white/10">
+                <div className="rounded-md ring-1 ring-black ring-opacity-5 py-1">
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'popular' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('popular');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Popular First
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'new_first' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('new_first');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Newest First
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'name_asc' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('name_asc');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Name (A-Z)
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'name_desc' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('name_desc');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Name (Z-A)
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'rtp_high' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('rtp_high');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Highest RTP
+                  </button>
+                  <button
+                    className={`block px-4 py-2 text-sm text-white hover:bg-white/10 w-full text-left ${sortOption === 'rtp_low' ? 'text-casino-thunder-green' : ''}`}
+                    onClick={() => {
+                      setSortOption('rtp_low');
+                      setShowSortMenu(false);
+                    }}
+                  >
+                    Lowest RTP
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -558,8 +423,15 @@ const GameGrid = () => {
         )}
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="w-10 h-10 animate-spin text-casino-thunder-green" />
+        </div>
+      )}
+
       {/* No Results Message */}
-      {filteredGames.length === 0 && (
+      {!loading && filteredGames.length === 0 && (
         <div className="thunder-card p-8 text-center">
           <h3 className="text-xl font-semibold text-white mb-3">No Games Found</h3>
           <p className="text-white/70 mb-4">
@@ -572,7 +444,7 @@ const GameGrid = () => {
       )}
 
       {/* Games Grid */}
-      {filteredGames.length > 0 && (
+      {!loading && filteredGames.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {filteredGames.slice(0, visibleGames).map(game => (
             <GameCard 
@@ -586,13 +458,15 @@ const GameGrid = () => {
               rtp={game.rtp}
               minBet={game.minBet}
               maxBet={game.maxBet}
+              isFavorite={game.isFavorite}
+              onFavoriteToggle={() => handleToggleFavorite(game.id)}
             />
           ))}
         </div>
       )}
 
       {/* Load More Button */}
-      {visibleGames < filteredGames.length && (
+      {!loading && visibleGames < filteredGames.length && (
         <div className="text-center mt-10">
           <Button variant="outline" className="min-w-[200px]" onClick={handleLoadMore}>
             Load More Games

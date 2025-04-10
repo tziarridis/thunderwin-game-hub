@@ -1,0 +1,54 @@
+
+// Main data types for the casino application
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  status: 'Active' | 'Pending' | 'Inactive';
+  balance: number;
+  joined: string;
+  favoriteGames?: string[];
+}
+
+export interface Game {
+  id: string;
+  title: string;
+  image: string;
+  provider: string;
+  category: 'slots' | 'live' | 'table' | 'crash' | 'jackpot';
+  isPopular?: boolean;
+  isNew?: boolean;
+  rtp: number;
+  minBet: number;
+  maxBet: number;
+  volatility: 'Low' | 'Medium' | 'High';
+  releaseDate: string;
+  description?: string;
+  features?: string[];
+  isFavorite?: boolean;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  userName: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win';
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed' | 'cancelled';
+  method: string;
+  date: string;
+  gameId?: string;
+  gameName?: string;
+}
+
+export interface GameBet {
+  id: string;
+  gameId: string;
+  userId: string;
+  amount: number;
+  result: 'win' | 'loss';
+  winAmount: number;
+  date: string;
+}

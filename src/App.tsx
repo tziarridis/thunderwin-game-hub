@@ -19,56 +19,86 @@ import GameDetails from "./pages/casino/GameDetails";
 import Profile from "./pages/user/Profile";
 import Transactions from "./pages/user/Transactions";
 import Settings from "./pages/user/Settings";
+import { useEffect } from "react";
+import { usersApi, gamesApi, transactionsApi } from "./services/apiService";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1
+    },
+  },
+});
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/casino" element={<Index />} />
-              <Route path="/casino/game/:id" element={<GameDetails />} />
-              <Route path="/sports" element={<Index />} />
-              <Route path="/promotions" element={<Index />} />
-              <Route path="/vip" element={<Index />} />
+const App = () => {
+  // Initialize API data on app startup
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // Preload data 
+        await Promise.all([
+          usersApi.getUsers(),
+          gamesApi.getGames(),
+          transactionsApi.getTransactions()
+        ]);
+        console.log("API data initialized successfully");
+      } catch (error) {
+        console.error("Failed to initialize API data:", error);
+      }
+    };
+    
+    initializeData();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/casino" element={<Index />} />
+                <Route path="/casino/game/:id" element={<GameDetails />} />
+                <Route path="/sports" element={<Index />} />
+                <Route path="/promotions" element={<Index />} />
+                <Route path="/vip" element={<Index />} />
+                
+                {/* User routes */}
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
               
-              {/* User routes */}
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/settings" element={<Settings />} />
-            </Route>
-            
-            {/* Auth Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="transactions" element={<AdminTransactions />} />
-              <Route path="games" element={<AdminGames />} />
-              <Route path="reports" element={<AdminDashboard />} />
-              <Route path="support" element={<AdminDashboard />} />
-              <Route path="logs" element={<AdminDashboard />} />
-              <Route path="security" element={<AdminDashboard />} />
-              <Route path="settings" element={<AdminDashboard />} />
-            </Route>
-            
-            {/* 404 Route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+              {/* Auth Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="transactions" element={<AdminTransactions />} />
+                <Route path="games" element={<AdminGames />} />
+                <Route path="reports" element={<AdminDashboard />} />
+                <Route path="support" element={<AdminDashboard />} />
+                <Route path="logs" element={<AdminDashboard />} />
+                <Route path="security" element={<AdminDashboard />} />
+                <Route path="settings" element={<AdminDashboard />} />
+              </Route>
+              
+              {/* 404 Route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
