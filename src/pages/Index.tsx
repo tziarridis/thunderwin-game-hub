@@ -12,8 +12,24 @@ import {
   Wallet,
   DollarSign
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignUp = () => {
+    navigate('/register');
+  };
+
+  const handleExploreGames = () => {
+    const gamesSection = document.getElementById('games-section');
+    if (gamesSection) {
+      gamesSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div>
       {/* Hero Section */}
@@ -36,10 +52,17 @@ const Index = () => {
               Experience the thrill of lightning-fast gaming with incredible bonuses and the most exciting casino games.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-6 px-8">
+              <Button 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-6 px-8"
+                onClick={handleSignUp}
+              >
                 Sign Up Now
               </Button>
-              <Button variant="outline" className="text-lg py-6 px-8">
+              <Button 
+                variant="outline" 
+                className="text-lg py-6 px-8"
+                onClick={handleExploreGames}
+              >
                 Explore Games
               </Button>
             </div>
@@ -66,7 +89,7 @@ const Index = () => {
       </section>
 
       {/* Popular Games */}
-      <section className="bg-casino-thunder-dark py-12">
+      <section id="games-section" className="bg-casino-thunder-dark py-12">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
             <Trophy className="mr-2 text-casino-thunder-green" />
@@ -153,7 +176,10 @@ const Index = () => {
           <p className="text-black/80 text-lg mb-8 max-w-2xl mx-auto">
             Join ThunderWin today and experience the most electrifying online casino. Get started with a massive welcome bonus!
           </p>
-          <Button className="bg-black hover:bg-gray-900 text-white text-lg py-6 px-8">
+          <Button 
+            className="bg-black hover:bg-gray-900 text-white text-lg py-6 px-8"
+            onClick={handleSignUp}
+          >
             Create Account
           </Button>
         </div>
