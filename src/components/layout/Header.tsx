@@ -15,7 +15,8 @@ import {
   BadgeDollarSign,
   LogOut,
   Settings,
-  ChevronDown
+  ChevronDown,
+  LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -137,6 +138,15 @@ const Header = () => {
                 >
                   Register
                 </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-md"
+                  onClick={() => navigate("/admin")}
+                >
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Backoffice
+                </Button>
               </>
             )}
           </div>
@@ -214,6 +224,19 @@ const Header = () => {
                     }}
                   >
                     Register
+                  </Button>
+                  <div className="w-4"></div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full justify-center rounded-md"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate("/admin");
+                    }}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Backoffice
                   </Button>
                 </div>
               </div>
