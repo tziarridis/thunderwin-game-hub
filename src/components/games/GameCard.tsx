@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Play, Star, Info, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface GameCardProps {
@@ -16,6 +16,8 @@ interface GameCardProps {
   rtp?: number;
   minBet?: number;
   maxBet?: number;
+  isFavorite?: boolean;
+  onFavoriteToggle?: () => void;
   className?: string;
 }
 
@@ -29,22 +31,36 @@ const GameCard = ({
   rtp,
   minBet = 0.20,
   maxBet = 100,
+  isFavorite = false,
+  onFavoriteToggle,
   className 
 }: GameCardProps) => {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFav, setIsFav] = useState(isFavorite);
   const { toast } = useToast();
+  
+  // Update internal state when the prop changes
+  useEffect(() => {
+    setIsFav(isFavorite);
+  }, [isFavorite]);
   
   const handleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsFavorite(!isFavorite);
     
-    toast({
-      title: isFavorite ? "Removed from favorites" : "Added to favorites",
-      description: isFavorite 
-        ? `${title} has been removed from your favorites.` 
-        : `${title} has been added to your favorites.`,
-    });
+    // If parent provided a handler, use it
+    if (onFavoriteToggle) {
+      onFavoriteToggle();
+    } else {
+      // Fallback to local state
+      setIsFav(!isFav);
+      
+      toast({
+        title: isFav ? "Removed from favorites" : "Added to favorites",
+        description: isFav 
+          ? `${title} has been removed from your favorites.` 
+          : `${title} has been added to your favorites.`,
+      });
+    }
   };
   
   const handleQuickDemo = (e: React.MouseEvent) => {
@@ -71,7 +87,7 @@ const GameCard = ({
           className="absolute top-2 right-2 z-10 p-1.5 bg-black/50 rounded-full hover:bg-black/80 transition-colors"
           onClick={handleFavorite}
         >
-          <Heart className={`h-4 w-4 ${isFavorite ? "text-red-500 fill-red-500" : "text-white"}`} />
+          <Heart className={`h-4 w-4 ${isFav ? "text-red-500 fill-red-500" : "text-white"}`} />
         </button>
         
         {/* Overlay on hover */}
