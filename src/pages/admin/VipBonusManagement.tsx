@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -123,13 +122,15 @@ const VipBonusManagement = () => {
   ) => {
     const { name, value } = e.target;
     
-    // For checkbox/switch inputs, we need to handle them differently
-    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+    // Properly type-check for checkbox/input elements
+    if (e.target instanceof HTMLInputElement) {
+      // This ensures we only access 'checked' for input elements
       setFormData((prevData) => ({
         ...prevData,
-        [name]: e.target.checked,
+        [name]: e.target.type === 'checkbox' ? e.target.checked : value,
       }));
     } else {
+      // For non-input elements, just use the value
       setFormData((prevData) => ({
         ...prevData,
         [name]: value,
