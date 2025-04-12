@@ -27,10 +27,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import DepositButton from "@/components/user/DepositButton";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -110,6 +111,8 @@ const Header = () => {
                   <span>{user?.balance ? formatBalance(user.balance) : "$0.00"}</span>
                 </div>
                 
+                <DepositButton variant="small" />
+                
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="rounded-md flex items-center">
@@ -138,7 +141,7 @@ const Header = () => {
                       <LogOut className="mr-2 h-4 w-4" />
                       Logout
                     </DropdownMenuItem>
-                    {user?.email === "admin@example.com" && (
+                    {isAdmin && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => navigate("/admin")}>
@@ -152,6 +155,7 @@ const Header = () => {
               </>
             ) : (
               <>
+                <DepositButton variant="small" />
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -168,6 +172,7 @@ const Header = () => {
                 >
                   Register
                 </Button>
+                {/* Show admin link for demo purposes */}
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -182,7 +187,8 @@ const Header = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            {isAuthenticated && <DepositButton variant="icon" />}
             <Button 
               variant="ghost" 
               size="icon" 

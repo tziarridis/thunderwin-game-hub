@@ -1,7 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Calendar, Edit, Trash } from "lucide-react";
 
 interface PromotionCardProps {
   title: string;
@@ -10,6 +10,9 @@ interface PromotionCardProps {
   endDate?: string;
   className?: string;
   onClick?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  isAdmin?: boolean;
 }
 
 const PromotionCard = ({ 
@@ -18,7 +21,10 @@ const PromotionCard = ({
   image, 
   endDate,
   className,
-  onClick
+  onClick,
+  onEdit,
+  onDelete,
+  isAdmin = false
 }: PromotionCardProps) => {
   return (
     <div className={cn("thunder-card overflow-hidden", className)}>
@@ -43,22 +49,47 @@ const PromotionCard = ({
         <p className="text-white/70 text-sm mb-4">{description}</p>
         
         <div className="flex justify-between items-center">
-          <Button 
-            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-            size="sm"
-            onClick={onClick}
-          >
-            Claim Now
-          </Button>
-          
-          <Button 
-            variant="link" 
-            className="text-white/70 hover:text-casino-thunder-green"
-            size="sm"
-            onClick={onClick}
-          >
-            View Details
-          </Button>
+          {isAdmin ? (
+            <>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-white hover:text-casino-thunder-green"
+                onClick={onEdit}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              
+              <Button 
+                variant="destructive" 
+                size="sm"
+                onClick={onDelete}
+              >
+                <Trash className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                size="sm"
+                onClick={onClick}
+              >
+                Claim Now
+              </Button>
+              
+              <Button 
+                variant="link" 
+                className="text-white/70 hover:text-casino-thunder-green"
+                size="sm"
+                onClick={onClick}
+              >
+                View Details
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -10,16 +10,20 @@ interface User {
   avatarUrl?: string;
   isVerified: boolean;
   vipLevel: number;
+  role: 'user' | 'admin';
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateBalance: (newBalance: number) => void;
+  deposit: (amount: number) => Promise<void>;
+  withdraw: (amount: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,7 +37,8 @@ const mockUsers = [
     password: "password123",
     balance: 1000,
     isVerified: true,
-    vipLevel: 1
+    vipLevel: 1,
+    role: 'user' as const
   },
   {
     id: "admin1",
@@ -42,7 +47,8 @@ const mockUsers = [
     password: "admin123",
     balance: 9999,
     isVerified: true,
-    vipLevel: 10
+    vipLevel: 10,
+    role: 'admin' as const
   }
 ];
 
@@ -116,7 +122,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         balance: 100, // Welcome bonus
         isVerified: false,
-        vipLevel: 0
+        vipLevel: 0,
+        role: 'user'
       };
       
       setUser(newUser);
@@ -154,6 +161,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("thunderwin_user", JSON.stringify(updatedUser));
     }
   };
+  
+  const deposit = async (amount: number) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to deposit",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const newBalance = user.balance + amount;
+      updateBalance(newBalance);
+      
+      toast({
+        title: "Deposit Successful",
+        description: `$${amount} has been added to your account.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Deposit Failed",
+        description: "There was an error processing your deposit",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const withdraw = async (amount: number) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to withdraw",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (user.balance < amount) {
+      toast({
+        title: "Insufficient Funds",
+        description: "You don't have enough funds to withdraw this amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const newBalance = user.balance - amount;
+      updateBalance(newBalance);
+      
+      toast({
+        title: "Withdrawal Requested",
+        description: `Your withdrawal of $${amount} is being processed.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Withdrawal Failed",
+        description: "There was an error processing your withdrawal",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -161,10 +243,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isLoading,
         isAuthenticated: !!user,
+        isAdmin: user?.role === 'admin',
         login,
         register,
         logout,
-        updateBalance
+        updateBalance,
+        deposit,
+        withdraw
       }}
     >
       {children}

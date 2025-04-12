@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import GameGrid from "@/components/games/GameGrid";
 import PromotionSlider from "@/components/promotions/PromotionSlider";
 import PromotionCard from "@/components/promotions/PromotionCard";
+import DepositButton from "@/components/user/DepositButton";
 import { 
   Trophy, 
   Zap, 
@@ -70,6 +71,7 @@ const Index = () => {
               >
                 {isAuthenticated ? 'Visit Profile' : 'Sign Up Now'}
               </Button>
+              <DepositButton variant="highlight" className="text-lg py-6 px-8" />
               <Button 
                 variant="outline" 
                 className="text-lg py-6 px-8"
@@ -96,6 +98,27 @@ const Index = () => {
                 text="Secure Gaming" 
                 onClick={() => navigate('/vip')}
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Quick Deposit Banner */}
+      <section className="bg-casino-thunder-green py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="text-black mb-4 md:mb-0">
+              <h3 className="text-xl font-bold">Ready to Play?</h3>
+              <p className="text-black/80">Make a deposit and claim your bonus now!</p>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                className="bg-black hover:bg-gray-900 text-white"
+                onClick={() => navigate('/promotions')}
+              >
+                View Bonuses
+              </Button>
+              <DepositButton className="bg-white hover:bg-gray-100 text-black" />
             </div>
           </div>
         </div>
@@ -201,6 +224,11 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Floating Deposit Button */}
+      <div className="fixed bottom-6 right-6 z-40 md:hidden">
+        <DepositButton variant="icon" className="shadow-lg w-14 h-14" />
+      </div>
+
       {/* CTA Section */}
       <section className="py-16 bg-casino-thunder-green">
         <div className="container mx-auto px-4 text-center">
@@ -210,12 +238,15 @@ const Index = () => {
           <p className="text-black/80 text-lg mb-8 max-w-2xl mx-auto">
             Join ThunderWin today and experience the most electrifying online casino. Get started with a massive welcome bonus!
           </p>
-          <Button 
-            className="bg-black hover:bg-gray-900 text-white text-lg py-6 px-8"
-            onClick={handleSignUp}
-          >
-            {isAuthenticated ? 'Visit Your Account' : 'Create Account'}
-          </Button>
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Button 
+              className="bg-black hover:bg-gray-900 text-white text-lg py-6 px-8"
+              onClick={handleSignUp}
+            >
+              {isAuthenticated ? 'Visit Your Account' : 'Create Account'}
+            </Button>
+            <DepositButton variant="highlight" className="bg-white hover:bg-gray-100 text-black text-lg py-6 px-8" />
+          </div>
         </div>
       </section>
     </div>

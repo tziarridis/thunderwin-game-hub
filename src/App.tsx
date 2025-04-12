@@ -13,6 +13,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
 import AdminGames from "./pages/admin/Games";
 import AdminTransactions from "./pages/admin/Transactions";
+import AdminPromotions from "./pages/admin/Promotions";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import GameDetails from "./pages/casino/GameDetails";
@@ -84,6 +85,7 @@ const App = () => {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="transactions" element={<AdminTransactions />} />
                 <Route path="games" element={<AdminGames />} />
+                <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="reports" element={<AdminDashboard />} />
                 <Route path="support" element={<AdminDashboard />} />
                 <Route path="logs" element={<AdminDashboard />} />
