@@ -241,6 +241,16 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
+                {/* Player Balance */}
+                {user?.balance !== undefined && (
+                  <div className="flex items-center bg-white/5 px-3 py-1.5 rounded-md">
+                    <Wallet className="h-4 w-4 text-casino-thunder-green mr-1.5" />
+                    <span className="text-white font-medium">
+                      ${user.balance.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                
                 {/* Deposit Button */}
                 <DepositButton />
                 
