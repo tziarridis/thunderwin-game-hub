@@ -1,6 +1,6 @@
+
 import { v4 as uuidv4 } from 'uuid';
-import { db } from "@/lib/db";
-import { Transaction } from "@/types";
+import { Transaction, OxaPayWallet } from "@/types";
 
 // Function to create a new transaction
 export const createTransaction = async (
@@ -78,30 +78,30 @@ export const deleteTransaction = (id: string): void => {
 };
 
 // Simulate OxaPay wallet operations
-export const createWallet = async (currency: string, address: string): Promise<any> => {
-  const wallet = {
+export const createWallet = async (currency: string, address: string): Promise<OxaPayWallet> => {
+  const wallet: OxaPayWallet = {
     id: `wallet-${Date.now()}`, 
     currency: currency,
     address: address,
     status: "active",
-	balance: 0 // Add this line to fix the error
+    balance: 0 // Added this to match the OxaPayWallet type
   };
   
-  let wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
+  let wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
   wallets.push(wallet);
   localStorage.setItem("wallets", JSON.stringify(wallets));
 
   return wallet;
 };
 
-export const getWalletByCurrency = async (currency: string): Promise<any | undefined> => {
-    const wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
-    return wallets.find((wallet: any) => wallet.currency === currency);
+export const getWalletByCurrency = async (currency: string): Promise<OxaPayWallet | undefined> => {
+    const wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
+    return wallets.find((wallet: OxaPayWallet) => wallet.currency === currency);
 };
 
-export const updateWalletBalance = async (currency: string, amount: number): Promise<any | undefined> => {
-    let wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
-    const walletIndex = wallets.findIndex((wallet: any) => wallet.currency === currency);
+export const updateWalletBalance = async (currency: string, amount: number): Promise<OxaPayWallet | undefined> => {
+    let wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
+    const walletIndex = wallets.findIndex((wallet: OxaPayWallet) => wallet.currency === currency);
 
     if (walletIndex === -1) {
         return undefined;

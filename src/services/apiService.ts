@@ -310,7 +310,7 @@ const fetchGameBetsByUser = async (userId: string): Promise<GameBet[]> => {
     }
 };
 
-const placeBet = async (userId: string, gameId: string, betAmount: number, multiplier: number, winAmount: number, result?: string): Promise<GameBet> => {
+const placeBet = async (userId: string, gameId: string, betAmount: number, multiplier: number, payout: number, result?: string): Promise<GameBet> => {
   try {
     const bet: GameBet = {
       id: `bet-${Date.now()}`,
@@ -318,7 +318,7 @@ const placeBet = async (userId: string, gameId: string, betAmount: number, multi
       gameId: gameId,
       amount: betAmount, // This was using winAmount incorrectly
       multiplier: multiplier,
-      payout: winAmount,
+      payout: payout, // Changed from winAmount to payout to match the type
       timestamp: new Date().toISOString(),
       result: result || "unknown"
     };
@@ -326,6 +326,7 @@ const placeBet = async (userId: string, gameId: string, betAmount: number, multi
     return response.data;
   } catch (error: any) {
     handleApiError(error);
+    throw error; // Make sure we throw the error after handling it
   }
 };
 
@@ -436,6 +437,7 @@ export const usersApi = {
       return response.data;
     } catch (error) {
       handleApiError(error);
+      return undefined;
     }
   },
   updateUser: async (userData: User): Promise<User | undefined> => {
@@ -444,6 +446,7 @@ export const usersApi = {
       return response.data;
     } catch (error) {
       handleApiError(error);
+      return undefined;
     }
   }
 };
@@ -456,6 +459,43 @@ export const gamesApi = {
     } catch (error) {
       handleApiError(error);
       return [];
+    }
+  },
+  // Add the missing methods
+  deleteGame: async (gameId: string): Promise<boolean> => {
+    try {
+      await axios.delete(`${API_BASE_URL}/games/${gameId}`);
+      return true;
+    } catch (error) {
+      handleApiError(error);
+      return false;
+    }
+  },
+  addGame: async (gameData: Omit<Game, 'id'>): Promise<Game | undefined> => {
+    try {
+      const response: AxiosResponse<Game> = await axios.post(`${API_BASE_URL}/games`, gameData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+      return undefined;
+    }
+  },
+  updateGame: async (gameData: Game): Promise<Game | undefined> => {
+    try {
+      const response: AxiosResponse<Game> = await axios.put(`${API_BASE_URL}/games/${gameData.id}`, gameData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+      return undefined;
+    }
+  },
+  toggleFavorite: async (gameId: string): Promise<boolean> => {
+    try {
+      const response: AxiosResponse<{ isFavorite: boolean }> = await axios.post(`${API_BASE_URL}/games/${gameId}/toggle-favorite`);
+      return response.data.isFavorite;
+    } catch (error) {
+      handleApiError(error);
+      return false;
     }
   }
 };

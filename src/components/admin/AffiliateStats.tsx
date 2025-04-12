@@ -3,19 +3,8 @@ import { useState } from "react";
 import { Affiliate } from "@/types";
 import { 
   BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell
-} from "recharts";
+  PieChart
+} from "@/components/ui/chart";
 import { 
   Tabs, 
   TabsContent, 
@@ -42,23 +31,26 @@ import {
 } from "lucide-react";
 
 interface AffiliateStatsProps {
-  affiliate: Affiliate;
+  affiliate?: Affiliate;
 }
 
 // Generate sample historical data for the charts
-const generateMonthlyData = (affiliate: Affiliate) => {
+const generateMonthlyData = (affiliate?: Affiliate) => {
   const today = new Date();
   const months = [];
+  const signupsBase = affiliate?.signups || 30;
+  const revenueBase = affiliate?.totalRevenue || 5000;
+  
   for (let i = 5; i >= 0; i--) {
     const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const signups = Math.max(0, Math.floor(affiliate.signups / 6) + Math.floor(Math.random() * 10) - 5);
-    const revenue = Math.max(0, Math.floor(affiliate.totalRevenue / 6) + Math.floor(Math.random() * 300) - 150);
+    const signups = Math.max(0, Math.floor(signupsBase / 6) + Math.floor(Math.random() * 10) - 5);
+    const revenue = Math.max(0, Math.floor(revenueBase / 6) + Math.floor(Math.random() * 300) - 150);
     
     months.push({
       name: month.toLocaleString('default', { month: 'short' }),
       signups: signups,
       revenue: revenue,
-      commission: Math.floor(revenue * (affiliate.commission / 100))
+      commission: Math.floor(revenue * ((affiliate?.commission || 20) / 100))
     });
   }
   return months;
@@ -74,7 +66,7 @@ const generateTrafficSourceData = () => {
   ];
 };
 
-const generateDailyData = (affiliate: Affiliate) => {
+const generateDailyData = (affiliate?: Affiliate) => {
   const days = [];
   const today = new Date();
   
@@ -100,22 +92,24 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
   const dailyData = generateDailyData(affiliate);
   const trafficSourceData = generateTrafficSourceData();
   
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-  
   const data = timeframe === "monthly" ? monthlyData : dailyData;
   
-  const conversionRate = affiliate.signups > 0 
-    ? ((affiliate.totalRevenue / affiliate.signups)).toFixed(2)
+  const signups = affiliate?.signups || affiliate?.referredUsers || 0;
+  const totalRevenue = affiliate?.totalRevenue || 0;
+  const commission = affiliate?.commission || 20;
+  
+  const conversionRate = signups > 0 
+    ? ((totalRevenue / signups)).toFixed(2)
     : "0.00";
   
-  const commissionEarned = (affiliate.totalRevenue * (affiliate.commission / 100)).toFixed(2);
+  const commissionEarned = (totalRevenue * (commission / 100)).toFixed(2);
   
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">{affiliate.name}</h2>
-          <p className="text-muted-foreground">{affiliate.email} • Joined {affiliate.joinedDate}</p>
+          <h2 className="text-2xl font-bold">{affiliate?.name || "Affiliate Overview"}</h2>
+          <p className="text-muted-foreground">{affiliate?.email || "All affiliates"} • {affiliate?.joinedDate ? `Joined ${affiliate.joinedDate}` : "Overview"}</p>
         </div>
         <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as "daily" | "monthly")}>
           <TabsList>
@@ -139,7 +133,7 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="py-2">
-            <div className="text-2xl font-bold">{affiliate.signups}</div>
+            <div className="text-2xl font-bold">{signups}</div>
             <p className="text-xs text-muted-foreground mt-1">Referred players</p>
           </CardContent>
         </Card>
@@ -150,7 +144,7 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="py-2">
-            <div className="text-2xl font-bold">${affiliate.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">Total player deposits</p>
           </CardContent>
         </Card>
@@ -162,7 +156,7 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
           </CardHeader>
           <CardContent className="py-2">
             <div className="text-2xl font-bold">${commissionEarned}</div>
-            <p className="text-xs text-muted-foreground mt-1">At {affiliate.commission}% rate</p>
+            <p className="text-xs text-muted-foreground mt-1">At {commission}% rate</p>
           </CardContent>
         </Card>
         
@@ -199,22 +193,15 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
           <Card>
             <CardHeader>
               <CardTitle>Signups Over Time</CardTitle>
-              <CardDescription>Number of new players referred by {affiliate.name}</CardDescription>
+              <CardDescription>Number of new players referred</CardDescription>
             </CardHeader>
             <CardContent className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={data}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="signups" name="Signups" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
+              <BarChart 
+                data={data}
+                index="name"
+                categories={["signups"]}
+                colors={["#8884d8"]}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -226,20 +213,13 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
               <CardDescription>Revenue generated and commission earned over time</CardDescription>
             </CardHeader>
             <CardContent className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={data}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#8884d8" />
-                  <Line type="monotone" dataKey="commission" name="Commission" stroke="#82ca9d" />
-                </LineChart>
-              </ResponsiveContainer>
+              <BarChart
+                data={data}
+                index="name"
+                categories={["revenue", "commission"]}
+                colors={["#8884d8", "#82ca9d"]}
+                valueFormatter={(value) => `$${value}`}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -251,25 +231,7 @@ const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
               <CardDescription>Where affiliate traffic is coming from</CardDescription>
             </CardHeader>
             <CardContent className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={trafficSourceData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {trafficSourceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChart data={trafficSourceData} />
             </CardContent>
           </Card>
         </TabsContent>
