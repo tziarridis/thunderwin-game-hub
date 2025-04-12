@@ -20,6 +20,9 @@ import GameDetails from "./pages/casino/GameDetails";
 import Profile from "./pages/user/Profile";
 import Transactions from "./pages/user/Transactions";
 import Settings from "./pages/user/Settings";
+import Sports from "./pages/sports/Sports";
+import Promotions from "./pages/promotions/Promotions";
+import VIP from "./pages/vip/VIP";
 import { useEffect } from "react";
 import { usersApi, gamesApi, transactionsApi } from "./services/apiService";
 
@@ -65,9 +68,9 @@ const App = () => {
                 <Route path="/" element={<Index />} />
                 <Route path="/casino" element={<Index />} />
                 <Route path="/casino/game/:id" element={<GameDetails />} />
-                <Route path="/sports" element={<Index />} />
-                <Route path="/promotions" element={<Index />} />
-                <Route path="/vip" element={<Index />} />
+                <Route path="/sports" element={<Sports />} />
+                <Route path="/promotions" element={<Promotions />} />
+                <Route path="/vip" element={<VIP />} />
                 
                 {/* User routes */}
                 <Route path="/profile" element={<Profile />} />

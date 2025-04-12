@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Home } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -53,11 +53,13 @@ const Login = () => {
     <div className="min-h-screen pt-28 pb-12 flex flex-col items-center bg-casino-thunder-darker">
       <div className="w-full max-w-md px-6 py-8 bg-casino-thunder-dark rounded-lg shadow-lg border border-white/5">
         <div className="flex justify-center mb-8">
-          <img 
-            src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
-            alt="ThunderWin" 
-            className="h-10 thunder-glow"
-          />
+          <Link to="/">
+            <img 
+              src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
+              alt="ThunderWin" 
+              className="h-10 thunder-glow"
+            />
+          </Link>
         </div>
         
         <h1 className="text-2xl font-bold text-white mb-6 text-center">Sign In</h1>
@@ -133,6 +135,18 @@ const Login = () => {
         
         <div className="mt-6 text-center text-xs text-white/50">
           Demo account: demo@example.com / password123
+        </div>
+        
+        <div className="mt-6 flex justify-center">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => navigate("/")}
+            className="text-white hover:text-casino-thunder-green"
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Back to Home
+          </Button>
         </div>
       </div>
     </div>
