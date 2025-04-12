@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -40,6 +41,8 @@ import { Plus, Edit, Trash } from "lucide-react";
 import { BonusTemplate, VipLevel } from "@/types";
 import { getVipLevels } from "@/services/apiService";
 
+type BonusTemplateFormData = Omit<BonusTemplate, "id">;
+
 const VipBonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
@@ -47,7 +50,7 @@ const VipBonusManagement = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedBonusTemplate, setSelectedBonusTemplate] =
     useState<BonusTemplate | null>(null);
-  const [formData, setFormData<Omit<BonusTemplate, "id">> = useState({
+  const [formData, setFormData] = useState<BonusTemplateFormData>({
     name: "",
     description: "",
     bonusType: "deposit",
