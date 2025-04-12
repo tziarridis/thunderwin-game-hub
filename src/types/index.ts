@@ -1,253 +1,75 @@
 
-export type Role = "user" | "admin";
-export type Status = "Active" | "Inactive" | "Pending" | "Suspended";
-
-export type User = {
-  id: string;
-  username: string;
-  name: string;
-  email: string;
-  balance: number;
-  isVerified: boolean;
-  vipLevel: number;
-  role: Role;
-  status: Status;
-  joined: string;
-  avatarUrl: string;
-  favoriteGames?: string[];
-  kycStatus?: KycStatus;
-  kycSubmittedAt?: string;
-  kycRejectionReason?: string;
-};
-
-export type Transaction = {
-  id: string;
-  userId: string;
-  userName: string;
-  type: "deposit" | "withdraw" | "bet" | "win" | "bonus";
-  amount: number;
-  currency: string;
-  status: "pending" | "completed" | "failed";
-  method: string;
-  date: string;
-  gameId?: string;
-};
-
-export type Game = {
+// Game Types
+export interface Game {
   id: string;
   title: string;
   provider: string;
   category: string;
-  tags: string[];
-  image: string;
+  image?: string;
   rtp: number;
   volatility: string;
   minBet: number;
   maxBet: number;
-  jackpot: boolean;
-  isNew: boolean;
   isPopular: boolean;
+  isNew: boolean;
+  isFavorite: boolean;
+  releaseDate: string;
+  jackpot: boolean;
   description?: string;
-  releaseDate?: string;
-  isFavorite?: boolean;
-};
+}
 
-export type GameProvider = {
+// User Types
+export interface User {
   id: string;
-  name: string;
-  logo: string;
-  gameCount: number;
-  featured: boolean;
-  description?: string;
-};
+  username: string;
+  email: string;
+  balance: number;
+  isAdmin?: boolean;
+  avatar?: string;
+  vipLevel?: number;
+  createdAt?: string;
+  lastLoginAt?: string;
+  isVerified?: boolean;
+  country?: string;
+  fullName?: string;
+  phoneNumber?: string;
+}
 
-export type GameBet = {
+// Transaction Types
+export type TransactionType = "deposit" | "withdraw" | "bonus" | "bet" | "win";
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: TransactionType;
+  amount: number;
+  status: "pending" | "completed" | "failed";
+  createdAt?: string;
+  paymentMethod?: string;
+  description?: string;
+  gameId?: string;
+}
+
+// Bet Types
+export interface Bet {
   id: string;
   userId: string;
   gameId: string;
   amount: number;
-  multiplier: number;
-  payout: number;
+  winAmount: number | null;
+  outcome: "win" | "loss" | "pending";
   timestamp: string;
-  result?: string;
-};
-
-export type Log = {
-  id: string;
-  userId: string;
-  userName: string;
-  action: string;
-  details: string;
-  timestamp: string;
-  ipAddress: string;
-  location: string;
-  status: "success" | "failed";
-};
-
-export type Affiliate = {
-  id: string;
-  userId: string;
-  userName: string;
-  code: string;
-  referredUsers: number;
-  totalCommissions: number;
-  payoutMethod: string;
-  payoutDetails: string;
-  status: "active" | "pending" | "suspended";
-  joined: string;
-  name?: string;
-  email?: string;
-  website?: string;
-  commission?: number;
-  signups?: number;
-  totalRevenue?: number;
-  joinedDate?: string;
-  referralCode?: string;
-};
-
-export enum KycStatus {
-  NOT_SUBMITTED = "not_submitted",
-  PENDING = "pending",
-  VERIFIED = "verified",
-  REJECTED = "rejected"
 }
 
-export type Kyc = {
-  id: string;
-  userId: string;
-  userName: string;
-  status: "pending" | "verified" | "rejected";
-  submittedDate: string;
-  approvedDate: string;
-  rejectionReason: string;
-  documents: {
-    idFront: string;
-    idBack: string;
-    address: string;
-  };
-};
-
-export type KycRequest = {
-  id: string;
-  userId: string;
-  userName: string;
-  submittedDate: string;
-  status: "pending" | "verified" | "rejected";
-  documentType: string;
-  documentFiles: string[];
-  notes?: string;
-  email?: string;
-  rejectionReason?: string;
-  reviewedBy?: string;
-  data?: Record<string, any>;
-};
-
-export type Promotion = {
+// Promotion Types
+export interface Promotion {
   id: string;
   title: string;
   description: string;
-  image: string;
+  imageUrl: string;
   startDate: string;
   endDate: string;
-  termsAndConditions: string;
   isActive: boolean;
-  type: "deposit" | "free_spin" | "cashback";
-  bonusCode: string;
-  minDeposit: number;
-  bonusPercentage: number;
-  maxBonusAmount: number;
-  wageringRequirements: number;
-  eligibleGames: string[];
-  category?: string;
-};
-
-export type SupportTicket = {
-  id: string;
-  userId: string;
-  userName: string;
-  subject: string;
-  category: "general" | "technical" | "billing" | "security";
-  status: "open" | "pending" | "resolved" | "closed";
-  priority: "low" | "medium" | "high";
-  messages: SupportMessage[];
-  createdDate: string;
-  lastUpdate: string;
-};
-
-export type SupportMessage = {
-  id: string;
-  ticketId: string;
-  userId: string;
-  userName: string;
-  message: string;
-  timestamp: string;
-  isAgent: boolean;
-};
-
-export type VipLevel = {
-  id: string;
-  name: string;
-  level: number;
-  requiredPoints: number;
-  pointsRequired: number;
-  cashbackPercent: number;
-  cashbackRate: number;
-  depositBonusPercent: number;
-  depositBonus: number;
-  withdrawalLimit: number;
-  birthdayBonus: number;
-  weeklyBonus: number;
-  dedicated: boolean;
-  fastWithdrawals: boolean;
-  exclusivePromos: boolean;
-  specialEvents: boolean;
-  customizedOffers: boolean;
-  benefits: string[];
-  color: string;
-  icon: string;
-};
-
-export type BonusType = "deposit" | "free_spin" | "cashback" | "loyalty" | "vip" | "freespin";
-
-export type BonusTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  type: BonusType;
-  amount: number;
-  percentage: number;
-  minDeposit: number;
-  maxBonus: number;
-  wagering: number;
-  expiryDays: number;
-  vipLevelRequired: number;
-  allowedGames: string;
-  isActive: boolean;
-  active: boolean;
-  code: string;
-  createdAt?: string;
-};
-
-export type Bonus = {
-  id: string;
-  userId: string;
-  type: BonusType;
-  amount: number;
-  status: "active" | "completed" | "expired";
-  createdAt: string;
-  expiresAt: string;
-  name: string;
-  isCompleted: boolean;
-  progress: number;
-  wagering: number;
-  templateId?: string;
-  description?: string;
-};
-
-export type OxaPayWallet = {
-  id: string;
-  currency: string;
-  address: string;
-  balance: number;
-  status: "active" | "pending" | "disabled";
-};
+  promotionType: "welcome" | "deposit" | "noDeposit" | "cashback" | "tournament";
+  terms: string;
+}
