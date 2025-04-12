@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -27,7 +28,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Badge, 
+  Badge as BadgeIcon, 
   Check,
   Download,
   Filter,
@@ -68,6 +69,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 interface SecurityLog {
   id: string;
@@ -333,6 +335,7 @@ const SecurityPage = () => {
   const [editingAccount, setEditingAccount] = useState<AdminAccount | null>(null);
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDbSource, setSelectedDbSource] = useState<string>("all");
   
   useEffect(() => {
     // Load security logs
@@ -573,6 +576,14 @@ const SecurityPage = () => {
       default:
         return <Shield className="h-5 w-5 text-gray-400" />;
     }
+  };
+
+  const generateReport = () => {
+    // Simulated report generation
+    toast({
+      title: "Report Generated",
+      description: `A report for database source "${selectedDbSource}" has been generated.`
+    });
   };
 
   return (
@@ -935,4 +946,156 @@ const SecurityPage = () => {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {categorySettings.map((setting) => (
-                        <div key={setting.id}
+                        <div key={setting.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
+                          <div className="flex-1">
+                            <h3 className="font-medium">{setting.name}</h3>
+                            <p className="text-sm text-muted-foreground">{setting.description}</p>
+                          </div>
+                          <Checkbox 
+                            checked={setting.enabled}
+                            onCheckedChange={(checked) => updateSetting(setting.id, checked === true)}
+                            className="ml-4"
+                          />
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))
+              : null}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="reports" className="space-y-4">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold">Security Reports</h2>
+            <p className="text-muted-foreground">Generate and download security reports for analysis</p>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Generate Report</CardTitle>
+              <CardDescription>Select parameters for your security report</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dbSource">Database Source</Label>
+                  <Select 
+                    value={selectedDbSource}
+                    onValueChange={setSelectedDbSource}
+                  >
+                    <SelectTrigger id="dbSource">
+                      <SelectValue placeholder="Select database source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Sources</SelectItem>
+                      <SelectItem value="users">User Database</SelectItem>
+                      <SelectItem value="transactions">Transaction Database</SelectItem>
+                      <SelectItem value="activities">Activity Database</SelectItem>
+                      <SelectItem value="kyc">KYC Database</SelectItem>
+                      <SelectItem value="security">Security Database</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="reportDate">Report Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="reportDate"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={setSelectedDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="reportNotes">Additional Notes</Label>
+                  <Textarea
+                    id="reportNotes"
+                    placeholder="Add any notes or specific requirements for this report..."
+                    className="h-24"
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-end space-x-2">
+              <Button variant="outline">Reset</Button>
+              <Button onClick={generateReport}>
+                <Download className="mr-2 h-4 w-4" />
+                Generate Report
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-4">Recent Reports</h3>
+            <div className="rounded-lg border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Report Name</TableHead>
+                    <TableHead>Date Generated</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">Monthly Security Audit</TableCell>
+                    <TableCell>{format(new Date(Date.now() - 86400000 * 2), "PPP")}</TableCell>
+                    <TableCell>All Sources</TableCell>
+                    <TableCell>2.4 MB</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Login Activity Report</TableCell>
+                    <TableCell>{format(new Date(Date.now() - 86400000 * 8), "PPP")}</TableCell>
+                    <TableCell>Security Database</TableCell>
+                    <TableCell>1.8 MB</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">KYC Verification Summary</TableCell>
+                    <TableCell>{format(new Date(Date.now() - 86400000 * 15), "PPP")}</TableCell>
+                    <TableCell>KYC Database</TableCell>
+                    <TableCell>3.2 MB</TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default SecurityPage;
