@@ -16,13 +16,13 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
   
   return (
-    <div className="flex min-h-screen bg-[#1A1F2C]">
+    <div className="flex min-h-screen bg-slate-900">
       <AdminSidebar />
       <div className="flex-1 pl-16 md:pl-64">
-        <div className="p-4 bg-[#222333] border-b border-gray-800">
+        <div className="p-4 bg-slate-800 border-b border-gray-800">
           <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
         </div>
-        <main className="p-6 bg-[#1A1F2C]">
+        <main className="p-6 bg-slate-900">
           {children || <Outlet />}
         </main>
       </div>

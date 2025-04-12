@@ -6,11 +6,11 @@ const users: User[] = [
     id: "1",
     username: "admin",
     email: "admin@thunderwin.com",
-    password: "admin123", // This is now allowed by the User type
+    password: "admin", // Updated to match the admin demo credentials
     balance: 10000,
     isAdmin: true,
     vipLevel: 10,
-    avatar: "/placeholder.svg",
+    avatar: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
     isVerified: true,
     name: "Admin User",
     status: "Active",
@@ -64,6 +64,18 @@ const users: User[] = [
   }
 ];
 
+// Initialize the default admin account for the security page
+const initialAdminAccounts = [
+  {
+    username: "admin",
+    email: "admin@thunderwin.com",
+    password: "admin",
+    role: "Super Admin",
+    lastLogin: new Date().toISOString(),
+    twoFactorEnabled: false
+  }
+];
+
 // Import mockGames as a default import if needed
 import mockGames from "@/data/mock-games";
 
@@ -76,6 +88,11 @@ const initializeDatabase = () => {
   // Initialize mockUsers for authentication
   if (!localStorage.getItem("mockUsers")) {
     localStorage.setItem("mockUsers", JSON.stringify(users));
+  }
+
+  // Initialize the admin accounts for the Security page
+  if (!localStorage.getItem("adminAccounts")) {
+    localStorage.setItem("adminAccounts", JSON.stringify(initialAdminAccounts));
   }
 
   // Initialize games

@@ -105,7 +105,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
   
   const adminLogin = async (username: string, password: string) => {
-    // This would verify with an API in a real app
+    // Check if there are admin accounts stored in localStorage from the Security page
+    const storedAdminAccounts = localStorage.getItem("adminAccounts");
+    if (storedAdminAccounts) {
+      const adminAccounts = JSON.parse(storedAdminAccounts);
+      const foundAdmin = adminAccounts.find((admin: any) => 
+        admin.username === username && admin.password === password
+      );
+      
+      if (foundAdmin) {
+        const adminUser: User = {
+          id: `admin-${Date.now()}`,
+          username: foundAdmin.username,
+          name: foundAdmin.username,
+          email: foundAdmin.email,
+          isAdmin: true,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 5,
+          isVerified: true
+        };
+        
+        // Update last login timestamp
+        const updatedAdmins = adminAccounts.map((admin: any) => 
+          admin.username === username 
+            ? { ...admin, lastLogin: new Date().toISOString() } 
+            : admin
+        );
+        localStorage.setItem("adminAccounts", JSON.stringify(updatedAdmins));
+        
+        localStorage.setItem("user", JSON.stringify(adminUser));
+        setUser(adminUser);
+        return;
+      }
+    }
+    
+    // Fallback to default admin for demo purposes
     if (username === "admin" && password === "admin") {
       const adminUser: User = {
         id: "admin1",
@@ -121,6 +156,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       localStorage.setItem("user", JSON.stringify(adminUser));
       setUser(adminUser);
+      
+      // If no admin accounts exist yet in localStorage, create the default one
+      if (!storedAdminAccounts) {
+        const defaultAdmins = [
+          {
+            username: "admin",
+            email: "admin@example.com",
+            password: "admin",
+            role: "Super Admin",
+            lastLogin: new Date().toISOString(),
+            twoFactorEnabled: false
+          }
+        ];
+        localStorage.setItem("adminAccounts", JSON.stringify(defaultAdmins));
+      }
     } else {
       throw new Error("Invalid admin credentials");
     }

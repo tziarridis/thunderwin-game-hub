@@ -28,7 +28,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Badge, 
-  Calendar as CalendarIcon,
   Check,
   Download,
   Filter,
@@ -40,12 +39,10 @@ import {
   UserCog,
   AlertCircle,
   EyeOff,
-  EyeIcon,
-  ServerCrash,
-  Bug,
   Settings,
   Save,
-  Users
+  Users,
+  CalendarIcon
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import {
@@ -584,23 +581,6 @@ const SecurityPage = () => {
         <h1 className="text-2xl font-bold text-white">Security Dashboard</h1>
         
         <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          
           <Button 
             variant="outline" 
             onClick={refreshLogs}
@@ -643,7 +623,7 @@ const SecurityPage = () => {
                 <p className="text-sm text-muted-foreground">Failed Logins</p>
                 <p className="text-2xl font-semibold">18</p>
               </div>
-              <ServerCrash className="h-8 w-8 text-red-500" />
+              <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
@@ -652,166 +632,23 @@ const SecurityPage = () => {
           <CardContent className="pt-6">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-sm text-muted-foreground">Security Threats</p>
-                <p className="text-2xl font-semibold">3</p>
+                <p className="text-sm text-muted-foreground">Admin Accounts</p>
+                <p className="text-2xl font-semibold">{adminAccounts.length}</p>
               </div>
-              <Bug className="h-8 w-8 text-yellow-500" />
+              <UserCog className="h-8 w-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
       </div>
       
-      <Tabs defaultValue="logs" className="w-full">
+      <Tabs defaultValue="admins" className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="admins">Admin Accounts</TabsTrigger>
           <TabsTrigger value="logs">Audit Logs</TabsTrigger>
           <TabsTrigger value="settings">Security Settings</TabsTrigger>
-          <TabsTrigger value="admins">Admin Accounts</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="logs" className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search logs by user, action, IP..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Select
-                value={statusFilter}
-                onValueChange={setStatusFilter}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="success">Success</SelectItem>
-                  <SelectItem value="warning">Warning</SelectItem>
-                  <SelectItem value="failure">Failure</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button variant="outline">
-                <Filter className="h-4 w-4 mr-2" />
-                More Filters
-              </Button>
-              
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-            </div>
-          </div>
-          
-          <div className="thunder-card overflow-hidden">
-            {isLoading ? (
-              <div className="flex justify-center items-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-casino-thunder-green"></div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Timestamp</TableHead>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>IP Address</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLogs.slice(0, 100).map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="whitespace-nowrap">
-                          {formatDate(log.timestamp)}
-                        </TableCell>
-                        <TableCell>{log.user}</TableCell>
-                        <TableCell>{log.action}</TableCell>
-                        <TableCell>{log.ipAddress}</TableCell>
-                        <TableCell>{getStatusBadge(log.status)}</TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {log.details || "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="settings">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {settings.reduce((acc, setting) => {
-              if (!acc[setting.category]) {
-                acc[setting.category] = [];
-              }
-              acc[setting.category].push(setting);
-              return acc;
-            }, {} as Record<string, SecuritySetting[]>)
-              // Convert the object to an array of [category, settings] pairs
-              .entries
-              ? Object.entries(settings.reduce((acc, setting) => {
-                  if (!acc[setting.category]) {
-                    acc[setting.category] = [];
-                  }
-                  acc[setting.category].push(setting);
-                  return acc;
-                }, {} as Record<string, SecuritySetting[]>))
-                .map(([category, categorySettings]) => (
-                  <Card key={category} className="bg-white/5">
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        {getCategoryIcon(category as SecuritySetting['category'])}
-                        <span className="ml-2 capitalize">{category} Security</span>
-                      </CardTitle>
-                      <CardDescription>
-                        Manage {category} security settings
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {categorySettings.map((setting) => (
-                        <div key={setting.id} className="flex items-start space-x-4 pb-4 border-b border-gray-800">
-                          <div className="flex items-center h-5 pt-1">
-                            <Checkbox
-                              id={setting.id}
-                              checked={setting.enabled}
-                              onCheckedChange={(checked) => {
-                                updateSetting(setting.id, checked === true);
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <label htmlFor={setting.id} className="text-sm font-medium cursor-pointer">
-                              {setting.name}
-                            </label>
-                            <p className="text-sm text-gray-400">
-                              {setting.description}
-                            </p>
-                            {setting.configurable && setting.enabled && (
-                              <Button variant="link" size="sm" className="px-0 py-0 h-auto text-xs text-blue-400">
-                                Configure
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                ))
-              : null}
-          </div>
-        </TabsContent>
-
         <TabsContent value="admins">
           <div className="mb-4 flex justify-between items-center">
             <h2 className="text-xl font-semibold">Admin Account Management</h2>
@@ -979,172 +816,123 @@ const SecurityPage = () => {
               </Table>
             </CardContent>
             <CardFooter className="bg-card/50 p-4 text-sm text-muted-foreground border-t border-white/10">
-              <p>
-                Admin accounts have full access to the administration panel. Use with caution.
+              <p className="text-yellow-400">
+                <AlertCircle className="inline-block h-4 w-4 mr-2" />
+                These admin accounts have full access to the administration panel. The default admin account cannot be removed.
               </p>
             </CardFooter>
           </Card>
         </TabsContent>
         
-        <TabsContent value="reports">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Security Reports</CardTitle>
-                <CardDescription>
-                  Generate and view security reports
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Report Type</Label>
-                  <Select defaultValue="login-activity">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select report type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="login-activity">Login Activity</SelectItem>
-                      <SelectItem value="security-incidents">Security Incidents</SelectItem>
-                      <SelectItem value="user-activity">User Activity</SelectItem>
-                      <SelectItem value="admin-actions">Administrative Actions</SelectItem>
-                      <SelectItem value="system-access">System Access</SelectItem>
-                      <SelectItem value="kyc-verification">KYC Verification Status</SelectItem>
-                      <SelectItem value="transaction-security">Transaction Security</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>From Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(new Date(Date.now() - 86400000 * 30), "PPP")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>To Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(new Date(), "PPP")}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Report Format</Label>
-                  <Select defaultValue="pdf">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select format" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pdf">PDF Document</SelectItem>
-                      <SelectItem value="csv">CSV Spreadsheet</SelectItem>
-                      <SelectItem value="json">JSON Data</SelectItem>
-                      <SelectItem value="html">HTML Report</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Include Details</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-user" defaultChecked />
-                      <Label htmlFor="include-user" className="text-sm">User Information</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-ip" defaultChecked />
-                      <Label htmlFor="include-ip" className="text-sm">IP Addresses</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-browser" defaultChecked />
-                      <Label htmlFor="include-browser" className="text-sm">Browser Information</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-time" defaultChecked />
-                      <Label htmlFor="include-time" className="text-sm">Detailed Timestamps</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-kyc" defaultChecked />
-                      <Label htmlFor="include-kyc" className="text-sm">KYC Status</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox id="include-auth" defaultChecked />
-                      <Label htmlFor="include-auth" className="text-sm">Authentication Method</Label>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Additional Notes</Label>
-                  <Textarea placeholder="Add any notes or context for this report..." />
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Button className="flex-1 bg-casino-thunder-green text-black hover:bg-casino-thunder-highlight">
-                    Generate Report
-                  </Button>
-                  <Button variant="outline" className="flex-1">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export PDF
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <TabsContent value="logs" className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search logs by user, action, IP..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Reports</CardTitle>
-                <CardDescription>
-                  View and download recently generated reports
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-md">
-                      <div>
-                        <p className="font-medium text-sm">
-                          {[
-                            "Monthly Security Summary",
-                            "Login Failures Report",
-                            "Admin Activity Log",
-                            "KYC Verification Report",
-                            "User Access Report"
-                          ][i]}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Generated on {new Date(Date.now() - i * 86400000).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="warning">Warning</SelectItem>
+                  <SelectItem value="failure">Failure</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button variant="outline">
+                <Filter className="h-4 w-4 mr-2" />
+                More Filters
+              </Button>
+              
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </div>
+          </div>
+          
+          <div className="thunder-card overflow-hidden">
+            {isLoading ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-casino-thunder-green"></div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Timestamp</TableHead>
+                      <TableHead>User</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>IP Address</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Details</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredLogs.slice(0, 100).map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {formatDate(log.timestamp)}
+                        </TableCell>
+                        <TableCell>{log.user}</TableCell>
+                        <TableCell>{log.action}</TableCell>
+                        <TableCell>{log.ipAddress}</TableCell>
+                        <TableCell>{getStatusBadge(log.status)}</TableCell>
+                        <TableCell className="max-w-xs truncate">
+                          {log.details || "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
         </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-export default SecurityPage;
+        
+        <TabsContent value="settings">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {settings.reduce((acc, setting) => {
+              if (!acc[setting.category]) {
+                acc[setting.category] = [];
+              }
+              acc[setting.category].push(setting);
+              return acc;
+            }, {} as Record<string, SecuritySetting[]>)
+              // Convert the object to an array of [category, settings] pairs
+              .entries
+              ? Object.entries(settings.reduce((acc, setting) => {
+                  if (!acc[setting.category]) {
+                    acc[setting.category] = [];
+                  }
+                  acc[setting.category].push(setting);
+                  return acc;
+                }, {} as Record<string, SecuritySetting[]>))
+                .map(([category, categorySettings]) => (
+                  <Card key={category} className="bg-white/5">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        {getCategoryIcon(category as SecuritySetting['category'])}
+                        <span className="ml-2 capitalize">{category} Security</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Manage {category} security settings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {categorySettings.map((setting) => (
+                        <div key={setting.id}
