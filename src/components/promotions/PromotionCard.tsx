@@ -9,6 +9,7 @@ interface PromotionCardProps {
   image: string;
   endDate?: string;
   className?: string;
+  onClick?: () => void;
 }
 
 const PromotionCard = ({ 
@@ -16,7 +17,8 @@ const PromotionCard = ({
   description, 
   image, 
   endDate,
-  className 
+  className,
+  onClick
 }: PromotionCardProps) => {
   return (
     <div className={cn("thunder-card overflow-hidden", className)}>
@@ -44,6 +46,7 @@ const PromotionCard = ({
           <Button 
             className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
             size="sm"
+            onClick={onClick}
           >
             Claim Now
           </Button>
@@ -52,6 +55,7 @@ const PromotionCard = ({
             variant="link" 
             className="text-white/70 hover:text-casino-thunder-green"
             size="sm"
+            onClick={onClick}
           >
             View Details
           </Button>

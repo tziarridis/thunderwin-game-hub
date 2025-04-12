@@ -13,14 +13,19 @@ import {
   DollarSign
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const handleSignUp = () => {
-    navigate('/register');
+    if (isAuthenticated) {
+      toast("You're already logged in!");
+      navigate('/profile');
+    } else {
+      navigate('/register');
+    }
   };
 
   const handleExploreGames = () => {
@@ -38,7 +43,7 @@ const Index = () => {
   };
 
   return (
-    <div>
+    <div className="bg-casino-thunder-darker">
       {/* Hero Section */}
       <section className="relative bg-casino-thunder-darker py-20 md:py-32 overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -63,7 +68,7 @@ const Index = () => {
                 className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-6 px-8"
                 onClick={handleSignUp}
               >
-                Sign Up Now
+                {isAuthenticated ? 'Visit Profile' : 'Sign Up Now'}
               </Button>
               <Button 
                 variant="outline" 
@@ -209,7 +214,7 @@ const Index = () => {
             className="bg-black hover:bg-gray-900 text-white text-lg py-6 px-8"
             onClick={handleSignUp}
           >
-            Create Account
+            {isAuthenticated ? 'Visit Your Account' : 'Create Account'}
           </Button>
         </div>
       </section>
