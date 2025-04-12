@@ -69,8 +69,17 @@ const Promotions = () => {
           title: "Welcome Bonus",
           description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
           image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
+          startDate: "2023-01-01",
           endDate: "Ongoing",
+          termsAndConditions: "Terms and conditions apply",
           isActive: true,
+          type: "deposit" as const,
+          bonusCode: "WELCOME100",
+          minDeposit: 20,
+          bonusPercentage: 100,
+          maxBonusAmount: 1000,
+          wageringRequirements: 35,
+          eligibleGames: ["slots", "table games"],
           category: "deposit"
         },
         {
@@ -78,8 +87,17 @@ const Promotions = () => {
           title: "Thunder Thursday",
           description: "Every Thursday, get 50 free spins when you deposit $50 or more.",
           image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400",
+          startDate: "2023-01-01",
           endDate: "Every Thursday",
+          termsAndConditions: "Terms and conditions apply",
           isActive: true,
+          type: "free_spin" as const,
+          bonusCode: "THUNDER50",
+          minDeposit: 50,
+          bonusPercentage: 0,
+          maxBonusAmount: 0,
+          wageringRequirements: 20,
+          eligibleGames: ["selected slots"],
           category: "recurring"
         },
         {
@@ -87,8 +105,17 @@ const Promotions = () => {
           title: "Weekend Reload",
           description: "Reload your account during weekends and get a 75% bonus up to $500.",
           image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400",
+          startDate: "2023-01-01",
           endDate: "Every Weekend",
+          termsAndConditions: "Terms and conditions apply",
           isActive: true,
+          type: "deposit" as const,
+          bonusCode: "WEEKEND75",
+          minDeposit: 30,
+          bonusPercentage: 75,
+          maxBonusAmount: 500,
+          wageringRequirements: 30,
+          eligibleGames: ["all games"],
           category: "deposit"
         }
       ];
@@ -142,7 +169,11 @@ const Promotions = () => {
         setPromotions(prev => 
           prev.map(promo => 
             promo.id === editingId 
-              ? { ...promo, ...formData, isActive: true }
+              ? { 
+                  ...promo, 
+                  ...formData, 
+                  isActive: true 
+                }
               : promo
           )
         );
@@ -151,8 +182,21 @@ const Promotions = () => {
         // Add new promotion
         const newPromotion: Promotion = {
           id: `${Date.now()}`,
-          ...formData,
-          isActive: true
+          title: formData.title,
+          description: formData.description,
+          image: formData.image,
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: formData.endDate,
+          termsAndConditions: "Standard terms and conditions apply.",
+          isActive: true,
+          type: "deposit",
+          bonusCode: `BONUS${Math.floor(Math.random() * 1000)}`,
+          minDeposit: 20,
+          bonusPercentage: 100,
+          maxBonusAmount: 200,
+          wageringRequirements: 35,
+          eligibleGames: ["All games"],
+          category: formData.category
         };
         setPromotions(prev => [...prev, newPromotion]);
         toast.success("Promotion added successfully");

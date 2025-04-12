@@ -1,3 +1,4 @@
+
 export type Role = "user" | "admin";
 export type Status = "Active" | "Inactive" | "Pending" | "Suspended";
 
@@ -26,6 +27,7 @@ export type Transaction = {
   status: "pending" | "completed" | "failed";
   method: string;
   date: string;
+  gameId?: string; // Added for game-related transactions
 };
 
 export type Game = {
@@ -42,6 +44,28 @@ export type Game = {
   jackpot: boolean;
   isNew: boolean;
   isPopular: boolean;
+  description?: string; // Added for game descriptions
+  releaseDate?: string; // Added for game release dates
+  isFavorite?: boolean; // Added for favorite game functionality
+};
+
+export type GameProvider = {
+  id: string;
+  name: string;
+  logo: string;
+  gameCount: number;
+  featured: boolean;
+  description?: string;
+};
+
+export type GameBet = {
+  id: string;
+  userId: string;
+  gameId: string;
+  amount: number;
+  multiplier: number;
+  payout: number;
+  timestamp: string;
 };
 
 export type Log = {
@@ -67,6 +91,15 @@ export type Affiliate = {
   payoutDetails: string;
   status: "active" | "pending" | "suspended";
   joined: string;
+  // Additional fields needed by AffiliateStats component
+  name?: string;
+  email?: string;
+  website?: string;
+  commission?: number;
+  signups?: number;
+  totalRevenue?: number;
+  joinedDate?: string;
+  referralCode?: string;
 };
 
 export type Kyc = {
@@ -82,6 +115,17 @@ export type Kyc = {
     idBack: string;
     address: string;
   };
+};
+
+export type KycRequest = {
+  id: string;
+  userId: string;
+  userName: string;
+  submittedDate: string;
+  status: "pending" | "verified" | "rejected";
+  documentType: string;
+  documentFiles: string[];
+  notes?: string;
 };
 
 export type Promotion = {
@@ -100,6 +144,7 @@ export type Promotion = {
   maxBonusAmount: number;
   wageringRequirements: number;
   eligibleGames: string[];
+  category?: string; // Added for categorizing promotions
 };
 
 export type SupportTicket = {
@@ -130,11 +175,11 @@ export type VipLevel = {
   name: string;
   level: number;
   requiredPoints: number;
-  pointsRequired: number;
+  pointsRequired: number; // Duplicate property used in some components
   cashbackPercent: number;
-  cashbackRate: number;
+  cashbackRate: number; // Duplicate property used in some components
   depositBonusPercent: number;
-  depositBonus: number;
+  depositBonus: number; // Duplicate property used in some components
   withdrawalLimit: number;
   birthdayBonus: number;
   weeklyBonus: number;
@@ -164,7 +209,7 @@ export type BonusTemplate = {
   vipLevelRequired: number;
   allowedGames: string;
   isActive: boolean;
-  active: boolean;
+  active: boolean; // Duplicate property used in some components
   code: string;
   createdAt?: string;
 };
@@ -182,4 +227,13 @@ export type Bonus = {
   progress: number;
   wagering: number;
   templateId?: string;
+  description?: string; // Added for bonus descriptions
+};
+
+export type OxaPayWallet = {
+  id: string;
+  currency: string;
+  address: string;
+  balance: number;
+  status: "active" | "pending" | "disabled";
 };

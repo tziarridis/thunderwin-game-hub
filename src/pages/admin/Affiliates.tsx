@@ -69,6 +69,8 @@ import AffiliateStats from "@/components/admin/AffiliateStats";
 const defaultAffiliates: Affiliate[] = [
   {
     id: "aff-001",
+    userId: "user-001",
+    userName: "jsmith",
     name: "James Smith",
     email: "james@affiliatesite.com",
     website: "casinoaffiliates.com",
@@ -76,11 +78,19 @@ const defaultAffiliates: Affiliate[] = [
     commission: 30,
     signups: 145,
     totalRevenue: 8720,
+    totalCommissions: 2616,
     status: "active",
-    joinedDate: "2023-06-12"
+    joined: "2023-06-12",
+    joinedDate: "2023-06-12",
+    payoutMethod: "bank",
+    payoutDetails: "Bank of America",
+    referredUsers: 145,
+    code: "JAMES10"
   },
   {
     id: "aff-002",
+    userId: "user-002",
+    userName: "mgarcia",
     name: "Maria Garcia",
     email: "maria@casinopromo.net",
     website: "casinopromo.net",
@@ -88,11 +98,19 @@ const defaultAffiliates: Affiliate[] = [
     commission: 35,
     signups: 89,
     totalRevenue: 4350,
+    totalCommissions: 1522,
     status: "active",
-    joinedDate: "2023-08-03"
+    joined: "2023-08-03",
+    joinedDate: "2023-08-03",
+    payoutMethod: "crypto",
+    payoutDetails: "Bitcoin address",
+    referredUsers: 89,
+    code: "MARIA25"
   },
   {
     id: "aff-003",
+    userId: "user-003",
+    userName: "rjohnson",
     name: "Robert Johnson",
     email: "robert@gamingpartners.com",
     website: "gamingpartners.com",
@@ -100,8 +118,14 @@ const defaultAffiliates: Affiliate[] = [
     commission: 25,
     signups: 56,
     totalRevenue: 2100,
-    status: "inactive",
-    joinedDate: "2023-11-18"
+    totalCommissions: 525,
+    status: "pending",
+    joined: "2023-11-18",
+    joinedDate: "2023-11-18",
+    payoutMethod: "paypal",
+    payoutDetails: "robert@gamingpartners.com",
+    referredUsers: 56,
+    code: "ROB2023"
   }
 ];
 
