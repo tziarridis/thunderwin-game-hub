@@ -460,23 +460,71 @@ const mockVipLevels: VipLevel[] = [
     id: 1,
     name: "Bronze",
     requirements: "1000 points",
-    benefits: ["5% cashback"],
+    benefits: ["5% cashback", "Weekly bonus", "Priority support"],
     cashbackRate: 0.05,
     withdrawalLimit: 5000,
     personalManager: false,
     customGifts: false,
-    specialPromotions: false
+    specialPromotions: false,
+    level: 1,
+    pointsRequired: 1000,
+    color: "#CD7F32"
   },
   {
     id: 2,
     name: "Silver",
     requirements: "5000 points",
-    benefits: ["10% cashback", "Personal manager"],
+    benefits: ["10% cashback", "Personal manager", "Monthly bonus package"],
     cashbackRate: 0.10,
     withdrawalLimit: 10000,
     personalManager: true,
     customGifts: false,
-    specialPromotions: true
+    specialPromotions: true,
+    level: 2,
+    pointsRequired: 5000,
+    color: "#C0C0C0"
+  },
+  {
+    id: 3,
+    name: "Gold",
+    requirements: "15000 points",
+    benefits: ["15% cashback", "Personal manager", "Custom gifts", "Higher limits"],
+    cashbackRate: 0.15,
+    withdrawalLimit: 25000,
+    personalManager: true,
+    customGifts: true,
+    specialPromotions: true,
+    level: 3,
+    pointsRequired: 15000,
+    color: "#FFD700"
+  },
+  {
+    id: 4,
+    name: "Platinum",
+    requirements: "50000 points",
+    benefits: ["20% cashback", "VIP host", "Custom gifts", "Exclusive events", "No withdrawal limits"],
+    cashbackRate: 0.20,
+    withdrawalLimit: 50000,
+    personalManager: true,
+    customGifts: true,
+    specialPromotions: true,
+    level: 4,
+    pointsRequired: 50000,
+    color: "#E5E4E2"
+  },
+  {
+    id: 5,
+    name: "Diamond",
+    requirements: "100000 points",
+    benefits: ["25% cashback", "VIP host", "Custom gifts", "Exclusive events", "Unlimited withdrawals", "Custom bonuses"],
+    cashbackRate: 0.25,
+    withdrawalLimit: 100000,
+    personalManager: true,
+    customGifts: true,
+    specialPromotions: true,
+    level: 5,
+    pointsRequired: 100000,
+    color: "#B9F2FF"
   }
 ];
 
@@ -630,6 +678,67 @@ export const getVipLevels = async (): Promise<VipLevel[]> => {
   return mockVipLevels;
 };
 
+// Function to update a VIP level
+export const updateVipLevel = async (vipLevel: VipLevel): Promise<VipLevel> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Update in mock data
+  const index = mockVipLevels.findIndex(level => level.id === vipLevel.id);
+  if (index !== -1) {
+    mockVipLevels[index] = vipLevel;
+  }
+  
+  // Also update user VIP levels in the system
+  // This would talk to the casino system in a real implementation
+  const currentUser = JSON.parse(localStorage.getItem("thunderwin_user") || "null");
+  if (currentUser && currentUser.vipLevel === vipLevel.id) {
+    // Update relevant VIP benefits for the current user if they have this VIP level
+    currentUser.cashbackRate = vipLevel.cashbackRate;
+    localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
+  }
+  
+  // Update mockUsers array for all users with this VIP level
+  try {
+    const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+    const updatedUsers = mockUsers.map((user: User) => {
+      if (user.vipLevel === vipLevel.id) {
+        return {
+          ...user,
+          // Update relevant VIP benefits
+        };
+      }
+      return user;
+    });
+    localStorage.setItem("mockUsers", JSON.stringify(updatedUsers));
+  } catch (error) {
+    console.error("Failed to update mock users:", error);
+  }
+  
+  return vipLevel;
+};
+
+// Function to create a new VIP level
+export const createVipLevel = async (vipLevelData: Omit<VipLevel, "id">): Promise<VipLevel> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Get max ID to generate a new one
+  const maxId = Math.max(...mockVipLevels.map(level => Number(level.id)));
+  const newId = maxId + 1;
+  
+  // Create new VIP level
+  const newVipLevel: VipLevel = {
+    ...vipLevelData,
+    id: newId
+  };
+  
+  // Add to mock data
+  mockVipLevels.push(newVipLevel);
+  
+  return newVipLevel;
+};
+
 // Function to fetch KYC requests
 export const getKycRequests = async (): Promise<KycRequest[]> => {
   // Simulate API call delay
@@ -716,5 +825,43 @@ export const transactionsApi = {
   updateTransaction: async (transactionData: Transaction) => {
     await new Promise(resolve => setTimeout(resolve, 500));
     return transactionData;
+  }
+};
+
+// New VIP API namespace
+export const vipApi = {
+  getVipLevels,
+  updateVipLevel,
+  createVipLevel,
+  assignVipLevel: async (userId: string, vipLevelId: number): Promise<User> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Update user VIP level in the system
+    try {
+      const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+      const userIndex = mockUsers.findIndex((u: User) => u.id === userId);
+      
+      if (userIndex !== -1) {
+        mockUsers[userIndex] = {
+          ...mockUsers[userIndex],
+          vipLevel: vipLevelId
+        };
+        localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
+        
+        // Update current user if it's the same user
+        const currentUser = JSON.parse(localStorage.getItem("thunderwin_user") || "null");
+        if (currentUser && currentUser.id === userId) {
+          currentUser.vipLevel = vipLevelId;
+          localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
+        }
+        
+        return mockUsers[userIndex];
+      }
+      
+      throw new Error("User not found");
+    } catch (error) {
+      console.error("Failed to update user VIP level:", error);
+      throw error;
+    }
   }
 };

@@ -35,11 +35,18 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Plus, Edit, Trash, Award, Users } from "lucide-react";
 import { BonusTemplate, VipLevel } from "@/types";
-import { getVipLevels } from "@/services/apiService";
+import { getVipLevels, updateVipLevel, createVipLevel } from "@/services/apiService";
+import VipLevelManager from "@/components/admin/VipLevelManager";
+import { useToast } from "@/components/ui/use-toast";
 
 type BonusTemplateFormData = Omit<BonusTemplate, "id">;
 
@@ -50,6 +57,8 @@ const VipBonusManagement = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedBonusTemplate, setSelectedBonusTemplate] =
     useState<BonusTemplate | null>(null);
+  const [activeTab, setActiveTab] = useState("bonus-templates");
+  const { toast } = useToast();
   const [formData, setFormData] = useState<BonusTemplateFormData>({
     name: "",
     description: "",
@@ -112,11 +121,16 @@ const VipBonusManagement = () => {
         setVipLevels(levels);
       } catch (error) {
         console.error("Error fetching VIP levels:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch VIP levels. Please try again later.",
+          variant: "destructive",
+        });
       }
     };
 
     fetchVipLevels();
-  }, []);
+  }, [toast]);
 
   // Fix: Separate handlers for different input types to avoid TypeScript errors
   const handleInputChange = (
@@ -152,6 +166,46 @@ const VipBonusManagement = () => {
       ...prevData,
       allowedGames: allowedGames.join(","),
     }));
+  };
+
+  const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
+    try {
+      await updateVipLevel(updatedLevel);
+      setVipLevels(prevLevels => 
+        prevLevels.map(level => 
+          level.id === updatedLevel.id ? updatedLevel : level
+        )
+      );
+      toast({
+        title: "Success",
+        description: `VIP level "${updatedLevel.name}" has been updated.`,
+      });
+    } catch (error) {
+      console.error("Error updating VIP level:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update VIP level. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleVipLevelCreate = async (newLevel: Omit<VipLevel, "id">) => {
+    try {
+      const createdLevel = await createVipLevel(newLevel);
+      setVipLevels(prevLevels => [...prevLevels, createdLevel]);
+      toast({
+        title: "Success",
+        description: `VIP level "${newLevel.name}" has been created.`,
+      });
+    } catch (error) {
+      console.error("Error creating VIP level:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create VIP level. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -207,6 +261,10 @@ const VipBonusManagement = () => {
           : template
       );
       setBonusTemplates(updatedBonusTemplates);
+      toast({
+        title: "Success",
+        description: `Bonus template "${formData.name}" has been updated.`,
+      });
     } else {
       // Create new bonus template
       const newBonusTemplate: BonusTemplate = {
@@ -214,6 +272,10 @@ const VipBonusManagement = () => {
         ...formData,
       };
       setBonusTemplates([...bonusTemplates, newBonusTemplate]);
+      toast({
+        title: "Success",
+        description: `Bonus template "${formData.name}" has been created.`,
+      });
     }
 
     // Reset form and close dialog
@@ -263,6 +325,10 @@ const VipBonusManagement = () => {
       (template) => template.id !== bonusTemplateId
     );
     setBonusTemplates(updatedBonusTemplates);
+    toast({
+      title: "Bonus Template Deleted",
+      description: "The bonus template has been successfully deleted.",
+    });
   };
 
   const handleOpenDialog = () => {
@@ -288,67 +354,95 @@ const VipBonusManagement = () => {
 
   return (
     <div className="container mx-auto py-10">
-      <Card className="shadow-md rounded-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-2xl font-bold">
-            VIP Bonus Management
-          </CardTitle>
-          <Button onClick={handleOpenDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Bonus Template
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>
-              A list of your VIP bonus templates.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Bonus Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Wagering</TableHead>
-                <TableHead>Expiry Days</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bonusTemplates.map((bonusTemplate) => (
-                <TableRow key={bonusTemplate.id}>
-                  <TableCell className="font-medium">{bonusTemplate.name}</TableCell>
-                  <TableCell>{bonusTemplate.description}</TableCell>
-                  <TableCell>{bonusTemplate.bonusType}</TableCell>
-                  <TableCell>{bonusTemplate.amount}</TableCell>
-                  <TableCell>{bonusTemplate.wagering}</TableCell>
-                  <TableCell>{bonusTemplate.expiryDays}</TableCell>
-                  <TableCell>
-                    {bonusTemplate.isActive ? "Active" : "Inactive"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(bonusTemplate)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(bonusTemplate.id)}
-                    >
-                      <Trash className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="grid w-[400px] grid-cols-2">
+            <TabsTrigger value="bonus-templates" className="flex items-center">
+              <Gift className="h-4 w-4 mr-2" />
+              Bonus Templates
+            </TabsTrigger>
+            <TabsTrigger value="vip-levels" className="flex items-center">
+              <Award className="h-4 w-4 mr-2" />
+              VIP Levels
+            </TabsTrigger>
+          </TabsList>
+          
+          {activeTab === "bonus-templates" ? (
+            <Button onClick={handleOpenDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Bonus Template
+            </Button>
+          ) : null}
+        </div>
+
+        <TabsContent value="bonus-templates">
+          <Card className="shadow-md rounded-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-2xl font-bold">
+                VIP Bonus Templates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableCaption>
+                  A list of your VIP bonus templates.
+                </TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Bonus Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Wagering</TableHead>
+                    <TableHead>Expiry Days</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bonusTemplates.map((bonusTemplate) => (
+                    <TableRow key={bonusTemplate.id}>
+                      <TableCell className="font-medium">{bonusTemplate.name}</TableCell>
+                      <TableCell>{bonusTemplate.description}</TableCell>
+                      <TableCell>{bonusTemplate.bonusType}</TableCell>
+                      <TableCell>{bonusTemplate.amount}</TableCell>
+                      <TableCell>{bonusTemplate.wagering}</TableCell>
+                      <TableCell>{bonusTemplate.expiryDays}</TableCell>
+                      <TableCell>
+                        {bonusTemplate.isActive ? "Active" : "Inactive"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(bonusTemplate)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(bonusTemplate.id)}
+                        >
+                          <Trash className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="vip-levels">
+          <VipLevelManager 
+            vipLevels={vipLevels} 
+            onUpdateVipLevel={handleVipLevelUpdate}
+            onCreateVipLevel={handleVipLevelCreate}
+          />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
