@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -899,4 +900,90 @@ const SupportPage = () => {
                   <TableBody>
                     {autoResponses.map((response) => (
                       <TableRow key={response.id}>
-                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category']
+                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category'])}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {response.keyword.map((keyword) => (
+                              <Badge key={keyword} variant="outline" className="text-xs">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {response.response.substring(0, 100)}
+                          {response.response.length > 100 ? "..." : ""}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700"
+                            onClick={() => deleteAutoResponse(response.id)}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="settings">
+          <div className="thunder-card p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Support Settings</h2>
+            <p className="text-gray-400">Configure your support system settings here.</p>
+            
+            <div className="mt-6 space-y-6">
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">Notification Settings</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300">Email notifications for new tickets</span>
+                    <Button variant="outline" size="sm">Configure</Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300">Automated ticket assignments</span>
+                    <Button variant="outline" size="sm">Configure</Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-md font-medium text-white mb-3">Working Hours</h3>
+                <p className="text-sm text-gray-400 mb-2">
+                  Set your support team's working hours. Auto-responses will be used outside these hours.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                      Start Time
+                    </label>
+                    <Input type="time" value="09:00" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                      End Time
+                    </label>
+                    <Input type="time" value="17:00" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Button className="bg-casino-thunder-green text-black hover:bg-casino-thunder-highlight">
+                    Save Settings
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default SupportPage;
