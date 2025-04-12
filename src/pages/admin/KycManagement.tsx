@@ -14,7 +14,19 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { PlusCircle, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { 
+  PlusCircle, 
+  Loader2, 
+  CheckCircle, 
+  XCircle, 
+  AlertTriangle, 
+  Search,
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  Clock,
+  Trash
+} from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Card,
@@ -22,7 +34,10 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KycRequest, KycStatus } from "@/types";
 
 const KycManagement = () => {
@@ -31,6 +46,10 @@ const KycManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedKyc, setSelectedKyc] = useState<KycRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [sortField, setSortField] = useState<string>("submittedDate");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [newRequest, setNewRequest] = useState({
     userId: "",
     userName: "",
@@ -175,29 +194,76 @@ const KycManagement = () => {
     }
   };
 
-  const isVerified = (status: string) => status === "verified" || status === "approved";
-
-  const createRejectedKyc = (id: string, userId: string, userName: string, email: string, reason: string) => {
-    return {
-      id,
-      userId,
-      userName,
-      email,
-      submittedDate: new Date().toISOString(),
-      status: "rejected" as const,
-      documentType: "Identity Document",
-      documentImage: "placeholder-image-url.jpg", // Ensure this field is always present
-      documentFiles: ["document1.jpg", "document2.jpg"],
-      rejectionReason: reason
-    };
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleFilterChange = (value: string) => {
+    setFilterStatus(value);
+  };
+
+  // Apply filters and sorting
+  const filteredAndSortedRequests = kycRequests
+    .filter(request => {
+      // Apply search filter
+      const matchesSearch = 
+        request.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.userId.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Apply status filter
+      const matchesStatus = filterStatus === "all" || request.status === filterStatus;
+      
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      // Apply sorting
+      if (sortField === "submittedDate") {
+        return sortDirection === "asc" 
+          ? new Date(a.submittedDate).getTime() - new Date(b.submittedDate).getTime()
+          : new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime();
+      } else if (sortField === "userName") {
+        return sortDirection === "asc"
+          ? a.userName.localeCompare(b.userName)
+          : b.userName.localeCompare(a.userName);
+      }
+      return 0;
+    });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">Pending</Badge>;
+      case "approved":
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Approved</Badge>;
+      case "rejected":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
+  // Statistics
+  const totalRequests = kycRequests.length;
+  const pendingRequests = kycRequests.filter(req => req.status === "pending").length;
+  const approvedRequests = kycRequests.filter(req => req.status === "approved").length;
+  const rejectedRequests = kycRequests.filter(req => req.status === "rejected").length;
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">KYC Management</h1>
-          <p className="text-gray-500">Manage user KYC verification requests</p>
+          <p className="text-muted-foreground">Verify and manage user identity documents</p>
         </div>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -213,7 +279,7 @@ const KycManagement = () => {
                 rejectionReason: ""
               });
               setSelectedKyc(null);
-            }}>
+            }} className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
               <PlusCircle className="mr-2 h-4 w-4" />
               Add KYC Request
             </Button>
@@ -263,13 +329,20 @@ const KycManagement = () => {
 
               <div className="grid gap-2">
                 <Label htmlFor="documentType">Document Type</Label>
-                <Input
-                  id="documentType"
-                  name="documentType"
+                <Select 
+                  onValueChange={(value) => setNewRequest({...newRequest, documentType: value})}
                   value={newRequest.documentType}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Passport"
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Passport">Passport</SelectItem>
+                    <SelectItem value="Driver's License">Driver's License</SelectItem>
+                    <SelectItem value="ID Card">ID Card</SelectItem>
+                    <SelectItem value="Residence Permit">Residence Permit</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">
@@ -285,7 +358,7 @@ const KycManagement = () => {
             </div>
 
             <DialogFooter>
-              <Button onClick={handleSubmit}>
+              <Button onClick={handleSubmit} className="bg-casino-thunder-green text-black hover:bg-casino-thunder-highlight">
                 Create KYC Request
               </Button>
             </DialogFooter>
@@ -293,54 +366,206 @@ const KycManagement = () => {
         </Dialog>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-12">
-          <Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" />
-          Loading KYC requests...
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {kycRequests.map(request => (
-            <Card key={request.id} className="bg-casino-thunder-dark border-white/10">
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>{request.userName}</CardTitle>
-                  {isVerified(request.status) ? (
-                    <CheckCircle className="text-green-500 h-5 w-5" />
-                  ) : request.status === "rejected" ? (
-                    <XCircle className="text-red-500 h-5 w-5" />
-                  ) : (
-                    <AlertTriangle className="text-yellow-500 h-5 w-5" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription>
-                  Email: {request.email}
-                  <br />
-                  Document: {request.documentType}
-                  <br />
-                  Submitted: {new Date(request.submittedDate).toLocaleDateString()}
-                </CardDescription>
-              </CardContent>
-              <div className="p-3 flex justify-between items-center">
-                <Button variant="outline" onClick={() => handleOpenDialog(request)}>
-                  View Details
-                </Button>
-                <Button variant="destructive" onClick={() => handleDelete(request.id)}>
-                  Delete
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="bg-casino-thunder-dark border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Requests</CardTitle>
+            <CardDescription className="text-2xl font-bold">{totalRequests}</CardDescription>
+          </CardHeader>
+        </Card>
+        
+        <Card className="bg-casino-thunder-dark border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
+            <CardDescription className="text-2xl font-bold text-yellow-500">{pendingRequests}</CardDescription>
+          </CardHeader>
+        </Card>
+        
+        <Card className="bg-casino-thunder-dark border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Approved</CardTitle>
+            <CardDescription className="text-2xl font-bold text-green-500">{approvedRequests}</CardDescription>
+          </CardHeader>
+        </Card>
+        
+        <Card className="bg-casino-thunder-dark border-white/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Rejected</CardTitle>
+            <CardDescription className="text-2xl font-bold text-red-500">{rejectedRequests}</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
 
-      {kycRequests.length === 0 && !isLoading && (
-        <div className="text-center py-12 bg-muted rounded-lg">
-          <p className="text-muted-foreground">No KYC requests available.</p>
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, email or user ID..."
+            value={searchQuery}
+            onChange={handleSearch}
+            className="pl-9"
+          />
         </div>
-      )}
+        
+        <div className="w-full sm:w-48">
+          <Select onValueChange={handleFilterChange} defaultValue="all">
+            <SelectTrigger>
+              <div className="flex items-center">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Filter by status" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Tabs for different views */}
+      <Tabs defaultValue="grid">
+        <div className="flex justify-between items-center">
+          <TabsList>
+            <TabsTrigger value="grid">Grid View</TabsTrigger>
+            <TabsTrigger value="table">Table View</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSort("submittedDate")}
+              className={sortField === "submittedDate" ? "border-casino-thunder-green text-casino-thunder-green" : ""}
+            >
+              Date {sortField === "submittedDate" && (sortDirection === "asc" ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />)}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleSort("userName")}
+              className={sortField === "userName" ? "border-casino-thunder-green text-casino-thunder-green" : ""}
+            >
+              Name {sortField === "userName" && (sortDirection === "asc" ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />)}
+            </Button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-casino-thunder-green" />
+            <p className="mt-2 text-muted-foreground">Loading KYC requests...</p>
+          </div>
+        ) : filteredAndSortedRequests.length === 0 ? (
+          <div className="text-center py-12 bg-muted rounded-lg mt-4">
+            <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-2 text-muted-foreground">No KYC requests found matching your filters.</p>
+          </div>
+        ) : (
+          <>
+            {/* Grid View */}
+            <TabsContent value="grid">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAndSortedRequests.map(request => (
+                  <Card key={request.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-lg">{request.userName}</CardTitle>
+                          <CardDescription className="text-sm">{request.email}</CardDescription>
+                        </div>
+                        <div>
+                          {request.status === "approved" ? (
+                            <CheckCircle className="text-green-500 h-5 w-5" />
+                          ) : request.status === "rejected" ? (
+                            <XCircle className="text-red-500 h-5 w-5" />
+                          ) : (
+                            <Clock className="text-yellow-500 h-5 w-5" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <div className="flex justify-between items-center text-sm mb-2">
+                        <span className="text-muted-foreground">Document:</span>
+                        <span>{request.documentType}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm mb-2">
+                        <span className="text-muted-foreground">Status:</span>
+                        <span>{getStatusBadge(request.status)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Submitted:</span>
+                        <span>{new Date(request.submittedDate).toLocaleDateString()}</span>
+                      </div>
+                      {request.status === "rejected" && (
+                        <div className="mt-3 p-2 bg-red-500/10 rounded text-sm text-red-400 border border-red-500/20">
+                          <p className="font-medium">Reason for rejection:</p>
+                          <p>{request.rejectionReason}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                    <CardFooter className="flex justify-between pt-2 border-t border-white/10">
+                      <Button variant="outline" onClick={() => handleOpenDialog(request)}>
+                        View Details
+                      </Button>
+                      <Button variant="destructive" size="icon" onClick={() => handleDelete(request.id)}>
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            {/* Table View */}
+            <TabsContent value="table">
+              <div className="rounded-md border border-white/10 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-casino-thunder-dark/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium text-muted-foreground">User</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Document</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Submitted Date</th>
+                      <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-right p-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedRequests.map((request, index) => (
+                      <tr key={request.id} className={`border-t border-white/10 ${index % 2 === 0 ? 'bg-casino-thunder-dark/30' : 'bg-casino-thunder-dark/10'}`}>
+                        <td className="p-3">
+                          <div>
+                            <div className="font-medium">{request.userName}</div>
+                            <div className="text-sm text-muted-foreground">{request.email}</div>
+                          </div>
+                        </td>
+                        <td className="p-3">{request.documentType}</td>
+                        <td className="p-3">{new Date(request.submittedDate).toLocaleDateString()}</td>
+                        <td className="p-3">{getStatusBadge(request.status)}</td>
+                        <td className="p-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleOpenDialog(request)}>
+                              View
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(request.id)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
 
       {/* KYC Request Details Dialog */}
       <Dialog open={!!selectedKyc} onOpenChange={() => handleCloseDialog()}>
@@ -353,52 +578,69 @@ const KycManagement = () => {
           </DialogHeader>
 
           {selectedKyc && (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>User ID</Label>
-                <CardDescription>{selectedKyc.userId}</CardDescription>
-              </div>
+            <div className="space-y-6 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label>User ID</Label>
+                    <p className="text-sm font-medium mt-1">{selectedKyc.userId}</p>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label>User Name</Label>
-                <CardDescription>{selectedKyc.userName}</CardDescription>
-              </div>
+                  <div>
+                    <Label>User Name</Label>
+                    <p className="text-sm font-medium mt-1">{selectedKyc.userName}</p>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label>Email</Label>
-                <CardDescription>{selectedKyc.email}</CardDescription>
-              </div>
+                  <div>
+                    <Label>Email</Label>
+                    <p className="text-sm font-medium mt-1">{selectedKyc.email}</p>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label>Document Type</Label>
-                <CardDescription>{selectedKyc.documentType}</CardDescription>
-              </div>
+                  <div>
+                    <Label>Document Type</Label>
+                    <p className="text-sm font-medium mt-1">{selectedKyc.documentType}</p>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label>Submitted Date</Label>
-                <CardDescription>{new Date(selectedKyc.submittedDate).toLocaleDateString()}</CardDescription>
-              </div>
+                  <div>
+                    <Label>Submitted Date</Label>
+                    <p className="text-sm font-medium mt-1">{new Date(selectedKyc.submittedDate).toLocaleString()}</p>
+                  </div>
 
-              <div className="grid gap-2">
-                <Label>Document Image</Label>
-                <img src={selectedKyc.documentImage} alt="Document" className="rounded-md" />
-              </div>
+                  <div>
+                    <Label>Status</Label>
+                    <div className="mt-1">{getStatusBadge(selectedKyc.status)}</div>
+                  </div>
+                </div>
 
-              <div className="grid gap-2">
-                <Label>Document Files</Label>
-                <div className="flex space-x-2">
-                  {selectedKyc.documentFiles.map((file, index) => (
-                    <a key={index} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                      {file}
-                    </a>
-                  ))}
+                <div className="space-y-4">
+                  <div>
+                    <Label>Document Image</Label>
+                    <div className="mt-2 border border-white/10 rounded-md overflow-hidden">
+                      <img src={selectedKyc.documentImage} alt="Document" className="w-full h-auto" />
+                    </div>
+                  </div>
+
+                  {selectedKyc.documentFiles.length > 0 && (
+                    <div>
+                      <Label>Document Files</Label>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedKyc.documentFiles.map((file, index) => (
+                          <Button key={index} variant="outline" size="sm" asChild>
+                            <a href={file} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300">
+                              {file.split('/').pop()}
+                            </a>
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {selectedKyc.status === "rejected" && (
-                <div className="grid gap-2">
+                <div className="p-3 bg-red-500/10 rounded-md border border-red-500/20">
                   <Label>Rejection Reason</Label>
-                  <CardDescription>{selectedKyc.rejectionReason}</CardDescription>
+                  <p className="text-sm mt-1">{selectedKyc.rejectionReason}</p>
                 </div>
               )}
 
@@ -410,24 +652,32 @@ const KycManagement = () => {
                     placeholder="Enter rejection reason"
                     value={rejectionReason}
                     onChange={(e) => setRejectionReason(e.target.value)}
+                    className="min-h-[80px]"
                   />
                 </div>
               )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                {selectedKyc?.status === "pending" ? (
+                  <>
+                    <Button variant="destructive" onClick={() => selectedKyc && handleReject(selectedKyc.id)}>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Reject
+                    </Button>
+                    <Button 
+                      onClick={() => selectedKyc && handleApprove(selectedKyc.id)}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Approve
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={() => handleCloseDialog()}>Close</Button>
+                )}
+              </DialogFooter>
             </div>
           )}
-
-          <DialogFooter>
-            {selectedKyc?.status === "pending" ? (
-              <>
-                <Button variant="destructive" onClick={() => selectedKyc && handleReject(selectedKyc.id)}>
-                  Reject
-                </Button>
-                <Button onClick={() => selectedKyc && handleApprove(selectedKyc.id)}>Approve</Button>
-              </>
-            ) : (
-              <Button onClick={() => handleCloseDialog()}>Close</Button>
-            )}
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
