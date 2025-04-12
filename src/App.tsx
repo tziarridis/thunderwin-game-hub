@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import AdminSecurity from "./pages/admin/Security";
 import AdminSettings from "./pages/admin/Settings";
 import Logs from "./pages/admin/Logs";
 import Affiliates from "./pages/admin/Affiliates";
+import Reports from "./pages/admin/Reports";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,7 +35,7 @@ import { useEffect } from "react";
 import { usersApi, gamesApi, transactionsApi } from "./services/apiService";
 import { initializeDatabaseOnStartup } from "./utils/dbInitializer";
 
-// Import new pages
+// Import new and existing pages
 import CasinoMain from "./pages/casino/CasinoMain";
 import SlotsPage from "./pages/casino/Slots";
 import LiveCasinoPage from "./pages/casino/LiveCasino";
@@ -46,6 +48,7 @@ import TennisPage from "./pages/sports/Tennis";
 import HockeyPage from "./pages/sports/Hockey";
 import EsportsPage from "./pages/sports/Esports";
 import HelpCenterPage from "./pages/support/Help";
+import HelpCenterFaqPage from "./pages/support/Faq";
 import ResponsibleGamingPage from "./pages/support/ResponsibleGaming";
 import TermsPage from "./pages/legal/Terms";
 import PrivacyPage from "./pages/legal/Privacy";
@@ -133,6 +136,7 @@ const App = () => {
                 
                 {/* Support Routes */}
                 <Route path="/help" element={<HelpCenterPage />} />
+                <Route path="/faq" element={<HelpCenterFaqPage />} />
                 <Route path="/responsible-gaming" element={<ResponsibleGamingPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 
@@ -162,7 +166,7 @@ const App = () => {
                 <Route path="transactions" element={<AdminTransactions />} />
                 <Route path="games" element={<AdminGames />} />
                 <Route path="promotions" element={<AdminPromotions />} />
-                <Route path="reports" element={<AdminDashboard />} />
+                <Route path="reports" element={<Reports />} />
                 <Route path="affiliates" element={<Affiliates />} />
                 <Route path="support" element={<AdminSupport />} />
                 <Route path="logs" element={<Logs />} />
