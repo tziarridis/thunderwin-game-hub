@@ -44,6 +44,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'transactions': '/transactions',
     'support': '/support/contact',
     'help': '/support/help',
+    'help center': '/support/help',
     'faq': '/support/faq',
     'contact': '/support/contact',
     'responsible gaming': '/support/responsible-gaming',

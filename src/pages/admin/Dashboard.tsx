@@ -49,6 +49,7 @@ const Dashboard = () => {
   })
   const [timeFrame, setTimeFrame] = useState<string>("Last Month");
   const [activeTab, setActiveTab] = useState("overview");
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -499,7 +500,7 @@ const Dashboard = () => {
               <SelectItem value="This Year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Popover>
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant={"outline"}
@@ -507,6 +508,7 @@ const Dashboard = () => {
                   "w-[200px] justify-start text-left font-normal",
                   !date && "text-muted-foreground"
                 )}
+                onClick={() => setIsCalendarOpen(true)}
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 {date?.from ? (
@@ -525,9 +527,15 @@ const Dashboard = () => {
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={setDate}
+                onSelect={(newDate) => {
+                  setDate(newDate);
+                  if (newDate?.from && newDate?.to) {
+                    setIsCalendarOpen(false);
+                  }
+                }}
                 numberOfMonths={2}
                 pagedNavigation
+                className="pointer-events-auto"
               />
             </PopoverContent>
           </Popover>

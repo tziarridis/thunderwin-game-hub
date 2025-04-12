@@ -123,7 +123,7 @@ const VipBonusManagement = () => {
   ) => {
     const { name, value } = e.target;
     
-    // Proper type narrowing with instanceof
+    // Type guard to properly handle checkbox inputs
     if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
       setFormData((prevData) => ({
         ...prevData,

@@ -3,7 +3,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "@/utils/navigationUtils";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, Zap, Trophy, Gift, CreditCard } from "lucide-react";
+import { Gamepad2, Zap, Trophy, Gift, CreditCard, HelpCircle } from "lucide-react";
 import { useGames } from "@/hooks/useGames";
 import FeaturedGames from "@/components/casino/FeaturedGames";
 import GameCategories from "@/components/casino/GameCategories";
@@ -65,7 +65,7 @@ const Index = () => {
       </div>
       
       {/* Quick Links */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
         <Button 
           variant="outline" 
           className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
@@ -100,7 +100,15 @@ const Index = () => {
         </Button>
         <Button 
           variant="outline" 
-          className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10 col-span-2 md:col-span-1"
+          className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
+          onClick={handleButtonClick}
+        >
+          <HelpCircle className="h-8 w-8 mb-2" />
+          <span>Help Center</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
           onClick={handleButtonClick}
         >
           <CreditCard className="h-8 w-8 mb-2" />
