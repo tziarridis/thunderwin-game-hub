@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Table, 
@@ -47,19 +46,7 @@ import {
   ArrowUpRight
 } from "lucide-react";
 import { toast } from "sonner";
-
-interface Affiliate {
-  id: string;
-  name: string;
-  email: string;
-  website?: string;
-  referralCode: string;
-  commission: number;
-  signups: number;
-  totalRevenue: number;
-  status: "active" | "inactive" | "pending";
-  joinedDate: string;
-}
+import { Affiliate } from "@/types";
 
 const defaultAffiliates: Affiliate[] = [
   {
@@ -155,7 +142,7 @@ const Affiliates = () => {
       commission: newAffiliate.commission,
       signups: 0,
       totalRevenue: 0,
-      status: "active",
+      status: "active" as const, // Explicitly type as one of the allowed values
       joinedDate: new Date().toISOString().split('T')[0]
     };
 
@@ -186,7 +173,7 @@ const Affiliates = () => {
   const handleToggleStatus = (id: string) => {
     const updatedAffiliates = affiliates.map(aff => {
       if (aff.id === id) {
-        const newStatus = aff.status === "active" ? "inactive" : "active";
+        const newStatus: "active" | "inactive" = aff.status === "active" ? "inactive" : "active";
         return { ...aff, status: newStatus };
       }
       return aff;
