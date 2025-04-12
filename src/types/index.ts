@@ -1,3 +1,4 @@
+
 // Main data types for the casino application
 
 export interface User {
@@ -74,4 +75,59 @@ export interface DatabaseSchemas {
   transactions: Transaction[];
   bets: GameBet[];
   providers: GameProvider[];
+  supportTickets: SupportTicket[];
+  autoResponses: AutoResponse[];
 }
+
+// Platform settings
+export interface PlatformSettings {
+  general: {
+    siteName: string;
+    siteUrl: string;
+    supportEmail: string;
+    maintenance: boolean;
+  };
+  security: {
+    maxLoginAttempts: number;
+    sessionTimeout: number;
+    forcePasswordChange: number;
+    requireTwoFactor: boolean;
+    ipWhitelist: string;
+  };
+  notifications: {
+    emailNotifications: boolean;
+    loginAlerts: boolean;
+    withdrawalAlerts: boolean;
+    depositAlerts: boolean;
+    maintenanceAlerts: boolean;
+  };
+  limits: {
+    minDeposit: number;
+    maxDeposit: number;
+    minWithdrawal: number;
+    maxWithdrawal: number;
+    dailyWithdrawalLimit: number;
+  };
+  database: {
+    backupSchedule: 'hourly' | 'daily' | 'weekly' | 'monthly';
+    retentionDays: number;
+    compression: boolean;
+    autoCleanup: boolean;
+  };
+}
+
+// Audit log entry
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warning' | 'error' | 'debug';
+  category: 'security' | 'user' | 'system' | 'payment' | 'game' | 'admin';
+  message: string;
+  user?: string;
+  ipAddress?: string;
+  details?: string;
+}
+
+// Import support types to consolidate everything
+import { SupportTicket, SupportMessage, AutoResponse } from './support';
+export { type SupportTicket, type SupportMessage, type AutoResponse };

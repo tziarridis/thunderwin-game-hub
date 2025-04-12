@@ -1,5 +1,5 @@
 
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { 
   LayoutDashboard, 
@@ -24,14 +24,17 @@ interface SidebarLinkProps {
   icon: React.ReactNode;
   label: string;
   expanded: boolean;
+  isActive: boolean;
 }
 
-const SidebarLink = ({ to, icon, label, expanded }: SidebarLinkProps) => (
+const SidebarLink = ({ to, icon, label, expanded, isActive }: SidebarLinkProps) => (
   <Link
     to={to}
-    className="flex items-center px-3 py-2 text-white/80 hover:text-casino-thunder-green hover:bg-white/5 rounded-md transition-colors"
+    className={`flex items-center px-3 py-2 hover:bg-white/5 rounded-md transition-colors ${
+      isActive ? 'text-casino-thunder-green bg-white/5' : 'text-white/80 hover:text-casino-thunder-green'
+    }`}
   >
-    <span className="text-white/60">{icon}</span>
+    <span className={isActive ? 'text-casino-thunder-green' : 'text-white/60'}>{icon}</span>
     {expanded && <span className="ml-3">{label}</span>}
   </Link>
 );
@@ -40,6 +43,11 @@ const AdminSidebar = () => {
   const [expanded, setExpanded] = useState(true);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
   
   const handleLogout = () => {
     logout();
@@ -80,36 +88,49 @@ const AdminSidebar = () => {
             icon={<LayoutDashboard size={20} />} 
             label="Dashboard" 
             expanded={expanded}
+            isActive={isActive("/admin") && location.pathname === "/admin"}
           />
           <SidebarLink 
             to="/admin/users" 
             icon={<Users size={20} />} 
             label="Users" 
             expanded={expanded}
+            isActive={isActive("/admin/users")}
           />
           <SidebarLink 
             to="/admin/transactions" 
             icon={<CreditCard size={20} />} 
             label="Transactions" 
             expanded={expanded}
+            isActive={isActive("/admin/transactions")}
           />
           <SidebarLink 
             to="/admin/reports" 
             icon={<BarChart2 size={20} />} 
             label="Reports" 
             expanded={expanded}
+            isActive={isActive("/admin/reports")}
           />
           <SidebarLink 
             to="/admin/games" 
             icon={<Gift size={20} />} 
-            label="Games & Promos" 
+            label="Games" 
             expanded={expanded}
+            isActive={isActive("/admin/games")}
+          />
+          <SidebarLink 
+            to="/admin/promotions" 
+            icon={<Gift size={20} />} 
+            label="Promotions" 
+            expanded={expanded}
+            isActive={isActive("/admin/promotions")}
           />
           <SidebarLink 
             to="/admin/support" 
             icon={<MessageSquare size={20} />} 
             label="Support" 
             expanded={expanded}
+            isActive={isActive("/admin/support")}
           />
         </div>
         
@@ -120,18 +141,21 @@ const AdminSidebar = () => {
               icon={<FileText size={20} />} 
               label="Audit Logs" 
               expanded={expanded}
+              isActive={isActive("/admin/logs")}
             />
             <SidebarLink 
               to="/admin/security" 
               icon={<ShieldAlert size={20} />} 
               label="Security" 
               expanded={expanded}
+              isActive={isActive("/admin/security")}
             />
             <SidebarLink 
               to="/admin/settings" 
               icon={<Settings size={20} />} 
               label="Settings" 
               expanded={expanded}
+              isActive={isActive("/admin/settings")}
             />
           </div>
         </div>
@@ -143,6 +167,7 @@ const AdminSidebar = () => {
               icon={<Home size={20} />} 
               label="Main Casino" 
               expanded={expanded}
+              isActive={false}
             />
           </div>
         </div>
