@@ -1,4 +1,4 @@
-
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import GameGrid from "@/components/games/GameGrid";
@@ -15,10 +15,25 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Promotion } from "@/types";
 
 const Index = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+
+  useEffect(() => {
+    // Load promotions from localStorage
+    const storedPromotions = localStorage.getItem('promotions');
+    if (storedPromotions) {
+      const parsedPromotions = JSON.parse(storedPromotions);
+      // Only use active promotions and limit to 3
+      const activePromotions = parsedPromotions
+        .filter((promo: Promotion) => promo.isActive)
+        .slice(0, 3);
+      setPromotions(activePromotions);
+    }
+  }, []);
 
   const handleSignUp = () => {
     if (isAuthenticated) {
@@ -199,27 +214,22 @@ const Index = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <PromotionCard 
-              title="Welcome Bonus"
-              description="Get a 100% match up to $1,000 + 50 free spins on your first deposit."
-              image="https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400"
-              endDate="Ongoing"
-              onClick={() => handleViewPromotion("Welcome Bonus")}
-            />
-            <PromotionCard 
-              title="Thunder Thursday"
-              description="Every Thursday, get 50 free spins when you deposit $50 or more."
-              image="https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400"
-              endDate="Every Thursday"
-              onClick={() => handleViewPromotion("Thunder Thursday")}
-            />
-            <PromotionCard 
-              title="Weekend Reload"
-              description="Reload your account during weekends and get a 75% bonus up to $500."
-              image="https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400"
-              endDate="Every Weekend"
-              onClick={() => handleViewPromotion("Weekend Reload")}
-            />
+            {promotions.length > 0 ? (
+              promotions.map((promotion) => (
+                <PromotionCard 
+                  key={promotion.id}
+                  title={promotion.title}
+                  description={promotion.description}
+                  image={promotion.image}
+                  endDate={promotion.endDate}
+                  onClick={() => handleViewPromotion(promotion.title)}
+                />
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-12">
+                <p className="text-white/70">No active promotions at the moment. Check back soon!</p>
+              </div>
+            )}
           </div>
         </div>
       </section>

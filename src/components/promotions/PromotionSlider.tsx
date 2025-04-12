@@ -1,35 +1,24 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PromotionCard from "./PromotionCard";
+import { Promotion } from "@/types";
 
 const PromotionSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   
-  const promotions = [
-    {
-      id: 1,
-      title: "Welcome Bonus",
-      description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
-      image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=800",
-      endDate: "Ongoing"
-    },
-    {
-      id: 2,
-      title: "Thunder Thursday",
-      description: "Every Thursday, get 50 free spins when you deposit $50 or more.",
-      image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=800",
-      endDate: "Every Thursday"
-    },
-    {
-      id: 3,
-      title: "Weekend Reload",
-      description: "Reload your account during weekends and get a 75% bonus up to $500.",
-      image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=800",
-      endDate: "Every Weekend"
+  useEffect(() => {
+    // Load promotions from localStorage
+    const storedPromotions = localStorage.getItem('promotions');
+    if (storedPromotions) {
+      const parsedPromotions = JSON.parse(storedPromotions);
+      // Only show active promotions
+      const activePromotions = parsedPromotions.filter((promo: Promotion) => promo.isActive);
+      setPromotions(activePromotions);
     }
-  ];
+  }, []);
   
   const prevSlide = () => {
     setCurrentSlide((prev) => (prev === 0 ? promotions.length - 1 : prev - 1));
@@ -38,6 +27,10 @@ const PromotionSlider = () => {
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev === promotions.length - 1 ? 0 : prev + 1));
   };
+
+  if (promotions.length === 0) {
+    return null; // Don't render if no promotions
+  }
 
   return (
     <div className="relative overflow-hidden py-8">

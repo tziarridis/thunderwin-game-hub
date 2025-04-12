@@ -11,26 +11,32 @@ import { Button } from "@/components/ui/button";
 import { Gift, Calendar, Info, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { Promotion } from "@/types";
 
 const Promotions = () => {
-  const [promotions, setPromotions] = useState<any[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentTab, setCurrentTab] = useState("all");
-  const [showDetails, setShowDetails] = useState<number | null>(null);
+  const [showDetails, setShowDetails] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
 
   // Load promotions from localStorage on component mount
   useEffect(() => {
     const storedPromotions = localStorage.getItem('promotions');
     if (storedPromotions) {
-      setPromotions(JSON.parse(storedPromotions));
+      const parsedPromotions = JSON.parse(storedPromotions);
+      // Only show active promotions
+      const activePromotions = parsedPromotions.filter((promo: Promotion) => promo.isActive);
+      setPromotions(activePromotions);
     }
+    setIsLoading(false);
   }, []);
 
   const filteredPromotions = currentTab === "all" 
     ? promotions 
     : promotions.filter(promo => promo.category === currentTab);
 
-  const handleClaimPromotion = (promoId: number) => {
+  const handleClaimPromotion = (promoId: string) => {
     if (!isAuthenticated) {
       toast.error("Please sign in to claim this promotion");
       return;
@@ -42,7 +48,7 @@ const Promotions = () => {
     }
   };
 
-  const handleViewDetails = (promoId: number) => {
+  const handleViewDetails = (promoId: string) => {
     setShowDetails(showDetails === promoId ? null : promoId);
   };
 
@@ -71,52 +77,58 @@ const Promotions = () => {
           </div>
           
           <TabsContent value={currentTab} className="mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredPromotions.map(promotion => (
-                <div key={promotion.id} className="flex flex-col h-full">
-                  <PromotionCard 
-                    title={promotion.title}
-                    description={promotion.description}
-                    image={promotion.image}
-                    endDate={promotion.endDate}
-                    onClick={() => handleClaimPromotion(promotion.id)}
-                    className="h-full"
-                  />
-                  
-                  {showDetails === promotion.id && (
-                    <div className="mt-4 p-4 bg-casino-thunder-dark rounded-lg border border-white/10">
-                      <h4 className="font-semibold text-white mb-2 flex items-center">
-                        <Info className="h-4 w-4 mr-2 text-casino-thunder-green" />
-                        Promotion Details
-                      </h4>
-                      <div className="text-white/70 text-sm space-y-2">
-                        <p>• Available for all players</p>
-                        <p>• Minimum deposit: $20</p>
-                        <p>• Wagering requirement: 35x</p>
-                        <p>• Maximum withdrawal: $2,000</p>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-white/70">Loading promotions...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredPromotions.map(promotion => (
+                  <div key={promotion.id} className="flex flex-col h-full">
+                    <PromotionCard 
+                      title={promotion.title}
+                      description={promotion.description}
+                      image={promotion.image}
+                      endDate={promotion.endDate}
+                      onClick={() => handleClaimPromotion(promotion.id)}
+                      className="h-full"
+                    />
+                    
+                    {showDetails === promotion.id && (
+                      <div className="mt-4 p-4 bg-casino-thunder-dark rounded-lg border border-white/10">
+                        <h4 className="font-semibold text-white mb-2 flex items-center">
+                          <Info className="h-4 w-4 mr-2 text-casino-thunder-green" />
+                          Promotion Details
+                        </h4>
+                        <div className="text-white/70 text-sm space-y-2">
+                          <p>• Available for all players</p>
+                          <p>• Minimum deposit: $20</p>
+                          <p>• Wagering requirement: 35x</p>
+                          <p>• Maximum withdrawal: $2,000</p>
+                        </div>
+                        <div className="flex justify-end mt-3">
+                          <Button size="sm" variant="outline" onClick={() => setShowDetails(null)}>
+                            Close Details
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex justify-end mt-3">
-                        <Button size="sm" variant="outline" onClick={() => setShowDetails(null)}>
-                          Close Details
-                        </Button>
-                      </div>
+                    )}
+                    
+                    <div className="mt-2 flex justify-end">
+                      <Button 
+                        variant="link" 
+                        className="text-white/70 hover:text-casino-thunder-green p-0"
+                        onClick={() => handleViewDetails(promotion.id)}
+                      >
+                        {showDetails === promotion.id ? "Hide Details" : "View Details"}
+                      </Button>
                     </div>
-                  )}
-                  
-                  <div className="mt-2 flex justify-end">
-                    <Button 
-                      variant="link" 
-                      className="text-white/70 hover:text-casino-thunder-green p-0"
-                      onClick={() => handleViewDetails(promotion.id)}
-                    >
-                      {showDetails === promotion.id ? "Hide Details" : "View Details"}
-                    </Button>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
             
-            {filteredPromotions.length === 0 && (
+            {!isLoading && filteredPromotions.length === 0 && (
               <div className="text-center py-12 bg-casino-thunder-dark rounded-lg">
                 <p className="text-white/70">No promotions available in this category at the moment.</p>
               </div>

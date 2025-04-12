@@ -1,7 +1,7 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar, Edit, Trash } from "lucide-react";
+import { Calendar, Edit, Trash, Power } from "lucide-react";
 
 interface PromotionCardProps {
   title: string;
@@ -61,14 +61,25 @@ const PromotionCard = ({
                 Edit
               </Button>
               
-              <Button 
-                variant="destructive" 
-                size="sm"
-                onClick={onDelete}
-              >
-                <Trash className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onClick}
+                >
+                  <Power className="h-4 w-4 mr-2" />
+                  Toggle
+                </Button>
+                
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={onDelete}
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </>
           ) : (
             <>
