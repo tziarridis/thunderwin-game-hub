@@ -74,7 +74,7 @@ const GameCard = ({
   };
 
   return (
-    <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", props.className)}>
+    <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}>
       <div className="aspect-[3/4] overflow-hidden relative">
         <img 
           src={image} 

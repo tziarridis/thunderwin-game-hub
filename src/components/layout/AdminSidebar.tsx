@@ -1,4 +1,3 @@
-
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { 
@@ -61,7 +60,7 @@ const AdminSidebar = () => {
       <div className="flex items-center justify-between p-4 border-b border-white/5">
         {expanded ? (
           <img 
-            src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
+            src="/file.svg" 
             alt="ThunderWin" 
             className="h-8 thunder-glow"
           />
