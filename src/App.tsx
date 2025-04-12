@@ -8,6 +8,9 @@ import LiveCasino from "./pages/casino/LiveCasino";
 import Jackpots from "./pages/casino/Jackpots";
 import Providers from "./pages/casino/Providers";
 import GameDetails from "./pages/casino/GameDetails";
+import CrashGamesPage from "./pages/casino/Crash";
+import NewGamesPage from "./pages/casino/NewGames";
+import FavoritesPage from "./pages/casino/Favorites";
 import Sports from "./pages/sports/Sports";
 import Football from "./pages/sports/Football";
 import Basketball from "./pages/sports/Basketball";
@@ -64,6 +67,9 @@ function App() {
           <Route path="casino/jackpots" element={<Jackpots />} />
           <Route path="casino/providers" element={<Providers />} />
           <Route path="casino/game/:id" element={<GameDetails />} />
+          <Route path="casino/crash" element={<CrashGamesPage />} />
+          <Route path="casino/new" element={<NewGamesPage />} />
+          <Route path="casino/favorites" element={<FavoritesPage />} />
           
           {/* Sports Routes */}
           <Route path="sports" element={<Sports />} />

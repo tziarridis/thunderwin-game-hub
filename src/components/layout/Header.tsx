@@ -1,4 +1,3 @@
-
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -411,7 +410,7 @@ const Header = () => {
                     </PopoverContent>
                   </Popover>
                   
-                  {/* User Menu - Fix user button issue */}
+                  {/* User Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <motion.button
