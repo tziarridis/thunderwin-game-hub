@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Play, Star, Info, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 interface GameCardProps {
   id?: string;
   title: string;
-  image: string;
+  image?: string; // Make image optional
   provider: string;
   isPopular?: boolean;
   isNew?: boolean;
@@ -24,7 +23,7 @@ interface GameCardProps {
 const GameCard = ({ 
   id = "1", // Default ID if none provided
   title, 
-  image, 
+  image = "/file.svg", // Default to the SVG if no image is provided
   provider, 
   isPopular = false,
   isNew = false,
@@ -33,7 +32,8 @@ const GameCard = ({
   maxBet = 100,
   isFavorite = false,
   onFavoriteToggle,
-  className 
+  className,
+  ...props 
 }: GameCardProps) => {
   const [isFav, setIsFav] = useState(isFavorite);
   const { toast } = useToast();
@@ -74,11 +74,16 @@ const GameCard = ({
   };
 
   return (
-    <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}>
+    <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", props.className)}>
       <div className="aspect-[3/4] overflow-hidden relative">
         <img 
           src={image} 
           alt={title}
+          onError={(e) => {
+            // Fallback to SVG if image fails to load
+            const imgElement = e.target as HTMLImageElement;
+            imgElement.src = "/file.svg";
+          }}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         
