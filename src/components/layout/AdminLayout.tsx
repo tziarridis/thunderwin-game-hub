@@ -2,7 +2,11 @@
 import { Outlet } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 
-const AdminLayout = () => {
+interface AdminLayoutProps {
+  children?: React.ReactNode;
+}
+
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   return (
     <div className="flex">
       <AdminSidebar />
@@ -11,7 +15,7 @@ const AdminLayout = () => {
           <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
         </div>
         <main>
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
     </div>

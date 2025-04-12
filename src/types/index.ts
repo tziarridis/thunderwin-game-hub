@@ -87,47 +87,77 @@ export interface Affiliate {
   joinedDate: string;
 }
 
-// VIP Level interface
+// VIP Level interface - Updated to match the properties used in VipBonusManagement.tsx
 export interface VipLevel {
-  id: number;
+  id: string;
   name: string;
-  requiredPoints: number;
+  level: number;
+  requiredPoints: number; 
+  pointsRequired: number; // Alternative name used in VipBonusManagement
   cashbackPercent: number;
+  cashbackRate: number; // Alternative name used in VipBonusManagement
   depositBonusPercent: number;
+  depositBonus: number; // Alternative name used in VipBonusManagement
   withdrawalLimit: number;
+  birthdayBonus: number;
+  weeklyBonus: number;
   benefits: string[];
   description: string;
   color: string;
+  dedicated: boolean;
+  fastWithdrawals: boolean;
+  exclusivePromos: boolean;
+  specialEvents: boolean;
+  customizedOffers: boolean;
+  icon: string;
 }
 
-// Bonus interface
+// Bonus interface - Updated to match properties used in components
 export interface Bonus {
   id: string;
   userId: string;
   title: string;
   description: string;
+  name: string; // Alternative name used in components
   amount: number;
   wagerRequired: number;
   wagerCompleted: number;
+  wagering: number; // Alternative name used in components
+  progress: number; // Used in BonusHub
   expiresAt: string;
   status: "active" | "completed" | "expired";
+  isCompleted: boolean; // Alternative used in BonusHub
   type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
   bonusCode?: string;
+  code?: string; // Alternative name used in components
+  createdAt: string; // Used in BonusHub
+  templateId?: string; // Reference to the template
+  percentage?: number; // Used in components
 }
 
-// Bonus Template interface
+// Bonus Template interface - Updated to match properties used in components
 export interface BonusTemplate {
   id: string;
   title: string;
   description: string;
+  name: string; // Alternative name used in components
   amount: number;
   wagerMultiplier: number;
-  duration: number; // in days
+  wagering: number; // Alternative name used in components
+  duration: number;
+  expiryDays: number; // Alternative name used in components
   minDeposit: number;
   isActive: boolean;
+  active: boolean; // Alternative name used in components
   requiredVipLevel: number;
+  vipLevelRequired: number; // Alternative name used in components
   type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
   bonusCode?: string;
+  code?: string; // Alternative name used in components
+  percentage?: number; // Used in components for deposit percent
+  maxBonus?: number; // Maximum bonus amount
+  allowedGames?: string; // Used in admin component
+  createdAt?: string; // Timestamp when created
 }
 
 // KYC Request interface

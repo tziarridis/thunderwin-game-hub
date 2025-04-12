@@ -1,6 +1,7 @@
 
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Layout from "./components/layout/Layout";
+import AdminLayout from "./components/layout/AdminLayout";
 
 // Main Pages
 import IndexPage from "./pages/Index";
@@ -259,19 +260,19 @@ function App() {
           } />
           
           {/* Admin routes */}
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/transactions" element={<AdminTransactions />} />
-          <Route path="/admin/reports" element={<AdminReports />} />
-          <Route path="/admin/games" element={<AdminGames />} />
-          <Route path="/admin/promotions" element={<AdminPromotions />} />
-          <Route path="/admin/affiliates" element={<AdminAffiliates />} />
-          <Route path="/admin/support" element={<AdminSupport />} />
-          <Route path="/admin/logs" element={<AdminLogs />} />
-          <Route path="/admin/security" element={<AdminSecurity />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          <Route path="/admin/kyc" element={<KycManagement />} />
-          <Route path="/admin/vip-bonus" element={<VipBonusManagement />} />
+          <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+          <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+          <Route path="/admin/transactions" element={<AdminLayout><AdminTransactions /></AdminLayout>} />
+          <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
+          <Route path="/admin/games" element={<AdminLayout><AdminGames /></AdminLayout>} />
+          <Route path="/admin/promotions" element={<AdminLayout><AdminPromotions /></AdminLayout>} />
+          <Route path="/admin/affiliates" element={<AdminLayout><AdminAffiliates /></AdminLayout>} />
+          <Route path="/admin/support" element={<AdminLayout><AdminSupport /></AdminLayout>} />
+          <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
+          <Route path="/admin/security" element={<AdminLayout><AdminSecurity /></AdminLayout>} />
+          <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
+          <Route path="/admin/kyc" element={<AdminLayout><KycManagement /></AdminLayout>} />
+          <Route path="/admin/vip-bonus" element={<AdminLayout><VipBonusManagement /></AdminLayout>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
