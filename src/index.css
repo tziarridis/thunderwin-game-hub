@@ -53,6 +53,8 @@
 
   body {
     @apply bg-casino-thunder-dark text-foreground font-montserrat;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0A0A0A 0%, #121212 50%, #0A0A0A 100%);
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -60,9 +62,10 @@
   }
 }
 
-/* Existing styles */
+/* Enhanced Glow Effects */
 .thunder-glow {
-  filter: drop-shadow(0 0 7px #00FF66);
+  filter: drop-shadow(0 0 10px #00FF66);
+  text-shadow: 0 0 20px rgba(0, 255, 102, 0.5);
 }
 
 .thunder-card {
@@ -74,7 +77,7 @@
 }
 
 .thunder-input {
-  @apply bg-casino-thunder-dark border border-casino-thunder-gray/50 focus-visible:border-casino-thunder-green/70 rounded-md px-3 py-2 text-foreground focus-visible:outline-none;
+  @apply bg-casino-thunder-dark border border-casino-thunder-gray/50 focus-visible:border-casino-thunder-green/70 rounded-md px-3 py-2 text-foreground focus-visible:outline-none transition-all duration-300;
 }
 
 .header-blur {
@@ -170,26 +173,17 @@
 }
 
 .enhanced-tab {
-  @apply transition-all duration-300 hover:bg-casino-thunder-green/10 relative;
-}
-
-.enhanced-tab::after {
-  content: '';
-  @apply absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green scale-x-0 transition-transform duration-300 origin-bottom-right;
-}
-
-.enhanced-tab[data-state="active"]::after {
-  @apply scale-x-100 origin-bottom-left;
+  @apply transition-all duration-300 relative;
 }
 
 .enhanced-tab[data-state="active"] {
   @apply text-casino-thunder-green;
 }
 
-/* New animation keyframes */
+/* Animation keyframes */
 @keyframes shimmer {
-  0% { backgroundPosition: -200% 0; }
-  100% { backgroundPosition: 200% 0; }
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 @keyframes shine {
@@ -208,11 +202,11 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 102, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(0, 255, 102, 0.6); }
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(0, 255, 102, 0.3)); }
+  50% { filter: drop-shadow(0 0 15px rgba(0, 255, 102, 0.6)); }
 }
 
-/* New utility animations */
+/* Utility animations */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
@@ -225,7 +219,7 @@
   animation: pulseGlow 2s infinite;
 }
 
-/* New component and interaction styles */
+/* Component and interaction styles */
 .hover-scale {
   @apply transition-transform duration-200;
 }
@@ -246,4 +240,140 @@
 
 .container-wide {
   @apply container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* New enhancements for better UI and animations */
+.btn-shine {
+  @apply relative overflow-hidden;
+}
+
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    135deg, 
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.03) 30%, 
+    rgba(255,255,255,0.1) 50%, 
+    rgba(255,255,255,0.03) 70%, 
+    rgba(255,255,255,0) 100%
+  );
+  transform: rotate(45deg);
+  animation: btn-shine 3s ease-in-out infinite;
+}
+
+@keyframes btn-shine {
+  0% { transform: rotate(45deg) translateX(-100%); }
+  100% { transform: rotate(45deg) translateX(100%); }
+}
+
+.gradient-text {
+  @apply bg-gradient-to-br from-white to-white/70 bg-clip-text text-transparent;
+}
+
+.gradient-text-primary {
+  @apply bg-gradient-to-br from-casino-thunder-green to-casino-thunder-green/70 bg-clip-text text-transparent;
+}
+
+.gradient-overlay {
+  position: relative;
+}
+
+.gradient-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(10, 10, 10, 0.9) 0%, rgba(10, 10, 10, 0) 50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.neon-border {
+  @apply border border-transparent transition-all duration-300;
+  background-origin: border-box;
+  background-clip: content-box, border-box;
+  background-image: linear-gradient(#000, #000), linear-gradient(90deg, #00FF66 0%, rgba(0, 255, 102, 0.5) 100%);
+}
+
+.underline-animation {
+  @apply relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-casino-thunder-green after:origin-bottom-right after:scale-x-0 after:transition-transform after:duration-300 hover:after:origin-bottom-left hover:after:scale-x-100;
+}
+
+.floating {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Glass cards and popups */
+.glass-popup {
+  @apply backdrop-blur-xl bg-black/40 border border-white/10 rounded-xl;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.glass-input {
+  @apply bg-white/5 border border-white/10 focus:border-casino-thunder-green/50 rounded-lg px-4 py-2 text-white placeholder:text-white/50 transition-all duration-300;
+}
+
+/* Tab highlight animation */
+.tab-highlight {
+  @apply relative overflow-hidden;
+}
+
+.tab-highlight[data-state="active"]::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, rgba(0, 255, 102, 0.3), rgba(0, 255, 102, 1), rgba(0, 255, 102, 0.3));
+  animation: tab-glow 1.5s infinite;
+}
+
+@keyframes tab-glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Card hover effects */
+.card-hover-lift {
+  @apply transition-all duration-300;
+}
+
+.card-hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+/* Better button animations */
+.button-flash {
+  position: relative;
+  overflow: hidden;
+}
+
+.button-flash::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: rotate(45deg);
+  transform-origin: center;
+  animation: button-flash 1.5s ease-in-out infinite;
+}
+
+@keyframes button-flash {
+  0% { transform: rotate(45deg) translateX(-100%); }
+  100% { transform: rotate(45deg) translateX(100%); }
 }

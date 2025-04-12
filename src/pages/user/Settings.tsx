@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { 
   Tabs, 
@@ -52,6 +51,7 @@ import {
 import { toast } from "sonner";
 import { KycStatus } from "@/types";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -130,14 +130,24 @@ const Settings = () => {
     }
   };
 
+  const fadeInVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex flex-col md:flex-row items-start gap-8">
-        <div className="w-full md:w-64 space-y-4">
+        <motion.div 
+          initial="hidden"
+          animate="visible"
+          variants={fadeInVariants}
+          className="w-full md:w-64 space-y-4"
+        >
           <div className="flex items-center space-x-4 mb-8">
-            <Avatar className="h-16 w-16">
+            <Avatar className="h-16 w-16 hover-scale">
               <AvatarImage src={user.avatarUrl} alt={user.name} />
-              <AvatarFallback className="text-lg">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+              <AvatarFallback className="text-lg bg-gradient-to-br from-casino-thunder-green/90 to-casino-thunder-green/60">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
             </Avatar>
             <div>
               <h2 className="text-xl font-bold">{user.name}</h2>
@@ -150,9 +160,9 @@ const Settings = () => {
             orientation="vertical" 
             value={activeTab}
             onValueChange={setActiveTab}
-            className="w-full"
+            className="w-full enhanced-tabs"
           >
-            <TabsList className="flex flex-col h-auto items-stretch bg-background border rounded-md p-1 space-y-1">
+            <TabsList className="flex flex-col h-auto items-stretch glass-card p-1 space-y-1">
               <TabsTrigger 
                 value="account"
                 className="justify-start text-left py-3 px-4"
@@ -190,11 +200,16 @@ const Settings = () => {
               </TabsTrigger>
             </TabsList>
           </Tabs>
-        </div>
+        </motion.div>
         
-        <div className="flex-1 w-full">
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="flex-1 w-full"
+        >
           <TabsContent value="account" className="mt-0">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
                 <CardDescription>
@@ -275,7 +290,7 @@ const Settings = () => {
           </TabsContent>
           
           <TabsContent value="security" className="mt-0">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Security Settings</CardTitle>
                 <CardDescription>
@@ -385,7 +400,7 @@ const Settings = () => {
           </TabsContent>
           
           <TabsContent value="notifications" className="mt-0">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
                 <CardDescription>
@@ -461,7 +476,7 @@ const Settings = () => {
           </TabsContent>
           
           <TabsContent value="verification" className="mt-0">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Account Verification</CardTitle>
                 <CardDescription>
@@ -609,7 +624,7 @@ const Settings = () => {
           </TabsContent>
           
           <TabsContent value="payment" className="mt-0">
-            <Card>
+            <Card className="glass-card">
               <CardHeader>
                 <CardTitle>Payment Methods</CardTitle>
                 <CardDescription>
@@ -649,7 +664,7 @@ const Settings = () => {
               </CardContent>
             </Card>
           </TabsContent>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

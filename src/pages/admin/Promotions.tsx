@@ -14,10 +14,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { PlusCircle, Loader2, BarChart, Users } from "lucide-react";
+import { PlusCircle, Loader2, BarChart, Users, Search, Filter } from "lucide-react";
 import PromotionCard from "@/components/promotions/PromotionCard";
 import { Promotion } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion } from "framer-motion";
 
 const categories = [
   { value: "deposit", label: "Deposit Bonus" },
@@ -46,6 +48,8 @@ const Promotions = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Load promotions from localStorage on component mount
   useEffect(() => {
@@ -220,6 +224,21 @@ const Promotions = () => {
     toast.success("Promotion status updated");
   };
 
+  const getFilteredPromotions = () => {
+    const filtered = activeTab === "all" 
+      ? promotions 
+      : promotions.filter(promo => promo.category === activeTab);
+    
+    if (!searchQuery) return filtered;
+    
+    return filtered.filter(promo => 
+      promo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      promo.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  const filteredPromotions = getFilteredPromotions();
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -239,12 +258,14 @@ const Promotions = () => {
                 category: "deposit"
               });
               setEditingId(null);
-            }}>
+            }}
+            className="hover-scale"
+            >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Promotion
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="glass-card">
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Promotion" : "Add New Promotion"}</DialogTitle>
               <DialogDescription>
@@ -322,6 +343,7 @@ const Promotions = () => {
               <Button 
                 onClick={handleSubmit} 
                 disabled={isSubmitting}
+                className="hover-scale"
               >
                 {isSubmitting ? (
                   <>
@@ -338,8 +360,13 @@ const Promotions = () => {
       </div>
       
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }} 
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
+      >
+        <Card className="hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Promotions</CardTitle>
             <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
@@ -352,7 +379,7 @@ const Promotions = () => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Promotions</CardTitle>
             <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
@@ -365,7 +392,7 @@ const Promotions = () => {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="hover-scale">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Claimed Promotions</CardTitle>
             <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
@@ -377,28 +404,62 @@ const Promotions = () => {
             <p className="text-xs text-muted-foreground">Total user claims</p>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {promotions.map(promo => (
-          <PromotionCard
-            key={promo.id}
-            title={promo.title}
-            description={promo.description}
-            image={promo.image}
-            endDate={promo.endDate}
-            isAdmin={true}
-            onEdit={() => handleEdit(promo)}
-            onDelete={() => handleDelete(promo.id)}
-            onClick={() => handleToggleStatus(promo.id)}
-            className={!promo.isActive ? "opacity-60" : ""}
+      <div className="mb-6 flex flex-col md:flex-row justify-between gap-4">
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input 
+            placeholder="Search promotions..." 
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
-        ))}
+        </div>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:max-w-xl">
+          <TabsList className="w-full enhanced-tabs">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="deposit">Deposit</TabsTrigger>
+            <TabsTrigger value="cashback">Cashback</TabsTrigger>
+            <TabsTrigger value="tournament">Tournament</TabsTrigger>
+            <TabsTrigger value="recurring">Recurring</TabsTrigger>
+            <TabsTrigger value="special">Special</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
       
-      {promotions.length === 0 && (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
+        {filteredPromotions.map((promo, index) => (
+          <motion.div
+            key={promo.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+          >
+            <PromotionCard
+              title={promo.title}
+              description={promo.description}
+              image={promo.image}
+              endDate={promo.endDate}
+              isAdmin={true}
+              onEdit={() => handleEdit(promo)}
+              onDelete={() => handleDelete(promo.id)}
+              onClick={() => handleToggleStatus(promo.id)}
+              className={!promo.isActive ? "opacity-60" : "hover-scale"}
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+      
+      {filteredPromotions.length === 0 && (
         <div className="text-center py-12 bg-muted rounded-lg">
-          <p className="text-muted-foreground">No promotions available. Add your first promotion!</p>
+          <p className="text-muted-foreground">No promotions available. {searchQuery ? "Try a different search term." : "Add your first promotion!"}</p>
         </div>
       )}
     </div>

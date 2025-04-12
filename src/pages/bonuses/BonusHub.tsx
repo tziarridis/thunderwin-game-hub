@@ -155,6 +155,28 @@ const BonusHub = () => {
     }
   };
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: {
+        delayChildren: 0.3,
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
+
   return (
     <div className="bg-gradient-to-b from-casino-thunder-darker to-black min-h-screen pt-12 pb-20">
       <div className="container mx-auto px-4">
@@ -166,7 +188,7 @@ const BonusHub = () => {
           className="text-center max-w-4xl mx-auto mb-12"
         >
           <div className="relative inline-block mb-8">
-            <Gift className="text-casino-thunder-green w-12 h-12 mb-2 mx-auto animate-pulse" />
+            <Gift className="text-casino-thunder-green w-12 h-12 mb-2 mx-auto animate-pulse-glow" />
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
               <span className="text-casino-thunder-green thunder-glow">Bonus</span> Hub
             </h1>
@@ -192,8 +214,8 @@ const BonusHub = () => {
         </motion.div>
         
         {/* Tabs Section */}
-        <Tabs defaultValue="all" className="w-full max-w-4xl mx-auto mb-8" onValueChange={setActiveTab}>
-          <TabsList className="w-full mb-6 bg-casino-thunder-gray/50 backdrop-blur-md">
+        <Tabs defaultValue="all" className="w-full max-w-4xl mx-auto mb-8 enhanced-tabs" onValueChange={setActiveTab}>
+          <TabsList className="w-full mb-6 glass-card">
             <TabsTrigger value="all" className="flex-1">All Bonuses</TabsTrigger>
             <TabsTrigger value="active" className="flex-1">Active</TabsTrigger>
             <TabsTrigger value="completed" className="flex-1">Completed</TabsTrigger>
@@ -223,22 +245,42 @@ const BonusHub = () => {
 
 // Separate component for the bonus cards grid
 const BonusGrid = ({ bonuses }: { bonuses: Bonus[] }) => {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
   if (bonuses.length === 0) {
     return (
-      <div className="text-center py-16 glass-card">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="text-center py-16 glass-card"
+      >
         <Gift className="mx-auto h-12 w-12 text-casino-thunder-green/50 mb-4" />
         <h3 className="text-2xl font-semibold text-white mb-2">No Bonuses Available</h3>
         <p className="text-white/60">There are no bonuses in this category at the moment.</p>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+    >
       {bonuses.map((bonus, index) => (
         <BonusCard key={bonus.id} bonus={bonus} index={index} />
       ))}
-    </div>
+    </motion.div>
   );
 };
 
@@ -280,16 +322,25 @@ const BonusCard = ({ bonus, index }: { bonus: Bonus; index: number }) => {
     }
     toast.success(`${bonus.name} claimed successfully!`);
   };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
   
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1, duration: 0.5 }}
+      variants={itemVariants}
     >
       <Card className="glass-card overflow-hidden border-0 hover:neo-glow transition-all duration-300">
         <CardHeader className="relative pb-2">
-          <div className="absolute top-4 right-6">
+          <div className="absolute top-4 right-6 animate-float">
             {getBonusIcon(bonus.type)}
           </div>
           <CardTitle className="text-xl font-semibold text-white">{bonus.name}</CardTitle>
@@ -303,7 +354,7 @@ const BonusCard = ({ bonus, index }: { bonus: Bonus; index: number }) => {
         <CardContent className="space-y-4 pt-2">
           <p className="text-white/80">{bonus.description}</p>
           
-          <div className="bg-white/5 rounded-lg p-3 space-y-2">
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-sm text-white/70">Progress:</span>
               <span className={`text-sm ${getStatusClass(bonus.status)}`}>{bonus.progress}%</span>
