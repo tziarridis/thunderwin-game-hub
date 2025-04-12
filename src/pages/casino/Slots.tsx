@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
 import WinningRoller from "@/components/casino/WinningRoller";
 
 const SlotsPage = () => {
-  const { games, isLoading, error } = useGames();
+  const { games, loading, error } = useGames();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
   
@@ -126,7 +126,7 @@ const SlotsPage = () => {
           </TabsList>
           
           <TabsContent value="all" className="mt-0">
-            {isLoading ? (
+            {loading ? (
               <div className="text-center py-8">
                 <div className="animate-pulse text-white/70">Loading games...</div>
               </div>
@@ -148,7 +148,7 @@ const SlotsPage = () => {
           </TabsContent>
           
           <TabsContent value="popular" className="mt-0">
-            {isLoading ? (
+            {loading ? (
               <div className="text-center py-8">
                 <div className="animate-pulse text-white/70">Loading games...</div>
               </div>
@@ -170,7 +170,7 @@ const SlotsPage = () => {
           </TabsContent>
           
           <TabsContent value="new" className="mt-0">
-            {isLoading ? (
+            {loading ? (
               <div className="text-center py-8">
                 <div className="animate-pulse text-white/70">Loading games...</div>
               </div>
