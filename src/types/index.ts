@@ -9,6 +9,7 @@ export interface User {
   balance: number;
   joined: string;
   favoriteGames?: string[];
+  role?: 'user' | 'admin';  // Add role property
 }
 
 export interface Game {
@@ -51,4 +52,22 @@ export interface GameBet {
   result: 'win' | 'loss';
   winAmount: number;
   date: string;
+}
+
+// Game provider integration interface
+export interface GameProvider {
+  id: string;
+  name: string;
+  logo: string;
+  gamesCount: number;
+  isActive: boolean;
+}
+
+// Database schemas (simulated for LocalStorage)
+export interface DatabaseSchemas {
+  users: User[];
+  games: Game[];
+  transactions: Transaction[];
+  bets: GameBet[];
+  providers: GameProvider[];
 }

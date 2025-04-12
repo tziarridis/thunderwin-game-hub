@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,33 +17,31 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Home, Shield } from "lucide-react";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
+const adminLoginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required")
 });
 
-type LoginValues = z.infer<typeof loginSchema>;
+type AdminLoginValues = z.infer<typeof adminLoginSchema>;
 
-const Login = () => {
-  const { login } = useAuth();
-  const navigate = useNavigate();
+const AdminLogin = () => {
+  const { adminLogin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<AdminLoginValues>({
+    resolver: zodResolver(adminLoginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: ""
     }
   });
 
-  const onSubmit = async (values: LoginValues) => {
+  const onSubmit = async (values: AdminLoginValues) => {
     setIsSubmitting(true);
     try {
-      await login(values.email, values.password);
-      navigate("/");
+      await adminLogin(values.username, values.password);
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("Admin login failed:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -62,18 +60,21 @@ const Login = () => {
           </Link>
         </div>
         
-        <h1 className="text-2xl font-bold text-white mb-6 text-center">Sign In</h1>
+        <div className="flex items-center justify-center mb-6">
+          <Shield className="text-casino-thunder-green h-8 w-8 mr-2" />
+          <h1 className="text-2xl font-bold text-white text-center">Admin Access</h1>
+        </div>
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="email"
+              name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>Username</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="Enter your email" {...field} />
+                    <Input placeholder="Enter admin username" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -87,29 +88,12 @@ const Login = () => {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Enter your password" {...field} />
+                    <Input type="password" placeholder="Enter admin password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
-            <div className="flex justify-between items-center">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-casino-thunder-green focus:ring-casino-thunder-green"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-white/70">
-                  Remember me
-                </label>
-              </div>
-              
-              <Link to="/forgot-password" className="text-sm text-casino-thunder-green hover:underline">
-                Forgot password?
-              </Link>
-            </div>
             
             <Button 
               type="submit" 
@@ -119,25 +103,18 @@ const Login = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Authenticating...
                 </>
-              ) : "Sign In"}
+              ) : "Access Admin Panel"}
             </Button>
           </form>
         </Form>
         
         <div className="mt-6 text-center text-sm text-white/70">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-casino-thunder-green hover:underline">
-            Create Account
-          </Link>
+          <span>Credentials: username: "admin", password: "admin"</span>
         </div>
         
-        <div className="mt-6 text-center text-xs text-white/50">
-          Demo account: demo@example.com / password123
-        </div>
-        
-        <div className="mt-6 flex justify-between">
+        <div className="mt-6 flex justify-center">
           <Button 
             variant="outline" 
             size="sm" 
@@ -146,19 +123,7 @@ const Login = () => {
           >
             <Link to="/">
               <Home className="mr-2 h-4 w-4" />
-              Back to Home
-            </Link>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            asChild
-            className="text-white hover:text-yellow-500"
-          >
-            <Link to="/admin-login">
-              <Shield className="mr-2 h-4 w-4" />
-              Admin Access
+              Back to Casino
             </Link>
           </Button>
         </div>
@@ -167,4 +132,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default AdminLogin;

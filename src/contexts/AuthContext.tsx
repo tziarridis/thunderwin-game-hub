@@ -1,17 +1,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  balance: number;
-  avatarUrl?: string;
-  isVerified: boolean;
-  vipLevel: number;
-  role: 'user' | 'admin';
-}
+import { useNavigate } from "react-router-dom";
+import { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +15,7 @@ interface AuthContextType {
   updateBalance: (newBalance: number) => void;
   deposit: (amount: number) => Promise<void>;
   withdraw: (amount: number) => Promise<void>;
+  adminLogin: (username: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,17 +30,23 @@ const mockUsers = [
     balance: 1000,
     isVerified: true,
     vipLevel: 1,
-    role: 'user' as const
+    role: 'user' as const,
+    name: "Demo User",
+    status: "Active" as const,
+    joined: "2025-04-01"
   },
   {
     id: "admin1",
     username: "admin",
     email: "admin@example.com",
-    password: "admin123",
+    password: "admin",
     balance: 9999,
     isVerified: true,
     vipLevel: 10,
-    role: 'admin' as const
+    role: 'admin' as const,
+    name: "Administrator",
+    status: "Active" as const,
+    joined: "2025-03-01"
   }
 ];
 
@@ -56,19 +54,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Check for saved session on mount
     const savedUser = localStorage.getItem("thunderwin_user");
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        
+        // If admin logged in, redirect to admin panel if not already there
+        if (parsedUser.role === 'admin' && window.location.pathname !== '/admin' && !window.location.pathname.startsWith('/admin/')) {
+          navigate('/admin');
+        }
       } catch (e) {
         console.error("Failed to parse saved user", e);
       }
     }
     setIsLoading(false);
-  }, []);
+  }, [navigate]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -86,6 +91,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(userData);
       localStorage.setItem("thunderwin_user", JSON.stringify(userData));
       
+      // Sync with users database
+      const usersDb = JSON.parse(localStorage.getItem("users") || "[]");
+      const existingUserIndex = usersDb.findIndex((u: User) => u.id === userData.id);
+      
+      // If user doesn't exist in the admin database, add them
+      if (existingUserIndex === -1) {
+        const newUser = {
+          id: userData.id,
+          name: userData.username,
+          email: userData.email,
+          status: "Active",
+          balance: userData.balance,
+          joined: new Date().toISOString().split('T')[0],
+          favoriteGames: []
+        };
+        localStorage.setItem("users", JSON.stringify([...usersDb, newUser]));
+      }
+      
       toast({
         title: "Login Successful",
         description: `Welcome back, ${userData.username}!`,
@@ -93,6 +116,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       toast({
         title: "Login Failed",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const adminLogin = async (username: string, password: string) => {
+    setIsLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Check for admin credentials
+      if (username !== "admin" || password !== "admin") {
+        throw new Error("Invalid admin credentials");
+      }
+      
+      const adminUser = mockUsers.find(u => u.username === "admin");
+      
+      if (!adminUser) {
+        throw new Error("Admin user not found");
+      }
+      
+      const { password: _, ...userData } = adminUser;
+      setUser(userData);
+      localStorage.setItem("thunderwin_user", JSON.stringify(userData));
+      
+      toast({
+        title: "Admin Login Successful",
+        description: "Welcome to the administration panel",
+      });
+      
+      // Redirect to admin dashboard
+      navigate('/admin');
+    } catch (error) {
+      toast({
+        title: "Admin Login Failed",
         description: error instanceof Error ? error.message : "An error occurred",
         variant: "destructive",
       });
@@ -116,18 +179,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error("Username already taken");
       }
       
-      const newUser: User = {
-        id: `user${Math.floor(Math.random() * 10000)}`,
+      const userId = `user${Math.floor(Math.random() * 10000)}`;
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      const newUser = {
+        id: userId,
         username,
+        name: username,
         email,
         balance: 100, // Welcome bonus
         isVerified: false,
         vipLevel: 0,
-        role: 'user'
+        role: 'user' as const,
+        status: "Active" as const,
+        joined: currentDate
       };
       
-      setUser(newUser);
-      localStorage.setItem("thunderwin_user", JSON.stringify(newUser));
+      // Add to mock users
+      mockUsers.push({ ...newUser, password });
+      
+      // Add user to the admin panel database
+      const usersDb = JSON.parse(localStorage.getItem("users") || "[]");
+      const newUserForDb = {
+        id: userId,
+        name: username,
+        email,
+        status: "Active",
+        balance: 100,
+        joined: currentDate,
+        favoriteGames: []
+      };
+      
+      localStorage.setItem("users", JSON.stringify([...usersDb, newUserForDb]));
+      
+      const { password: _, ...userData } = newUser;
+      setUser(userData);
+      localStorage.setItem("thunderwin_user", JSON.stringify(userData));
       
       toast({
         title: "Registration Successful",
@@ -152,6 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       title: "Logged Out",
       description: "You have been successfully logged out.",
     });
+    navigate('/login');
   };
 
   const updateBalance = (newBalance: number) => {
@@ -159,6 +247,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, balance: newBalance };
       setUser(updatedUser);
       localStorage.setItem("thunderwin_user", JSON.stringify(updatedUser));
+      
+      // Update user in admin database too
+      const usersDb = JSON.parse(localStorage.getItem("users") || "[]");
+      const userIndex = usersDb.findIndex((u: User) => u.id === user.id);
+      
+      if (userIndex !== -1) {
+        usersDb[userIndex].balance = newBalance;
+        localStorage.setItem("users", JSON.stringify(usersDb));
+      }
     }
   };
   
@@ -179,6 +276,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const newBalance = user.balance + amount;
       updateBalance(newBalance);
+      
+      // Add transaction record
+      const transactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+      const newTransaction = {
+        id: `TRX-${10000 + transactions.length + 1}`,
+        userId: user.id,
+        userName: user.name || user.username,
+        type: "deposit",
+        amount: amount,
+        currency: "USD",
+        status: "completed",
+        method: "Credit Card",
+        date: new Date().toISOString()
+      };
+      
+      localStorage.setItem("transactions", JSON.stringify([newTransaction, ...transactions]));
       
       toast({
         title: "Deposit Successful",
@@ -222,6 +335,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newBalance = user.balance - amount;
       updateBalance(newBalance);
       
+      // Add transaction record
+      const transactions = JSON.parse(localStorage.getItem("transactions") || "[]");
+      const newTransaction = {
+        id: `TRX-${10000 + transactions.length + 1}`,
+        userId: user.id,
+        userName: user.name || user.username,
+        type: "withdraw",
+        amount: amount,
+        currency: "USD",
+        status: "completed",
+        method: "Bank Transfer",
+        date: new Date().toISOString()
+      };
+      
+      localStorage.setItem("transactions", JSON.stringify([newTransaction, ...transactions]));
+      
       toast({
         title: "Withdrawal Requested",
         description: `Your withdrawal of $${amount} is being processed.`,
@@ -249,7 +378,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         updateBalance,
         deposit,
-        withdraw
+        withdraw,
+        adminLogin
       }}
     >
       {children}

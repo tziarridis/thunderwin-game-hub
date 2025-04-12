@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
 
 interface UserFormProps {
   initialValues?: User;
@@ -18,6 +19,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
     status: initialValues?.status || "Active",
     balance: initialValues?.balance || 0,
     joined: initialValues?.joined || new Date().toISOString().split('T')[0],
+    role: initialValues?.role || "user"
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -72,8 +74,43 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
       status: formData.status as User['status'],
       balance: parseFloat(formData.balance),
       joined: formData.joined,
-      favoriteGames: initialValues?.favoriteGames || []
+      favoriteGames: initialValues?.favoriteGames || [],
+      role: formData.role
     };
+    
+    // If this is an update to an existing user, also update the auth system if applicable
+    if (initialValues?.id) {
+      // Check if we need to update the current auth user
+      const currentUser = JSON.parse(localStorage.getItem("thunderwin_user") || "null");
+      if (currentUser && currentUser.id === initialValues.id) {
+        currentUser.balance = parseFloat(formData.balance);
+        currentUser.name = formData.name;
+        localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
+        
+        toast({
+          title: "Current User Updated",
+          description: "The logged in user has been updated with the new information."
+        });
+      }
+      
+      // Also update the mock users array for future logins
+      try {
+        const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+        const userIndex = mockUsers.findIndex((u: any) => u.id === initialValues.id);
+        if (userIndex !== -1) {
+          mockUsers[userIndex] = {
+            ...mockUsers[userIndex],
+            balance: parseFloat(formData.balance),
+            username: formData.name,
+            email: formData.email,
+            role: formData.role
+          };
+          localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
+        }
+      } catch (error) {
+        console.error("Failed to update mock users:", error);
+      }
+    }
     
     onSubmit(userData);
   };
@@ -105,7 +142,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="status">Account Status</Label>
           <Select 
@@ -119,6 +156,22 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
               <SelectItem value="Active">Active</SelectItem>
               <SelectItem value="Pending">Pending</SelectItem>
               <SelectItem value="Inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="role">User Role</Label>
+          <Select 
+            value={formData.role} 
+            onValueChange={(value) => handleChange('role', value)}
+          >
+            <SelectTrigger id="role">
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="user">Regular User</SelectItem>
+              <SelectItem value="admin">Administrator</SelectItem>
             </SelectContent>
           </Select>
         </div>
