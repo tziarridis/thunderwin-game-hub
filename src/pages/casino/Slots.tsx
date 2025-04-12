@@ -44,10 +44,11 @@ const SlotsPage = () => {
   };
 
   return (
-    <div className="bg-casino-thunder-darker min-h-screen pt-20 pb-16 relative overflow-hidden">
+    <div className="bg-casino-thunder-darker min-h-screen pb-16 relative overflow-hidden">
+      {/* Place WinningRoller above the main content */}
       <WinningRoller />
       
-      <div className="container mx-auto px-4">
+      <div className="pt-20 container mx-auto px-4">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

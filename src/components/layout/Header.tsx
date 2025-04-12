@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -413,19 +414,18 @@ const Header = () => {
                   {/* User Menu */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <motion.div
+                      <motion.button
+                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0 bg-white/10 backdrop-blur-sm">
-                          <Avatar className="h-9 w-9 border-2 border-casino-thunder-green/50">
-                            <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
-                            <AvatarFallback className="bg-casino-thunder-green/20 text-white">
-                              {user?.name?.slice(0, 1) || user?.username?.slice(0, 1)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </Button>
-                      </motion.div>
+                        <Avatar className="h-9 w-9 border-2 border-casino-thunder-green/50">
+                          <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
+                          <AvatarFallback className="bg-casino-thunder-green/20 text-white">
+                            {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </motion.button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 mr-2 glass-popup">
                       <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
@@ -442,20 +442,20 @@ const Header = () => {
                         </div>
                       )}
                       
-                      <DropdownMenuItem onClick={() => navigate("/profile")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <DropdownMenuItem onClick={() => navigate("/profile")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
                         <User className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/transactions")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <DropdownMenuItem onClick={() => navigate("/transactions")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
                         <CreditCard className="mr-2 h-4 w-4" />
                         <span>Transactions</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/settings")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <DropdownMenuItem onClick={() => navigate("/settings")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Settings</span>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator className="bg-white/10" />
-                      <DropdownMenuItem onClick={handleLogout} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <DropdownMenuItem onClick={handleLogout} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Log out</span>
                       </DropdownMenuItem>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
+import WinningRoller from "@/components/casino/WinningRoller";
 
 const CasinoMain = () => {
   const { games, loading, error } = useGames();
@@ -73,80 +73,85 @@ const CasinoMain = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-4">Casino Games</h1>
-        <p className="text-white/70 max-w-2xl mx-auto">
-          Explore our vast selection of casino games, from slots to table games and live dealer experiences.
-        </p>
-      </div>
+    <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
+      {/* Add WinningRoller at the top of the component */}
+      <WinningRoller />
       
-      <div className="mb-6">
-        <div className="relative mb-4">
-          <Input
-            type="text"
-            placeholder="Search games or providers..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
-          />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          {searchText && (
-            <Button 
-              variant="ghost" 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2" 
-              onClick={handleClearSearch}
-            >
-              <FilterX size={18} />
-            </Button>
-          )}
+      <div className="container mx-auto px-4 py-8 pt-20">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Casino Games</h1>
+          <p className="text-white/70 max-w-2xl mx-auto">
+            Explore our vast selection of casino games, from slots to table games and live dealer experiences.
+          </p>
         </div>
         
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full flex overflow-x-auto py-2 justify-start">
-            <TabsTrigger value="all">All Games</TabsTrigger>
-            <TabsTrigger value="popular">Popular</TabsTrigger>
-            <TabsTrigger value="new">New</TabsTrigger>
-            <TabsTrigger value="slots">Slots</TabsTrigger>
-            <TabsTrigger value="table">Table Games</TabsTrigger>
-            <TabsTrigger value="live">Live Casino</TabsTrigger>
-            <TabsTrigger value="jackpots">Jackpots</TabsTrigger>
-            <TabsTrigger value="favorites">Favorites</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      
-      {filteredGames.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-xl mb-4">No games match your search criteria.</p>
-          <Button 
-            variant="outline" 
-            className="border-casino-thunder-green text-casino-thunder-green"
-            onClick={handleClearSearch}
-          >
-            Clear Filters
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {filteredGames.map(game => (
-            <GameCard 
-              key={game.id}
-              id={game.id}
-              title={game.title}
-              image={game.image}
-              provider={game.provider}
-              isPopular={game.isPopular}
-              isNew={game.isNew}
-              rtp={game.rtp}
-              isFavorite={game.isFavorite}
-              minBet={game.minBet}
-              maxBet={game.maxBet}
-              onClick={() => navigate(`/casino/game/${game.id}`)}
+        <div className="mb-6">
+          <div className="relative mb-4">
+            <Input
+              type="text"
+              placeholder="Search games or providers..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
             />
-          ))}
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {searchText && (
+              <Button 
+                variant="ghost" 
+                className="absolute right-2 top-1/2 transform -translate-y-1/2" 
+                onClick={handleClearSearch}
+              >
+                <FilterX size={18} />
+              </Button>
+            )}
+          </div>
+          
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full flex overflow-x-auto py-2 justify-start">
+              <TabsTrigger value="all">All Games</TabsTrigger>
+              <TabsTrigger value="popular">Popular</TabsTrigger>
+              <TabsTrigger value="new">New</TabsTrigger>
+              <TabsTrigger value="slots">Slots</TabsTrigger>
+              <TabsTrigger value="table">Table Games</TabsTrigger>
+              <TabsTrigger value="live">Live Casino</TabsTrigger>
+              <TabsTrigger value="jackpots">Jackpots</TabsTrigger>
+              <TabsTrigger value="favorites">Favorites</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-      )}
+        
+        {filteredGames.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-xl mb-4">No games match your search criteria.</p>
+            <Button 
+              variant="outline" 
+              className="border-casino-thunder-green text-casino-thunder-green"
+              onClick={handleClearSearch}
+            >
+              Clear Filters
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {filteredGames.map(game => (
+              <GameCard 
+                key={game.id}
+                id={game.id}
+                title={game.title}
+                image={game.image}
+                provider={game.provider}
+                isPopular={game.isPopular}
+                isNew={game.isNew}
+                rtp={game.rtp}
+                isFavorite={game.isFavorite}
+                minBet={game.minBet}
+                maxBet={game.maxBet}
+                onClick={() => navigate(`/casino/game/${game.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
