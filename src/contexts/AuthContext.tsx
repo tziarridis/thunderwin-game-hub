@@ -33,7 +33,8 @@ const mockUsers = [
     role: 'user' as const,
     name: "Demo User",
     status: "Active" as const,
-    joined: "2025-04-01"
+    joined: "2025-04-01",
+    avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png"
   },
   {
     id: "admin1",
@@ -46,9 +47,15 @@ const mockUsers = [
     role: 'admin' as const,
     name: "Administrator",
     status: "Active" as const,
-    joined: "2025-03-01"
+    joined: "2025-03-01",
+    avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png"
   }
 ];
+
+// Store mock users in localStorage for persistence
+if (!localStorage.getItem("mockUsers")) {
+  localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -81,7 +88,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const matchedUser = mockUsers.find(u => u.email === email && u.password === password);
+      // Get updated mock users from localStorage
+      const storedMockUsers = JSON.parse(localStorage.getItem("mockUsers") || JSON.stringify(mockUsers));
+      const matchedUser = storedMockUsers.find((u: any) => u.email === email && u.password === password);
       
       if (!matchedUser) {
         throw new Error("Invalid credentials");
@@ -99,19 +108,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (existingUserIndex === -1) {
         const newUser = {
           id: userData.id,
-          name: userData.username,
+          name: userData.name,
+          username: userData.username,
           email: userData.email,
           status: "Active",
           balance: userData.balance,
           joined: new Date().toISOString().split('T')[0],
-          favoriteGames: []
+          favoriteGames: [],
+          vipLevel: userData.vipLevel,
+          isVerified: userData.isVerified,
+          role: userData.role,
+          avatarUrl: userData.avatarUrl
         };
         localStorage.setItem("users", JSON.stringify([...usersDb, newUser]));
+      } else {
+        // Update existing user data
+        usersDb[existingUserIndex] = {
+          ...usersDb[existingUserIndex],
+          balance: userData.balance,
+          status: "Active",
+          vipLevel: userData.vipLevel,
+          isVerified: userData.isVerified
+        };
+        localStorage.setItem("users", JSON.stringify(usersDb));
+        console.log("User updated in admin database");
       }
       
       toast({
         title: "Login Successful",
-        description: `Welcome back, ${userData.username}!`,
+        description: `Welcome back, ${userData.username || userData.name}!`,
       });
     } catch (error) {
       toast({
@@ -171,11 +196,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      if (mockUsers.some(u => u.email === email)) {
+      // Get updated mock users from localStorage
+      const storedMockUsers = JSON.parse(localStorage.getItem("mockUsers") || JSON.stringify(mockUsers));
+      
+      if (storedMockUsers.some((u: any) => u.email === email)) {
         throw new Error("Email already exists");
       }
       
-      if (mockUsers.some(u => u.username === username)) {
+      if (storedMockUsers.some((u: any) => u.username === username)) {
         throw new Error("Username already taken");
       }
       
@@ -192,22 +220,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         vipLevel: 0,
         role: 'user' as const,
         status: "Active" as const,
-        joined: currentDate
+        joined: currentDate,
+        avatarUrl: "/placeholder.svg", // Default avatar
+        password // Include password for the mock users array
       };
       
       // Add to mock users
-      mockUsers.push({ ...newUser, password });
+      storedMockUsers.push(newUser);
+      localStorage.setItem("mockUsers", JSON.stringify(storedMockUsers));
       
       // Add user to the admin panel database
       const usersDb = JSON.parse(localStorage.getItem("users") || "[]");
       const newUserForDb = {
         id: userId,
         name: username,
+        username,
         email,
         status: "Active",
         balance: 100,
         joined: currentDate,
-        favoriteGames: []
+        favoriteGames: [],
+        vipLevel: 0,
+        isVerified: false,
+        role: 'user',
+        avatarUrl: "/placeholder.svg"
       };
       
       localStorage.setItem("users", JSON.stringify([...usersDb, newUserForDb]));

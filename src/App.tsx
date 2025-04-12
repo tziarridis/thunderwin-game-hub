@@ -15,6 +15,8 @@ import AdminUsers from "./pages/admin/Users";
 import AdminGames from "./pages/admin/Games";
 import AdminTransactions from "./pages/admin/Transactions";
 import AdminPromotions from "./pages/admin/Promotions";
+import AdminSupport from "./pages/admin/Support";
+import AdminSecurity from "./pages/admin/Security";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,9 +118,9 @@ const App = () => {
                 <Route path="games" element={<AdminGames />} />
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="reports" element={<AdminDashboard />} />
-                <Route path="support" element={<AdminDashboard />} />
+                <Route path="support" element={<AdminSupport />} />
                 <Route path="logs" element={<AdminDashboard />} />
-                <Route path="security" element={<AdminDashboard />} />
+                <Route path="security" element={<AdminSecurity />} />
                 <Route path="settings" element={<AdminDashboard />} />
               </Route>
               

@@ -1,4 +1,3 @@
-
 // Main data types for the casino application
 
 export interface User {
@@ -9,7 +8,12 @@ export interface User {
   balance: number;
   joined: string;
   favoriteGames?: string[];
-  role?: 'user' | 'admin';  // Add role property
+  role?: 'user' | 'admin';
+  username?: string;
+  password?: string;
+  vipLevel?: number;
+  isVerified?: boolean;
+  avatarUrl?: string;
 }
 
 export interface Game {

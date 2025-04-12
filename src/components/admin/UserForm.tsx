@@ -15,11 +15,15 @@ interface UserFormProps {
 const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
   const [formData, setFormData] = useState<any>({
     name: initialValues?.name || "",
+    username: initialValues?.username || "",
     email: initialValues?.email || "",
     status: initialValues?.status || "Active",
     balance: initialValues?.balance || 0,
     joined: initialValues?.joined || new Date().toISOString().split('T')[0],
-    role: initialValues?.role || "user"
+    role: initialValues?.role || "user",
+    vipLevel: initialValues?.vipLevel || 0,
+    isVerified: initialValues?.isVerified || false,
+    avatarUrl: initialValues?.avatarUrl || "/placeholder.svg"
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,6 +47,10 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
     
     if (!formData.name.trim()) {
       newErrors.name = "Name is required";
+    }
+    
+    if (!formData.username.trim()) {
+      newErrors.username = "Username is required";
     }
     
     if (!formData.email.trim()) {
@@ -70,12 +78,16 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
     const userData = {
       ...(initialValues?.id ? { id: initialValues.id } : {}),
       name: formData.name,
+      username: formData.username,
       email: formData.email,
       status: formData.status as User['status'],
       balance: parseFloat(formData.balance),
       joined: formData.joined,
       favoriteGames: initialValues?.favoriteGames || [],
-      role: formData.role
+      role: formData.role,
+      vipLevel: parseInt(formData.vipLevel),
+      isVerified: formData.isVerified,
+      avatarUrl: formData.avatarUrl
     };
     
     // If this is an update to an existing user, also update the auth system if applicable
@@ -85,6 +97,9 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
       if (currentUser && currentUser.id === initialValues.id) {
         currentUser.balance = parseFloat(formData.balance);
         currentUser.name = formData.name;
+        currentUser.username = formData.username;
+        currentUser.vipLevel = parseInt(formData.vipLevel);
+        currentUser.isVerified = formData.isVerified;
         localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
         
         toast({
@@ -101,9 +116,13 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
           mockUsers[userIndex] = {
             ...mockUsers[userIndex],
             balance: parseFloat(formData.balance),
-            username: formData.name,
+            name: formData.name,
+            username: formData.username,
             email: formData.email,
-            role: formData.role
+            role: formData.role,
+            vipLevel: parseInt(formData.vipLevel),
+            isVerified: formData.isVerified,
+            avatarUrl: formData.avatarUrl
           };
           localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
         }
@@ -117,7 +136,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
           <Input 
@@ -127,6 +146,17 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
             className={errors.name ? "border-red-500" : ""}
           />
           {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="username">Username</Label>
+          <Input 
+            id="username"
+            value={formData.username}
+            onChange={(e) => handleChange('username', e.target.value)}
+            className={errors.username ? "border-red-500" : ""}
+          />
+          {errors.username && <p className="text-red-500 text-xs">{errors.username}</p>}
         </div>
         
         <div className="space-y-2">
@@ -191,14 +221,44 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         </div>
       </div>
       
-      <div className="space-y-2">
-        <Label htmlFor="joined">Join Date</Label>
-        <Input 
-          id="joined"
-          type="date"
-          value={formData.joined}
-          onChange={(e) => handleChange('joined', e.target.value)}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="joined">Join Date</Label>
+          <Input 
+            id="joined"
+            type="date"
+            value={formData.joined}
+            onChange={(e) => handleChange('joined', e.target.value)}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="vipLevel">VIP Level (0-10)</Label>
+          <Input 
+            id="vipLevel"
+            type="number"
+            min="0"
+            max="10"
+            value={formData.vipLevel}
+            onChange={(e) => handleChange('vipLevel', e.target.value)}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="isVerified">Verified Status</Label>
+          <Select 
+            value={formData.isVerified.toString()} 
+            onValueChange={(value) => handleChange('isVerified', value === "true")}
+          >
+            <SelectTrigger id="isVerified">
+              <SelectValue placeholder="Select verification status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="true">Verified</SelectItem>
+              <SelectItem value="false">Not Verified</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       <div className="flex justify-end space-x-3 pt-4">

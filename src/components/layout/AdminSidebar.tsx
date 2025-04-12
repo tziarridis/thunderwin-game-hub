@@ -13,7 +13,8 @@ import {
   Gift, 
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -130,6 +131,17 @@ const AdminSidebar = () => {
               to="/admin/settings" 
               icon={<Settings size={20} />} 
               label="Settings" 
+              expanded={expanded}
+            />
+          </div>
+        </div>
+        
+        <div className="pt-4 mt-4 border-t border-white/10">
+          <div className="space-y-1">
+            <SidebarLink 
+              to="/" 
+              icon={<Home size={20} />} 
+              label="Main Casino" 
               expanded={expanded}
             />
           </div>
