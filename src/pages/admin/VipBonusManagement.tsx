@@ -118,23 +118,25 @@ const VipBonusManagement = () => {
     fetchVipLevels();
   }, []);
 
+  // Fix: Separate handlers for different input types to avoid TypeScript errors
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    
-    // Type guard to properly handle checkbox inputs
-    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: e.target.checked,
-      }));
-    } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleCheckboxChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, checked } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: checked,
+    }));
   };
 
   const handleSelectChange = (name: string, value: string) => {
