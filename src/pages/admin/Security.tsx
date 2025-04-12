@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -938,7 +937,7 @@ const SecurityPage = () => {
                       <TableCell className="font-medium">{account.username}</TableCell>
                       <TableCell>{account.email}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={
+                        <Badge className={
                           account.role === "Super Admin" 
                             ? "bg-red-500/10 text-red-500 border-red-500/20" 
                             : account.role === "Admin" 

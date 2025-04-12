@@ -42,7 +42,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Edit, Trash, Award, Users } from "lucide-react";
+import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
 import { BonusTemplate, VipLevel } from "@/types";
 import { getVipLevels, updateVipLevel, createVipLevel } from "@/services/apiService";
 import VipLevelManager from "@/components/admin/VipLevelManager";

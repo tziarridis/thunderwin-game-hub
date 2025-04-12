@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Card,
@@ -25,6 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Plus, Edit, Trash, Award, Star, Trophy, Gift } from "lucide-react";
 import { VipLevel } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
@@ -219,22 +226,40 @@ const VipLevelManager: React.FC<VipLevelManagerProps> = ({
                   <TableCell>
                     <div className="flex space-x-1">
                       {vipLevel.personalManager && (
-                        <Trophy 
-                          className="h-4 w-4 text-yellow-500" 
-                          title="Personal Manager"
-                        />
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Trophy className="h-4 w-4 text-yellow-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Personal Manager</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       {vipLevel.customGifts && (
-                        <Gift 
-                          className="h-4 w-4 text-purple-500" 
-                          title="Custom Gifts"
-                        />
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Gift className="h-4 w-4 text-purple-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Custom Gifts</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       {vipLevel.specialPromotions && (
-                        <Star 
-                          className="h-4 w-4 text-blue-500" 
-                          title="Special Promotions"
-                        />
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Star className="h-4 w-4 text-blue-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Special Promotions</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                   </TableCell>
