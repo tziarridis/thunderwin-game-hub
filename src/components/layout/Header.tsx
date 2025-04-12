@@ -1,392 +1,290 @@
 
-import { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
-  User, 
+  ChevronDown, 
   Menu, 
   X, 
-  LogIn, 
-  Wallet, 
-  Home, 
-  Gamepad2, 
-  Trophy, 
-  Gift, 
-  BadgeDollarSign,
-  LogOut,
-  Settings,
-  ChevronDown,
-  LayoutDashboard
+  User, 
+  LogOut, 
+  Settings, 
+  CreditCard, 
+  ShieldCheck, 
+  Gift
 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import DepositButton from "@/components/user/DepositButton";
+import { useMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 
 const Header = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
+  const { isMobile } = useMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { toast } = useToast();
+
+  // Handle scroll effect on header
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+    
+    window.addEventListener("scroll", handleScroll);
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const handleLogout = () => {
     logout();
+    toast({
+      title: "Logged Out Successfully",
+      description: "Come back soon!",
+    });
     navigate("/");
-    setIsMenuOpen(false);
   };
 
-  const formatBalance = (balance: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
-    }).format(balance);
-  };
+  const primaryNavLinks = [
+    { name: "Casino", path: "/casino" },
+    { name: "Sports", path: "/sports" },
+    { name: "Promotions", path: "/promotions" },
+    { name: "VIP", path: "/vip" },
+  ];
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
+  const secondaryNavLinks = [
+    { name: "Help", path: "/help" },
+    { name: "Contact", path: "/contact" },
+    { name: "Responsible Gaming", path: "/responsible-gaming" },
+  ];
+  
+  // Generate VIP badge text based on user's VIP level
+  const getVipBadge = () => {
+    if (!user || typeof user.vipLevel !== 'number') return null;
+    
+    if (user.vipLevel === 0) return null; // No badge for level 0
+    
+    const vipNames = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+    const vipName = user.vipLevel <= vipNames.length ? vipNames[user.vipLevel - 1] : `VIP ${user.vipLevel}`;
+    
+    return (
+      <div className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gradient-to-r from-yellow-600 to-yellow-400 text-black font-bold">
+        {vipName}
+      </div>
+    );
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 header-blur border-b border-white/5">
+    <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+      isScrolled ? "header-blur py-2" : "bg-transparent py-4"
+    }`}>
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link to="/" className="flex items-center">
-              <img 
-                src="/file.svg" 
-                alt="ThunderWin" 
-                className="h-8 w-auto thunder-glow"
-              />
-            </Link>
-          </div>
+          <Link to="/" className="flex items-center">
+            <img src="/file.svg" alt="ThunderWin" className="h-8 thunder-glow" />
+          </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-4">
-            <NavItem 
-              icon={<Home size={18} />} 
-              text="Home" 
-              to="/" 
-              isActive={isActive("/")}
-            />
-            <NavItem 
-              icon={<Gamepad2 size={18} />} 
-              text="Casino" 
-              to="/casino" 
-              isActive={isActive("/casino")}
-            />
-            <NavItem 
-              icon={<Trophy size={18} />} 
-              text="Sports" 
-              to="/sports" 
-              isActive={isActive("/sports")}
-            />
-            <NavItem 
-              icon={<Gift size={18} />} 
-              text="Promotions" 
-              to="/promotions" 
-              isActive={isActive("/promotions")}
-            />
-            <NavItem 
-              icon={<BadgeDollarSign size={18} />} 
-              text="VIP" 
-              to="/vip" 
-              isActive={isActive("/vip")}
-            />
-          </nav>
+          {!isMobile && (
+            <nav className="hidden md:flex items-center space-x-1">
+              {primaryNavLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="px-3 py-2 text-white/90 hover:text-white rounded-md transition-colors hover:bg-white/5"
+                >
+                  {link.name}
+                </Link>
+              ))}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="px-3 py-2 text-white/90 hover:text-white rounded-md transition-colors hover:bg-white/5 flex items-center">
+                    More <ChevronDown size={16} className="ml-1" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-casino-thunder-dark border-white/10">
+                  {secondaryNavLinks.map((link) => (
+                    <DropdownMenuItem key={link.path} asChild>
+                      <Link to={link.path} className="cursor-pointer">
+                        {link.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </nav>
+          )}
 
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-3">
+          {/* Auth buttons or user menu */}
+          <div className="flex items-center space-x-2">
             {isAuthenticated ? (
               <>
-                <div className="bg-white/5 px-3 py-1 rounded-md text-white/90 flex items-center mr-2">
-                  <Wallet size={16} className="mr-2 text-casino-thunder-green" />
-                  <span>{user?.balance ? formatBalance(user.balance) : "$0.00"}</span>
-                </div>
-                
-                <DepositButton variant="small" />
+                {isAdmin && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate("/admin")}
+                    className="mr-2 border-white/20 hover:border-casino-thunder-green hover:bg-casino-thunder-green/5"
+                  >
+                    Admin Panel
+                  </Button>
+                )}
                 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="rounded-md flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      {user?.username}
-                      <ChevronDown className="ml-2 h-4 w-4" />
+                    <Button 
+                      variant="ghost"
+                      className="flex items-center space-x-2 hover:bg-white/5"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                        {user?.avatarUrl ? (
+                          <img 
+                            src={user.avatarUrl} 
+                            alt={user.name || "User"} 
+                            className="w-8 h-8 rounded-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "/placeholder.svg";
+                            }}
+                          />
+                        ) : (
+                          <User size={18} className="text-white/70" />
+                        )}
+                      </div>
+                      {!isMobile && (
+                        <div className="flex items-center">
+                          <div className="text-left">
+                            <div className="text-sm font-medium flex items-center">
+                              {user?.name || user?.username || "User"}
+                              {getVipBadge()}
+                            </div>
+                            <div className="text-xs text-white/60">${user?.balance?.toFixed(2) || "0.00"}</div>
+                          </div>
+                          <ChevronDown size={16} className="ml-1 text-white/60" />
+                        </div>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-casino-thunder-dark border-white/10">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate("/profile")}>
-                      <User className="mr-2 h-4 w-4" />
-                      Profile
+                  <DropdownMenuContent align="end" className="w-56 bg-casino-thunder-dark border-white/10">
+                    <div className="px-2 py-1.5 text-sm font-medium">
+                      My Account
+                    </div>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="flex items-center cursor-pointer">
+                        <User size={16} className="mr-2" />
+                        Profile
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/transactions")}>
-                      <Wallet className="mr-2 h-4 w-4" />
-                      Transactions
+                    <DropdownMenuItem asChild>
+                      <Link to="/transactions" className="flex items-center cursor-pointer">
+                        <CreditCard size={16} className="mr-2" />
+                        Transactions
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/settings")}>
-                      <Settings className="mr-2 h-4 w-4" />
-                      Settings
+                    <DropdownMenuItem asChild>
+                      <Link to="/bonuses" className="flex items-center cursor-pointer">
+                        <Gift size={16} className="mr-2" />
+                        My Bonuses
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
-                      <LogOut className="mr-2 h-4 w-4" />
+                    <DropdownMenuItem asChild>
+                      <Link to="/kyc" className="flex items-center cursor-pointer">
+                        <ShieldCheck size={16} className="mr-2" />
+                        Identity Verification
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings" className="flex items-center cursor-pointer">
+                        <Settings size={16} className="mr-2" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem 
+                      className="flex items-center text-red-400 hover:text-red-300 cursor-pointer"
+                      onClick={handleLogout}
+                    >
+                      <LogOut size={16} className="mr-2" />
                       Logout
                     </DropdownMenuItem>
-                    {isAdmin && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => navigate("/admin")}>
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          Admin Dashboard
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
             ) : (
               <>
-                <DepositButton variant="small" />
                 <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-md"
+                  variant="ghost" 
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => navigate("/login")}
+                  className="text-white hover:bg-white/5"
                 >
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign In
+                  Login
                 </Button>
                 <Button 
-                  size="sm" 
-                  className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black rounded-md"
+                  size={isMobile ? "sm" : "default"}
                   onClick={() => navigate("/register")}
+                  className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
                 >
-                  Register
-                </Button>
-                {/* Show admin link for demo purposes */}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-md"
-                  onClick={() => navigate("/admin")}
-                >
-                  <LayoutDashboard className="mr-2 h-4 w-4" />
-                  Backoffice
+                  Sign Up
                 </Button>
               </>
             )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center gap-2">
-            {isAuthenticated && <DepositButton variant="icon" />}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-foreground"
-            >
-              {isMenuOpen ? <X /> : <Menu />}
-            </Button>
+            
+            {/* Mobile menu button */}
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-white hover:bg-white/5"
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </Button>
+            )}
           </div>
         </div>
+        
+        {/* Mobile menu */}
+        {isMobile && mobileMenuOpen && (
+          <div className="md:hidden pt-4 pb-2">
+            <nav className="flex flex-col space-y-1">
+              {primaryNavLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="px-3 py-2 text-white/90 hover:text-white rounded-md transition-colors hover:bg-white/5"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              {secondaryNavLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="px-3 py-2 text-white/90 hover:text-white rounded-md transition-colors hover:bg-white/5"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
-
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="md:hidden thunder-gradient border-t border-white/5">
-          <div className="px-4 pt-2 pb-3 space-y-1 sm:px-5">
-            <MobileNavItem 
-              icon={<Home size={18} />} 
-              text="Home" 
-              to="/" 
-              onClick={() => setIsMenuOpen(false)}
-              isActive={isActive("/")}
-            />
-            <MobileNavItem 
-              icon={<Gamepad2 size={18} />} 
-              text="Casino" 
-              to="/casino" 
-              onClick={() => setIsMenuOpen(false)}
-              isActive={isActive("/casino")}
-            />
-            <MobileNavItem 
-              icon={<Trophy size={18} />} 
-              text="Sports" 
-              to="/sports" 
-              onClick={() => setIsMenuOpen(false)}
-              isActive={isActive("/sports")}
-            />
-            <MobileNavItem 
-              icon={<Gift size={18} />} 
-              text="Promotions" 
-              to="/promotions" 
-              onClick={() => setIsMenuOpen(false)}
-              isActive={isActive("/promotions")}
-            />
-            <MobileNavItem 
-              icon={<BadgeDollarSign size={18} />} 
-              text="VIP" 
-              to="/vip" 
-              onClick={() => setIsMenuOpen(false)}
-              isActive={isActive("/vip")}
-            />
-            
-            {isAuthenticated && (
-              <>
-                <div className="pt-2 pb-1">
-                  <div className="flex items-center px-3 py-2">
-                    <Wallet size={18} className="text-casino-thunder-green mr-3" />
-                    <span className="font-medium">Balance: {user?.balance ? formatBalance(user.balance) : "$0.00"}</span>
-                  </div>
-                </div>
-                <MobileNavItem 
-                  icon={<User size={18} />} 
-                  text="Profile" 
-                  to="/profile" 
-                  onClick={() => setIsMenuOpen(false)}
-                  isActive={isActive("/profile")}
-                />
-                <MobileNavItem 
-                  icon={<Wallet size={18} />} 
-                  text="Transactions" 
-                  to="/transactions" 
-                  onClick={() => setIsMenuOpen(false)}
-                  isActive={isActive("/transactions")}
-                />
-                <MobileNavItem 
-                  icon={<Settings size={18} />} 
-                  text="Settings" 
-                  to="/settings" 
-                  onClick={() => setIsMenuOpen(false)}
-                  isActive={isActive("/settings")}
-                />
-                {user?.email === "admin@example.com" && (
-                  <MobileNavItem 
-                    icon={<LayoutDashboard size={18} />} 
-                    text="Admin Dashboard" 
-                    to="/admin" 
-                    onClick={() => setIsMenuOpen(false)}
-                    isActive={isActive("/admin")}
-                  />
-                )}
-                <button 
-                  className="w-full flex items-center px-3 py-2 text-base font-medium text-white hover:text-red-400 hover:bg-white/5 rounded-md transition-colors"
-                  onClick={handleLogout}
-                >
-                  <LogOut size={18} className="mr-3" />
-                  Logout
-                </button>
-              </>
-            )}
-            
-            {!isAuthenticated && (
-              <div className="pt-4 pb-3 border-t border-white/10">
-                <div className="flex items-center px-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-center rounded-md"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      navigate("/login");
-                    }}
-                  >
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Sign In
-                  </Button>
-                  <div className="w-4"></div>
-                  <Button 
-                    size="sm" 
-                    className="w-full justify-center bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black rounded-md"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      navigate("/register");
-                    }}
-                  >
-                    Register
-                  </Button>
-                  <div className="w-4"></div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full justify-center rounded-md"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      navigate("/admin");
-                    }}
-                  >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    Backoffice
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </header>
   );
 };
-
-const NavItem = ({ 
-  icon, 
-  text, 
-  to, 
-  isActive = false 
-}: { 
-  icon: React.ReactNode; 
-  text: string; 
-  to: string;
-  isActive?: boolean;
-}) => (
-  <Link 
-    to={to} 
-    className={`px-3 py-2 text-sm font-medium transition-colors flex items-center ${
-      isActive 
-        ? 'text-casino-thunder-green' 
-        : 'text-white hover:text-casino-thunder-green'
-    }`}
-  >
-    {icon && <span className="mr-2">{icon}</span>}
-    {text}
-  </Link>
-);
-
-const MobileNavItem = ({ 
-  icon, 
-  text, 
-  to, 
-  onClick,
-  isActive = false
-}: { 
-  icon: React.ReactNode; 
-  text: string; 
-  to: string;
-  onClick?: () => void;
-  isActive?: boolean;
-}) => (
-  <Link 
-    to={to} 
-    className={`block px-3 py-2 text-base font-medium hover:bg-white/5 rounded-md transition-colors flex items-center ${
-      isActive 
-        ? 'text-casino-thunder-green bg-white/5' 
-        : 'text-white hover:text-casino-thunder-green'
-    }`}
-    onClick={onClick}
-  >
-    {icon && <span className="mr-3">{icon}</span>}
-    {text}
-  </Link>
-);
 
 export default Header;

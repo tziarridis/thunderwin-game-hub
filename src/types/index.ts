@@ -16,6 +16,10 @@ export interface User {
   isVerified?: boolean;
   avatarUrl?: string;
   affiliateCode?: string; // Referral code that brought this user
+  kycStatus?: string;
+  kycSubmittedAt?: string;
+  kycVerifiedAt?: string;
+  kycRejectionReason?: string;
 }
 
 export interface Game {
@@ -83,6 +87,76 @@ export interface Affiliate {
   joinedDate: string;
 }
 
+// VIP Level interface
+export interface VipLevel {
+  id: number;
+  name: string;
+  requiredPoints: number;
+  cashbackPercent: number;
+  depositBonusPercent: number;
+  withdrawalLimit: number;
+  benefits: string[];
+  description: string;
+  color: string;
+}
+
+// Bonus interface
+export interface Bonus {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  amount: number;
+  wagerRequired: number;
+  wagerCompleted: number;
+  expiresAt: string;
+  status: "active" | "completed" | "expired";
+  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
+  bonusCode?: string;
+}
+
+// Bonus Template interface
+export interface BonusTemplate {
+  id: string;
+  title: string;
+  description: string;
+  amount: number;
+  wagerMultiplier: number;
+  duration: number; // in days
+  minDeposit: number;
+  isActive: boolean;
+  requiredVipLevel: number;
+  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
+  bonusCode?: string;
+}
+
+// KYC Request interface
+export interface KycRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  email: string;
+  status: string;
+  submittedAt: string;
+  data: {
+    fullName: string;
+    dateOfBirth: string;
+    nationality: string;
+    address: string;
+    city: string;
+    zipCode: string;
+    country: string;
+    phoneNumber: string;
+    documentType: string;
+    documentFront: string;
+    documentBack: string;
+    selfie: string;
+  };
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+}
+
 // Database schemas (simulated for LocalStorage)
 export interface DatabaseSchemas {
   users: User[];
@@ -94,6 +168,10 @@ export interface DatabaseSchemas {
   autoResponses: AutoResponse[];
   affiliates: Affiliate[];
   promotions: Promotion[];
+  vipLevels: VipLevel[];
+  bonusTemplates: BonusTemplate[];
+  userBonuses: Bonus[];
+  kycRequests: KycRequest[];
 }
 
 // Platform settings

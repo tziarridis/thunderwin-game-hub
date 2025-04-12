@@ -1,3 +1,4 @@
+
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { 
@@ -13,7 +14,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Share2
+  Share2,
+  Star,
+  Award,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -130,6 +134,20 @@ const AdminSidebar = () => {
             label="Affiliates" 
             expanded={expanded}
             isActive={isActive("/admin/affiliates")}
+          />
+          <SidebarLink 
+            to="/admin/kyc" 
+            icon={<Shield size={20} />} 
+            label="KYC Management" 
+            expanded={expanded}
+            isActive={isActive("/admin/kyc")}
+          />
+          <SidebarLink 
+            to="/admin/vip-bonus" 
+            icon={<Star size={20} />} 
+            label="VIP & Bonuses" 
+            expanded={expanded}
+            isActive={isActive("/admin/vip-bonus")}
           />
           <SidebarLink 
             to="/admin/support" 
