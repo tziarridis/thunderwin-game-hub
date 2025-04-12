@@ -25,6 +25,8 @@ export interface GameProvider {
   logo: string;
   gamesCount: number;
   isPopular: boolean;
+  description?: string;
+  featured?: boolean;
 }
 
 // User Types
@@ -109,6 +111,13 @@ export interface Bonus {
   requirements: string;
   expiryDays: number;
   isActive: boolean;
+  status?: "active" | "used" | "expired";
+  progress?: number;
+  wagering?: number;
+  expiresAt?: string;
+  userId?: string;
+  templateId?: string;
+  isCompleted?: boolean;
 }
 
 export type BonusType = "deposit" | "free_spins" | "cashback" | "no_deposit" | "reload" | "loyalty";
@@ -118,10 +127,17 @@ export interface BonusTemplate {
   name: string;
   description: string;
   bonusType: BonusType;
+  type?: BonusType; // Added for compatibility
   amount: number;
   wagering: number;
   expiryDays: number;
   isActive: boolean;
+  percentage?: number;
+  minDeposit?: number;
+  maxBonus?: number;
+  vipLevelRequired?: number;
+  allowedGames?: string[];
+  code?: string;
 }
 
 // Affiliate Types
@@ -136,6 +152,13 @@ export interface Affiliate {
   status: "active" | "pending" | "suspended";
   referrals: number;
   lastPayment?: string;
+  code?: string;
+  signups?: number;
+  totalRevenue?: number;
+  commission?: number;
+  referredUsers?: number[];
+  joinedDate?: string;
+  totalCommissions?: number;
 }
 
 // VIP Types
@@ -149,6 +172,15 @@ export interface VipLevel {
   personalManager: boolean;
   customGifts: boolean;
   specialPromotions: boolean;
+  level?: number;
+  pointsRequired?: number;
+  depositBonus?: number;
+  birthdayBonus?: number;
+  weeklyBonus?: number;
+  dedicated?: boolean;
+  fastWithdrawals?: boolean;
+  color?: string;
+  icon?: string;
 }
 
 // KYC Types
@@ -163,13 +195,17 @@ export interface KycRequest {
   reviewDate?: string;
   reviewedBy?: string;
   comments?: string;
+  email?: string;
+  documentFiles?: string[];
+  rejectionReason?: string;
 }
 
 export enum KycStatus {
   NOT_SUBMITTED = "not_submitted",
   PENDING = "pending",
   APPROVED = "approved",
-  REJECTED = "rejected"
+  REJECTED = "rejected",
+  VERIFIED = "verified"
 }
 
 // Wallet Types
@@ -179,4 +215,48 @@ export interface OxaPayWallet {
   address: string;
   status: string;
   balance: number;
+}
+
+// Dashboard Analytics Types
+export interface DashboardStats {
+  ggr: number;
+  ngr: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  totalBets: number;
+  totalWins: number;
+  totalUsers: number;
+  newUsers: number;
+  activeUsers: number;
+  bonusAmount: number;
+  availableBalance: number;
+}
+
+export interface GameStats {
+  gameId: string;
+  gameName: string;
+  provider: string;
+  totalBets: number;
+  totalWins: number;
+  netProfit: number;
+  uniquePlayers: number;
+}
+
+export interface ProviderStats {
+  providerId: string;
+  providerName: string;
+  totalGames: number;
+  totalBets: number;
+  totalWins: number;
+  netProfit: number;
+  uniquePlayers: number;
+}
+
+export interface RegionStats {
+  region: string;
+  userCount: number;
+  depositAmount: number;
+  betAmount: number;
+  winAmount: number;
+  netProfit: number;
 }

@@ -52,7 +52,9 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'home': '/',
     'main': '/',
     'dashboard': '/',
-    'play now': '/casino'
+    'play now': '/casino',
+    'view all': '/casino',
+    'claim now': '/bonuses'
   };
   
   // Find the matching route or default to home

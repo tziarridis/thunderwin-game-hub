@@ -22,7 +22,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         <div className="p-4 bg-[#222333] border-b border-gray-800">
           <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
         </div>
-        <main className="p-6">
+        <main className="p-6 bg-[#1A1F2C]">
           {children || <Outlet />}
         </main>
       </div>
