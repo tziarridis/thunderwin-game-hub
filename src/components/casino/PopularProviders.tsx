@@ -7,14 +7,14 @@ interface PopularProvidersProps {
 
 const PopularProviders = ({ onProviderClick }: PopularProvidersProps) => {
   const providers = [
-    { id: "pragmatic", name: "Pragmatic Play", logo: "/placeholder.svg" },
-    { id: "netent", name: "NetEnt", logo: "/placeholder.svg" },
-    { id: "playtech", name: "Playtech", logo: "/placeholder.svg" },
-    { id: "microgaming", name: "Microgaming", logo: "/placeholder.svg" },
-    { id: "evolution", name: "Evolution Gaming", logo: "/placeholder.svg" },
-    { id: "blueprint", name: "Blueprint", logo: "/placeholder.svg" },
-    { id: "playngo", name: "Play'n GO", logo: "/placeholder.svg" },
-    { id: "quickspin", name: "Quickspin", logo: "/placeholder.svg" }
+    { id: "pragmatic", name: "Pragmatic Play", logo: "/provider-logos/pragmatic.png" },
+    { id: "netent", name: "NetEnt", logo: "/provider-logos/netent.png" },
+    { id: "playtech", name: "Playtech", logo: "/provider-logos/playtech.png" },
+    { id: "microgaming", name: "Microgaming", logo: "/provider-logos/microgaming.png" },
+    { id: "evolution", name: "Evolution Gaming", logo: "/provider-logos/evolution.png" },
+    { id: "blueprint", name: "Blueprint", logo: "/provider-logos/blueprint.png" },
+    { id: "playngo", name: "Play'n GO", logo: "/provider-logos/playngo.png" },
+    { id: "quickspin", name: "Quickspin", logo: "/provider-logos/quickspin.png" }
   ];
   
   return (
@@ -25,11 +25,11 @@ const PopularProviders = ({ onProviderClick }: PopularProvidersProps) => {
           className="thunder-card p-4 hover:border-casino-thunder-green/50 cursor-pointer flex flex-col items-center"
           onClick={() => onProviderClick(provider.id)}
         >
-          <div className="w-16 h-16 flex items-center justify-center mb-2">
+          <div className="w-16 h-16 flex items-center justify-center mb-2 bg-white/5 rounded-full p-2">
             <img 
               src={provider.logo} 
               alt={provider.name} 
-              className="max-w-full max-h-full"
+              className="max-w-full max-h-full object-contain"
             />
           </div>
           <h3 className="text-sm text-center text-white/80">{provider.name}</h3>

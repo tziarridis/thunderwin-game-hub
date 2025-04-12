@@ -184,6 +184,12 @@ const AdminTransactions = () => {
     .filter(t => t.status === "pending")
     .length;
 
+  // Helper function to safely get first letter or fallback
+  const getUserInitial = (name?: string) => {
+    if (!name || name.length === 0) return 'U';
+    return name.charAt(0);
+  };
+
   return (
     <div className="py-8 px-4">
       <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
@@ -403,7 +409,7 @@ const AdminTransactions = () => {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
-                          {transaction.userName && transaction.userName.length > 0 ? transaction.userName.charAt(0) : 'U'}
+                          {getUserInitial(transaction.userName)}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium">{transaction.userName || 'Unknown User'}</div>

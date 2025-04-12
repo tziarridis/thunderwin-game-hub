@@ -11,12 +11,12 @@ const Providers = () => {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
   
-  // Sample providers data (would normally come from an API)
+  // Sample providers data with updated logos
   const providers: GameProvider[] = [
     {
       id: "1",
       name: "NetEnt",
-      logo: "/file.svg",
+      logo: "/provider-logos/netent.png",
       gamesCount: 150,
       isPopular: true,
       description: "NetEnt is a premium supplier of digitally distributed gaming systems used by some of the world's most successful online gaming operators.",
@@ -25,7 +25,7 @@ const Providers = () => {
     {
       id: "2",
       name: "Microgaming",
-      logo: "/file.svg",
+      logo: "/provider-logos/microgaming.png",
       gamesCount: 200,
       isPopular: true,
       description: "Microgaming pioneered online gaming in 1994, developing the first true online casino software.",
@@ -34,7 +34,7 @@ const Providers = () => {
     {
       id: "3",
       name: "Play'n GO",
-      logo: "/file.svg",
+      logo: "/provider-logos/playngo.png",
       gamesCount: 120,
       isPopular: true,
       description: "Play'n GO is a leading game developer and gaming platform provider for the online gambling industry.",
@@ -43,7 +43,7 @@ const Providers = () => {
     {
       id: "4",
       name: "Evolution Gaming",
-      logo: "/file.svg",
+      logo: "/provider-logos/evolution.png",
       gamesCount: 80,
       isPopular: true,
       description: "Evolution Gaming is a leading B2B live casino supplier to casino operators worldwide.",
@@ -52,7 +52,7 @@ const Providers = () => {
     {
       id: "5",
       name: "Pragmatic Play",
-      logo: "/file.svg",
+      logo: "/provider-logos/pragmatic.png",
       gamesCount: 180,
       isPopular: true,
       description: "Pragmatic Play is a leading content provider to the iGaming Industry, offering innovative, regulated, and mobile-focused products.",
@@ -61,7 +61,7 @@ const Providers = () => {
     {
       id: "6",
       name: "Yggdrasil",
-      logo: "/file.svg",
+      logo: "/provider-logos/yggdrasil.png",
       gamesCount: 90,
       isPopular: true,
       description: "Yggdrasil is a provider of superior online gaming solutions for igaming operators.",
@@ -70,7 +70,7 @@ const Providers = () => {
     {
       id: "7",
       name: "Quickspin",
-      logo: "/file.svg",
+      logo: "/provider-logos/quickspin.png",
       gamesCount: 70,
       isPopular: false,
       description: "Quickspin is a Swedish game studio developing innovative video slots for real money online gambling.",
@@ -79,7 +79,7 @@ const Providers = () => {
     {
       id: "8",
       name: "Betsoft",
-      logo: "/file.svg",
+      logo: "/provider-logos/betsoft.png",
       gamesCount: 110,
       isPopular: false,
       description: "Betsoft Gaming is a developer of innovative casino games and gaming solutions for the global iGaming industry.",
@@ -141,7 +141,7 @@ const Providers = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center mb-4">
                     <div className="bg-white/10 p-3 rounded-md mr-4">
-                      <img src={provider.logo} alt={provider.name} className="h-10 w-10" />
+                      <img src={provider.logo} alt={provider.name} className="h-12 w-12 object-contain" />
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold">{provider.name}</h3>
@@ -172,7 +172,7 @@ const Providers = () => {
           >
             <CardContent className="p-4 flex items-center cursor-pointer">
               <div className="bg-white/10 p-2 rounded-md mr-3">
-                <img src={provider.logo} alt={provider.name} className="h-8 w-8" />
+                <img src={provider.logo} alt={provider.name} className="h-10 w-10 object-contain" />
               </div>
               <div>
                 <h3 className="font-medium">{provider.name}</h3>

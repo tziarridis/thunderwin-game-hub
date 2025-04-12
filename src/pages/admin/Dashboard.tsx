@@ -10,7 +10,9 @@ import {
   ArrowUpDown,
   Percent,
   Award,
-  Globe
+  Globe,
+  BarChart as BarChartIcon,
+  ListFilter
 } from "lucide-react";
 import { DashboardStats, GameStats, ProviderStats, RegionStats } from "@/types";
 import { 
@@ -35,6 +37,7 @@ import {
   LineChart,
   AreaChart
 } from "@/components/ui/dashboard-charts";
+import { DataTable } from "@/components/ui/data-table";
 
 const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
@@ -50,6 +53,7 @@ const Dashboard = () => {
   const [timeFrame, setTimeFrame] = useState<string>("Last Month");
   const [activeTab, setActiveTab] = useState("overview");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"charts" | "numbers">("charts");
 
   useEffect(() => {
     fetchDashboardStats();
@@ -322,119 +326,84 @@ const Dashboard = () => {
     );
   };
 
-  const renderGameStatsTable = () => {
-    return (
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Game</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Bets</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Wins</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Net Profit</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {gameStats.map(game => (
-              <tr key={game.gameId}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{game.gameName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{game.provider}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{game.totalBets}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{game.totalWins}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{game.netProfit}</td>
+  // Data table columns definition for numerical view
+  const gameColumns = [
+    { header: "Game", accessorKey: "gameName" },
+    { header: "Provider", accessorKey: "provider" },
+    { header: "Bets", accessorKey: "totalBets", cell: (row: GameStats) => formatCurrency(row.totalBets) },
+    { header: "Wins", accessorKey: "totalWins", cell: (row: GameStats) => formatCurrency(row.totalWins) },
+    { header: "NGR", accessorKey: "netProfit", cell: (row: GameStats) => formatCurrency(row.netProfit) },
+    { header: "Players", accessorKey: "uniquePlayers" }
+  ];
+
+  const providerColumns = [
+    { header: "Provider", accessorKey: "providerName" },
+    { header: "Games", accessorKey: "totalGames" },
+    { header: "Bets", accessorKey: "totalBets", cell: (row: ProviderStats) => formatCurrency(row.totalBets) },
+    { header: "Wins", accessorKey: "totalWins", cell: (row: ProviderStats) => formatCurrency(row.totalWins) },
+    { header: "NGR", accessorKey: "netProfit", cell: (row: ProviderStats) => formatCurrency(row.netProfit) },
+    { header: "Players", accessorKey: "uniquePlayers" }
+  ];
+
+  const regionColumns = [
+    { header: "Region", accessorKey: "region" },
+    { header: "Players", accessorKey: "userCount" },
+    { header: "Deposits", accessorKey: "depositAmount", cell: (row: RegionStats) => formatCurrency(row.depositAmount) },
+    { header: "Bets", accessorKey: "betAmount", cell: (row: RegionStats) => formatCurrency(row.betAmount) },
+    { header: "GGR", accessorKey: "netProfit", cell: (row: RegionStats) => formatCurrency(row.netProfit) }
+  ];
+
+  const bonusColumns = [
+    { header: "Bonus Type", accessorKey: "type" },
+    { header: "Count", accessorKey: "count" },
+    { header: "Amount", accessorKey: "amount", cell: (row: any) => formatCurrency(row.amount) },
+    { header: "Unique Users", accessorKey: "uniqueUsers" }
+  ];
+
+  const renderRevenueTimeData = () => {
+    const data = prepareRevenueChartData();
+    
+    if (viewMode === "charts") {
+      return (
+        <AreaChart 
+          data={data} 
+          categories={["GGR", "NGR", "Bets"]} 
+          index="name"
+          stacked={false}
+          valueFormatter={(value) => `$${value.toLocaleString()}`}
+          height={350}
+        />
+      );
+    } else {
+      return (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Bets</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Wins</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">GGR</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">NGR</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {data.map((day, index) => (
+                <tr key={index}>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">{day.name}</td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Bets)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Wins)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.GGR)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.NGR)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
   };
 
-  const renderProviderStatsTable = () => {
-    return (
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Provider</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Games</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Bets</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Wins</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Net Profit</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {providerStats.map(provider => (
-              <tr key={provider.providerId}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{provider.providerName}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{provider.totalGames}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{provider.totalBets}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{provider.totalWins}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{provider.netProfit}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderRegionStatsTable = () => {
-    return (
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Region</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Players</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Deposits</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">GGR</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {regionStats.map((regionStat) => (
-              <tr key={regionStat.region}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{regionStat.region}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{regionStat.userCount}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${regionStat.depositAmount.toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${regionStat.netProfit.toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  const renderBonusStatsTable = () => {
-    return (
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Bonus Type</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Count</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unique Users</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {bonusStats.map((bonus, index) => (
-              <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{bonus.type}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{bonus.count}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${bonus.amount.toLocaleString()}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{bonus.uniqueUsers}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  // Chart Data Preparation
   const prepareRevenueChartData = () => {
     if (!timeSeriesData.length) return [];
     
@@ -486,6 +455,27 @@ const Dashboard = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Dashboard Overview</h1>
         <div className="flex items-center space-x-2">
+          <div className="flex bg-white/5 rounded-md p-1 mr-2">
+            <Button
+              variant={viewMode === "charts" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("charts")}
+              className="flex items-center"
+            >
+              <BarChartIcon className="h-4 w-4 mr-1" />
+              Charts
+            </Button>
+            <Button
+              variant={viewMode === "numbers" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("numbers")}
+              className="flex items-center"
+            >
+              <ListFilter className="h-4 w-4 mr-1" />
+              Numbers
+            </Button>
+          </div>
+          
           <Select value={timeFrame} onValueChange={handleTimeFrameChange}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select time frame" />
@@ -556,33 +546,53 @@ const Dashboard = () => {
         <TabsContent value="overview">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Revenue Over Time</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <AreaChart 
-                  data={prepareRevenueChartData()} 
-                  categories={["GGR", "NGR", "Bets"]} 
-                  index="name"
-                  stacked={false}
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {renderRevenueTimeData()}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Weekly Trends</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <LineChart 
-                  data={prepareRevenueChartData().slice(-7)}
-                  categories={["GGR", "NGR", "Bets", "Wins"]}
-                  index="name"
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {viewMode === "charts" ? (
+                  <LineChart 
+                    data={prepareRevenueChartData().slice(-7)}
+                    categories={["GGR", "NGR", "Bets", "Wins"]}
+                    index="name"
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    height={350}
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Bets</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Wins</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">GGR</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">NGR</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                        {prepareRevenueChartData().slice(-7).map((day, index) => (
+                          <tr key={index}>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">{day.name}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Bets)}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Wins)}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.GGR)}</td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.NGR)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -591,26 +601,30 @@ const Dashboard = () => {
         <TabsContent value="games">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Top Games by NGR</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <BarChart 
-                  data={prepareGameChartData()}
-                  categories={["NGR"]}
-                  index="name"
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {viewMode === "charts" ? (
+                  <BarChart 
+                    data={prepareGameChartData()}
+                    categories={["NGR"]}
+                    index="name"
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    height={350}
+                  />
+                ) : (
+                  <DataTable data={gameStats.slice(0, 10)} columns={gameColumns} />
+                )}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Game Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderGameStatsTable()}
+                <DataTable data={gameStats} columns={gameColumns} />
               </CardContent>
             </Card>
           </div>
@@ -619,26 +633,30 @@ const Dashboard = () => {
         <TabsContent value="providers">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Top Providers by NGR</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <BarChart 
-                  data={prepareProviderChartData()}
-                  categories={["NGR"]}
-                  index="name"
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {viewMode === "charts" ? (
+                  <BarChart 
+                    data={prepareProviderChartData()}
+                    categories={["NGR"]}
+                    index="name"
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    height={350}
+                  />
+                ) : (
+                  <DataTable data={providerStats.slice(0, 10)} columns={providerColumns} />
+                )}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Provider Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderProviderStatsTable()}
+                <DataTable data={providerStats} columns={providerColumns} />
               </CardContent>
             </Card>
           </div>
@@ -647,26 +665,30 @@ const Dashboard = () => {
         <TabsContent value="regions">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Top Regions by NGR</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <BarChart 
-                  data={prepareRegionChartData()}
-                  categories={["NGR"]}
-                  index="name"
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {viewMode === "charts" ? (
+                  <BarChart 
+                    data={prepareRegionChartData()}
+                    categories={["NGR"]}
+                    index="name"
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    height={350}
+                  />
+                ) : (
+                  <DataTable data={regionStats.slice(0, 10)} columns={regionColumns} />
+                )}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Region Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderRegionStatsTable()}
+                <DataTable data={regionStats} columns={regionColumns} />
               </CardContent>
             </Card>
           </div>
@@ -675,24 +697,28 @@ const Dashboard = () => {
         <TabsContent value="bonuses">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Bonus Distribution</CardTitle>
               </CardHeader>
               <CardContent className="h-[400px]">
-                <PieChart 
-                  data={prepareBonusPieData()}
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                  height={350}
-                />
+                {viewMode === "charts" ? (
+                  <PieChart 
+                    data={prepareBonusPieData()}
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    height={350}
+                  />
+                ) : (
+                  <DataTable data={bonusStats} columns={bonusColumns} />
+                )}
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Bonus Details</CardTitle>
               </CardHeader>
               <CardContent>
-                {renderBonusStatsTable()}
+                <DataTable data={bonusStats} columns={bonusColumns} />
               </CardContent>
             </Card>
           </div>
