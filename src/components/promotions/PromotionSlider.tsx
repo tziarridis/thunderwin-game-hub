@@ -1,13 +1,17 @@
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PromotionCard from "./PromotionCard";
 import { Promotion } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const PromotionSlider = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   
   useEffect(() => {
     // Load promotions from localStorage
@@ -26,6 +30,15 @@ const PromotionSlider = () => {
   
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev === promotions.length - 1 ? 0 : prev + 1));
+  };
+
+  const handleClaimClick = () => {
+    if (!isAuthenticated) {
+      navigate('/register');
+      return;
+    }
+    
+    navigate('/bonuses');
   };
 
   if (promotions.length === 0) {
@@ -54,8 +67,18 @@ const PromotionSlider = () => {
                     <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">{promo.title}</h2>
                     <p className="text-white/80 mb-6">{promo.description}</p>
                     <div className="flex flex-col sm:flex-row gap-3">
-                      <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                        Claim Now
+                      <Button 
+                        className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                        onClick={handleClaimClick}
+                      >
+                        {!isAuthenticated ? (
+                          <>
+                            <UserPlus className="h-5 w-5 mr-2" />
+                            Join Now
+                          </>
+                        ) : (
+                          "Claim Now"
+                        )}
                       </Button>
                       <Button variant="outline">
                         Terms & Conditions

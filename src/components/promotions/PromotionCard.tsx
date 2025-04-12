@@ -1,7 +1,9 @@
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar, Edit, Trash, Power } from "lucide-react";
+import { Calendar, Edit, Trash, Power, UserPlus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface PromotionCardProps {
   title: string;
@@ -26,6 +28,20 @@ const PromotionCard = ({
   onDelete,
   isAdmin = false
 }: PromotionCardProps) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleActionClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to register page if user is not authenticated
+      navigate('/register');
+      return;
+    }
+    
+    // Call the original onClick handler if user is authenticated
+    if (onClick) onClick();
+  };
+
   return (
     <div className={cn("thunder-card overflow-hidden", className)}>
       <div className="h-48 overflow-hidden">
@@ -86,9 +102,16 @@ const PromotionCard = ({
               <Button 
                 className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
                 size="sm"
-                onClick={onClick}
+                onClick={handleActionClick}
               >
-                Claim Now
+                {!isAuthenticated ? (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Join Now
+                  </>
+                ) : (
+                  <>Claim Now</>
+                )}
               </Button>
               
               <Button 

@@ -1,8 +1,9 @@
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "@/utils/navigationUtils";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, Zap, Trophy, Gift, CreditCard, HelpCircle } from "lucide-react";
+import { Gamepad2, Zap, Trophy, Gift, CreditCard, HelpCircle, UserPlus } from "lucide-react";
 import { useGames } from "@/hooks/useGames";
 import FeaturedGames from "@/components/casino/FeaturedGames";
 import GameCategories from "@/components/casino/GameCategories";
@@ -11,13 +12,22 @@ import PopularProviders from "@/components/casino/PopularProviders";
 import RecentWinners from "@/components/casino/RecentWinners";
 import GameCard from "@/components/games/GameCard";
 import WinningRoller from "@/components/casino/WinningRoller";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const navigate = useNavigate();
   const { games, loading, error } = useGames();
+  const { isAuthenticated } = useAuth();
   
   const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const buttonName = e.currentTarget.textContent || "";
+    const buttonName = e.currentTarget.textContent?.trim() || "";
+    
+    // If the user is not authenticated and clicks on buttons that require authentication
+    if (!isAuthenticated && (buttonName === "Play Now" || buttonName === "Claim Bonus" || buttonName === "Bonuses" || buttonName === "Deposit")) {
+      navigate('/register');
+      return;
+    }
+    
     navigateByButtonName(buttonName, navigate);
   };
   
@@ -54,7 +64,14 @@ const Index = () => {
                 className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
                 onClick={handleButtonClick}
               >
-                Play Now
+                {!isAuthenticated ? (
+                  <>
+                    <UserPlus className="h-5 w-5 mr-2" />
+                    Join Now
+                  </>
+                ) : (
+                  "Play Now"
+                )}
               </Button>
               <Button 
                 size="lg" 
@@ -62,7 +79,7 @@ const Index = () => {
                 className="border-white text-white hover:bg-white/10"
                 onClick={handleButtonClick}
               >
-                Claim Bonus
+                {!isAuthenticated ? "Learn More" : "Claim Bonus"}
               </Button>
             </div>
           </div>
@@ -100,7 +117,7 @@ const Index = () => {
             onClick={handleButtonClick}
           >
             <Gift className="h-8 w-8 mb-2" />
-            <span>Bonuses</span>
+            <span>{!isAuthenticated ? "Join Now" : "Bonuses"}</span>
           </Button>
           <Button 
             variant="outline" 
@@ -116,7 +133,7 @@ const Index = () => {
             onClick={handleButtonClick}
           >
             <CreditCard className="h-8 w-8 mb-2" />
-            <span>Deposit</span>
+            <span>{!isAuthenticated ? "Join Now" : "Deposit"}</span>
           </Button>
         </div>
         

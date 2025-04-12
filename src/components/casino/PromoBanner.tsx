@@ -1,7 +1,9 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Gift } from "lucide-react";
+import { Gift, UserPlus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface PromoBannerProps {
   title: string;
@@ -16,6 +18,20 @@ const PromoBanner = ({
   buttonText,
   onButtonClick
 }: PromoBannerProps) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to register page if user is not authenticated
+      navigate('/register');
+      return;
+    }
+    
+    // Call the original onClick handler if user is authenticated
+    onButtonClick();
+  };
+
   return (
     <div className="thunder-card relative overflow-hidden rounded-xl">
       <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/60 to-transparent z-10"></div>
@@ -32,9 +48,16 @@ const PromoBanner = ({
         <div className="flex-shrink-0">
           <Button
             className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-semibold px-6"
-            onClick={onButtonClick}
+            onClick={handleClick}
           >
-            {buttonText}
+            {!isAuthenticated ? (
+              <>
+                <UserPlus className="h-5 w-5 mr-2" />
+                Join Now
+              </>
+            ) : (
+              buttonText
+            )}
           </Button>
         </div>
       </div>

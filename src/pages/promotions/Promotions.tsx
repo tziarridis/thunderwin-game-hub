@@ -8,11 +8,12 @@ import {
 } from "@/components/ui/tabs";
 import PromotionCard from "@/components/promotions/PromotionCard";
 import { Button } from "@/components/ui/button";
-import { Gift, Calendar, Info, Filter, ChevronRight } from "lucide-react";
+import { Gift, Calendar, Info, Filter, ChevronRight, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Promotion } from "@/types";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 const Promotions = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -20,6 +21,7 @@ const Promotions = () => {
   const [currentTab, setCurrentTab] = useState("all");
   const [showDetails, setShowDetails] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   // Load promotions from localStorage on component mount
   useEffect(() => {
@@ -39,7 +41,7 @@ const Promotions = () => {
 
   const handleClaimPromotion = (promoId: string) => {
     if (!isAuthenticated) {
-      toast.error("Please sign in to claim this promotion");
+      navigate('/register');
       return;
     }
     
@@ -94,6 +96,22 @@ const Promotions = () => {
           <p className="text-white/80 text-xl mb-8 max-w-2xl mx-auto leading-relaxed">
             Explore our exciting promotions and boost your gameplay with exclusive bonuses and rewards.
           </p>
+          
+          {!isAuthenticated && (
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="mb-8"
+            >
+              <Button 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-6 px-8 rounded-xl shadow-lg shadow-casino-thunder-green/20"
+                onClick={() => navigate('/register')}
+              >
+                <UserPlus className="mr-2 h-5 w-5" />
+                Join Now to Claim Bonuses
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
         
         <Tabs value={currentTab} onValueChange={setCurrentTab} className="mb-8 enhanced-tabs">
