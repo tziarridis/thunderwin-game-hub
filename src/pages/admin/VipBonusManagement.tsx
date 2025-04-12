@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash, Users, Zap, Gift, BadgeDollarSign, Award, Star, Percent, User as UserIcon } from "lucide-react";
+import { Search, Plus, Edit, Trash, Users, Zap, Gift, BadgeDollarSign, Award, Star, Percent, UserIcon } from "lucide-react";
 import AdminLayout from "@/components/layout/AdminLayout";
 import { User, VipLevel, BonusTemplate } from "@/types";
 
@@ -833,4 +834,283 @@ const VipBonusManagement = () => {
                       type="number"
                       min="1000"
                       step="1000"
-                      value
+                      value={editingVipLevel.withdrawalLimit}
+                      onChange={(e) => handleVipLevelChange('withdrawalLimit', parseInt(e.target.value) || 0)}
+                      className="border-white/10"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="benefits">Benefits (one per line)</Label>
+                    <Textarea
+                      id="benefits"
+                      value={editingVipLevel.benefits.join('\n')}
+                      onChange={handleVipBenefitsChange}
+                      className="border-white/10 min-h-[100px]"
+                      placeholder="Enter one benefit per line"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter className="mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setIsVipDialogOpen(false)}
+                className="border-white/20"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveVipLevel}
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+              >
+                Save VIP Level
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Bonus Template Edit Dialog */}
+        <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
+          <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingBonus && bonusTemplates.find(b => b.id === editingBonus.id) ? 'Edit Bonus Template' : 'Add Bonus Template'}
+              </DialogTitle>
+              <DialogDescription>
+                Configure the bonus template details
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingBonus && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Bonus Title</Label>
+                    <Input
+                      id="title"
+                      value={editingBonus.title}
+                      onChange={(e) => handleBonusChange('title', e.target.value)}
+                      className="border-white/10"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="bonusType">Bonus Type</Label>
+                    <Select
+                      value={editingBonus.type}
+                      onValueChange={(value) => handleBonusChange('type', value)}
+                    >
+                      <SelectTrigger className="border-white/10">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="deposit">Deposit Bonus</SelectItem>
+                        <SelectItem value="free_spin">Free Spins</SelectItem>
+                        <SelectItem value="cashback">Cashback</SelectItem>
+                        <SelectItem value="loyalty">Loyalty Bonus</SelectItem>
+                        <SelectItem value="vip">VIP Bonus</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={editingBonus.description}
+                    onChange={(e) => handleBonusChange('description', e.target.value)}
+                    className="border-white/10"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount ($)</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      min="0"
+                      value={editingBonus.amount}
+                      onChange={(e) => handleBonusChange('amount', parseFloat(e.target.value) || 0)}
+                      className="border-white/10"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="wagerMultiplier">Wager Multiplier (x)</Label>
+                    <Input
+                      id="wagerMultiplier"
+                      type="number"
+                      min="1"
+                      value={editingBonus.wagerMultiplier}
+                      onChange={(e) => handleBonusChange('wagerMultiplier', parseInt(e.target.value) || 1)}
+                      className="border-white/10"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration (days)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min="1"
+                      value={editingBonus.duration}
+                      onChange={(e) => handleBonusChange('duration', parseInt(e.target.value) || 1)}
+                      className="border-white/10"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="minDeposit">Minimum Deposit ($)</Label>
+                    <Input
+                      id="minDeposit"
+                      type="number"
+                      min="0"
+                      value={editingBonus.minDeposit}
+                      onChange={(e) => handleBonusChange('minDeposit', parseFloat(e.target.value) || 0)}
+                      className="border-white/10"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="requiredVipLevel">Required VIP Level</Label>
+                    <Select
+                      value={String(editingBonus.requiredVipLevel)}
+                      onValueChange={(value) => handleBonusChange('requiredVipLevel', parseInt(value))}
+                    >
+                      <SelectTrigger className="border-white/10">
+                        <SelectValue placeholder="Select VIP level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vipLevels.map((level) => (
+                          <SelectItem key={level.id} value={String(level.id)}>
+                            {level.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="bonusCode">Bonus Code (optional)</Label>
+                    <Input
+                      id="bonusCode"
+                      value={editingBonus.bonusCode || ''}
+                      onChange={(e) => handleBonusChange('bonusCode', e.target.value)}
+                      className="border-white/10"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 pt-2">
+                  <Switch
+                    id="isActive"
+                    checked={editingBonus.isActive}
+                    onCheckedChange={(checked) => handleBonusChange('isActive', checked)}
+                  />
+                  <Label htmlFor="isActive">Active</Label>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter className="mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setIsBonusDialogOpen(false)}
+                className="border-white/20"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveBonus}
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+              >
+                Save Bonus Template
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        {/* User VIP Edit Dialog */}
+        <Dialog open={isUserVipDialogOpen} onOpenChange={setIsUserVipDialogOpen}>
+          <DialogContent className="bg-casino-thunder-dark border-white/10">
+            <DialogHeader>
+              <DialogTitle>
+                Update VIP Level
+              </DialogTitle>
+              <DialogDescription>
+                Change the VIP level for {editingUserVip?.name || editingUserVip?.username}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {editingUserVip && (
+              <div className="space-y-4">
+                <Label htmlFor="userVipLevel">Select VIP Level</Label>
+                <Select
+                  value={String(editingUserVip.vipLevel || 0)}
+                  onValueChange={(value) => {
+                    setEditingUserVip({
+                      ...editingUserVip,
+                      vipLevel: parseInt(value)
+                    });
+                  }}
+                >
+                  <SelectTrigger className="border-white/10">
+                    <SelectValue placeholder="Select VIP level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vipLevels.map((level) => (
+                      <SelectItem key={level.id} value={String(level.id)}>
+                        {level.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {editingUserVip.vipLevel !== undefined && (
+                  <div className="mt-4 p-4 bg-white/5 rounded-md">
+                    <h4 className="font-medium mb-2">Level Benefits</h4>
+                    <ul className="space-y-1">
+                      {vipLevels.find(level => level.id === editingUserVip.vipLevel)?.benefits.map((benefit, index) => (
+                        <li key={index} className="text-sm text-white/70 flex items-start">
+                          <span className="text-casino-thunder-green mr-2">•</span>
+                          {benefit}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <DialogFooter className="mt-6">
+              <Button
+                variant="outline"
+                onClick={() => setIsUserVipDialogOpen(false)}
+                className="border-white/20"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={saveUserVip}
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+              >
+                Update VIP Level
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default VipBonusManagement;
