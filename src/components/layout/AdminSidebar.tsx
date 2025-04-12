@@ -60,7 +60,7 @@ const AdminSidebar = () => {
       <div className="flex items-center justify-between p-4 border-b border-white/5">
         {expanded ? (
           <img 
-            src="https://raw.githubusercontent.com/thunderwin-game-hub/public/main/file.svg"
+            src="/file.svg" 
             alt="ThunderWin" 
             className="h-8 thunder-glow"
           />

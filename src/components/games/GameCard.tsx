@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Play, Star, Info, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,7 +23,7 @@ interface GameCardProps {
 const GameCard = ({ 
   id = "1", // Default ID if none provided
   title, 
-  image = "https://raw.githubusercontent.com/thunderwin-game-hub/public/main/file.svg", // Updated default image path
+  image = "/file.svg", // Default to the SVG if no image is provided
   provider, 
   isPopular = false,
   isNew = false,
@@ -83,7 +82,7 @@ const GameCard = ({
           onError={(e) => {
             // Fallback to SVG if image fails to load
             const imgElement = e.target as HTMLImageElement;
-            imgElement.src = "https://raw.githubusercontent.com/thunderwin-game-hub/public/main/file.svg";
+            imgElement.src = "/file.svg";
           }}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />

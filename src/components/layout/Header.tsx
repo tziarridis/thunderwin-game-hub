@@ -61,7 +61,7 @@ const Header = () => {
           <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
               <img 
-                src="https://raw.githubusercontent.com/thunderwin-game-hub/public/main/file.svg" 
+                src="/file.svg" 
                 alt="ThunderWin" 
                 className="h-8 w-auto thunder-glow"
               />
