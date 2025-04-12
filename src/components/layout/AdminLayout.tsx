@@ -1,12 +1,20 @@
 
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
 }
 
 const AdminLayout = ({ children }: AdminLayoutProps) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  
+  // Redirect to admin login if not authenticated or not an admin
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  
   return (
     <div className="flex min-h-screen bg-gray-950">
       <AdminSidebar />

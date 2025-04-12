@@ -17,7 +17,8 @@ import {
   Share2,
   Star,
   Award,
-  Shield
+  Shield,
+  LogIn
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,7 +45,7 @@ const SidebarLink = ({ to, icon, label, expanded, isActive }: SidebarLinkProps) 
 
 const AdminSidebar = () => {
   const [expanded, setExpanded] = useState(true);
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -143,11 +144,11 @@ const AdminSidebar = () => {
             isActive={isActive("/admin/kyc")}
           />
           <SidebarLink 
-            to="/admin/vip-bonus" 
+            to="/admin/vip-management" 
             icon={<Star size={20} />} 
             label="VIP & Bonuses" 
             expanded={expanded}
-            isActive={isActive("/admin/vip-bonus")}
+            isActive={isActive("/admin/vip-management")}
           />
           <SidebarLink 
             to="/admin/support" 
@@ -186,13 +187,23 @@ const AdminSidebar = () => {
       </div>
       
       <div className="mt-auto border-t border-white/5 p-4">
-        <button 
-          className="w-full flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors"
-          onClick={handleLogout}
-        >
-          <LogOut size={20} className="text-white/60" />
-          {expanded && <span className="ml-3">Logout</span>}
-        </button>
+        {isAuthenticated ? (
+          <button 
+            className="w-full flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors"
+            onClick={handleLogout}
+          >
+            <LogOut size={20} className="text-white/60" />
+            {expanded && <span className="ml-3">Logout</span>}
+          </button>
+        ) : (
+          <Link
+            to="/admin/login"
+            className="w-full flex items-center px-3 py-2 text-white/80 hover:text-casino-thunder-green hover:bg-white/5 rounded-md transition-colors"
+          >
+            <LogIn size={20} className="text-white/60" />
+            {expanded && <span className="ml-3">Admin Login</span>}
+          </Link>
+        )}
       </div>
     </div>
   );

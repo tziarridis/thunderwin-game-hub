@@ -7,7 +7,8 @@ import {
   ArrowRight, 
   Loader2,
   ThumbsUp,
-  TicketCheck
+  TicketCheck,
+  Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,7 @@ const SupportChat = () => {
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState<SupportTicket['category']>("account");
   const [showTicketForm, setShowTicketForm] = useState(false);
+  const [ticketDetails, setTicketDetails] = useState<SupportTicket | null>(null);
   
   useEffect(() => {
     // Load auto-responses from localStorage if available
@@ -55,6 +57,20 @@ const SupportChat = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (ticketId) {
+      // Load ticket details when ticketId is set
+      const storedTickets = localStorage.getItem("supportTickets");
+      if (storedTickets) {
+        const parsedTickets = JSON.parse(storedTickets);
+        const ticket = parsedTickets.find((t: SupportTicket) => t.id === ticketId);
+        if (ticket) {
+          setTicketDetails(ticket);
+        }
+      }
+    }
+  }, [ticketId]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -186,6 +202,7 @@ const SupportChat = () => {
       setMessages(prev => [...prev, confirmationMessage]);
       setTicketCreated(true);
       setTicketId(newTicketId);
+      setTicketDetails(newTicket);
       setShowTicketForm(false);
       setIsLoading(false);
       
@@ -206,6 +223,23 @@ const SupportChat = () => {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getCategoryBadge = (category: SupportTicket['category']) => {
+    switch (category) {
+      case "account":
+        return <Badge variant="outline" className="border-purple-500 text-purple-500">Account</Badge>;
+      case "payment":
+        return <Badge variant="outline" className="border-green-500 text-green-500">Payment</Badge>;
+      case "game":
+        return <Badge variant="outline" className="border-blue-500 text-blue-500">Game</Badge>;
+      case "technical":
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-500">Technical</Badge>;
+      case "other":
+        return <Badge variant="outline" className="border-gray-500 text-gray-500">Other</Badge>;
+      default:
+        return <Badge variant="outline">{category}</Badge>;
+    }
   };
 
   return (
@@ -236,7 +270,8 @@ const SupportChat = () => {
                   <p className="text-xs text-gray-400">How can we help you?</p>
                 ) : (
                   <div className="flex items-center">
-                    <Badge variant="outline" className="text-xs">{ticketId}</Badge>
+                    <Badge variant="outline" className="text-xs mr-2">{ticketId}</Badge>
+                    {ticketDetails && getCategoryBadge(ticketDetails.category)}
                   </div>
                 )}
               </div>
@@ -318,7 +353,10 @@ const SupportChat = () => {
                     </div>
                     
                     <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Category</label>
+                      <label className="flex items-center text-xs text-gray-400 mb-1">
+                        <Tag className="h-3 w-3 mr-1" />
+                        Category
+                      </label>
                       <select 
                         className="w-full bg-white/10 border border-white/20 rounded px-3 py-1 text-white text-sm"
                         value={category}
@@ -348,6 +386,18 @@ const SupportChat = () => {
                         Create Ticket <TicketCheck className="ml-1 h-4 w-4" />
                       </Button>
                     </div>
+                  </div>
+                </div>
+              )}
+              
+              {ticketCreated && ticketDetails && (
+                <div className="bg-white/5 rounded-lg p-2 mt-2 border border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Tag className="h-3 w-3 mr-1 text-gray-400" />
+                      <span className="text-xs text-gray-400">Category:</span>
+                    </div>
+                    {getCategoryBadge(ticketDetails.category)}
                   </div>
                 </div>
               )}

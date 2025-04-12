@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Home, Shield } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 const adminLoginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -27,6 +28,7 @@ type AdminLoginValues = z.infer<typeof adminLoginSchema>;
 const AdminLogin = () => {
   const { adminLogin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   const form = useForm<AdminLoginValues>({
     resolver: zodResolver(adminLoginSchema),
@@ -40,8 +42,18 @@ const AdminLogin = () => {
     setIsSubmitting(true);
     try {
       await adminLogin(values.username, values.password);
+      toast({
+        title: "Login successful",
+        description: "Welcome to the admin dashboard",
+      });
+      navigate("/admin");
     } catch (error) {
       console.error("Admin login failed:", error);
+      toast({
+        title: "Login failed",
+        description: "Invalid username or password",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
