@@ -156,7 +156,7 @@ const Login = () => {
             asChild
             className="text-white hover:text-yellow-500"
           >
-            <Link to="/admin-login">
+            <Link to="/admin/login">
               <Shield className="mr-2 h-4 w-4" />
               Admin Access
             </Link>
