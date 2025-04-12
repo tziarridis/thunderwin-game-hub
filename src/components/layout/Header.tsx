@@ -2,7 +2,20 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, ChevronDown, User, Bell, UserCircle, CreditCard, Settings, LogOut } from "lucide-react";
+import { 
+  Menu, 
+  X, 
+  ChevronDown, 
+  User, 
+  Bell, 
+  UserCircle, 
+  CreditCard, 
+  Settings, 
+  LogOut,
+  HelpCircle,
+  MessageSquare,
+  Wallet
+} from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -18,6 +31,11 @@ import DepositButton from "@/components/user/DepositButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { User as UserType } from "@/types";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -25,10 +43,23 @@ const Header = () => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState("casino");
+  const [notifications, setNotifications] = useState([
+    { id: 1, message: "New bonus available!", isRead: false },
+    { id: 2, message: "Deposit successful", isRead: true },
+    { id: 3, message: "Your VIP level has increased!", isRead: false },
+  ]);
+  
+  const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+  
+  const markAllNotificationsAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, isRead: true }))
+    );
   };
 
   // Close mobile menu when navigating or window resizes
@@ -159,6 +190,9 @@ const Header = () => {
                     <Link to="/settings" className="block py-2 text-white hover:text-casino-thunder-green">
                       Settings
                     </Link>
+                    <Link to="/support/help" className="block py-2 text-white hover:text-casino-thunder-green">
+                      Support
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block py-2 text-white hover:text-casino-thunder-green text-left"
@@ -206,38 +240,133 @@ const Header = () => {
         {!isMobile && (
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
-                      <AvatarFallback>{user?.name?.slice(0, 1) || user?.username?.slice(0, 1)}</AvatarFallback>
-                    </Avatar>
-                    <ChevronDown className="absolute right-1 bottom-1 h-4 w-4 opacity-70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 mr-2">
-                  <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")}>
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/transactions")}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Transactions</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/settings")}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <>
+                {/* Deposit Button */}
+                <DepositButton />
+                
+                {/* Support Button */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="rounded-full h-9 w-9 bg-white/5 hover:bg-white/10 text-white"
+                  onClick={() => navigate("/support/help")}
+                >
+                  <HelpCircle className="h-5 w-5" />
+                </Button>
+                
+                {/* Notifications */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="relative rounded-full h-9 w-9 bg-white/5 hover:bg-white/10 text-white"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 bg-casino-thunder-darker border border-white/10 text-white">
+                    <div className="flex items-center justify-between p-4 border-b border-white/10">
+                      <h3 className="font-medium">Notifications</h3>
+                      {unreadNotificationsCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={markAllNotificationsAsRead}
+                          className="text-xs hover:text-casino-thunder-green"
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+                    <div className="max-h-[300px] overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-gray-400">
+                          No notifications
+                        </div>
+                      ) : (
+                        notifications.map(notification => (
+                          <div 
+                            key={notification.id} 
+                            className={`p-3 border-b border-white/5 hover:bg-white/5 ${!notification.isRead ? 'bg-white/10' : ''}`}
+                          >
+                            <div className="flex items-start">
+                              <div className={`w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ${!notification.isRead ? 'bg-casino-thunder-green' : 'bg-gray-500'}`} />
+                              <div className="ml-2">
+                                <p className={`text-sm ${!notification.isRead ? 'font-medium' : 'text-gray-300'}`}>
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">2 hours ago</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="p-2 border-t border-white/10">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full text-xs hover:text-casino-thunder-green" 
+                        onClick={() => navigate("/notifications")}
+                      >
+                        View all notifications
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                
+                {/* User Menu */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
+                        <AvatarFallback>{user?.name?.slice(0, 1) || user?.username?.slice(0, 1)}</AvatarFallback>
+                      </Avatar>
+                      <ChevronDown className="absolute right-1 bottom-1 h-4 w-4 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 mr-2 bg-casino-thunder-darker border border-white/10 text-white">
+                    <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    
+                    {user?.balance !== undefined && (
+                      <div className="px-2 py-1.5 mb-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-400">Balance:</span>
+                          <span className="font-medium text-casino-thunder-green">
+                            ${user.balance.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    <DropdownMenuItem onClick={() => navigate("/profile")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/transactions")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>Transactions</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate("/settings")} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem onClick={handleLogout} className="hover:bg-white/5 hover:text-casino-thunder-green">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
             ) : (
               <>
                 <Link to="/login">

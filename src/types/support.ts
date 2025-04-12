@@ -31,3 +31,12 @@ export interface AutoResponse {
   response: string;
   category: string;
 }
+
+export interface SupportNotification {
+  id: string;
+  ticketId: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  type: 'new_ticket' | 'new_message' | 'status_change';
+}

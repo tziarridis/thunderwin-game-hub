@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Tabs, 
@@ -180,6 +179,7 @@ const SupportPage = () => {
     category: "account"
   });
   const [newKeyword, setNewKeyword] = useState("");
+  const [newTicketsCount, setNewTicketsCount] = useState(0);
   
   useEffect(() => {
     // Load tickets from localStorage or generate if none exist
@@ -187,11 +187,20 @@ const SupportPage = () => {
       const storedTickets = localStorage.getItem("supportTickets");
       
       if (storedTickets) {
-        setTickets(JSON.parse(storedTickets));
+        const parsedTickets = JSON.parse(storedTickets);
+        setTickets(parsedTickets);
+        
+        // Count new tickets
+        const newCount = parsedTickets.filter((ticket: SupportTicket) => ticket.status === "new").length;
+        setNewTicketsCount(newCount);
       } else {
         const mockTickets = generateMockTickets();
         localStorage.setItem("supportTickets", JSON.stringify(mockTickets));
         setTickets(mockTickets);
+        
+        // Count new tickets
+        const newCount = mockTickets.filter(ticket => ticket.status === "new").length;
+        setNewTicketsCount(newCount);
       }
       
       // Load auto responses
@@ -209,7 +218,28 @@ const SupportPage = () => {
     
     // Simulated API call delay
     setTimeout(loadData, 800);
-  }, []);
+    
+    // Set up polling to check for new tickets
+    const ticketInterval = setInterval(() => {
+      const storedTickets = localStorage.getItem("supportTickets");
+      if (storedTickets) {
+        const parsedTickets = JSON.parse(storedTickets);
+        setTickets(parsedTickets);
+        
+        // Update new tickets count
+        const newCount = parsedTickets.filter((ticket: SupportTicket) => ticket.status === "new").length;
+        if (newCount > newTicketsCount) {
+          toast({
+            title: "New Support Ticket",
+            description: "A new support ticket has been created",
+          });
+        }
+        setNewTicketsCount(newCount);
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(ticketInterval);
+  }, [newTicketsCount]);
   
   const saveTickets = (updatedTickets: SupportTicket[]) => {
     localStorage.setItem("supportTickets", JSON.stringify(updatedTickets));
@@ -869,278 +899,4 @@ const SupportPage = () => {
                   <TableBody>
                     {autoResponses.map((response) => (
                       <TableRow key={response.id}>
-                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category'])}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {response.keyword.map((keyword) => (
-                              <Badge key={keyword} variant="outline" className="text-xs">
-                                {keyword}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate">
-                          {response.response}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteAutoResponse(response.id)}
-                          >
-                            <XCircle className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="settings">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Chat Settings</CardTitle>
-                <CardDescription>Configure how the support chat system works</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start space-x-2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Automated Chat
-                    </label>
-                    <Select defaultValue="enabled">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="enabled">Enabled</SelectItem>
-                        <SelectItem value="disabled">Disabled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Initial Response Time (minutes)
-                    </label>
-                    <Input type="number" defaultValue="5" min="1" max="60" />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Default Chat Greeting
-                  </label>
-                  <Textarea
-                    defaultValue="Welcome to ThunderWin support! How can we assist you today?"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="flex items-start space-x-2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Chat Operating Hours
-                    </label>
-                    <Select defaultValue="24-7">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select hours" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="24-7">24/7</SelectItem>
-                        <SelectItem value="business">Business Hours (9AM-5PM)</SelectItem>
-                        <SelectItem value="extended">Extended Hours (8AM-10PM)</SelectItem>
-                        <SelectItem value="custom">Custom Hours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Max Queue Size
-                    </label>
-                    <Input type="number" defaultValue="50" min="10" max="200" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Audit & Security</CardTitle>
-                <CardDescription>Configure security settings and audit logs</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Audit Log Retention (days)
-                  </label>
-                  <Input type="number" defaultValue="90" min="30" max="365" />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    Security Level
-                  </label>
-                  <Select defaultValue="high">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="custom">Custom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex items-start space-x-2">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Two-Factor Authentication
-                    </label>
-                    <Select defaultValue="required">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select option" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="optional">Optional</SelectItem>
-                        <SelectItem value="required">Required for Admin</SelectItem>
-                        <SelectItem value="all">Required for All</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">
-                      Session Timeout (minutes)
-                    </label>
-                    <Input type="number" defaultValue="30" min="5" max="120" />
-                  </div>
-                </div>
-                
-                <div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">View Audit Logs</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl">
-                      <DialogHeader>
-                        <DialogTitle>System Audit Logs</DialogTitle>
-                      </DialogHeader>
-                      <div className="max-h-[60vh] overflow-y-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Date & Time</TableHead>
-                              <TableHead>User</TableHead>
-                              <TableHead>Action</TableHead>
-                              <TableHead>Details</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {Array.from({ length: 10 }).map((_, i) => (
-                              <TableRow key={i}>
-                                <TableCell>
-                                  {new Date(Date.now() - i * 3600000).toLocaleString()}
-                                </TableCell>
-                                <TableCell>Administrator</TableCell>
-                                <TableCell>
-                                  {[
-                                    "User account updated",
-                                    "Settings changed",
-                                    "Support ticket resolved",
-                                    "New game added",
-                                    "Promotion created"
-                                  ][i % 5]}
-                                </TableCell>
-                                <TableCell className="max-w-xs truncate">
-                                  {[
-                                    "Updated user ID user123 balance to $500",
-                                    "Changed security settings to high",
-                                    "Resolved ticket TICKET-1234",
-                                    "Added new game 'Thunder Spins' from provider XYZ",
-                                    "Created 'Weekend Bonus' promotion with 100% match"
-                                  ][i % 5]}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline">Export Logs</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Notification Settings</CardTitle>
-                <CardDescription>Configure how notifications are sent to support agents</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>In-App</TableHead>
-                      <TableHead>Push</TableHead>
-                      <TableHead>SMS</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>New Support Ticket</TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><XCircle className="h-4 w-4 text-gray-400 mx-auto" /></TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Urgent Ticket Reply</TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Ticket Assigned</TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><XCircle className="h-4 w-4 text-gray-400 mx-auto" /></TableCell>
-                      <TableCell><XCircle className="h-4 w-4 text-gray-400 mx-auto" /></TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Support SLA Breach</TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Ticket Status Change</TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><CheckCircle className="h-4 w-4 text-green-500 mx-auto" /></TableCell>
-                      <TableCell><XCircle className="h-4 w-4 text-gray-400 mx-auto" /></TableCell>
-                      <TableCell><XCircle className="h-4 w-4 text-gray-400 mx-auto" /></TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
-
-export default SupportPage;
+                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category'])}</TableCell
