@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -413,9 +414,10 @@ const Header = () => {
                   {/* User Menu - Fix user button issue */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost"
-                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center"
+                      <motion.button
+                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center cursor-pointer"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
                       >
                         <Avatar className="h-9 w-9 border-2 border-casino-thunder-green/50">
                           <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
@@ -423,7 +425,7 @@ const Header = () => {
                             {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
                           </AvatarFallback>
                         </Avatar>
-                      </Button>
+                      </motion.button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 mr-2 glass-popup">
                       <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
