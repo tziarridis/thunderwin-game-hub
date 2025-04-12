@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Gamepad2, Search, Filter, Star, Zap, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,7 @@ const SlotsPage = () => {
   };
 
   return (
-    <div className="bg-casino-thunder-darker min-h-screen pt-20 pb-16">
+    <div className="bg-casino-thunder-darker min-h-screen pt-20 pb-16 relative overflow-hidden">
       <WinningRoller />
       
       <div className="container mx-auto px-4">

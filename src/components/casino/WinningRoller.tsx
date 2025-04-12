@@ -43,40 +43,42 @@ const WinningRoller = () => {
   if (!currentWinner) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-50">
+    <div className="fixed top-1/4 right-0 z-50 overflow-hidden w-full pointer-events-none">
       <AnimatePresence mode="wait">
         <motion.div 
           key={currentWinner.id}
-          initial={{ x: -100, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -100, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="glass-card p-4 flex items-center gap-3 shadow-lg neo-glow"
+          initial={{ x: "100%" }}
+          animate={{ x: "-100%" }}
+          exit={{ opacity: 0 }}
+          transition={{ 
+            x: { duration: 12, ease: "linear" },
+            opacity: { duration: 0.5 }
+          }}
+          className="glass-card p-3 inline-flex items-center gap-3 shadow-lg neo-glow absolute right-0"
         >
-          <div className="bg-casino-thunder-green/20 rounded-full p-2.5 animate-pulse-glow">
+          <div className="bg-casino-thunder-green/20 rounded-full p-2 animate-pulse-glow">
             {currentWinner.amount > 2000 ? (
-              <Trophy className="h-6 w-6 text-yellow-500" />
+              <Trophy className="h-5 w-5 text-yellow-500" />
             ) : (
-              <Coins className="h-6 w-6 text-casino-thunder-green" />
+              <Coins className="h-5 w-5 text-casino-thunder-green" />
             )}
           </div>
           
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-white text-sm">{currentWinner.username}</span>
-              <Zap className="h-3.5 w-3.5 text-casino-thunder-green" />
-              <span className="font-bold text-casino-thunder-green">
-                <motion.span
-                  key={currentWinner.id + "-amount"}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  ${currentWinner.amount.toFixed(2)}
-                </motion.span>
-              </span>
-            </div>
-            <p className="text-white/70 text-xs">Won on {currentWinner.game}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-white text-sm">{currentWinner.username}</span>
+            <span className="text-white/70 text-xs">won on</span>
+            <span className="text-white/90 text-sm font-medium">{currentWinner.game}</span>
+            <Zap className="h-3.5 w-3.5 text-casino-thunder-green" />
+            <span className="font-bold text-casino-thunder-green">
+              <motion.span
+                key={currentWinner.id + "-amount"}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                ${currentWinner.amount.toFixed(2)}
+              </motion.span>
+            </span>
           </div>
         </motion.div>
       </AnimatePresence>
