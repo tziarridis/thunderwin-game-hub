@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters").max(20),
@@ -48,9 +49,33 @@ const Register = () => {
     setIsSubmitting(true);
     try {
       await register(values.username, values.email, values.password);
+      
+      // Store user in localStorage for admin panel
+      const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const newUserId = `USR-${1000 + mockUsers.length + 1}`;
+      
+      const newUser = {
+        id: newUserId,
+        name: values.username,
+        username: values.username,
+        email: values.email,
+        status: 'Active',
+        balance: 0,
+        joined: new Date().toISOString().split('T')[0],
+        favoriteGames: [],
+        role: 'user',
+        vipLevel: 0,
+        isVerified: false
+      };
+      
+      mockUsers.push(newUser);
+      localStorage.setItem('mockUsers', JSON.stringify(mockUsers));
+      
+      toast.success("Account created successfully!");
       navigate("/");
     } catch (error) {
       console.error("Registration failed:", error);
+      toast.error("Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

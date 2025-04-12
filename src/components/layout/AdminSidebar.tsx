@@ -13,8 +13,7 @@ import {
   Gift, 
   LogOut,
   ChevronLeft,
-  ChevronRight,
-  Home
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,7 +57,7 @@ const AdminSidebar = () => {
     <div className={`bg-casino-thunder-darker border-r border-white/5 h-screen fixed top-0 left-0 transition-all duration-300 flex flex-col justify-between ${
       expanded ? 'w-64' : 'w-16'
     }`}>
-      <div className="flex flex-col flex-grow overflow-y-auto">
+      <div className="flex flex-col h-full">
         <div className="flex items-center justify-between p-4 border-b border-white/5">
           {expanded ? (
             <img 
@@ -82,7 +81,7 @@ const AdminSidebar = () => {
           </Button>
         </div>
         
-        <div className="px-3 py-4 flex-grow">
+        <div className="px-3 py-4 flex-grow overflow-y-auto">
           <div className="space-y-1">
             <SidebarLink 
               to="/admin" 
@@ -158,26 +157,19 @@ const AdminSidebar = () => {
                 expanded={expanded}
                 isActive={isActive("/admin/settings")}
               />
-              <SidebarLink 
-                to="/" 
-                icon={<Home size={20} />} 
-                label="Main Casino" 
-                expanded={expanded}
-                isActive={false}
-              />
             </div>
           </div>
         </div>
-      </div>
-      
-      <div className="p-4 border-t border-white/5">
-        <button 
-          className="flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors w-full"
-          onClick={handleLogout}
-        >
-          <LogOut size={20} className="text-white/60" />
-          {expanded && <span className="ml-3">Logout</span>}
-        </button>
+        
+        <div className="p-4 border-t border-white/5 mt-auto">
+          <button 
+            className="flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors w-full"
+            onClick={handleLogout}
+          >
+            <LogOut size={20} className="text-white/60" />
+            {expanded && <span className="ml-3">Logout</span>}
+          </button>
+        </div>
       </div>
     </div>
   );

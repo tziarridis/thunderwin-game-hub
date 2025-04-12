@@ -128,6 +128,23 @@ export interface AuditLog {
   details?: string;
 }
 
+// OxaPay related types
+export interface OxaPayWallet {
+  id: string;
+  address: string;
+  created_at: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paid_amount: number;
+  expiration_time: string;
+}
+
+export interface OxaPayTransaction extends Transaction {
+  walletId: string;
+  walletAddress: string;
+}
+
 // Import support types to consolidate everything
 import { SupportTicket, SupportMessage, AutoResponse } from './support';
 export { type SupportTicket, type SupportMessage, type AutoResponse };

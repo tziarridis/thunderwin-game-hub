@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,32 +27,7 @@ interface Promotion {
 }
 
 const Promotions = () => {
-  const [promotions, setPromotions] = useState<Promotion[]>([
-    {
-      id: "1",
-      title: "Welcome Bonus",
-      description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
-      image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
-      endDate: "Ongoing",
-      isActive: true
-    },
-    {
-      id: "2",
-      title: "Thunder Thursday",
-      description: "Every Thursday, get 50 free spins when you deposit $50 or more.",
-      image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400",
-      endDate: "Every Thursday",
-      isActive: true
-    },
-    {
-      id: "3",
-      title: "Weekend Reload",
-      description: "Reload your account during weekends and get a 75% bonus up to $500.",
-      image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400",
-      endDate: "Every Weekend",
-      isActive: true
-    }
-  ]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -64,6 +39,51 @@ const Promotions = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Load promotions from localStorage on component mount
+  useEffect(() => {
+    const storedPromotions = localStorage.getItem('promotions');
+    if (storedPromotions) {
+      setPromotions(JSON.parse(storedPromotions));
+    } else {
+      // Initial default promotions if none exist yet
+      const defaultPromotions = [
+        {
+          id: "1",
+          title: "Welcome Bonus",
+          description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
+          image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
+          endDate: "Ongoing",
+          isActive: true
+        },
+        {
+          id: "2",
+          title: "Thunder Thursday",
+          description: "Every Thursday, get 50 free spins when you deposit $50 or more.",
+          image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400",
+          endDate: "Every Thursday",
+          isActive: true
+        },
+        {
+          id: "3",
+          title: "Weekend Reload",
+          description: "Reload your account during weekends and get a 75% bonus up to $500.",
+          image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400",
+          endDate: "Every Weekend",
+          isActive: true
+        }
+      ];
+      setPromotions(defaultPromotions);
+      localStorage.setItem('promotions', JSON.stringify(defaultPromotions));
+    }
+  }, []);
+
+  // Save promotions to localStorage whenever they change
+  useEffect(() => {
+    if (promotions.length > 0) {
+      localStorage.setItem('promotions', JSON.stringify(promotions));
+    }
+  }, [promotions]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
