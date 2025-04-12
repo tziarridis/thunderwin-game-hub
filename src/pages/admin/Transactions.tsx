@@ -110,8 +110,8 @@ const AdminTransactions = () => {
     if (query) {
       results = results.filter(transaction => 
         transaction.id.toLowerCase().includes(query) || 
-        transaction.userName.toLowerCase().includes(query) ||
-        transaction.userId.toLowerCase().includes(query)
+        (transaction.userName && transaction.userName.toLowerCase().includes(query)) ||
+        (transaction.userId && transaction.userId.toLowerCase().includes(query))
       );
     }
     
@@ -341,6 +341,10 @@ const AdminTransactions = () => {
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
           </div>
+        ) : filteredTransactions.length === 0 ? (
+          <div className="text-center py-20 text-white/60">
+            <p>No transactions found</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-white/10">
@@ -399,11 +403,11 @@ const AdminTransactions = () => {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
-                          {transaction.userName.charAt(0)}
+                          {transaction.userName && transaction.userName.length > 0 ? transaction.userName.charAt(0) : 'U'}
                         </div>
                         <div className="ml-3">
-                          <div className="text-sm font-medium">{transaction.userName}</div>
-                          <div className="text-xs text-white/60">ID: {transaction.userId}</div>
+                          <div className="text-sm font-medium">{transaction.userName || 'Unknown User'}</div>
+                          <div className="text-xs text-white/60">ID: {transaction.userId || 'N/A'}</div>
                         </div>
                       </div>
                     </td>
@@ -431,10 +435,10 @@ const AdminTransactions = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {transaction.method}
+                      {transaction.method || 'N/A'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {formatDate(transaction.date)}
+                      {transaction.date ? formatDate(transaction.date) : 'N/A'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(transaction.status)}`}>
@@ -455,84 +459,86 @@ const AdminTransactions = () => {
         )}
         
         {/* Pagination */}
-        <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-white/60">
-                Showing <span className="font-medium">{indexOfFirstTransaction + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(indexOfLastTransaction, filteredTransactions.length)}
-                </span>{' '}
-                of <span className="font-medium">{filteredTransactions.length}</span> results
-              </p>
+        {filteredTransactions.length > 0 && (
+          <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-l-md"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-white/60">
+                  Showing <span className="font-medium">{indexOfFirstTransaction + 1}</span> to{' '}
+                  <span className="font-medium">
+                    {Math.min(indexOfLastTransaction, filteredTransactions.length)}
+                  </span>{' '}
+                  of <span className="font-medium">{filteredTransactions.length}</span> results
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-l-md"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
                   
-                  return (
-                    <Button 
-                      key={pageNum}
-                      variant="outline" 
-                      className={currentPage === pageNum ? "bg-white/10" : ""}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-r-md"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </nav>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <Button 
+                        key={pageNum}
+                        variant="outline" 
+                        className={currentPage === pageNum ? "bg-white/10" : ""}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="rounded-r-md"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </nav>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
