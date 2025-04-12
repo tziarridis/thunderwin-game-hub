@@ -1,3 +1,4 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -107,15 +108,23 @@ const Header = () => {
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-lg shadow-md' : 'bg-casino-thunder-dark border-b border-white/5'}`}>
       <div className="container mx-auto py-4 px-4">
         <div className="flex items-center justify-between">
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button - Updated with 3-line icon */}
           {isMobile && (
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-white hover:bg-white/5"
+              className="text-white hover:bg-white/5 flex flex-col justify-center items-center gap-1"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? (
+                <X size={24} />
+              ) : (
+                <>
+                  <div className="w-5 h-0.5 bg-white rounded-full" />
+                  <div className="w-5 h-0.5 bg-white rounded-full" />
+                  <div className="w-5 h-0.5 bg-white rounded-full" />
+                </>
+              )}
             </Button>
           )}
 
@@ -410,13 +419,11 @@ const Header = () => {
                     </PopoverContent>
                   </Popover>
                   
-                  {/* User Menu */}
+                  {/* User Menu - Fixed to ensure it works correctly */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <motion.button
+                      <Button
                         className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center cursor-pointer"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
                       >
                         <Avatar className="h-9 w-9 border-2 border-casino-thunder-green/50">
                           <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
@@ -424,7 +431,7 @@ const Header = () => {
                             {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
                           </AvatarFallback>
                         </Avatar>
-                      </motion.button>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 mr-2 glass-popup">
                       <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
