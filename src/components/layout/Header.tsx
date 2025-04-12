@@ -1,7 +1,8 @@
+
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, ChevronDown, User, Bell, UserCircle } from "lucide-react";
+import { Menu, X, ChevronDown, User, Bell, UserCircle, CreditCard, Settings, LogOut } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -14,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Bonus, BonusTemplate, VipLevel } from "@/types";
 
 const BonusHub = () => {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
