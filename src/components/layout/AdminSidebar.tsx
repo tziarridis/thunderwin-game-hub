@@ -55,125 +55,122 @@ const AdminSidebar = () => {
   };
 
   return (
-    <div className={`bg-casino-thunder-darker border-r border-white/5 h-screen fixed top-0 left-0 transition-all duration-300 ${
+    <div className={`bg-casino-thunder-darker border-r border-white/5 h-screen fixed top-0 left-0 transition-all duration-300 flex flex-col justify-between ${
       expanded ? 'w-64' : 'w-16'
     }`}>
-      <div className="flex items-center justify-between p-4 border-b border-white/5">
-        {expanded ? (
-          <img 
-            src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
-            alt="ThunderWin" 
-            className="h-8 thunder-glow"
-          />
-        ) : (
-          <div className="w-8 h-8 flex items-center justify-center text-casino-thunder-green thunder-glow font-bold text-xl">
-            T
-          </div>
-        )}
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setExpanded(!expanded)}
-          className="text-white/60 hover:text-white"
-        >
-          {expanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </Button>
-      </div>
-      
-      <div className="px-3 py-4">
-        <div className="space-y-1">
-          <SidebarLink 
-            to="/admin" 
-            icon={<LayoutDashboard size={20} />} 
-            label="Dashboard" 
-            expanded={expanded}
-            isActive={isActive("/admin") && location.pathname === "/admin"}
-          />
-          <SidebarLink 
-            to="/admin/users" 
-            icon={<Users size={20} />} 
-            label="Users" 
-            expanded={expanded}
-            isActive={isActive("/admin/users")}
-          />
-          <SidebarLink 
-            to="/admin/transactions" 
-            icon={<CreditCard size={20} />} 
-            label="Transactions" 
-            expanded={expanded}
-            isActive={isActive("/admin/transactions")}
-          />
-          <SidebarLink 
-            to="/admin/reports" 
-            icon={<BarChart2 size={20} />} 
-            label="Reports" 
-            expanded={expanded}
-            isActive={isActive("/admin/reports")}
-          />
-          <SidebarLink 
-            to="/admin/games" 
-            icon={<Gift size={20} />} 
-            label="Games" 
-            expanded={expanded}
-            isActive={isActive("/admin/games")}
-          />
-          <SidebarLink 
-            to="/admin/promotions" 
-            icon={<Gift size={20} />} 
-            label="Promotions" 
-            expanded={expanded}
-            isActive={isActive("/admin/promotions")}
-          />
-          <SidebarLink 
-            to="/admin/support" 
-            icon={<MessageSquare size={20} />} 
-            label="Support" 
-            expanded={expanded}
-            isActive={isActive("/admin/support")}
-          />
+      <div className="flex flex-col flex-grow overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-white/5">
+          {expanded ? (
+            <img 
+              src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
+              alt="ThunderWin" 
+              className="h-8 thunder-glow"
+            />
+          ) : (
+            <div className="w-8 h-8 flex items-center justify-center text-casino-thunder-green thunder-glow font-bold text-xl">
+              T
+            </div>
+          )}
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setExpanded(!expanded)}
+            className="text-white/60 hover:text-white"
+          >
+            {expanded ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </Button>
         </div>
         
-        <div className="pt-4 mt-4 border-t border-white/10">
+        <div className="px-3 py-4 flex-grow">
           <div className="space-y-1">
             <SidebarLink 
-              to="/admin/logs" 
-              icon={<FileText size={20} />} 
-              label="Audit Logs" 
+              to="/admin" 
+              icon={<LayoutDashboard size={20} />} 
+              label="Dashboard" 
               expanded={expanded}
-              isActive={isActive("/admin/logs")}
+              isActive={isActive("/admin") && location.pathname === "/admin"}
             />
             <SidebarLink 
-              to="/admin/security" 
-              icon={<ShieldAlert size={20} />} 
-              label="Security" 
+              to="/admin/users" 
+              icon={<Users size={20} />} 
+              label="Users" 
               expanded={expanded}
-              isActive={isActive("/admin/security")}
+              isActive={isActive("/admin/users")}
             />
             <SidebarLink 
-              to="/admin/settings" 
-              icon={<Settings size={20} />} 
-              label="Settings" 
+              to="/admin/transactions" 
+              icon={<CreditCard size={20} />} 
+              label="Transactions" 
               expanded={expanded}
-              isActive={isActive("/admin/settings")}
+              isActive={isActive("/admin/transactions")}
+            />
+            <SidebarLink 
+              to="/admin/reports" 
+              icon={<BarChart2 size={20} />} 
+              label="Reports" 
+              expanded={expanded}
+              isActive={isActive("/admin/reports")}
+            />
+            <SidebarLink 
+              to="/admin/games" 
+              icon={<Gift size={20} />} 
+              label="Games" 
+              expanded={expanded}
+              isActive={isActive("/admin/games")}
+            />
+            <SidebarLink 
+              to="/admin/promotions" 
+              icon={<Gift size={20} />} 
+              label="Promotions" 
+              expanded={expanded}
+              isActive={isActive("/admin/promotions")}
+            />
+            <SidebarLink 
+              to="/admin/support" 
+              icon={<MessageSquare size={20} />} 
+              label="Support" 
+              expanded={expanded}
+              isActive={isActive("/admin/support")}
             />
           </div>
-        </div>
-        
-        <div className="pt-4 mt-4 border-t border-white/10">
-          <div className="space-y-1">
-            <SidebarLink 
-              to="/" 
-              icon={<Home size={20} />} 
-              label="Main Casino" 
-              expanded={expanded}
-              isActive={false}
-            />
+          
+          <div className="pt-4 mt-4 border-t border-white/10">
+            <div className="space-y-1">
+              <SidebarLink 
+                to="/admin/logs" 
+                icon={<FileText size={20} />} 
+                label="Audit Logs" 
+                expanded={expanded}
+                isActive={isActive("/admin/logs")}
+              />
+              <SidebarLink 
+                to="/admin/security" 
+                icon={<ShieldAlert size={20} />} 
+                label="Security" 
+                expanded={expanded}
+                isActive={isActive("/admin/security")}
+              />
+              <SidebarLink 
+                to="/admin/settings" 
+                icon={<Settings size={20} />} 
+                label="Settings" 
+                expanded={expanded}
+                isActive={isActive("/admin/settings")}
+              />
+              <SidebarLink 
+                to="/" 
+                icon={<Home size={20} />} 
+                label="Main Casino" 
+                expanded={expanded}
+                isActive={false}
+              />
+            </div>
           </div>
         </div>
       </div>
       
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/5">
+      <div className="p-4 border-t border-white/5">
         <button 
           className="flex items-center px-3 py-2 text-white/80 hover:text-red-400 hover:bg-white/5 rounded-md transition-colors w-full"
           onClick={handleLogout}
