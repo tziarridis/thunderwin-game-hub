@@ -16,10 +16,26 @@ export interface User {
   isVerified?: boolean;
   avatarUrl?: string;
   affiliateCode?: string; // Referral code that brought this user
-  kycStatus?: string;
+  kycStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected';
   kycSubmittedAt?: string;
   kycVerifiedAt?: string;
   kycRejectionReason?: string;
+  kycData?: KycData;
+}
+
+export interface KycData {
+  fullName: string;
+  dateOfBirth: string;
+  nationality: string;
+  address: string;
+  city: string;
+  zipCode: string;
+  country: string;
+  phoneNumber: string;
+  documentType: string;
+  documentFront: string;
+  documentBack: string;
+  selfie: string;
 }
 
 export interface Game {
@@ -87,7 +103,7 @@ export interface Affiliate {
   joinedDate: string;
 }
 
-// VIP Level interface - Updated with ALL properties used in VipBonusManagement.tsx
+// VIP Level interface with ALL properties needed
 export interface VipLevel {
   id: string;
   name: string;
@@ -112,7 +128,10 @@ export interface VipLevel {
   icon: string;
 }
 
-// Bonus interface - Updated with ALL properties used in components
+// Bonus type for both templates and bonuses
+export type BonusType = "deposit" | "free_spin" | "cashback" | "loyalty" | "vip" | "freespin";
+
+// Bonus interface - Updated with ALL properties
 export interface Bonus {
   id: string;
   userId: string;
@@ -127,7 +146,7 @@ export interface Bonus {
   expiresAt: string;
   status?: "active" | "completed" | "expired";
   isCompleted?: boolean; // Alternative used in BonusHub
-  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip" | "freespin";
+  type: BonusType;
   bonusCode?: string;
   code?: string; // Alternative name used in components
   createdAt: string; // Used in BonusHub
@@ -136,7 +155,7 @@ export interface Bonus {
   maxBonus?: number; // Maximum bonus amount
 }
 
-// Bonus Template interface - Updated with ALL properties used in components
+// Bonus Template interface - Updated with ALL properties
 export interface BonusTemplate {
   id: string;
   title?: string;
@@ -152,7 +171,7 @@ export interface BonusTemplate {
   active?: boolean; // Alternative name used in components
   requiredVipLevel?: number;
   vipLevelRequired?: number; // Alternative name used in components
-  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip" | "freespin";
+  type: BonusType;
   bonusCode?: string;
   code?: string; // Alternative name used in components
   percentage?: number; // Used in components for deposit percent
@@ -167,22 +186,9 @@ export interface KycRequest {
   userId: string;
   userName: string;
   email: string;
-  status: string;
+  status: 'not_submitted' | 'pending' | 'verified' | 'rejected' | 'approved';
   submittedAt: string;
-  data: {
-    fullName: string;
-    dateOfBirth: string;
-    nationality: string;
-    address: string;
-    city: string;
-    zipCode: string;
-    country: string;
-    phoneNumber: string;
-    documentType: string;
-    documentFront: string;
-    documentBack: string;
-    selfie: string;
-  };
+  data: KycData;
   reviewedBy?: string;
   reviewedAt?: string;
   rejectionReason?: string;

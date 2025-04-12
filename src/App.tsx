@@ -1,281 +1,163 @@
 
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "./contexts/AuthContext";
+
+// Layout components
 import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
 
-// Main Pages
-import IndexPage from "./pages/Index";
-import NotFoundPage from "./pages/NotFound";
+// Pages
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 
-// Auth Pages
-import LoginPage from "./pages/auth/Login";
-import RegisterPage from "./pages/auth/Register";
-import AdminLoginPage from "./pages/auth/AdminLogin";
+// Auth pages
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin";
 
-// Casino Pages
+// User pages
+import Profile from "./pages/user/Profile";
+import UserSettings from "./pages/user/Settings";
+import UserTransactions from "./pages/user/Transactions";
+
+// Casino pages
 import CasinoMain from "./pages/casino/CasinoMain";
-import TableGames from "./pages/casino/TableGames";
-import SlotGames from "./pages/casino/Slots";
-import LiveCasino from "./pages/casino/LiveCasino";
 import GameDetails from "./pages/casino/GameDetails";
+import Slots from "./pages/casino/Slots";
+import LiveCasino from "./pages/casino/LiveCasino";
+import TableGames from "./pages/casino/TableGames";
 import Jackpots from "./pages/casino/Jackpots";
 import Providers from "./pages/casino/Providers";
 
-// Sports Pages
-import SportsMain from "./pages/sports/Sports";
+// Sports pages
+import Sports from "./pages/sports/Sports";
 import Football from "./pages/sports/Football";
 import Basketball from "./pages/sports/Basketball";
 import Tennis from "./pages/sports/Tennis";
 import Hockey from "./pages/sports/Hockey";
 import Esports from "./pages/sports/Esports";
 
-// Promotions
-import PromotionsPage from "./pages/promotions/Promotions";
-
-// VIP and Bonuses
-import VIPPage from "./pages/vip/VIP";
+// Promotions and VIP
+import Promotions from "./pages/promotions/Promotions";
 import BonusHub from "./pages/bonuses/BonusHub";
+import VIP from "./pages/vip/VIP";
 
-// KYC Pages
-import KycForm from "./components/kyc/KycForm";
-import KycStatus from "./pages/kyc/KycStatus";
-
-// User Pages
-import UserProfile from "./pages/user/Profile";
-import UserSettings from "./pages/user/Settings";
-import UserTransactions from "./pages/user/Transactions";
-
-// Support Pages
+// Support pages
 import Help from "./pages/support/Help";
 import FAQ from "./pages/support/Faq";
 import Contact from "./pages/support/Contact";
 import ResponsibleGaming from "./pages/support/ResponsibleGaming";
 
-// Legal Pages
-import TermsPage from "./pages/legal/Terms";
-import PrivacyPage from "./pages/legal/Privacy";
+// Legal pages
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
 
-// Admin Pages
+// Admin pages
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminUsers from "./pages/admin/Users";
-import AdminTransactions from "./pages/admin/Transactions";
-import AdminReports from "./pages/admin/Reports";
 import AdminGames from "./pages/admin/Games";
-import AdminPromotions from "./pages/admin/Promotions";
-import AdminAffiliates from "./pages/admin/Affiliates";
-import AdminSupport from "./pages/admin/Support";
+import AdminTransactions from "./pages/admin/Transactions";
 import AdminLogs from "./pages/admin/Logs";
-import AdminSecurity from "./pages/admin/Security";
+import AdminAffiliates from "./pages/admin/Affiliates";
 import AdminSettings from "./pages/admin/Settings";
-import KycManagement from "./pages/admin/KycManagement";
+import AdminReports from "./pages/admin/Reports";
+import AdminSecurity from "./pages/admin/Security";
+import AdminPromotions from "./pages/admin/Promotions";
+import AdminSupport from "./pages/admin/Support";
 import VipBonusManagement from "./pages/admin/VipBonusManagement";
+import KycManagement from "./pages/admin/KycManagement";
 
-// Context Providers
-import { AuthProvider } from "./contexts/AuthContext";
+// KYC pages
+import KycForm from "./components/kyc/KycForm";
+import KycStatus from "./pages/kyc/KycStatus";
+
+// Initialize QueryClient for react-query
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={
-            <Layout>
-              <IndexPage />
-            </Layout>
-          } />
-          
-          {/* Auth routes */}
-          <Route path="login" element={
-            <Layout>
-              <LoginPage />
-            </Layout>
-          } />
-          <Route path="register" element={
-            <Layout>
-              <RegisterPage />
-            </Layout>
-          } />
-          <Route path="admin-login" element={
-            <Layout>
-              <AdminLoginPage />
-            </Layout>
-          } />
-          
-          {/* Casino routes */}
-          <Route path="casino" element={
-            <Layout>
-              <CasinoMain />
-            </Layout>
-          } />
-          <Route path="casino/table-games" element={
-            <Layout>
-              <TableGames />
-            </Layout>
-          } />
-          <Route path="casino/slots" element={
-            <Layout>
-              <SlotGames />
-            </Layout>
-          } />
-          <Route path="casino/live-casino" element={
-            <Layout>
-              <LiveCasino />
-            </Layout>
-          } />
-          <Route path="casino/game/:id" element={
-            <Layout>
-              <GameDetails />
-            </Layout>
-          } />
-          <Route path="casino/jackpots" element={
-            <Layout>
-              <Jackpots />
-            </Layout>
-          } />
-          <Route path="casino/providers" element={
-            <Layout>
-              <Providers />
-            </Layout>
-          } />
-          
-          {/* Sports routes */}
-          <Route path="sports" element={
-            <Layout>
-              <SportsMain />
-            </Layout>
-          } />
-          <Route path="sports/football" element={
-            <Layout>
-              <Football />
-            </Layout>
-          } />
-          <Route path="sports/basketball" element={
-            <Layout>
-              <Basketball />
-            </Layout>
-          } />
-          <Route path="sports/tennis" element={
-            <Layout>
-              <Tennis />
-            </Layout>
-          } />
-          <Route path="sports/hockey" element={
-            <Layout>
-              <Hockey />
-            </Layout>
-          } />
-          <Route path="sports/esports" element={
-            <Layout>
-              <Esports />
-            </Layout>
-          } />
-          
-          {/* Promotions */}
-          <Route path="promotions" element={
-            <Layout>
-              <PromotionsPage />
-            </Layout>
-          } />
-          
-          {/* VIP and Bonuses */}
-          <Route path="vip" element={
-            <Layout>
-              <VIPPage />
-            </Layout>
-          } />
-          <Route path="bonuses" element={
-            <Layout>
-              <BonusHub />
-            </Layout>
-          } />
-          
-          {/* KYC */}
-          <Route path="kyc" element={
-            <Layout>
-              <KycForm />
-            </Layout>
-          } />
-          <Route path="kyc/status" element={
-            <Layout>
-              <KycStatus />
-            </Layout>
-          } />
-          
-          {/* User account */}
-          <Route path="profile" element={
-            <Layout>
-              <UserProfile />
-            </Layout>
-          } />
-          <Route path="settings" element={
-            <Layout>
-              <UserSettings />
-            </Layout>
-          } />
-          <Route path="transactions" element={
-            <Layout>
-              <UserTransactions />
-            </Layout>
-          } />
-          
-          {/* Support */}
-          <Route path="help" element={
-            <Layout>
-              <Help />
-            </Layout>
-          } />
-          <Route path="faq" element={
-            <Layout>
-              <FAQ />
-            </Layout>
-          } />
-          <Route path="contact" element={
-            <Layout>
-              <Contact />
-            </Layout>
-          } />
-          <Route path="responsible-gaming" element={
-            <Layout>
-              <ResponsibleGaming />
-            </Layout>
-          } />
-          
-          {/* Legal */}
-          <Route path="terms" element={
-            <Layout>
-              <TermsPage />
-            </Layout>
-          } />
-          <Route path="privacy" element={
-            <Layout>
-              <PrivacyPage />
-            </Layout>
-          } />
-          
-          {/* 404 */}
-          <Route path="*" element={
-            <Layout>
-              <NotFoundPage />
-            </Layout>
-          } />
-          
-          {/* Admin routes */}
-          <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-          <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
-          <Route path="/admin/transactions" element={<AdminLayout><AdminTransactions /></AdminLayout>} />
-          <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
-          <Route path="/admin/games" element={<AdminLayout><AdminGames /></AdminLayout>} />
-          <Route path="/admin/promotions" element={<AdminLayout><AdminPromotions /></AdminLayout>} />
-          <Route path="/admin/affiliates" element={<AdminLayout><AdminAffiliates /></AdminLayout>} />
-          <Route path="/admin/support" element={<AdminLayout><AdminSupport /></AdminLayout>} />
-          <Route path="/admin/logs" element={<AdminLayout><AdminLogs /></AdminLayout>} />
-          <Route path="/admin/security" element={<AdminLayout><AdminSecurity /></AdminLayout>} />
-          <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
-          <Route path="/admin/kyc" element={<AdminLayout><KycManagement /></AdminLayout>} />
-          <Route path="/admin/vip-bonus" element={<AdminLayout><VipBonusManagement /></AdminLayout>} />
-        </Routes>
+        <Router>
+          <Routes>
+            {/* Main site routes */}
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Index />} />
+              
+              {/* Auth routes */}
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+              
+              {/* User account routes */}
+              <Route path="profile" element={<Profile />} />
+              <Route path="settings" element={<UserSettings />} />
+              <Route path="transactions" element={<UserTransactions />} />
+              
+              {/* Casino routes */}
+              <Route path="casino" element={<CasinoMain />} />
+              <Route path="casino/game/:id" element={<GameDetails />} />
+              <Route path="casino/slots" element={<Slots />} />
+              <Route path="casino/live" element={<LiveCasino />} />
+              <Route path="casino/table" element={<TableGames />} />
+              <Route path="casino/jackpots" element={<Jackpots />} />
+              <Route path="casino/providers" element={<Providers />} />
+              
+              {/* Sports routes */}
+              <Route path="sports" element={<Sports />} />
+              <Route path="sports/football" element={<Football />} />
+              <Route path="sports/basketball" element={<Basketball />} />
+              <Route path="sports/tennis" element={<Tennis />} />
+              <Route path="sports/hockey" element={<Hockey />} />
+              <Route path="sports/esports" element={<Esports />} />
+              
+              {/* Promotions and VIP */}
+              <Route path="promotions" element={<Promotions />} />
+              <Route path="bonuses" element={<BonusHub />} />
+              <Route path="vip" element={<VIP />} />
+              
+              {/* KYC routes */}
+              <Route path="kyc" element={<KycForm />} />
+              <Route path="kyc/status" element={<KycStatus />} />
+              
+              {/* Support routes */}
+              <Route path="help" element={<Help />} />
+              <Route path="faq" element={<FAQ />} />
+              <Route path="contact" element={<Contact />} />
+              <Route path="responsible-gaming" element={<ResponsibleGaming />} />
+              
+              {/* Legal routes */}
+              <Route path="terms" element={<Terms />} />
+              <Route path="privacy" element={<Privacy />} />
+            </Route>
+            
+            {/* Admin routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="games" element={<AdminGames />} />
+              <Route path="transactions" element={<AdminTransactions />} />
+              <Route path="logs" element={<AdminLogs />} />
+              <Route path="affiliates" element={<AdminAffiliates />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="security" element={<AdminSecurity />} />
+              <Route path="promotions" element={<AdminPromotions />} />
+              <Route path="support" element={<AdminSupport />} />
+              <Route path="vip-bonus" element={<VipBonusManagement />} />
+              <Route path="kyc" element={<KycManagement />} />
+            </Route>
+            
+            {/* 404 and redirects */}
+            <Route path="/404" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/404" replace />} />
+          </Routes>
+        </Router>
+        <Toaster />
       </AuthProvider>
-    </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

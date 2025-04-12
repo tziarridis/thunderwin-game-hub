@@ -32,7 +32,7 @@ const KycStatusPage = () => {
       const currentUser = usersDb.find((u: any) => u.id === user.id);
       
       if (currentUser && currentUser.kycStatus) {
-        setStatus(currentUser.kycStatus);
+        setStatus(currentUser.kycStatus as KycStatus);
         setSubmittedAt(currentUser.kycSubmittedAt || null);
         setRejectionReason(currentUser.kycRejectionReason || null);
       } else {
