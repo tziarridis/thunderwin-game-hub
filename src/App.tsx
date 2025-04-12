@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,6 +32,24 @@ import VIP from "./pages/vip/VIP";
 import { useEffect } from "react";
 import { usersApi, gamesApi, transactionsApi } from "./services/apiService";
 import { initializeDatabaseOnStartup } from "./utils/dbInitializer";
+
+// Import new pages
+import CasinoMain from "./pages/casino/CasinoMain";
+import SlotsPage from "./pages/casino/Slots";
+import LiveCasinoPage from "./pages/casino/LiveCasino";
+import TableGamesPage from "./pages/casino/TableGames";
+import JackpotsPage from "./pages/casino/Jackpots";
+import ProvidersPage from "./pages/casino/Providers";
+import FootballPage from "./pages/sports/Football";
+import BasketballPage from "./pages/sports/Basketball";
+import TennisPage from "./pages/sports/Tennis";
+import HockeyPage from "./pages/sports/Hockey";
+import EsportsPage from "./pages/sports/Esports";
+import HelpCenterPage from "./pages/support/Help";
+import ResponsibleGamingPage from "./pages/support/ResponsibleGaming";
+import TermsPage from "./pages/legal/Terms";
+import PrivacyPage from "./pages/legal/Privacy";
+import ContactPage from "./pages/support/Contact";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,11 +109,36 @@ const App = () => {
               {/* Public Routes */}
               <Route element={<Layout />}>
                 <Route path="/" element={<Index />} />
-                <Route path="/casino" element={<Index />} />
+                
+                {/* Casino Routes */}
+                <Route path="/casino" element={<CasinoMain />} />
+                <Route path="/casino/slots" element={<SlotsPage />} />
+                <Route path="/casino/live" element={<LiveCasinoPage />} />
+                <Route path="/casino/table-games" element={<TableGamesPage />} />
+                <Route path="/casino/jackpots" element={<JackpotsPage />} />
+                <Route path="/casino/providers" element={<ProvidersPage />} />
                 <Route path="/casino/game/:id" element={<GameDetails />} />
+                
+                {/* Sports Routes */}
                 <Route path="/sports" element={<Sports />} />
+                <Route path="/sports/football" element={<FootballPage />} />
+                <Route path="/sports/basketball" element={<BasketballPage />} />
+                <Route path="/sports/tennis" element={<TennisPage />} />
+                <Route path="/sports/hockey" element={<HockeyPage />} />
+                <Route path="/sports/esports" element={<EsportsPage />} />
+                
+                {/* Other Main Routes */}
                 <Route path="/promotions" element={<Promotions />} />
                 <Route path="/vip" element={<VIP />} />
+                
+                {/* Support Routes */}
+                <Route path="/help" element={<HelpCenterPage />} />
+                <Route path="/responsible-gaming" element={<ResponsibleGamingPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                
+                {/* Legal Routes */}
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
                 
                 {/* User routes */}
                 <Route path="/profile" element={<Profile />} />
