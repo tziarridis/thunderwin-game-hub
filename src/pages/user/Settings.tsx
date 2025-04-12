@@ -1,5 +1,5 @@
-
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -13,14 +13,21 @@ import {
   Smartphone,
   CheckSquare,
   Save,
-  Loader2
+  Loader2,
+  FileCheck,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  XCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { KycStatus } from "@/types";
 
 const Settings = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState("account");
   const [saving, setSaving] = useState(false);
@@ -46,7 +53,7 @@ const Settings = () => {
             <h1 className="text-2xl font-bold text-white mb-4">Authentication Required</h1>
             <p className="text-white/70 mb-6">Please sign in to view your settings.</p>
             <Button 
-              onClick={() => window.location.href = "/login"}
+              onClick={() => navigate("/login")}
               className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
             >
               Sign In
@@ -56,6 +63,9 @@ const Settings = () => {
       </div>
     );
   }
+  
+  // Get user KYC status from user object or default to NOT_SUBMITTED
+  const kycStatus = user?.kycStatus || KycStatus.NOT_SUBMITTED;
 
   return (
     <div className="min-h-screen pt-24 pb-12 bg-casino-thunder-darker">
@@ -89,6 +99,12 @@ const Settings = () => {
                 label="Preferences" 
                 isActive={activeTab === "preferences"} 
                 onClick={() => setActiveTab("preferences")}
+              />
+              <SettingsTab 
+                icon={<FileCheck size={18} />} 
+                label="Verification (KYC)" 
+                isActive={activeTab === "kyc"} 
+                onClick={() => setActiveTab("kyc")}
               />
               <SettingsTab 
                 icon={<Shield size={18} />} 
@@ -506,6 +522,119 @@ const Settings = () => {
               </div>
             )}
             
+            {/* KYC Settings */}
+            {activeTab === "kyc" && (
+              <div className="thunder-card p-6">
+                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
+                  <FileCheck className="mr-2 text-casino-thunder-green" />
+                  Identity Verification (KYC)
+                </h2>
+                
+                <div className="space-y-6">
+                  <div className="bg-casino-thunder-gray/30 p-5 rounded-lg">
+                    <div className="flex items-start">
+                      <div className="mr-4">
+                        {kycStatus === KycStatus.NOT_SUBMITTED && (
+                          <div className="w-12 h-12 rounded-full bg-yellow-800/20 flex items-center justify-center">
+                            <AlertCircle size={24} className="text-yellow-500" />
+                          </div>
+                        )}
+                        {kycStatus === KycStatus.PENDING && (
+                          <div className="w-12 h-12 rounded-full bg-blue-800/20 flex items-center justify-center">
+                            <Clock size={24} className="text-blue-500" />
+                          </div>
+                        )}
+                        {kycStatus === KycStatus.VERIFIED && (
+                          <div className="w-12 h-12 rounded-full bg-green-800/20 flex items-center justify-center">
+                            <CheckCircle size={24} className="text-green-500" />
+                          </div>
+                        )}
+                        {kycStatus === KycStatus.REJECTED && (
+                          <div className="w-12 h-12 rounded-full bg-red-800/20 flex items-center justify-center">
+                            <XCircle size={24} className="text-red-500" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-medium">
+                          {kycStatus === KycStatus.NOT_SUBMITTED && "Not Verified"}
+                          {kycStatus === KycStatus.PENDING && "Verification In Progress"}
+                          {kycStatus === KycStatus.VERIFIED && "Verified"}
+                          {kycStatus === KycStatus.REJECTED && "Verification Failed"}
+                        </h3>
+                        <p className="text-white/70 mt-1">
+                          {kycStatus === KycStatus.NOT_SUBMITTED && "Complete the identity verification process to unlock all platform features."}
+                          {kycStatus === KycStatus.PENDING && "Your documents are being reviewed by our team. This typically takes 24-48 hours."}
+                          {kycStatus === KycStatus.VERIFIED && "Your identity has been successfully verified. You now have full access to all platform features."}
+                          {kycStatus === KycStatus.REJECTED && "Unfortunately, we couldn't verify your identity based on the documents provided."}
+                        </p>
+                        
+                        {kycStatus === KycStatus.REJECTED && user?.kycRejectionReason && (
+                          <div className="mt-3 bg-red-900/20 border border-red-500/20 rounded-lg p-3">
+                            <h4 className="text-sm font-medium mb-1">Reason for rejection:</h4>
+                            <p className="text-white/70 text-sm">{user.kycRejectionReason}</p>
+                          </div>
+                        )}
+                        
+                        {kycStatus === KycStatus.PENDING && user?.kycSubmittedAt && (
+                          <div className="mt-3">
+                            <p className="text-white/60 text-sm">Submitted on: {new Date(user.kycSubmittedAt).toLocaleString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {(kycStatus === KycStatus.NOT_SUBMITTED || kycStatus === KycStatus.REJECTED) && (
+                    <div>
+                      <p className="text-white/80 mb-4">
+                        To comply with regulations and enhance security, we need to verify your identity. This process helps us prevent fraud and ensure a safe gaming environment for all users.
+                      </p>
+                      
+                      <div className="space-y-4 mt-6">
+                        <h3 className="text-white/90 font-medium">Required Documents:</h3>
+                        <ul className="space-y-2 text-white/70">
+                          <li className="flex items-start">
+                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
+                            <span>Government-issued ID (passport, driver's license, or national ID card)</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
+                            <span>Proof of address (utility bill, bank statement, or official correspondence)</span>
+                          </li>
+                          <li className="flex items-start">
+                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
+                            <span>A selfie of you holding your ID (to verify it's really you)</span>
+                          </li>
+                        </ul>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <Button 
+                          onClick={() => navigate("/kyc")}
+                          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                        >
+                          {kycStatus === KycStatus.REJECTED ? "Try Again" : "Start Verification"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {kycStatus === KycStatus.VERIFIED && (
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="text-green-500" size={18} />
+                        <p className="text-white/80">Your account is fully verified.</p>
+                      </div>
+                      <p className="text-white/70 mt-3">
+                        You have access to all features including higher deposit and withdrawal limits. Thank you for completing the verification process.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
             {/* Responsible Gaming Settings */}
             {activeTab === "responsible-gaming" && (
               <div className="thunder-card p-6">
@@ -659,21 +788,4 @@ const SettingsTab = ({
   onClick 
 }: { 
   icon: React.ReactNode;
-  label: string;
-  isActive: boolean;
-  onClick: () => void;
-}) => (
-  <button
-    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-      isActive 
-        ? "bg-casino-thunder-green text-black" 
-        : "text-white/80 hover:bg-white/5 hover:text-white"
-    }`}
-    onClick={onClick}
-  >
-    <span className="mr-2">{icon}</span>
-    {label}
-  </button>
-);
-
-export default Settings;
+  label: string

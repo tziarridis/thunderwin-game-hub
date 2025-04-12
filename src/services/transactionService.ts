@@ -1,214 +1,113 @@
+import { v4 as uuidv4 } from 'uuid';
+import { db } from "@/lib/db";
+import { Transaction } from "@/types";
 
-import { Transaction, User, OxaPayWallet } from "@/types";
-import { toast } from "sonner";
-import { oxapayService } from "./oxapayService";
+// Function to create a new transaction
+export const createTransaction = async (
+  userId: string,
+  userName: string,
+  type: "deposit" | "withdraw" | "bet" | "win" | "bonus",
+  amount: number,
+  currency: string,
+  status: "pending" | "completed" | "failed",
+  method: string,
+  gameId?: string
+): Promise<Transaction> => {
+  const transaction: Transaction = {
+    id: uuidv4(),
+    userId: userId,
+    userName: userName,
+    type: type,
+    amount: amount,
+    currency: currency,
+    status: status,
+    method: method,
+    date: new Date().toISOString(),
+    gameId: gameId,
+  };
 
-// Helper to simulate API delay
-const simulateApiDelay = () => new Promise(resolve => setTimeout(resolve, 300));
+  // Save the transaction to the database (or localStorage)
+  saveTransaction(transaction);
 
-export const transactionService = {
-  getTransactions: async (): Promise<Transaction[]> => {
-    await simulateApiDelay();
-    try {
-      return JSON.parse(localStorage.getItem('transactions') || '[]');
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-      toast.error("Failed to load transactions");
-      return [];
-    }
-  },
-  
-  getUserTransactions: async (userId: string): Promise<Transaction[]> => {
-    await simulateApiDelay();
-    try {
-      const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-      return transactions.filter((t: Transaction) => t.userId === userId);
-    } catch (error) {
-      console.error("Error fetching user transactions:", error);
-      toast.error("Failed to load transactions");
-      return [];
-    }
-  },
-  
-  addTransaction: async (transaction: Omit<Transaction, 'id' | 'date'>): Promise<Transaction> => {
-    await simulateApiDelay();
-    try {
-      const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-      const newId = `TRX-${10000 + transactions.length + 1}`;
-      
-      const newTransaction = {
-        ...transaction,
-        id: newId,
-        date: new Date().toISOString()
-      };
-      
-      localStorage.setItem('transactions', JSON.stringify([...transactions, newTransaction]));
-      
-      // Update user balance
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const userIndex = users.findIndex((u: User) => u.id === transaction.userId);
-      
-      if (userIndex !== -1) {
-        const user = users[userIndex];
-        
-        if (transaction.type === 'deposit' && transaction.status === 'completed') {
-          user.balance += transaction.amount;
-        } else if (transaction.type === 'withdraw' && transaction.status === 'completed') {
-          user.balance -= transaction.amount;
-        } else if (transaction.type === 'bet') {
-          user.balance -= transaction.amount;
-        } else if (transaction.type === 'win') {
-          user.balance += transaction.amount;
-        }
-        
-        users[userIndex] = user;
-        localStorage.setItem('users', JSON.stringify(users));
-      }
-      
-      toast.success("Transaction completed successfully");
-      
-      return newTransaction;
-    } catch (error) {
-      console.error("Error adding transaction:", error);
-      toast.error("Failed to process transaction");
-      throw error;
-    }
-  },
-  
-  // Create a cryptocurrency deposit with OxaPay
-  createCryptoDeposit: async (
-    userId: string, 
-    userName: string,
-    amount: number, 
-    currency: string = "USDT",
-    email?: string
-  ): Promise<OxaPayWallet | null> => {
-    try {
-      const orderId = `ORD-${Date.now()}`;
-      
-      // Create wallet using OxaPay service
-      const wallet = await oxapayService.createWallet(
-        amount,
-        currency,
-        orderId,
-        email,
-        `Deposit ${amount} ${currency} for user ${userName}`
-      );
-      
-      if (!wallet) {
-        throw new Error("Failed to create cryptocurrency wallet");
-      }
-      
-      // Create a pending transaction
-      const transaction: Omit<Transaction, 'id' | 'date'> = {
-        userId,
-        userName,
-        type: 'deposit',
-        amount,
-        currency,
-        status: 'pending',
-        method: `Cryptocurrency (${currency})`,
-      };
-      
-      await transactionService.addTransaction(transaction);
-      
-      // Store the wallet information for tracking
-      const oxaWallets = JSON.parse(localStorage.getItem('oxapay_wallets') || '[]');
-      oxaWallets.push({
-        ...wallet,
-        userId,
-        orderId
-      });
-      localStorage.setItem('oxapay_wallets', JSON.stringify(oxaWallets));
-      
-      return wallet;
-    } catch (error) {
-      console.error("Error creating crypto deposit:", error);
-      toast.error("Failed to initiate cryptocurrency deposit");
-      return null;
-    }
-  },
-  
-  // Process a completed cryptocurrency deposit
-  processCryptoDeposit: async (walletId: string): Promise<boolean> => {
-    try {
-      // Get the wallet
-      const oxaWallets = JSON.parse(localStorage.getItem('oxapay_wallets') || '[]');
-      const walletIndex = oxaWallets.findIndex((w: any) => w.id === walletId);
-      
-      if (walletIndex === -1) {
-        throw new Error("Wallet not found");
-      }
-      
-      const wallet = oxaWallets[walletIndex];
-      
-      // Check wallet status with OxaPay
-      const status = await oxapayService.checkWalletStatus(walletId);
-      
-      if (status === 'completed') {
-        // Update wallet status
-        oxaWallets[walletIndex].status = 'completed';
-        localStorage.setItem('oxapay_wallets', JSON.stringify(oxaWallets));
-        
-        // Update transaction status
-        const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-        const pendingTransactions = transactions.filter((t: Transaction) => 
-          t.userId === wallet.userId && 
-          t.amount === wallet.amount &&
-          t.status === 'pending' &&
-          t.type === 'deposit'
-        );
-        
-        if (pendingTransactions.length > 0) {
-          const transactionIndex = transactions.findIndex((t: Transaction) => t.id === pendingTransactions[0].id);
-          transactions[transactionIndex].status = 'completed';
-          localStorage.setItem('transactions', JSON.stringify(transactions));
-          
-          // Update user balance
-          const users = JSON.parse(localStorage.getItem('users') || '[]');
-          const userIndex = users.findIndex((u: User) => u.id === wallet.userId);
-          
-          if (userIndex !== -1) {
-            users[userIndex].balance += wallet.amount;
-            localStorage.setItem('users', JSON.stringify(users));
-          }
-          
-          toast.success(`Deposit of ${wallet.amount} ${wallet.currency} completed successfully`);
-        }
-        
-        return true;
-      } else if (status === 'expired') {
-        // Update wallet status
-        oxaWallets[walletIndex].status = 'expired';
-        localStorage.setItem('oxapay_wallets', JSON.stringify(oxaWallets));
-        
-        // Update transaction status
-        const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
-        const pendingTransactions = transactions.filter((t: Transaction) => 
-          t.userId === wallet.userId && 
-          t.amount === wallet.amount &&
-          t.status === 'pending' &&
-          t.type === 'deposit'
-        );
-        
-        if (pendingTransactions.length > 0) {
-          const transactionIndex = transactions.findIndex((t: Transaction) => t.id === pendingTransactions[0].id);
-          transactions[transactionIndex].status = 'failed';
-          localStorage.setItem('transactions', JSON.stringify(transactions));
-          
-          toast.error(`Deposit of ${wallet.amount} ${wallet.currency} has expired`);
-        }
-        
-        return false;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error("Error processing crypto deposit:", error);
-      toast.error("Failed to process cryptocurrency deposit");
-      return false;
-    }
-  }
+  return transaction;
 };
 
-export default transactionService;
+// Function to save a transaction to localStorage
+const saveTransaction = (transaction: Transaction): void => {
+  let transactions = JSON.parse(localStorage.getItem("transactions") || "[]") as Transaction[];
+  transactions.push(transaction);
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+};
+
+// Function to get all transactions from localStorage
+export const getTransactions = (): Transaction[] => {
+  return JSON.parse(localStorage.getItem("transactions") || "[]");
+};
+
+// Function to get a single transaction by ID from localStorage
+export const getTransactionById = (id: string): Transaction | undefined => {
+  const transactions = getTransactions();
+  return transactions.find((transaction) => transaction.id === id);
+};
+
+// Function to get all transactions for a user from localStorage
+export const getTransactionsByUserId = (userId: string): Transaction[] => {
+  const transactions = getTransactions();
+  return transactions.filter((transaction) => transaction.userId === userId);
+};
+
+// Function to update a transaction in localStorage
+export const updateTransaction = (id: string, updates: Partial<Transaction>): Transaction | undefined => {
+  let transactions = getTransactions();
+  const transactionIndex = transactions.findIndex((transaction) => transaction.id === id);
+
+  if (transactionIndex === -1) {
+    return undefined;
+  }
+
+  transactions[transactionIndex] = { ...transactions[transactionIndex], ...updates };
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+  return transactions[transactionIndex];
+};
+
+// Function to delete a transaction from localStorage
+export const deleteTransaction = (id: string): void => {
+  let transactions = getTransactions();
+  transactions = transactions.filter((transaction) => transaction.id !== id);
+  localStorage.setItem("transactions", JSON.stringify(transactions));
+};
+
+// Simulate OxaPay wallet operations
+export const createWallet = async (currency: string, address: string): Promise<any> => {
+  const wallet = {
+    id: `wallet-${Date.now()}`, 
+    currency: currency,
+    address: address,
+    status: "active",
+	balance: 0 // Add this line to fix the error
+  };
+  
+  let wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
+  wallets.push(wallet);
+  localStorage.setItem("wallets", JSON.stringify(wallets));
+
+  return wallet;
+};
+
+export const getWalletByCurrency = async (currency: string): Promise<any | undefined> => {
+    const wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
+    return wallets.find((wallet: any) => wallet.currency === currency);
+};
+
+export const updateWalletBalance = async (currency: string, amount: number): Promise<any | undefined> => {
+    let wallets = JSON.parse(localStorage.getItem("wallets") || "[]");
+    const walletIndex = wallets.findIndex((wallet: any) => wallet.currency === currency);
+
+    if (walletIndex === -1) {
+        return undefined;
+    }
+
+    wallets[walletIndex].balance += amount;
+    localStorage.setItem("wallets", JSON.stringify(wallets));
+    return wallets[walletIndex];
+};
