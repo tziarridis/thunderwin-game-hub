@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Game } from "@/types";
-import { gamesApi } from "@/services/apiService";
+import { getGames } from "@/services/apiService";
 import { useToast } from "@/components/ui/use-toast";
 
 export const useGames = () => {
@@ -14,7 +14,7 @@ export const useGames = () => {
     const fetchGames = async () => {
       try {
         setLoading(true);
-        const data = await gamesApi.getGames();
+        const data = await getGames();
         setGames(data);
         setError(null);
       } catch (err) {

@@ -675,3 +675,45 @@ export const getProviderStats = async (): Promise<ProviderStats[]> => {
   await new Promise(resolve => setTimeout(resolve, 500));
   return mockProviderStats;
 };
+
+// API namespaces for better organization
+export const gamesApi = {
+  getGames,
+  getGameProviders,
+  addGame: async (gameData: Game) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return gameData;
+  },
+  updateGame: async (gameData: Game) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return gameData;
+  },
+  deleteGame: async (gameId: string) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { success: true };
+  }
+};
+
+export const usersApi = {
+  getUsers,
+  addUser: async (userData: Omit<User, 'id'>) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { ...userData, id: Date.now().toString() };
+  },
+  updateUser: async (userData: User) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return userData;
+  }
+};
+
+export const transactionsApi = {
+  getTransactions,
+  addTransaction: async (transactionData: Omit<Transaction, 'id'>) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { ...transactionData, id: Date.now().toString() };
+  },
+  updateTransaction: async (transactionData: Transaction) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return transactionData;
+  }
+};

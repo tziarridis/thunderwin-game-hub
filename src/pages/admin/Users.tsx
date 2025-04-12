@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { User as UserType } from "@/types";
-import { usersApi } from "@/services/apiService";
+import { getUsers, usersApi } from "@/services/apiService";
 import UserForm from "@/components/admin/UserForm";
 import { useToast } from "@/components/ui/use-toast";
 

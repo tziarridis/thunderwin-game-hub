@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Transaction } from "@/types";
-import { transactionsApi } from "@/services/apiService";
+import { getTransactions, transactionsApi } from "@/services/apiService";
 import { useToast } from "@/components/ui/use-toast";
 
 const AdminTransactions = () => {

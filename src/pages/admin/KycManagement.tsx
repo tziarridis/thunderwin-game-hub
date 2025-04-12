@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PlusCircle, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
@@ -106,7 +108,7 @@ const KycManagement = () => {
 
   const handleApprove = (id: string) => {
     const updatedRequests = kycRequests.map(req =>
-      req.id === id ? { ...req, status: "approved" } : req
+      req.id === id ? { ...req, status: "approved" as const } : req
     );
     setKycRequests(updatedRequests);
     handleCloseDialog();
@@ -119,7 +121,7 @@ const KycManagement = () => {
       return;
     }
     const updatedRequests = kycRequests.map(req =>
-      req.id === id ? { ...req, status: "rejected", rejectionReason } : req
+      req.id === id ? { ...req, status: "rejected" as const, rejectionReason } : req
     );
     setKycRequests(updatedRequests);
     handleCloseDialog();

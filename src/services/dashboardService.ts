@@ -1,7 +1,6 @@
-
 import { Transaction, User, Game, DashboardStats, GameStats, ProviderStats, RegionStats } from "@/types";
 import { getTransactions } from "./transactionService";
-import { usersApi, gamesApi, transactionsApi } from "./apiService";
+import { getUsers, getGames, getTransactions as getApiTransactions } from "./apiService";
 
 // Calculate GGR (Gross Gaming Revenue): Total bets - Total wins
 export const calculateGGR = (transactions: Transaction[]): number => {
@@ -20,8 +19,8 @@ export const calculateNGR = (transactions: Transaction[]): number => {
 // Get dashboard statistics
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   try {
-    const transactions = await transactionsApi.getTransactions();
-    const users = await usersApi.getUsers();
+    const transactions = await getApiTransactions();
+    const users = await getUsers();
     
     // Calculate various metrics
     const deposits = transactions.filter(tx => tx.type === "deposit").reduce((sum, tx) => sum + tx.amount, 0);
@@ -83,8 +82,8 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
 // Get game statistics
 export const getGameStats = async (): Promise<GameStats[]> => {
   try {
-    const transactions = await transactionsApi.getTransactions();
-    const games = await gamesApi.getGames();
+    const transactions = await getApiTransactions();
+    const games = await getGames();
     
     const gameStats: Map<string, GameStats> = new Map();
     
@@ -141,8 +140,8 @@ export const getGameStats = async (): Promise<GameStats[]> => {
 // Get provider statistics
 export const getProviderStats = async (): Promise<ProviderStats[]> => {
   try {
-    const transactions = await transactionsApi.getTransactions();
-    const games = await gamesApi.getGames();
+    const transactions = await getApiTransactions();
+    const games = await getGames();
     
     // Group games by provider
     const providers = new Map<string, string[]>();
@@ -193,8 +192,8 @@ export const getProviderStats = async (): Promise<ProviderStats[]> => {
 // Get region statistics
 export const getRegionStats = async (): Promise<RegionStats[]> => {
   try {
-    const transactions = await transactionsApi.getTransactions();
-    const users = await usersApi.getUsers();
+    const transactions = await getApiTransactions();
+    const users = await getUsers();
     
     // Group users by country/region
     const regions = new Map<string, string[]>();
@@ -246,7 +245,7 @@ export const getRegionStats = async (): Promise<RegionStats[]> => {
 // Get transaction history with time series data (for charts)
 export const getTransactionHistory = async (days: number = 30): Promise<any[]> => {
   try {
-    const transactions = await transactionsApi.getTransactions();
+    const transactions = await getApiTransactions();
     const result: any[] = [];
     
     // Create date range
@@ -296,7 +295,7 @@ export const getTransactionHistory = async (days: number = 30): Promise<any[]> =
     }
     
     // Add new users count
-    const users = await usersApi.getUsers();
+    const users = await getUsers();
     for (const user of users) {
       if (user.joined) {
         const joinDate = new Date(user.joined);

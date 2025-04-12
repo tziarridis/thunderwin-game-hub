@@ -136,7 +136,7 @@ export interface BonusTemplate {
   id: string;
   name: string;
   description: string;
-  bonusType: BonusType;
+  bonusType?: BonusType;
   type?: BonusType; // Added for compatibility
   amount: number;
   wagering: number;
@@ -146,7 +146,7 @@ export interface BonusTemplate {
   minDeposit?: number;
   maxBonus?: number;
   vipLevelRequired?: number;
-  allowedGames?: string[];
+  allowedGames?: string[] | string;
   code?: string;
   createdAt?: string;
 }
@@ -174,27 +174,27 @@ export interface Affiliate {
 
 // VIP Types
 export interface VipLevel {
-  id: number;
+  id: number | string;
   name: string;
-  requirements: string;
-  benefits: string[];
+  requirements?: string;
+  benefits?: string[];
   cashbackRate: number;
   withdrawalLimit: number;
-  personalManager: boolean;
-  customGifts: boolean;
-  specialPromotions: boolean;
+  personalManager?: boolean;
+  customGifts?: boolean;
+  specialPromotions?: boolean;
   level?: number;
   pointsRequired?: number;
+  requiredPoints?: number;
   depositBonus?: number;
+  depositBonusPercent?: number;
   birthdayBonus?: number;
   weeklyBonus?: number;
   dedicated?: boolean;
   fastWithdrawals?: boolean;
   color?: string;
   icon?: string;
-  requiredPoints?: number;
   cashbackPercent?: number;
-  depositBonusPercent?: number;
 }
 
 // KYC Types
