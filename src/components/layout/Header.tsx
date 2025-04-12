@@ -360,9 +360,9 @@ const Header = () => {
                           className="relative rounded-full h-9 w-9 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm"
                         >
                           <Bell className="h-5 w-5" />
-                          {unreadNotificationsCount > 0 && (
+                          {notifications.filter(n => !n.isRead).length > 0 && (
                             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                              {unreadNotificationsCount}
+                              {notifications.filter(n => !n.isRead).length}
                             </span>
                           )}
                         </Button>
@@ -419,26 +419,44 @@ const Header = () => {
                     </PopoverContent>
                   </Popover>
                   
-                  {/* User Menu - Fixed to ensure it works correctly */}
+                  {/* User Menu - Redesigned for better functionality */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button
-                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center cursor-pointer"
-                      >
-                        <Avatar className="h-9 w-9 border-2 border-casino-thunder-green/50">
-                          <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
-                          <AvatarFallback className="bg-casino-thunder-green/20 text-white">
-                            {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Button>
+                      <div className="relative cursor-pointer">
+                        <motion.div
+                          className="h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-2 border-casino-thunder-green/50 flex items-center justify-center overflow-hidden"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Avatar className="h-full w-full">
+                            <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
+                            <AvatarFallback className="bg-casino-thunder-green/20 text-white">
+                              {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </motion.div>
+                      </div>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 mr-2 glass-popup">
-                      <DropdownMenuLabel>{user?.name || user?.username}</DropdownMenuLabel>
-                      <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuContent className="w-56 mr-2 glass-popup text-white bg-black/90 backdrop-blur-lg border border-white/10 shadow-lg shadow-casino-thunder-green/20 animate-in fade-in-80 zoom-in-95 rounded-lg overflow-hidden">
+                      <div className="p-2 border-b border-white/10">
+                        <DropdownMenuLabel className="flex items-center gap-2 px-2 py-1.5">
+                          <Avatar className="h-8 w-8 border border-casino-thunder-green/50">
+                            <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} alt={user?.name || user?.username} />
+                            <AvatarFallback className="bg-casino-thunder-green/20 text-white">
+                              {user?.name?.slice(0, 1) || user?.username?.slice(0, 1) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-medium">{user?.name || user?.username}</span>
+                            {user?.vipLevel && (
+                              <span className="text-xs text-gray-400">VIP Level {user.vipLevel}</span>
+                            )}
+                          </div>
+                        </DropdownMenuLabel>
+                      </div>
                       
                       {user?.balance !== undefined && (
-                        <div className="px-2 py-1.5 mb-1">
+                        <div className="px-4 py-2 mb-1 bg-white/5">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-400">Balance:</span>
                             <span className="font-medium text-casino-thunder-green">
@@ -448,23 +466,29 @@ const Header = () => {
                         </div>
                       )}
                       
-                      <DropdownMenuItem onClick={() => navigate("/profile")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
-                        <User className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/transactions")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        <span>Transactions</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigate("/settings")} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
-                      </DropdownMenuItem>
+                      <div className="p-1">
+                        <DropdownMenuItem onClick={() => navigate("/profile")} className="hover:bg-white/10 hover:text-casino-thunder-green cursor-pointer rounded-md flex items-center gap-2 py-2">
+                          <User className="h-4 w-4" />
+                          <span>Profile</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/transactions")} className="hover:bg-white/10 hover:text-casino-thunder-green cursor-pointer rounded-md flex items-center gap-2 py-2">
+                          <CreditCard className="h-4 w-4" />
+                          <span>Transactions</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/settings")} className="hover:bg-white/10 hover:text-casino-thunder-green cursor-pointer rounded-md flex items-center gap-2 py-2">
+                          <Settings className="h-4 w-4" />
+                          <span>Settings</span>
+                        </DropdownMenuItem>
+                      </div>
+                      
                       <DropdownMenuSeparator className="bg-white/10" />
-                      <DropdownMenuItem onClick={handleLogout} className="hover:bg-white/5 hover:text-casino-thunder-green cursor-pointer">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                      </DropdownMenuItem>
+                      
+                      <div className="p-1">
+                        <DropdownMenuItem onClick={handleLogout} className="hover:bg-white/10 hover:text-casino-thunder-green cursor-pointer rounded-md flex items-center gap-2 py-2">
+                          <LogOut className="h-4 w-4" />
+                          <span>Log out</span>
+                        </DropdownMenuItem>
+                      </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </>
