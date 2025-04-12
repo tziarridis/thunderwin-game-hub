@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,7 +22,6 @@ import Affiliates from "./pages/admin/Affiliates";
 import Reports from "./pages/admin/Reports";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
-import { useAuth } from "@/contexts/AuthContext";
 import GameDetails from "./pages/casino/GameDetails";
 import Profile from "./pages/user/Profile";
 import Transactions from "./pages/user/Transactions";
@@ -63,21 +61,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected route component to ensure only admins can access admin pages
-const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isAdmin } = useAuth();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/admin-login" replace />;
-  }
-  
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-};
-
+// Create the App component first
 const App = () => {
   // Initialize database and API data on app startup
   useEffect(() => {
@@ -108,80 +92,105 @@ const App = () => {
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <Routes>
-              {/* Public Routes */}
-              <Route element={<Layout />}>
-                <Route path="/" element={<Index />} />
-                
-                {/* Casino Routes */}
-                <Route path="/casino" element={<CasinoMain />} />
-                <Route path="/casino/slots" element={<SlotsPage />} />
-                <Route path="/casino/live" element={<LiveCasinoPage />} />
-                <Route path="/casino/table-games" element={<TableGamesPage />} />
-                <Route path="/casino/jackpots" element={<JackpotsPage />} />
-                <Route path="/casino/providers" element={<ProvidersPage />} />
-                <Route path="/casino/game/:id" element={<GameDetails />} />
-                
-                {/* Sports Routes */}
-                <Route path="/sports" element={<Sports />} />
-                <Route path="/sports/football" element={<FootballPage />} />
-                <Route path="/sports/basketball" element={<BasketballPage />} />
-                <Route path="/sports/tennis" element={<TennisPage />} />
-                <Route path="/sports/hockey" element={<HockeyPage />} />
-                <Route path="/sports/esports" element={<EsportsPage />} />
-                
-                {/* Other Main Routes */}
-                <Route path="/promotions" element={<Promotions />} />
-                <Route path="/vip" element={<VIP />} />
-                
-                {/* Support Routes */}
-                <Route path="/help" element={<HelpCenterPage />} />
-                <Route path="/faq" element={<HelpCenterFaqPage />} />
-                <Route path="/responsible-gaming" element={<ResponsibleGamingPage />} />
-                <Route path="/contact" element={<ContactPage />} />
-                
-                {/* Legal Routes */}
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                
-                {/* User routes */}
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/settings" element={<Settings />} />
-              </Route>
-              
-              {/* Auth Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/admin-login" element={<AdminLogin />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={
-                <AdminProtectedRoute>
-                  <AdminLayout />
-                </AdminProtectedRoute>
-              }>
-                <Route index element={<AdminDashboard />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="transactions" element={<AdminTransactions />} />
-                <Route path="games" element={<AdminGames />} />
-                <Route path="promotions" element={<AdminPromotions />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="affiliates" element={<Affiliates />} />
-                <Route path="support" element={<AdminSupport />} />
-                <Route path="logs" element={<Logs />} />
-                <Route path="security" element={<AdminSecurity />} />
-                <Route path="settings" element={<AdminSettings />} />
-              </Route>
-              
-              {/* 404 Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppRoutes />
           </TooltipProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
 };
+
+// Protected route component to ensure only admins can access admin pages
+// This needs to be defined after AuthProvider is rendered
+const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/admin-login" replace />;
+  }
+  
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+};
+
+// Separate component for Routes
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route element={<Layout />}>
+        <Route path="/" element={<Index />} />
+        
+        {/* Casino Routes */}
+        <Route path="/casino" element={<CasinoMain />} />
+        <Route path="/casino/slots" element={<SlotsPage />} />
+        <Route path="/casino/live" element={<LiveCasinoPage />} />
+        <Route path="/casino/table-games" element={<TableGamesPage />} />
+        <Route path="/casino/jackpots" element={<JackpotsPage />} />
+        <Route path="/casino/providers" element={<ProvidersPage />} />
+        <Route path="/casino/game/:id" element={<GameDetails />} />
+        
+        {/* Sports Routes */}
+        <Route path="/sports" element={<Sports />} />
+        <Route path="/sports/football" element={<FootballPage />} />
+        <Route path="/sports/basketball" element={<BasketballPage />} />
+        <Route path="/sports/tennis" element={<TennisPage />} />
+        <Route path="/sports/hockey" element={<HockeyPage />} />
+        <Route path="/sports/esports" element={<EsportsPage />} />
+        
+        {/* Other Main Routes */}
+        <Route path="/promotions" element={<Promotions />} />
+        <Route path="/vip" element={<VIP />} />
+        
+        {/* Support Routes */}
+        <Route path="/help" element={<HelpCenterPage />} />
+        <Route path="/faq" element={<HelpCenterFaqPage />} />
+        <Route path="/responsible-gaming" element={<ResponsibleGamingPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        
+        {/* Legal Routes */}
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        
+        {/* User routes */}
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/settings" element={<Settings />} />
+      </Route>
+      
+      {/* Auth Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
+      
+      {/* Admin Routes */}
+      <Route path="/admin" element={
+        <AdminProtectedRoute>
+          <AdminLayout />
+        </AdminProtectedRoute>
+      }>
+        <Route index element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="transactions" element={<AdminTransactions />} />
+        <Route path="games" element={<AdminGames />} />
+        <Route path="promotions" element={<AdminPromotions />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="affiliates" element={<Affiliates />} />
+        <Route path="support" element={<AdminSupport />} />
+        <Route path="logs" element={<Logs />} />
+        <Route path="security" element={<AdminSecurity />} />
+        <Route path="settings" element={<AdminSettings />} />
+      </Route>
+      
+      {/* 404 Route */}
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+import { useAuth } from "@/contexts/AuthContext";
 
 export default App;
