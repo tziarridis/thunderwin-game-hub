@@ -1,8 +1,26 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Users, ShoppingCart, CreditCard, BarChart, Package, UserPlus } from "lucide-react";
+import { 
+  DollarSign, 
+  Users, 
+  ShoppingCart, 
+  CreditCard, 
+  Package, 
+  UserPlus, 
+  ArrowUpDown,
+  Percent,
+  Award,
+  Globe
+} from "lucide-react";
 import { DashboardStats, GameStats, ProviderStats, RegionStats } from "@/types";
-import { getDashboardStats, getGameStats, getProviderStats, getRegionStats } from "@/services/apiService";
+import { 
+  getDashboardStats, 
+  getGameStats, 
+  getProviderStats, 
+  getRegionStats, 
+  getTransactionHistory, 
+  getBonusStats
+} from "@/services/dashboardService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -10,42 +28,35 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button";
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  BarChart, 
+  PieChart,
+  LineChart,
+  AreaChart
+} from "@/components/ui/dashboard-charts";
 
 const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [gameStats, setGameStats] = useState<GameStats[]>([]);
   const [providerStats, setProviderStats] = useState<ProviderStats[]>([]);
   const [regionStats, setRegionStats] = useState<RegionStats[]>([]);
+  const [bonusStats, setBonusStats] = useState<any[]>([]);
+  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
   const [date, setDate] = useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate()),
     to: new Date(),
   })
   const [timeFrame, setTimeFrame] = useState<string>("Last Month");
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     fetchDashboardStats();
     fetchGameStatistics();
     fetchProviderStatistics();
     fetchRegionStatistics();
+    fetchBonusStatistics();
+    fetchTimeSeriesData();
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -81,6 +92,24 @@ const Dashboard = () => {
       setRegionStats(regionData);
     } catch (error) {
       console.error("Error fetching region statistics:", error);
+    }
+  };
+
+  const fetchBonusStatistics = async () => {
+    try {
+      const bonusData = await getBonusStats();
+      setBonusStats(bonusData);
+    } catch (error) {
+      console.error("Error fetching bonus statistics:", error);
+    }
+  };
+
+  const fetchTimeSeriesData = async () => {
+    try {
+      const data = await getTransactionHistory(30);
+      setTimeSeriesData(data);
+    } catch (error) {
+      console.error("Error fetching time series data:", error);
     }
   };
 
@@ -152,7 +181,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(dashboardStats.ggr)}</div>
             <p className="text-xs text-muted-foreground">
-              Total revenue from all bets
+              Total bets minus total wins
             </p>
           </CardContent>
         </Card>
@@ -164,7 +193,43 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(dashboardStats.ngr)}</div>
             <p className="text-xs text-muted-foreground">
-              Revenue after deducting bonuses and taxes
+              GGR minus bonuses and taxes
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.volume)}</div>
+            <p className="text-xs text-muted-foreground">
+              Total amount wagered
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bonuses</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.bonusAmount)}</div>
+            <p className="text-xs text-muted-foreground">
+              Total bonus amount given to players
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Taxes</CardTitle>
+            <Percent className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.taxes)}</div>
+            <p className="text-xs text-muted-foreground">
+              Total taxes paid on gaming revenue
             </p>
           </CardContent>
         </Card>
@@ -177,6 +242,30 @@ const Dashboard = () => {
             <div className="text-2xl font-bold">{formatCurrency(dashboardStats.totalDeposits)}</div>
             <p className="text-xs text-muted-foreground">
               All successful deposits made by users
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.totalWithdrawals)}</div>
+            <p className="text-xs text-muted-foreground">
+              All successful withdrawals made by users
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.availableBalance)}</div>
+            <p className="text-xs text-muted-foreground">
+              Total player account balances
             </p>
           </CardContent>
         </Card>
@@ -200,7 +289,31 @@ const Dashboard = () => {
           <CardContent>
             <div className="text-2xl font-bold">{dashboardStats.newUsers}</div>
             <p className="text-xs text-muted-foreground">
-              Number of users registered in the selected period
+              Users registered in the last 30 days
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Players</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{dashboardStats.activeUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              Users with activity in the last 30 days
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Regions</CardTitle>
+            <Globe className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{regionStats.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Total number of active regions
             </p>
           </CardContent>
         </Card>
@@ -293,61 +406,78 @@ const Dashboard = () => {
     );
   };
 
-  const gameChartData = {
-    labels: gameStats.map(game => game.gameName),
-    datasets: [
-      {
-        label: 'Net Profit',
-        data: gameStats.map(game => game.netProfit),
-        backgroundColor: 'rgba(54, 162, 235, 0.8)',
-      },
-    ],
+  const renderBonusStatsTable = () => {
+    return (
+      <div className="rounded-md border">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Bonus Type</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Count</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Unique Users</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            {bonusStats.map((bonus, index) => (
+              <tr key={index}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{bonus.type}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{bonus.count}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${bonus.amount.toLocaleString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{bonus.uniqueUsers}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
-  const providerChartData = {
-    labels: providerStats.map(provider => provider.providerName),
-    datasets: [
-      {
-        label: 'Net Profit',
-        data: providerStats.map(provider => provider.netProfit),
-        backgroundColor: 'rgba(75, 192, 192, 0.8)',
-      },
-    ],
+  // Chart Data Preparation
+  const prepareRevenueChartData = () => {
+    if (!timeSeriesData.length) return [];
+    
+    return timeSeriesData.map(day => ({
+      name: day.date,
+      GGR: day.bets - day.wins,
+      NGR: day.bets - day.wins - (day.bonuses || 0) - ((day.bets - day.wins) * 0.05), // Assuming 5% tax
+      Bets: day.bets,
+      Wins: day.wins
+    }));
   };
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-        labels: {
-          color: '#fff'
-        }
-      },
-      title: {
-        display: true,
-        text: 'Game and Provider Performance',
-        color: '#fff'
-      },
-    },
-    scales: {
-      x: {
-        ticks: {
-          color: '#fff'
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
-        }
-      },
-      y: {
-        ticks: {
-          color: '#fff'
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
-        }
-      }
-    }
+  const prepareGameChartData = () => {
+    return gameStats.slice(0, 5).map(game => ({
+      name: game.gameName,
+      NGR: game.netProfit,
+      Bets: game.totalBets,
+      Players: game.uniquePlayers
+    }));
+  };
+
+  const prepareProviderChartData = () => {
+    return providerStats.slice(0, 5).map(provider => ({
+      name: provider.providerName,
+      NGR: provider.netProfit,
+      Games: provider.totalGames,
+      Players: provider.uniquePlayers
+    }));
+  };
+
+  const prepareRegionChartData = () => {
+    return regionStats.slice(0, 5).map(region => ({
+      name: region.region,
+      NGR: region.netProfit,
+      Users: region.userCount,
+      Deposits: region.depositAmount
+    }));
+  };
+
+  const prepareBonusPieData = () => {
+    return bonusStats.map(bonus => ({
+      name: bonus.type,
+      value: bonus.amount
+    }));
   };
 
   return (
@@ -406,40 +536,160 @@ const Dashboard = () => {
 
       {renderDashboardSummary()}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Game Statistics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Bar data={gameChartData} options={chartOptions} />
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="games">Games</TabsTrigger>
+          <TabsTrigger value="providers">Providers</TabsTrigger>
+          <TabsTrigger value="regions">Regions</TabsTrigger>
+          <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Over Time</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <AreaChart 
+                  data={prepareRevenueChartData()} 
+                  categories={["GGR", "NGR", "Bets"]} 
+                  index="name"
+                  stacked={false}
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Provider Statistics</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Bar data={providerChartData} options={chartOptions} />
-          </CardContent>
-        </Card>
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Weekly Trends</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <LineChart 
+                  data={prepareRevenueChartData().slice(-7)}
+                  categories={["GGR", "NGR", "Bets", "Wins"]}
+                  index="name"
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="games">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Games by NGR</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <BarChart 
+                  data={prepareGameChartData()}
+                  categories={["NGR"]}
+                  index="name"
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
 
-      <div>
-        <h2 className="text-xl font-bold mb-2">Top Performing Games</h2>
-        {renderGameStatsTable()}
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Game Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderGameStatsTable()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="providers">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Providers by NGR</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <BarChart 
+                  data={prepareProviderChartData()}
+                  categories={["NGR"]}
+                  index="name"
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
 
-      <div>
-        <h2 className="text-xl font-bold mb-2">Top Performing Providers</h2>
-        {renderProviderStatsTable()}
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Provider Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderProviderStatsTable()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="regions">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Regions by NGR</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <BarChart 
+                  data={prepareRegionChartData()}
+                  categories={["NGR"]}
+                  index="name"
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
 
-      <div>
-        <h2 className="text-xl font-bold mb-2">Regional Performance</h2>
-        {renderRegionStatsTable()}
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Region Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderRegionStatsTable()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="bonuses">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Bonus Distribution</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                <PieChart 
+                  data={prepareBonusPieData()}
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  height={350}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Bonus Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {renderBonusStatsTable()}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

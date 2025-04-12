@@ -4,16 +4,18 @@ import { getUsers, getGames, getTransactions as getApiTransactions } from "./api
 
 // Calculate GGR (Gross Gaming Revenue): Total bets - Total wins
 export const calculateGGR = (transactions: Transaction[]): number => {
-  const bets = transactions.filter(tx => tx.type === "bet").reduce((sum, tx) => sum + tx.amount, 0);
-  const wins = transactions.filter(tx => tx.type === "win").reduce((sum, tx) => sum + tx.amount, 0);
-  return bets - wins;
+  const totalBets = transactions.filter(tx => tx.type === "bet").reduce((sum, tx) => sum + tx.amount, 0);
+  const totalWins = transactions.filter(tx => tx.type === "win").reduce((sum, tx) => sum + tx.amount, 0);
+  return totalBets - totalWins;
 };
 
-// Calculate NGR (Net Gaming Revenue): GGR - Bonuses
+// Calculate NGR (Net Gaming Revenue): GGR - Bonuses - Taxes
 export const calculateNGR = (transactions: Transaction[]): number => {
   const ggr = calculateGGR(transactions);
   const bonuses = transactions.filter(tx => tx.type === "bonus").reduce((sum, tx) => sum + tx.amount, 0);
-  return ggr - bonuses;
+  // Assuming taxes are 5% of GGR for now, as a placeholder
+  const taxes = ggr * 0.05;
+  return ggr - bonuses - taxes;
 };
 
 // Get dashboard statistics
@@ -28,6 +30,14 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     const bets = transactions.filter(tx => tx.type === "bet").reduce((sum, tx) => sum + tx.amount, 0);
     const wins = transactions.filter(tx => tx.type === "win").reduce((sum, tx) => sum + tx.amount, 0);
     const bonuses = transactions.filter(tx => tx.type === "bonus").reduce((sum, tx) => sum + tx.amount, 0);
+    
+    // Calculate GGR & NGR
+    const ggr = calculateGGR(transactions);
+    const taxes = ggr * 0.05; // Assuming 5% tax rate as placeholder
+    const ngr = ggr - bonuses - taxes;
+    
+    // Calculate total volume (total amount wagered)
+    const volume = bets;
     
     // Calculate active users (users with transactions in the last 30 days)
     const thirtyDaysAgo = new Date();
@@ -49,8 +59,8 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
     const totalBalance = users.reduce((sum, user) => sum + user.balance, 0);
     
     return {
-      ggr: calculateGGR(transactions),
-      ngr: calculateNGR(transactions),
+      ggr,
+      ngr,
       totalDeposits: deposits,
       totalWithdrawals: withdrawals,
       totalBets: bets,
@@ -59,7 +69,9 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       newUsers: newUsers.length,
       activeUsers: activeUserIds.length,
       bonusAmount: bonuses,
-      availableBalance: totalBalance
+      availableBalance: totalBalance,
+      volume: bets,
+      taxes
     };
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
@@ -74,7 +86,9 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
       newUsers: 0,
       activeUsers: 0,
       bonusAmount: 0,
-      availableBalance: 0
+      availableBalance: 0,
+      volume: 0,
+      taxes: 0
     };
   }
 };
@@ -313,6 +327,44 @@ export const getTransactionHistory = async (days: number = 30): Promise<any[]> =
     return result;
   } catch (error) {
     console.error("Error fetching transaction history:", error);
+    return [];
+  }
+};
+
+// Get bonus usage statistics
+export const getBonusStats = async (): Promise<any[]> => {
+  try {
+    const transactions = await getApiTransactions();
+    
+    // Filter bonus transactions
+    const bonusTransactions = transactions.filter(tx => tx.type === "bonus");
+    
+    // Group bonuses by description/type
+    const bonusesByType = bonusTransactions.reduce((acc, tx) => {
+      const type = tx.description || "Unspecified";
+      if (!acc[type]) {
+        acc[type] = {
+          type,
+          count: 0,
+          amount: 0,
+          users: new Set()
+        };
+      }
+      acc[type].count += 1;
+      acc[type].amount += tx.amount;
+      acc[type].users.add(tx.userId);
+      return acc;
+    }, {} as Record<string, { type: string; count: number; amount: number; users: Set<string> }>);
+    
+    // Convert to array and format for display
+    return Object.values(bonusesByType).map(bonus => ({
+      type: bonus.type,
+      count: bonus.count,
+      amount: bonus.amount,
+      uniqueUsers: bonus.users.size
+    }));
+  } catch (error) {
+    console.error("Error fetching bonus stats:", error);
     return [];
   }
 };

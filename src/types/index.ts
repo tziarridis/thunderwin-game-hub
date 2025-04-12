@@ -1,4 +1,3 @@
-
 // Game Types
 export interface Game {
   id: string;
@@ -245,6 +244,8 @@ export interface DashboardStats {
   activeUsers: number;
   bonusAmount: number;
   availableBalance: number;
+  volume: number;
+  taxes: number;
 }
 
 export interface GameStats {
