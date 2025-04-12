@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Tabs, 
   TabsContent, 
@@ -12,77 +12,19 @@ import { Gift, Calendar, Info, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-const promotions = [
-  {
-    id: 1,
-    title: "Welcome Bonus",
-    description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
-    image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
-    endDate: "Ongoing",
-    category: "deposit"
-  },
-  {
-    id: 2,
-    title: "Thunder Thursday",
-    description: "Every Thursday, get 50 free spins when you deposit $50 or more.",
-    image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400",
-    endDate: "Every Thursday",
-    category: "recurring"
-  },
-  {
-    id: 3,
-    title: "Weekend Reload",
-    description: "Reload your account during weekends and get a 75% bonus up to $500.",
-    image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400",
-    endDate: "Every Weekend",
-    category: "deposit"
-  },
-  {
-    id: 4,
-    title: "Refer a Friend",
-    description: "Get $50 bonus for each friend you refer who signs up and makes a deposit.",
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400",
-    endDate: "Ongoing",
-    category: "special"
-  },
-  {
-    id: 5,
-    title: "Cash Back Tuesdays",
-    description: "Get 10% cashback on all your losses every Tuesday, up to $200.",
-    image: "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=400",
-    endDate: "Every Tuesday",
-    category: "cashback"
-  },
-  {
-    id: 6,
-    title: "Slot Tournament",
-    description: "Compete against other players in our weekly slot tournament for a prize pool of $10,000.",
-    image: "https://images.unsplash.com/photo-1612287230202-1ff1d85d1bdf?auto=format&fit=crop&q=80&w=400",
-    endDate: "Weekly",
-    category: "tournament"
-  },
-  {
-    id: 7,
-    title: "Birthday Bonus",
-    description: "Get a special bonus on your birthday! $50 free bonus + 100 free spins.",
-    image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=400",
-    endDate: "Your Birthday",
-    category: "special"
-  },
-  {
-    id: 8,
-    title: "Daily Drops & Wins",
-    description: "Random cash drops and prize multipliers every day on selected games.",
-    image: "https://images.unsplash.com/photo-1518893063132-36e46dbe2428?auto=format&fit=crop&q=80&w=400",
-    endDate: "Daily",
-    category: "tournament"
-  }
-];
-
 const Promotions = () => {
+  const [promotions, setPromotions] = useState<any[]>([]);
   const [currentTab, setCurrentTab] = useState("all");
   const [showDetails, setShowDetails] = useState<number | null>(null);
   const { isAuthenticated } = useAuth();
+
+  // Load promotions from localStorage on component mount
+  useEffect(() => {
+    const storedPromotions = localStorage.getItem('promotions');
+    if (storedPromotions) {
+      setPromotions(JSON.parse(storedPromotions));
+    }
+  }, []);
 
   const filteredPromotions = currentTab === "all" 
     ? promotions 

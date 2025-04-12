@@ -19,6 +19,7 @@ import AdminSupport from "./pages/admin/Support";
 import AdminSecurity from "./pages/admin/Security";
 import AdminSettings from "./pages/admin/Settings";
 import Logs from "./pages/admin/Logs";
+import Affiliates from "./pages/admin/Affiliates";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -120,6 +121,7 @@ const App = () => {
                 <Route path="games" element={<AdminGames />} />
                 <Route path="promotions" element={<AdminPromotions />} />
                 <Route path="reports" element={<AdminDashboard />} />
+                <Route path="affiliates" element={<Affiliates />} />
                 <Route path="support" element={<AdminSupport />} />
                 <Route path="logs" element={<Logs />} />
                 <Route path="security" element={<AdminSecurity />} />

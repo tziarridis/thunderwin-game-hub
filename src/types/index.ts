@@ -15,6 +15,7 @@ export interface User {
   vipLevel?: number;
   isVerified?: boolean;
   avatarUrl?: string;
+  affiliateCode?: string; // Referral code that brought this user
 }
 
 export interface Game {
@@ -68,6 +69,20 @@ export interface GameProvider {
   isActive: boolean;
 }
 
+// Affiliate interface
+export interface Affiliate {
+  id: string;
+  name: string;
+  email: string;
+  website?: string;
+  referralCode: string;
+  commission: number;
+  signups: number;
+  totalRevenue: number;
+  status: "active" | "inactive" | "pending";
+  joinedDate: string;
+}
+
 // Database schemas (simulated for LocalStorage)
 export interface DatabaseSchemas {
   users: User[];
@@ -77,6 +92,8 @@ export interface DatabaseSchemas {
   providers: GameProvider[];
   supportTickets: SupportTicket[];
   autoResponses: AutoResponse[];
+  affiliates: Affiliate[];
+  promotions: Promotion[];
 }
 
 // Platform settings
@@ -143,6 +160,17 @@ export interface OxaPayWallet {
 export interface OxaPayTransaction extends Transaction {
   walletId: string;
   walletAddress: string;
+}
+
+// Promotion interface
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  endDate: string;
+  isActive: boolean;
+  category?: string;
 }
 
 // Import support types to consolidate everything
