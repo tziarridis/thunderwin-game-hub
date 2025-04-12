@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -123,22 +122,14 @@ const VipBonusManagement = () => {
   ) => {
     const { name, value } = e.target;
     
-    // First check if it's an input element before using checkbox-specific properties
-    if (e.target instanceof HTMLInputElement) {
-      // Now TypeScript knows this is an HTMLInputElement and has a 'checked' property
-      if (e.target.type === 'checkbox') {
-        setFormData((prevData) => ({
-          ...prevData,
-          [name]: e.target.checked,
-        }));
-      } else {
-        setFormData((prevData) => ({
-          ...prevData,
-          [name]: value,
-        }));
-      }
+    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+      // Handle checkbox inputs
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: e.target.checked,
+      }));
     } else {
-      // For non-input elements (textarea, select), just use the value
+      // Handle all other input types
       setFormData((prevData) => ({
         ...prevData,
         [name]: value,
