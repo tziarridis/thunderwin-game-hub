@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Gamepad2, CreditCard, Shield, Users, HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const HelpCenterFaqPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -359,12 +360,13 @@ const HelpCenterFaqPage = () => {
         
         <div className="mt-12 text-center">
           <p className="text-white/70 mb-4">Still have questions?</p>
-          <Button 
-            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-            onClick={() => window.location.href = "/contact"}
-          >
-            Contact Support
-          </Button>
+          <Link to="/support/contact">
+            <Button 
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              Contact Support
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

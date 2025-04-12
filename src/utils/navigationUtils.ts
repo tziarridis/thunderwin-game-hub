@@ -54,7 +54,9 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'dashboard': '/',
     'play now': '/casino',
     'view all': '/casino',
-    'claim now': '/bonuses'
+    'claim now': '/bonuses',
+    'all casino games': '/casino',
+    'all sports': '/sports'
   };
   
   // Find the matching route or default to home

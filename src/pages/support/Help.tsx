@@ -29,7 +29,7 @@ const HelpCenterPage = () => {
             <p className="text-white/70 mb-4">
               Find answers to common questions about account management, games, payments, and more.
             </p>
-            <Link to="/faq">
+            <Link to="/support/faq">
               <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
                 View FAQs
               </Button>
@@ -46,7 +46,7 @@ const HelpCenterPage = () => {
             <p className="text-white/70 mb-4">
               Our support team is available 24/7 to assist you with any questions or concerns.
             </p>
-            <Link to="/contact">
+            <Link to="/support/contact">
               <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
                 Contact Us
               </Button>
@@ -63,7 +63,7 @@ const HelpCenterPage = () => {
             <p className="text-white/70 mb-4">
               Learn about our responsible gaming tools and resources to help keep gambling fun and under control.
             </p>
-            <Link to="/responsible-gaming">
+            <Link to="/support/responsible-gaming">
               <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
                 Learn More
               </Button>
@@ -75,42 +75,42 @@ const HelpCenterPage = () => {
       <div className="bg-casino-thunder-gray/30 border border-white/5 rounded-lg p-8 mb-12">
         <h2 className="text-2xl font-bold mb-6">Common Topics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-          <Link to="/faq?topic=account" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=account" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
             <span>Account Management</span>
           </Link>
           
-          <Link to="/faq?topic=payments" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=payments" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
             <span>Deposits & Withdrawals</span>
           </Link>
           
-          <Link to="/faq?topic=games" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=games" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
             <span>Games & Betting</span>
           </Link>
           
-          <Link to="/faq?topic=bonuses" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=bonuses" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
             <span>Bonuses & Promotions</span>
           </Link>
           
-          <Link to="/faq?topic=security" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=security" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
             <span>Security & Privacy</span>
           </Link>
           
-          <Link to="/faq?topic=vip" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
+          <Link to="/support/faq?topic=vip" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
             <div className="bg-white/10 p-2 rounded-md mr-3">
               <HelpCircle size={16} />
             </div>
@@ -128,19 +128,19 @@ const HelpCenterPage = () => {
             </h2>
             <ul className="space-y-3">
               <li>
-                <Link to="/terms" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/legal/terms" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   Terms & Conditions
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/legal/privacy" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/responsible-gaming" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/support/responsible-gaming" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   Responsible Gaming Policy
                 </Link>
@@ -157,19 +157,19 @@ const HelpCenterPage = () => {
             </h2>
             <ul className="space-y-3">
               <li>
-                <Link to="/faq?topic=getting-started" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/support/faq?topic=getting-started" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   Getting Started Guide
                 </Link>
               </li>
               <li>
-                <Link to="/faq?topic=deposits" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/support/faq?topic=deposits" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   How to Make a Deposit
                 </Link>
               </li>
               <li>
-                <Link to="/faq?topic=withdrawals" className="text-white/80 hover:text-casino-thunder-green flex items-center">
+                <Link to="/support/faq?topic=withdrawals" className="text-white/80 hover:text-casino-thunder-green flex items-center">
                   <ExternalLink size={14} className="mr-2" />
                   How to Request a Withdrawal
                 </Link>

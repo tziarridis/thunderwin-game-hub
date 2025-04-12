@@ -56,7 +56,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <FooterLink text="All Casino Games" to="/casino" />
               <FooterLink text="Slots" to="/casino/slots" />
-              <FooterLink text="Live Casino" to="/casino/live" />
+              <FooterLink text="Live Casino" to="/casino/live-casino" />
               <FooterLink text="Table Games" to="/casino/table-games" />
               <FooterLink text="Jackpots" to="/casino/jackpots" />
               <FooterLink text="Providers" to="/casino/providers" />
@@ -78,12 +78,12 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Support</h4>
             <ul className="space-y-2">
-              <FooterLink text="Help Center" to="/help" />
-              <FooterLink text="FAQ" to="/faq" />
-              <FooterLink text="Responsible Gaming" to="/responsible-gaming" />
-              <FooterLink text="Terms & Conditions" to="/terms" />
-              <FooterLink text="Privacy Policy" to="/privacy" />
-              <FooterLink text="Contact Us" to="/contact" />
+              <FooterLink text="Help Center" to="/support/help" />
+              <FooterLink text="FAQ" to="/support/faq" />
+              <FooterLink text="Responsible Gaming" to="/support/responsible-gaming" />
+              <FooterLink text="Terms & Conditions" to="/legal/terms" />
+              <FooterLink text="Privacy Policy" to="/legal/privacy" />
+              <FooterLink text="Contact Us" to="/support/contact" />
             </ul>
           </div>
         </div>
