@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,14 +57,14 @@ const columns = [
   {
     accessorKey: "code",
     header: "Referral Code",
-    cell: ({ row }) => (
+    cell: (row: Affiliate) => (
       <div className="flex items-center space-x-2">
-        <span>{row.getValue("code")}</span>
+        <span>{row.code}</span>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => {
-            navigator.clipboard.writeText(row.original.code);
+            navigator.clipboard.writeText(row.code);
           }}
         >
           <Clipboard className="h-4 w-4" />
@@ -78,19 +79,19 @@ const columns = [
   {
     accessorKey: "totalCommissions",
     header: "Total Commissions",
-    cell: ({ row }) => `$${row.getValue("totalCommissions")}`,
+    cell: (row: Affiliate) => `$${row.totalCommissions}`,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
+    cell: (row: Affiliate) => {
       let badgeColor = "bg-green-500";
-      if (row.original.status === "pending") {
+      if (row.status === "pending") {
         badgeColor = "bg-yellow-500";
-      } else if (row.original.status === "suspended") {
+      } else if (row.status === "suspended") {
         badgeColor = "bg-red-500";
       }
-      return <Badge className={badgeColor}>{row.original.status}</Badge>;
+      return <Badge className={badgeColor}>{row.status}</Badge>;
     },
   },
   {
@@ -98,8 +99,9 @@ const columns = [
     header: "Joined",
   },
   {
-    id: "actions",
-    cell: ({ row }) => (
+    accessorKey: "actions",
+    header: "Actions",
+    cell: (row: Affiliate) => (
       <div className="relative flex justify-end items-center">
         <Dialog>
           <DialogTrigger asChild>
@@ -238,7 +240,11 @@ const AffiliatesPage = () => {
             <CardTitle>Top Affiliates by Commission</CardTitle>
           </CardHeader>
           <CardContent>
-            <BarChart data={topAffiliatesData} />
+            <BarChart 
+              data={topAffiliatesData} 
+              index="name"
+              categories={["value"]}
+            />
           </CardContent>
         </Card>
       </div>
