@@ -100,7 +100,8 @@ const VIP = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <DepositButton variant="outline" className="text-lg py-7 px-8 rounded-xl border-2 border-casino-thunder-green/50 bg-transparent hover:bg-casino-thunder-green/10" />
+              {/* Fixed the variant here to use a proper variant */}
+              <DepositButton variant="default" className="text-lg py-7 px-8 rounded-xl bg-transparent border-2 border-casino-thunder-green/50 hover:bg-casino-thunder-green/10" />
             </motion.div>
           </div>
         </motion.div>

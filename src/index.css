@@ -1,5 +1,4 @@
 
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -61,6 +60,7 @@
   }
 }
 
+/* Existing styles */
 .thunder-glow {
   filter: drop-shadow(0 0 7px #00FF66);
 }
@@ -108,7 +108,7 @@
   box-shadow: 0 0 20px rgba(0, 255, 102, 0.1);
 }
 
-/* New utility classes for enhanced VIP design */
+/* VIP utility classes */
 .vip-gold-text {
   background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
   -webkit-background-clip: text;
@@ -164,12 +164,86 @@
   animation: shine 5s linear infinite;
 }
 
-@keyframes shine {
-  0% {
-    transform: translateX(-100%) translateY(-100%) rotate(45deg);
-  }
-  100% {
-    transform: translateX(100%) translateY(100%) rotate(45deg);
-  }
+/* Enhanced tabs styling */
+.enhanced-tabs {
+  @apply rounded-xl overflow-hidden;
 }
 
+.enhanced-tab {
+  @apply transition-all duration-300 hover:bg-casino-thunder-green/10 relative;
+}
+
+.enhanced-tab::after {
+  content: '';
+  @apply absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green scale-x-0 transition-transform duration-300 origin-bottom-right;
+}
+
+.enhanced-tab[data-state="active"]::after {
+  @apply scale-x-100 origin-bottom-left;
+}
+
+.enhanced-tab[data-state="active"] {
+  @apply text-casino-thunder-green;
+}
+
+/* New animation keyframes */
+@keyframes shimmer {
+  0% { backgroundPosition: -200% 0; }
+  100% { backgroundPosition: 200% 0; }
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 102, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 255, 102, 0.6); }
+}
+
+/* New utility animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite;
+}
+
+/* New component and interaction styles */
+.hover-scale {
+  @apply transition-transform duration-200;
+}
+
+.hover-scale:hover {
+  @apply transform scale-105;
+}
+
+.modern-card {
+  @apply rounded-xl overflow-hidden backdrop-blur-md bg-white/5 border border-white/10 
+         transition-all duration-300 hover:border-casino-thunder-green/30 hover:shadow-lg hover:shadow-casino-thunder-green/10;
+}
+
+/* Responsive container utilities */
+.container-narrow {
+  @apply container max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+.container-wide {
+  @apply container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
