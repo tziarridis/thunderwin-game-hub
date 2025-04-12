@@ -1,7 +1,7 @@
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import { User, Game, Transaction, GameBet, Log, GameProvider } from "@/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
 // Function to set the JWT token in the request headers
 const setAuthHeader = (token: string | null) => {
@@ -419,6 +419,59 @@ const createGameProvider = async (providerData: any): Promise<GameProvider> => {
     }
 };
 
+// Create API clients for different resources
+export const usersApi = {
+  getUsers: async (): Promise<User[]> => {
+    try {
+      const response: AxiosResponse<User[]> = await axios.get(`${API_BASE_URL}/users`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+      return [];
+    }
+  },
+  addUser: async (userData: Partial<User>): Promise<User | undefined> => {
+    try {
+      const response: AxiosResponse<User> = await axios.post(`${API_BASE_URL}/users`, userData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  },
+  updateUser: async (userData: User): Promise<User | undefined> => {
+    try {
+      const response: AxiosResponse<User> = await axios.put(`${API_BASE_URL}/users/${userData.id}`, userData);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+    }
+  }
+};
+
+export const gamesApi = {
+  getGames: async (): Promise<Game[]> => {
+    try {
+      const response: AxiosResponse<Game[]> = await axios.get(`${API_BASE_URL}/games`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+      return [];
+    }
+  }
+};
+
+export const transactionsApi = {
+  getTransactions: async (): Promise<Transaction[]> => {
+    try {
+      const response: AxiosResponse<Transaction[]> = await axios.get(`${API_BASE_URL}/transactions`);
+      return response.data;
+    } catch (error) {
+      handleApiError(error);
+      return [];
+    }
+  }
+};
+
 export const apiService = {
   registerUser,
   loginUser,
@@ -455,9 +508,11 @@ export const apiService = {
   deleteLog,
   fetchAllLogs,
   createLog,
-    fetchGameProvider,
-    updateGameProvider,
-    deleteGameProvider,
-    fetchAllGameProviders,
-    createGameProvider
+  fetchGameProvider,
+  updateGameProvider,
+  deleteGameProvider,
+  fetchAllGameProviders,
+  createGameProvider
 };
+
+export default apiService;
