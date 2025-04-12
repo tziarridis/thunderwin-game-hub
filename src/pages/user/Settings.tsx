@@ -1,791 +1,658 @@
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   User, 
   Lock, 
   Bell, 
-  Globe, 
-  Shield,
-  Mail,
-  Smartphone,
-  CheckSquare,
-  Save,
-  Loader2,
-  FileCheck,
-  AlertCircle,
-  CheckCircle,
+  Shield, 
+  CreditCard, 
+  Smartphone, 
+  Mail, 
+  Eye, 
+  EyeOff, 
+  Check, 
+  X, 
+  Upload, 
+  AlertTriangle,
+  FileText,
   Clock,
-  XCircle
+  CircleCheck
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 import { KycStatus } from "@/types";
+import { useNavigate } from "react-router-dom";
 
 const Settings = () => {
-  const { user, isAuthenticated } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
-  
   const [activeTab, setActiveTab] = useState("account");
-  const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [marketingEmails, setMarketingEmails] = useState(true);
+  const [loginNotifications, setLoginNotifications] = useState(true);
   
-  const handleSave = () => {
-    setSaving(true);
-    
-    // Simulate saving settings
-    setTimeout(() => {
-      setSaving(false);
-      toast({
-        title: "Settings Saved",
-        description: "Your changes have been saved successfully.",
-      });
-    }, 1500);
+  // Mock user data - in a real app this would come from context/API
+  const [user, setUser] = useState({
+    name: "John Doe",
+    email: "john.doe@example.com",
+    username: "johndoe",
+    phone: "+1 555-123-4567",
+    avatarUrl: "",
+    kycStatus: KycStatus.NOT_SUBMITTED
+  });
+  
+  const togglePassword = () => setShowPassword(!showPassword);
+  const toggleNewPassword = () => setShowNewPassword(!showNewPassword);
+  
+  const handleSaveProfile = () => {
+    toast.success("Profile updated successfully");
+  };
+  
+  const handleSavePassword = () => {
+    toast.success("Password updated successfully");
+  };
+  
+  const handleSaveNotifications = () => {
+    toast.success("Notification preferences updated");
+  };
+  
+  const handleSaveSecurity = () => {
+    toast.success("Security settings updated");
+  };
+  
+  const handleKycSubmit = () => {
+    navigate("/kyc");
+  };
+  
+  const getKycStatusBadge = (status: KycStatus) => {
+    switch (status) {
+      case KycStatus.VERIFIED:
+        return (
+          <div className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-sm flex items-center">
+            <CircleCheck className="w-4 h-4 mr-1" />
+            Verified
+          </div>
+        );
+      case KycStatus.PENDING:
+        return (
+          <div className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-sm flex items-center">
+            <Clock className="w-4 h-4 mr-1" />
+            Pending
+          </div>
+        );
+      case KycStatus.REJECTED:
+        return (
+          <div className="bg-red-500/10 text-red-500 px-3 py-1 rounded-full text-sm flex items-center">
+            <X className="w-4 h-4 mr-1" />
+            Rejected
+          </div>
+        );
+      default:
+        return (
+          <div className="bg-gray-500/10 text-gray-500 px-3 py-1 rounded-full text-sm flex items-center">
+            <FileText className="w-4 h-4 mr-1" />
+            Not Submitted
+          </div>
+        );
+    }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen pt-24 pb-12 bg-casino-thunder-darker">
-        <div className="container mx-auto px-4">
-          <div className="thunder-card p-8 text-center">
-            <h1 className="text-2xl font-bold text-white mb-4">Authentication Required</h1>
-            <p className="text-white/70 mb-6">Please sign in to view your settings.</p>
-            <Button 
-              onClick={() => navigate("/login")}
-              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-            >
-              Sign In
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Get user KYC status from user object or default to NOT_SUBMITTED
-  const kycStatus = user?.kycStatus || KycStatus.NOT_SUBMITTED;
-
   return (
-    <div className="min-h-screen pt-24 pb-12 bg-casino-thunder-darker">
-      <div className="container mx-auto px-4">
-        <h1 className="text-2xl font-bold text-white mb-6">Account Settings</h1>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Settings Tabs */}
-          <div className="thunder-card p-4 lg:sticky lg:top-24 self-start">
-            <div className="space-y-1">
-              <SettingsTab 
-                icon={<User size={18} />} 
-                label="Account" 
-                isActive={activeTab === "account"} 
-                onClick={() => setActiveTab("account")}
-              />
-              <SettingsTab 
-                icon={<Lock size={18} />} 
-                label="Security" 
-                isActive={activeTab === "security"} 
-                onClick={() => setActiveTab("security")}
-              />
-              <SettingsTab 
-                icon={<Bell size={18} />} 
-                label="Notifications" 
-                isActive={activeTab === "notifications"} 
-                onClick={() => setActiveTab("notifications")}
-              />
-              <SettingsTab 
-                icon={<Globe size={18} />} 
-                label="Preferences" 
-                isActive={activeTab === "preferences"} 
-                onClick={() => setActiveTab("preferences")}
-              />
-              <SettingsTab 
-                icon={<FileCheck size={18} />} 
-                label="Verification (KYC)" 
-                isActive={activeTab === "kyc"} 
-                onClick={() => setActiveTab("kyc")}
-              />
-              <SettingsTab 
-                icon={<Shield size={18} />} 
-                label="Responsible Gaming" 
-                isActive={activeTab === "responsible-gaming"} 
-                onClick={() => setActiveTab("responsible-gaming")}
-              />
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex flex-col md:flex-row items-start gap-8">
+        <div className="w-full md:w-64 space-y-4">
+          <div className="flex items-center space-x-4 mb-8">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={user.avatarUrl} alt={user.name} />
+              <AvatarFallback className="text-lg">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="text-xl font-bold">{user.name}</h2>
+              <p className="text-gray-500">@{user.username}</p>
             </div>
           </div>
           
-          {/* Settings Content */}
-          <div className="lg:col-span-3">
-            {/* Account Settings */}
-            {activeTab === "account" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <User className="mr-2 text-casino-thunder-green" />
-                  Account Information
-                </h2>
-                
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Username</label>
-                      <Input 
-                        value={user?.username} 
-                        disabled 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                      <p className="text-white/50 text-xs mt-1">Username cannot be changed</p>
+          <Tabs 
+            defaultValue="account" 
+            orientation="vertical" 
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
+            <TabsList className="flex flex-col h-auto items-stretch bg-background border rounded-md p-1 space-y-1">
+              <TabsTrigger 
+                value="account"
+                className="justify-start text-left py-3 px-4"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Account
+              </TabsTrigger>
+              <TabsTrigger 
+                value="security"
+                className="justify-start text-left py-3 px-4"
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Security
+              </TabsTrigger>
+              <TabsTrigger 
+                value="notifications"
+                className="justify-start text-left py-3 px-4"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Notifications
+              </TabsTrigger>
+              <TabsTrigger 
+                value="verification"
+                className="justify-start text-left py-3 px-4"
+              >
+                <Shield className="h-4 w-4 mr-2" />
+                Verification
+              </TabsTrigger>
+              <TabsTrigger 
+                value="payment"
+                className="justify-start text-left py-3 px-4"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Payment Methods
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        
+        <div className="flex-1 w-full">
+          <TabsContent value="account" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+                <CardDescription>
+                  Manage your account details and personal information
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input id="name" value={user.name} onChange={(e) => setUser({...user, name: e.target.value})} />
                     </div>
-                    
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Email Address</label>
-                      <Input 
-                        type="email"
-                        defaultValue={user?.email} 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">First Name</label>
-                      <Input 
-                        placeholder="Enter your first name" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Last Name</label>
-                      <Input 
-                        placeholder="Enter your last name" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Phone Number</label>
-                      <Input 
-                        placeholder="Enter your phone number" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Date of Birth</label>
-                      <Input 
-                        type="date"
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
+                    <div className="space-y-2">
+                      <Label htmlFor="username">Username</Label>
+                      <Input id="username" value={user.username} onChange={(e) => setUser({...user, username: e.target.value})} />
                     </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-white/70 text-sm mb-2">Address</label>
-                    <Input 
-                      placeholder="Enter your address" 
-                      className="bg-white/5 border-white/10 text-white/90 mb-3" 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" value={user.email} onChange={(e) => setUser({...user, email: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input id="phone" type="tel" value={user.phone} onChange={(e) => setUser({...user, phone: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Profile Picture</h3>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20">
+                      <AvatarImage src={user.avatarUrl} alt={user.name} />
+                      <AvatarFallback className="text-xl">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
+                    <Button variant="outline" size="sm">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Change Avatar
+                    </Button>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Danger Zone</h3>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">Delete Account</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete your
+                          account and remove your data from our servers.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSaveProfile}>Save Changes</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="security" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Security Settings</CardTitle>
+                <CardDescription>
+                  Manage your password and account security
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Change Password</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Current Password</Label>
+                      <div className="relative">
+                        <Input 
+                          id="current-password" 
+                          type={showPassword ? "text" : "password"} 
+                          placeholder="••••••••"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="absolute right-0 top-0 h-full px-3" 
+                          onClick={togglePassword}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password</Label>
+                      <div className="relative">
+                        <Input 
+                          id="new-password" 
+                          type={showNewPassword ? "text" : "password"} 
+                          placeholder="••••••••"
+                        />
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="absolute right-0 top-0 h-full px-3" 
+                          onClick={toggleNewPassword}
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <Input 
+                        id="confirm-password" 
+                        type="password" 
+                        placeholder="••••••••"
+                      />
+                    </div>
+                    
+                    <Button onClick={handleSavePassword}>Update Password</Button>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="font-medium">Two-Factor Authentication</div>
+                      <div className="text-sm text-muted-foreground">
+                        Add an extra layer of security to your account
+                      </div>
+                    </div>
+                    <Switch
+                      checked={twoFactorEnabled}
+                      onCheckedChange={setTwoFactorEnabled}
                     />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <Input 
-                        placeholder="City" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                      <Input 
-                        placeholder="State/Province" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                      <Input 
-                        placeholder="Postal Code" 
-                        className="bg-white/5 border-white/10 text-white/90" 
-                      />
-                    </div>
                   </div>
                   
-                  <div className="flex justify-end">
-                    <Button 
-                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Security Settings */}
-            {activeTab === "security" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <Lock className="mr-2 text-casino-thunder-green" />
-                  Security Settings
-                </h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-white/90 font-medium mb-4">Change Password</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Current Password</label>
-                        <Input 
-                          type="password"
-                          placeholder="Enter your current password" 
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">New Password</label>
-                        <Input 
-                          type="password"
-                          placeholder="Enter your new password" 
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
-                        <p className="text-white/50 text-xs mt-1">Must be at least 8 characters with 1 uppercase, 1 lowercase, and 1 number</p>
-                      </div>
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Confirm New Password</label>
-                        <Input 
-                          type="password"
-                          placeholder="Confirm your new password" 
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
-                      </div>
-                      <div className="pt-2">
-                        <Button 
-                          variant="outline"
-                          onClick={() => {
-                            toast({
-                              title: "Password Updated",
-                              description: "Your password has been changed successfully.",
-                            });
-                          }}
-                        >
-                          <Lock className="mr-2 h-4 w-4" />
-                          Update Password
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Two-Factor Authentication</h3>
-                    <div className="flex items-start mb-4">
-                      <div className="flex items-center h-5">
-                        <Checkbox id="enable-2fa" />
-                      </div>
-                      <div className="ml-3 text-sm">
-                        <label htmlFor="enable-2fa" className="text-white/90 font-medium cursor-pointer">Enable Two-Factor Authentication</label>
-                        <p className="text-white/70">Add an extra layer of security to your account. We'll ask for a verification code when you sign in on new devices.</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        toast({
-                          title: "Coming Soon",
-                          description: "Two-factor authentication will be available soon!",
-                        });
-                      }}
-                    >
-                      <Smartphone className="mr-2 h-4 w-4" />
-                      Set Up Two-Factor
-                    </Button>
-                  </div>
-                  
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Login Sessions</h3>
-                    <p className="text-white/70 mb-4">These are the devices that have logged into your account. Revoke any sessions that you do not recognize.</p>
-                    
-                    <div className="bg-white/5 rounded-md p-4 mb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-white/90 font-medium">Current Session - Chrome on Windows</p>
-                          <p className="text-white/70 text-sm">IP: 192.168.1.1 - Last accessed: Just now</p>
-                        </div>
-                        <div className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                          Active
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white/5 rounded-md p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-white/90 font-medium">Safari on iPhone</p>
-                          <p className="text-white/70 text-sm">IP: 192.168.1.2 - Last accessed: 2 days ago</p>
-                        </div>
-                        <Button variant="outline" size="sm" className="text-xs">
-                          Revoke
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Notifications Settings */}
-            {activeTab === "notifications" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <Bell className="mr-2 text-casino-thunder-green" />
-                  Notification Settings
-                </h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-white/90 font-medium mb-4">Email Notifications</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="email-promotions" defaultChecked />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="email-promotions" className="text-white/90 font-medium cursor-pointer">Promotions and Bonuses</label>
-                          <p className="text-white/70">Receive emails about special offers, bonuses, and promotions.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="email-account" defaultChecked />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="email-account" className="text-white/90 font-medium cursor-pointer">Account Updates</label>
-                          <p className="text-white/70">Receive emails about your account activity, deposits, and withdrawals.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="email-news" />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="email-news" className="text-white/90 font-medium cursor-pointer">News and Updates</label>
-                          <p className="text-white/70">Receive emails about new games, features, and platform updates.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Push Notifications</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="push-bonuses" defaultChecked />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="push-bonuses" className="text-white/90 font-medium cursor-pointer">Bonus Credits</label>
-                          <p className="text-white/70">Get notified when bonuses are credited to your account.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="push-deposits" defaultChecked />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="push-deposits" className="text-white/90 font-medium cursor-pointer">Deposits and Withdrawals</label>
-                          <p className="text-white/70">Get notified about deposit and withdrawal status updates.</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <div className="flex items-center h-5 pt-1">
-                          <Checkbox id="push-promotions" />
-                        </div>
-                        <div className="ml-3 text-sm">
-                          <label htmlFor="push-promotions" className="text-white/90 font-medium cursor-pointer">Promotions and Special Events</label>
-                          <p className="text-white/70">Get notified about special promotions and events.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Preferences
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* Preferences Settings */}
-            {activeTab === "preferences" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <Globe className="mr-2 text-casino-thunder-green" />
-                  Preferences
-                </h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-white/90 font-medium mb-4">Language and Currency</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Language</label>
-                        <select className="thunder-input bg-white/5 border-white/10 text-white/90 w-full">
-                          <option value="en">English</option>
-                          <option value="es">Español</option>
-                          <option value="fr">Français</option>
-                          <option value="de">Deutsch</option>
-                          <option value="pt">Português</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Currency</label>
-                        <select className="thunder-input bg-white/5 border-white/10 text-white/90 w-full">
-                          <option value="usd">USD ($)</option>
-                          <option value="eur">EUR (€)</option>
-                          <option value="gbp">GBP (£)</option>
-                          <option value="btc">Bitcoin (₿)</option>
-                          <option value="eth">Ethereum (Ξ)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Display Settings</h3>
-                    <div className="flex items-start mb-4">
-                      <div className="flex items-center h-5 pt-1">
-                        <Checkbox id="dark-mode" defaultChecked />
-                      </div>
-                      <div className="ml-3 text-sm">
-                        <label htmlFor="dark-mode" className="text-white/90 font-medium cursor-pointer">Dark Mode</label>
-                        <p className="text-white/70">Use dark mode theme for the casino interface.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start mb-4">
-                      <div className="flex items-center h-5 pt-1">
-                        <Checkbox id="animations" defaultChecked />
-                      </div>
-                      <div className="ml-3 text-sm">
-                        <label htmlFor="animations" className="text-white/90 font-medium cursor-pointer">Enable Animations</label>
-                        <p className="text-white/70">Show animations during gameplay and throughout the site.</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start">
-                      <div className="flex items-center h-5 pt-1">
-                        <Checkbox id="sound-effects" defaultChecked />
-                      </div>
-                      <div className="ml-3 text-sm">
-                        <label htmlFor="sound-effects" className="text-white/90 font-medium cursor-pointer">Sound Effects</label>
-                        <p className="text-white/70">Enable sound effects during gameplay.</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Settings
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            {/* KYC Settings */}
-            {activeTab === "kyc" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <FileCheck className="mr-2 text-casino-thunder-green" />
-                  Identity Verification (KYC)
-                </h2>
-                
-                <div className="space-y-6">
-                  <div className="bg-casino-thunder-gray/30 p-5 rounded-lg">
-                    <div className="flex items-start">
-                      <div className="mr-4">
-                        {kycStatus === KycStatus.NOT_SUBMITTED && (
-                          <div className="w-12 h-12 rounded-full bg-yellow-800/20 flex items-center justify-center">
-                            <AlertCircle size={24} className="text-yellow-500" />
-                          </div>
-                        )}
-                        {kycStatus === KycStatus.PENDING && (
-                          <div className="w-12 h-12 rounded-full bg-blue-800/20 flex items-center justify-center">
-                            <Clock size={24} className="text-blue-500" />
-                          </div>
-                        )}
-                        {kycStatus === KycStatus.VERIFIED && (
-                          <div className="w-12 h-12 rounded-full bg-green-800/20 flex items-center justify-center">
-                            <CheckCircle size={24} className="text-green-500" />
-                          </div>
-                        )}
-                        {kycStatus === KycStatus.REJECTED && (
-                          <div className="w-12 h-12 rounded-full bg-red-800/20 flex items-center justify-center">
-                            <XCircle size={24} className="text-red-500" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-medium">
-                          {kycStatus === KycStatus.NOT_SUBMITTED && "Not Verified"}
-                          {kycStatus === KycStatus.PENDING && "Verification In Progress"}
-                          {kycStatus === KycStatus.VERIFIED && "Verified"}
-                          {kycStatus === KycStatus.REJECTED && "Verification Failed"}
-                        </h3>
-                        <p className="text-white/70 mt-1">
-                          {kycStatus === KycStatus.NOT_SUBMITTED && "Complete the identity verification process to unlock all platform features."}
-                          {kycStatus === KycStatus.PENDING && "Your documents are being reviewed by our team. This typically takes 24-48 hours."}
-                          {kycStatus === KycStatus.VERIFIED && "Your identity has been successfully verified. You now have full access to all platform features."}
-                          {kycStatus === KycStatus.REJECTED && "Unfortunately, we couldn't verify your identity based on the documents provided."}
-                        </p>
-                        
-                        {kycStatus === KycStatus.REJECTED && user?.kycRejectionReason && (
-                          <div className="mt-3 bg-red-900/20 border border-red-500/20 rounded-lg p-3">
-                            <h4 className="text-sm font-medium mb-1">Reason for rejection:</h4>
-                            <p className="text-white/70 text-sm">{user.kycRejectionReason}</p>
-                          </div>
-                        )}
-                        
-                        {kycStatus === KycStatus.PENDING && user?.kycSubmittedAt && (
-                          <div className="mt-3">
-                            <p className="text-white/60 text-sm">Submitted on: {new Date(user.kycSubmittedAt).toLocaleString()}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {(kycStatus === KycStatus.NOT_SUBMITTED || kycStatus === KycStatus.REJECTED) && (
-                    <div>
-                      <p className="text-white/80 mb-4">
-                        To comply with regulations and enhance security, we need to verify your identity. This process helps us prevent fraud and ensure a safe gaming environment for all users.
-                      </p>
-                      
-                      <div className="space-y-4 mt-6">
-                        <h3 className="text-white/90 font-medium">Required Documents:</h3>
-                        <ul className="space-y-2 text-white/70">
-                          <li className="flex items-start">
-                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
-                            <span>Government-issued ID (passport, driver's license, or national ID card)</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
-                            <span>Proof of address (utility bill, bank statement, or official correspondence)</span>
-                          </li>
-                          <li className="flex items-start">
-                            <CheckSquare className="mr-2 h-5 w-5 text-casino-thunder-green flex-shrink-0 mt-0.5" />
-                            <span>A selfie of you holding your ID (to verify it's really you)</span>
-                          </li>
-                        </ul>
-                      </div>
-                      
-                      <div className="mt-6">
-                        <Button 
-                          onClick={() => navigate("/kyc")}
-                          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                        >
-                          {kycStatus === KycStatus.REJECTED ? "Try Again" : "Start Verification"}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {kycStatus === KycStatus.VERIFIED && (
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="text-green-500" size={18} />
-                        <p className="text-white/80">Your account is fully verified.</p>
-                      </div>
-                      <p className="text-white/70 mt-3">
-                        You have access to all features including higher deposit and withdrawal limits. Thank you for completing the verification process.
+                  {twoFactorEnabled && (
+                    <div className="bg-muted p-4 rounded-md mt-4">
+                      <p className="text-sm">
+                        Two-factor authentication adds an additional layer of security to your
+                        account by requiring more than just a password to sign in.
                       </p>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-            
-            {/* Responsible Gaming Settings */}
-            {activeTab === "responsible-gaming" && (
-              <div className="thunder-card p-6">
-                <h2 className="text-lg font-semibold text-white mb-6 flex items-center">
-                  <Shield className="mr-2 text-casino-thunder-green" />
-                  Responsible Gaming
-                </h2>
                 
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-white/80 mb-4">
-                      At ThunderWin, we're committed to promoting responsible gaming. Use these tools to help keep your gaming experience enjoyable and under control.
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Session Management</h3>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      You're currently signed in on this device. Signing out will end your session.
                     </p>
-                    
-                    <h3 className="text-white/90 font-medium mb-4">Deposit Limits</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Daily Limit ($)</label>
-                        <Input 
-                          type="number"
-                          defaultValue="100"
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
+                    <Button variant="outline">Sign out of all devices</Button>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSaveSecurity}>Save Security Settings</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="notifications" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>
+                  Choose what notifications you want to receive
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Communication Channels</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-base" htmlFor="email-notifications">Email Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Receive notifications via email</p>
                       </div>
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Weekly Limit ($)</label>
-                        <Input 
-                          type="number"
-                          defaultValue="500"
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
+                      <Switch
+                        id="email-notifications"
+                        checked={emailNotifications}
+                        onCheckedChange={setEmailNotifications}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-base" htmlFor="sms-notifications">SMS Notifications</Label>
+                        <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
                       </div>
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Monthly Limit ($)</label>
-                        <Input 
-                          type="number"
-                          defaultValue="1000"
-                          className="bg-white/5 border-white/10 text-white/90" 
-                        />
-                      </div>
+                      <Switch
+                        id="sms-notifications"
+                        checked={smsNotifications}
+                        onCheckedChange={setSmsNotifications}
+                      />
                     </div>
                   </div>
-                  
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Self-Exclusion Options</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <label className="block text-white/70 text-sm mb-2">Take a Break</label>
-                        <select className="thunder-input bg-white/5 border-white/10 text-white/90 w-full">
-                          <option value="">Select a time period</option>
-                          <option value="24h">24 Hours</option>
-                          <option value="7d">7 Days</option>
-                          <option value="30d">30 Days</option>
-                          <option value="90d">90 Days</option>
-                        </select>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Notification Types</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="font-medium">Account Activity</div>
+                        <div className="text-sm text-muted-foreground">
+                          Get notified about your account activity
+                        </div>
                       </div>
-                      <div className="flex items-end">
-                        <Button 
-                          variant="outline" 
-                          className="mb-0.5 h-10"
-                          onClick={() => {
-                            toast({
-                              title: "Break Period Set",
-                              description: "Your break period has been activated. You'll be automatically logged out.",
-                            });
-                          }}
-                        >
-                          Apply Break
-                        </Button>
-                      </div>
+                      <Switch
+                        checked={loginNotifications}
+                        onCheckedChange={setLoginNotifications}
+                      />
                     </div>
                     
-                    <div className="bg-red-900/20 border border-red-500/20 rounded-md p-4 mb-6">
-                      <h4 className="text-white/90 font-medium mb-2">Self-Exclude from ThunderWin</h4>
-                      <p className="text-white/70 text-sm mb-4">
-                        Self-exclusion will prevent you from accessing your account for the selected period. This action cannot be undone until the exclusion period ends.
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="font-medium">Bonuses & Promotions</div>
+                        <div className="text-sm text-muted-foreground">
+                          Get notified about new bonuses and promotions
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketingEmails}
+                        onCheckedChange={setMarketingEmails}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={handleSaveNotifications}>Save Notification Settings</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="verification" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Verification</CardTitle>
+                <CardDescription>
+                  Complete your KYC (Know Your Customer) verification process
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-muted p-6 rounded-lg border">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
+                    <div>
+                      <h3 className="text-lg font-medium mb-1">Verification Status</h3>
+                      <p className="text-muted-foreground text-sm mb-2">
+                        Your current verification status is:
                       </p>
-                      <Button 
-                        variant="destructive"
-                        onClick={() => {
-                          toast({
-                            title: "Self-Exclusion",
-                            description: "Please contact support to set up self-exclusion.",
-                            variant: "destructive",
-                          });
-                        }}
-                      >
-                        Self-Exclude
+                      {getKycStatusBadge(user.kycStatus)}
+                    </div>
+                    
+                    {user.kycStatus === KycStatus.NOT_SUBMITTED && (
+                      <Button onClick={handleKycSubmit}>
+                        Start Verification
                       </Button>
-                    </div>
+                    )}
+                    
+                    {user.kycStatus === KycStatus.PENDING && (
+                      <Button variant="outline" disabled>
+                        <Clock className="w-4 h-4 mr-2" />
+                        Verification in Progress
+                      </Button>
+                    )}
+                    
+                    {user.kycStatus === KycStatus.REJECTED && (
+                      <Button onClick={handleKycSubmit}>
+                        Retry Verification
+                      </Button>
+                    )}
+                    
+                    {user.kycStatus === KycStatus.VERIFIED && (
+                      <Button variant="outline" disabled className="bg-green-500/10 text-green-500 border-green-200">
+                        <Check className="w-4 h-4 mr-2" />
+                        Verified
+                      </Button>
+                    )}
                   </div>
                   
-                  <div className="border-t border-white/10 pt-6">
-                    <h3 className="text-white/90 font-medium mb-4">Reality Check</h3>
-                    <p className="text-white/70 mb-4">
-                      Set reminders to alert you when you've been playing for a specified period of time.
+                  {user.kycStatus === KycStatus.NOT_SUBMITTED && (
+                    <div className="bg-yellow-500/10 border border-yellow-200 rounded-md p-4 flex gap-3 items-start">
+                      <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-yellow-700 dark:text-yellow-400">Verification Required</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          You need to complete KYC verification to unlock all account features including withdrawals. 
+                          The verification process usually takes 24-48 hours after submission.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user.kycStatus === KycStatus.PENDING && (
+                    <div className="bg-blue-500/10 border border-blue-200 rounded-md p-4 flex gap-3 items-start">
+                      <Clock className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-blue-700 dark:text-blue-400">Verification In Progress</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your verification is currently being processed. This usually takes 24-48 hours.
+                          You'll receive an email once your verification is complete.
+                        </p>
+                        <Button variant="link" className="p-0 h-auto text-blue-600 dark:text-blue-400 mt-2" onClick={() => navigate("/kyc/status")}>
+                          Check verification status
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user.kycStatus === KycStatus.REJECTED && (
+                    <div className="bg-red-500/10 border border-red-200 rounded-md p-4 flex gap-3 items-start">
+                      <X className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-red-700 dark:text-red-400">Verification Rejected</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your verification was rejected. Please review the feedback and submit again with the correct documents.
+                        </p>
+                        <Button variant="link" className="p-0 h-auto text-red-600 dark:text-red-400 mt-2" onClick={() => navigate("/kyc/status")}>
+                          View rejection details
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {user.kycStatus === KycStatus.VERIFIED && (
+                    <div className="bg-green-500/10 border border-green-200 rounded-md p-4 flex gap-3 items-start">
+                      <CircleCheck className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="font-medium text-green-700 dark:text-green-400">Fully Verified</h4>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Congratulations! Your account is fully verified. You now have access to all platform features including deposits and withdrawals.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Verification Benefits</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-muted rounded-md p-4">
+                      <div className="font-medium mb-2 flex items-center">
+                        <Check className="h-4 w-4 mr-2 text-green-500" />
+                        Unlocked Withdrawals
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Withdraw your winnings to your preferred payment method
+                      </p>
+                    </div>
+                    <div className="bg-muted rounded-md p-4">
+                      <div className="font-medium mb-2 flex items-center">
+                        <Check className="h-4 w-4 mr-2 text-green-500" />
+                        Increased Limits
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Higher deposit and withdrawal limits for verified users
+                      </p>
+                    </div>
+                    <div className="bg-muted rounded-md p-4">
+                      <div className="font-medium mb-2 flex items-center">
+                        <Check className="h-4 w-4 mr-2 text-green-500" />
+                        Access to VIP Program
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Become eligible for our VIP program and exclusive bonuses
+                      </p>
+                    </div>
+                    <div className="bg-muted rounded-md p-4">
+                      <div className="font-medium mb-2 flex items-center">
+                        <Check className="h-4 w-4 mr-2 text-green-500" />
+                        Enhanced Account Security
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Protect your account with additional security measures
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="payment" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Methods</CardTitle>
+                <CardDescription>
+                  Manage your payment methods and transactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Saved Payment Methods</h3>
+                  <div className="bg-muted p-6 rounded-lg text-center">
+                    <p className="text-muted-foreground">
+                      You don't have any payment methods saved yet.
                     </p>
-                    <div className="flex items-start mb-4">
-                      <div className="flex items-center h-5 pt-1">
-                        <Checkbox id="reality-check" defaultChecked />
-                      </div>
-                      <div className="ml-3 text-sm">
-                        <label htmlFor="reality-check" className="text-white/90 font-medium cursor-pointer">Enable Reality Check</label>
-                        <p className="text-white/70">Show a reminder after the specified interval.</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-white/70 text-sm mb-2">Reminder Interval</label>
-                      <select className="thunder-input bg-white/5 border-white/10 text-white/90 w-full max-w-xs">
-                        <option value="30m">Every 30 Minutes</option>
-                        <option value="1h">Every 1 Hour</option>
-                        <option value="2h">Every 2 Hours</option>
-                        <option value="3h">Every 3 Hours</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-end">
-                    <Button 
-                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={handleSave}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Limits
-                        </>
-                      )}
+                    <Button className="mt-4">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Add Payment Method
                     </Button>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+                
+                <Separator />
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Recent Transactions</h3>
+                    <Button variant="outline" size="sm" onClick={() => navigate("/transactions")}>
+                      View All
+                    </Button>
+                  </div>
+                  
+                  <div className="bg-muted p-6 rounded-lg text-center">
+                    <p className="text-muted-foreground">
+                      No recent transactions found.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </div>
       </div>
     </div>
   );
 };
 
-const SettingsTab = ({ 
-  icon, 
-  label, 
-  isActive, 
-  onClick 
-}: { 
-  icon: React.ReactNode;
-  label: string
+export default Settings;

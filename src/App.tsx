@@ -1,3 +1,4 @@
+
 import { Routes, Route } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import Layout from "@/components/layout/Layout";
@@ -56,7 +57,7 @@ import ResponsibleGaming from "@/pages/support/ResponsibleGaming";
 
 // Other pages
 import VIPPage from "@/pages/vip/VIP";
-import Promotions as PromotionsPage from "@/pages/promotions/Promotions";
+import { default as PromotionsPage } from "@/pages/promotions/Promotions";
 import BonusHub from "@/pages/bonuses/BonusHub";
 import Terms from "@/pages/legal/Terms";
 import Privacy from "@/pages/legal/Privacy";
