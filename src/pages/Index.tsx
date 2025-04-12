@@ -1,398 +1,210 @@
-
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { navigateByButtonName } from "@/utils/navigationUtils";
+import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import GameGrid from "@/components/games/GameGrid";
-import PromotionSlider from "@/components/promotions/PromotionSlider";
-import PromotionCard from "@/components/promotions/PromotionCard";
-import DepositButton from "@/components/user/DepositButton";
-import { 
-  Trophy, 
-  Zap, 
-  Shield, 
-  Clock, 
-  Wallet,
-  Sparkles,
-  Gamepad2,
-  Gift,
-  Swords
-} from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { Promotion } from "@/types";
+import { Gamepad2, Zap, Trophy, Gift, CreditCard } from "lucide-react";
+import GameGrid from "@/components/casino/GameGrid";
+import GameCategories from "@/components/casino/GameCategories";
+import FeaturedGames from "@/components/casino/FeaturedGames";
+import PromoBanner from "@/components/casino/PromoBanner";
+import PopularProviders from "@/components/casino/PopularProviders";
+import RecentWinners from "@/components/casino/RecentWinners";
+import { useGames } from "@/hooks/useGames";
 
 const Index = () => {
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-
-  useEffect(() => {
-    // Load promotions from localStorage
-    const storedPromotions = localStorage.getItem('promotions');
-    if (storedPromotions) {
-      const parsedPromotions = JSON.parse(storedPromotions);
-      // Only use active promotions and limit to 3
-      const activePromotions = parsedPromotions
-        .filter((promo: Promotion) => promo.isActive)
-        .slice(0, 3);
-      setPromotions(activePromotions);
-    }
-  }, []);
-
-  const handleSignUp = () => {
-    if (isAuthenticated) {
-      toast("You're already logged in!");
-      navigate('/profile');
-    } else {
-      navigate('/register');
-    }
+  const { games, loading, error } = useGames();
+  
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const buttonName = e.currentTarget.textContent || "";
+    navigateByButtonName(buttonName, navigate);
   };
-
-  const handleExploreGames = () => {
-    const gamesSection = document.getElementById('games-section');
-    if (gamesSection) {
-      gamesSection.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      toast.error("Games section not found");
-    }
-  };
-
-  const handleViewPromotion = (promotionName: string) => {
-    toast.info(`Viewing promotion: ${promotionName}`);
-    navigate('/promotions');
-  };
-
+  
+  // Filter games for different sections
+  const popularGames = games.filter(game => game.isPopular).slice(0, 12);
+  const newGames = games.filter(game => game.isNew).slice(0, 6);
+  const slotGames = games.filter(game => game.category === "slots").slice(0, 12);
+  const tableGames = games.filter(game => game.category === "table").slice(0, 6);
+  const jackpotGames = games.filter(game => game.jackpot).slice(0, 6);
+  
   return (
-    <div className="bg-casino-thunder-deeper text-white">
-      {/* Hero Section */}
-      <section className="relative py-24 md:py-32 overflow-hidden">
-        <div className="absolute inset-0 z-0 bg-casino-thunder-darker">
-          <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10"></div>
+    <Layout>
+      <div className="container mx-auto px-4 py-8">
+        {/* Hero Banner */}
+        <div className="relative rounded-xl overflow-hidden mb-8">
           <img 
-            src="https://images.unsplash.com/photo-1595815771614-ade041640239?auto=format&fit=crop&q=80&w=1280" 
-            alt="Casino Background" 
-            className="w-full h-full object-cover opacity-30"
+            src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
+            alt="ThunderWin Casino" 
+            className="w-full h-auto md:h-[400px] object-cover"
           />
-          {/* Animated overlay */}
-          <div className="absolute inset-0 z-5 bg-gradient-to-b from-casino-deep-black/80 via-transparent to-casino-thunder-darker"></div>
-        </div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
-              <span className="text-white block">Experience the</span>
-              <span className="text-casino-thunder-green thunder-glow block">Ultimate Thrill</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex flex-col justify-center px-8">
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 thunder-glow">
+              Welcome to ThunderWin
             </h1>
-            <p className="text-white/80 text-xl mb-8 leading-relaxed">
-              Play the most exciting casino games with incredible bonuses and lightning-fast payouts at ThunderWin
+            <p className="text-lg md:text-xl text-white/80 mb-6 max-w-md">
+              Experience the thrill of over 1000+ games and massive jackpots
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-wrap gap-4">
               <Button 
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-7 px-8 rounded-xl font-bold transition-all duration-300 hover:scale-105"
-                onClick={handleSignUp}
+                size="lg" 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
+                onClick={handleButtonClick}
               >
-                {isAuthenticated ? 'Visit Profile' : 'Sign Up Now'}
+                Play Now
               </Button>
-              <DepositButton variant="highlight" className="text-lg py-7 px-8 rounded-xl font-bold transition-all duration-300 hover:scale-105" />
               <Button 
+                size="lg" 
                 variant="outline" 
-                className="text-lg py-7 px-8 rounded-xl border-white/20 hover:border-white/40 hover:bg-white/5 transition-all duration-300"
-                onClick={handleExploreGames}
+                className="border-white text-white hover:bg-white/10"
+                onClick={handleButtonClick}
               >
-                Explore Games
+                Claim Bonus
               </Button>
-            </div>
-
-            {/* Features */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mt-16">
-              <FeatureItem 
-                icon={<Trophy size={28} />} 
-                title="Weekly Tournaments"
-                text="Compete for massive prizes" 
-                onClick={() => navigate('/casino')}
-              />
-              <FeatureItem 
-                icon={<Zap size={28} />} 
-                title="Fast Payouts"
-                text="Get your winnings instantly" 
-                onClick={() => navigate('/transactions')}
-              />
-              <FeatureItem 
-                icon={<Shield size={28} />} 
-                title="Secure Gaming"
-                text="Play with confidence" 
-                onClick={() => navigate('/vip')}
-              />
             </div>
           </div>
         </div>
         
-        {/* Animated chips elements */}
-        <div className="hidden md:block absolute -right-20 -bottom-20 w-80 h-80 opacity-20 animate-spin-slow pointer-events-none">
-          <div className="w-40 h-40 rounded-full bg-casino-thunder-green absolute top-10 left-10"></div>
-          <div className="w-24 h-24 rounded-full bg-casino-gold absolute bottom-20 right-20"></div>
-          <div className="w-16 h-16 rounded-full bg-casino-royal-blue absolute top-0 right-40"></div>
+        {/* Quick Links */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-12">
+          <Button 
+            variant="outline" 
+            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
+            onClick={handleButtonClick}
+          >
+            <Gamepad2 className="h-8 w-8 mb-2" />
+            <span>Slots</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
+            onClick={handleButtonClick}
+          >
+            <Zap className="h-8 w-8 mb-2" />
+            <span>Live Casino</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
+            onClick={handleButtonClick}
+          >
+            <Trophy className="h-8 w-8 mb-2" />
+            <span>Jackpots</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
+            onClick={handleButtonClick}
+          >
+            <Gift className="h-8 w-8 mb-2" />
+            <span>Bonuses</span>
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10 col-span-2 md:col-span-1"
+            onClick={handleButtonClick}
+          >
+            <CreditCard className="h-8 w-8 mb-2" />
+            <span>Deposit</span>
+          </Button>
         </div>
-      </section>
-
-      {/* Quick Deposit Banner with pulsing effect */}
-      <section className="relative overflow-hidden py-6">
-        <div className="absolute inset-0 bg-gradient-to-r from-casino-thunder-green/90 to-casino-thunder-highlight/90"></div>
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>
-          <div className="absolute inset-0 shimmer-bg"></div>
+        
+        {/* Featured Games Carousel */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Featured Games</h2>
+          <FeaturedGames games={popularGames.slice(0, 5)} />
         </div>
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="text-black mb-4 md:mb-0">
-              <h3 className="text-2xl font-extrabold">Ready to Play?</h3>
-              <p className="text-black/80 font-medium">Make a deposit and claim your bonus now!</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                className="bg-black hover:bg-gray-900 text-white font-bold px-6 py-2.5 rounded-lg"
-                onClick={() => navigate('/promotions')}
-              >
-                View Bonuses
-              </Button>
-              <DepositButton className="bg-white hover:bg-gray-100 text-black font-bold px-6 py-2.5 rounded-lg" />
-            </div>
-          </div>
+        
+        {/* Game Categories */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+          <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
         </div>
-      </section>
-
-      {/* Promotions Slider */}
-      <section className="bg-casino-thunder-dark py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-white mb-8 flex items-center">
-            <Sparkles className="mr-3 text-casino-thunder-green" />
-            Featured Promotions
-          </h2>
-          <PromotionSlider />
-        </div>
-      </section>
-
-      {/* Popular Games */}
-      <section id="games-section" className="bg-casino-thunder-dark py-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-white mb-8 flex items-center">
-            <Gamepad2 className="mr-3 text-casino-thunder-green" />
-            Featured Games
-          </h2>
-          <GameGrid />
-        </div>
-      </section>
-
-      {/* Why Choose ThunderWin */}
-      <section className="py-20 bg-gradient-to-b from-casino-thunder-dark to-casino-thunder-deeper">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl lg:text-4xl font-extrabold text-white text-center mb-16">
-            Why Choose <span className="text-casino-thunder-green thunder-glow">ThunderWin</span>
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <WhyChooseCard 
-              icon={<Zap size={40} />}
-              title="Lightning Fast Payouts"
-              description="Get your winnings quickly with our rapid withdrawal system that processes in minutes, not days."
-              onClick={() => navigate('/transactions')}
-            />
-            <WhyChooseCard 
-              icon={<Gift size={40} />}
-              title="Generous Bonuses"
-              description="Enjoy massive welcome bonuses, free spins, and regular promotions to boost your bankroll."
-              onClick={() => navigate('/promotions')}
-            />
-            <WhyChooseCard 
-              icon={<Shield size={40} />}
-              title="Safe & Secure"
-              description="Play with confidence on our fully encrypted platform with advanced security measures."
-              onClick={() => navigate('/settings')}
-            />
-            <WhyChooseCard 
-              icon={<Clock size={40} />}
-              title="24/7 Support"
-              description="Our friendly support team is always available to assist you with any questions or concerns."
-              onClick={() => {
-                toast.info("Support is available 24/7");
-                navigate('/settings');
-              }}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* More Promotions */}
-      <section className="bg-casino-thunder-dark py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-white flex items-center">
-              <Gift className="mr-3 text-casino-thunder-green" />
-              Current Promotions
-            </h2>
-            <Link to="/promotions" className="text-casino-thunder-green hover:text-casino-thunder-highlight font-semibold text-lg">
-              View All
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {promotions.length > 0 ? (
-              promotions.map((promotion) => (
-                <PromotionCard 
-                  key={promotion.id}
-                  title={promotion.title}
-                  description={promotion.description}
-                  image={promotion.image}
-                  endDate={promotion.endDate}
-                  onClick={() => handleViewPromotion(promotion.title)}
-                />
-              ))
-            ) : (
-              <div className="col-span-3 text-center py-16 glass-card">
-                <p className="text-white/70 text-lg">No active promotions at the moment. Check back soon!</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* Games Categories Section */}
-      <section className="py-16 bg-casino-thunder-darker">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-white mb-8 flex items-center">
-            <Swords className="mr-3 text-casino-thunder-green" />
-            Game Categories
-          </h2>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <GameCategoryCard 
-              title="Slots"
-              description="Hundreds of slot games with massive jackpots"
-              icon={<Gamepad2 size={32} />}
-              onClick={() => navigate('/casino/slots')}
-            />
-            <GameCategoryCard 
-              title="Table Games"
-              description="Classic casino tables with modern twists"
-              icon={<Trophy size={32} />}
-              onClick={() => navigate('/casino/table-games')}
-            />
-            <GameCategoryCard 
-              title="Live Casino"
-              description="Real dealers, real-time action, real winnings"
-              icon={<Zap size={32} />}
-              onClick={() => navigate('/casino/live-casino')}
-            />
-            <GameCategoryCard 
-              title="Sports Betting"
-              description="Bet on all major sports events worldwide"
-              icon={<Swords size={32} />}
-              onClick={() => navigate('/sports')}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Floating Deposit Button */}
-      <div className="fixed bottom-6 right-6 z-40 md:hidden">
-        <DepositButton variant="icon" className="shadow-lg w-14 h-14" />
-      </div>
-
-      {/* CTA Section */}
-      <section className="py-20 overflow-hidden relative">
-        <div className="absolute inset-0 bg-casino-thunder-green/90"></div>
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 shimmer-bg"></div>
-        </div>
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-black mb-6">
-            Ready to Start Winning?
-          </h2>
-          <p className="text-black/80 text-xl mb-10 max-w-3xl mx-auto font-medium">
-            Join ThunderWin today and experience the most electrifying online casino. Get started with a massive welcome bonus!
-          </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-6">
+        
+        {/* Popular Games */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold thunder-glow">Popular Games</h2>
             <Button 
-              className="bg-black hover:bg-gray-900 text-white text-xl py-7 px-10 rounded-xl font-bold transition-all duration-300 hover:scale-105"
-              onClick={handleSignUp}
+              variant="link" 
+              className="text-casino-thunder-green"
+              onClick={() => navigate('/casino/popular')}
             >
-              {isAuthenticated ? 'Visit Your Account' : 'Create Account'}
+              View All
             </Button>
-            <DepositButton variant="highlight" className="bg-white hover:bg-gray-100 text-black text-xl py-7 px-10 rounded-xl font-bold transition-all duration-300 hover:scale-105" />
           </div>
+          <GameGrid games={popularGames} />
         </div>
-      </section>
-    </div>
+        
+        {/* Promo Banner */}
+        <div className="mb-12">
+          <PromoBanner 
+            title="Welcome Bonus" 
+            description="Get 100% up to $500 + 100 Free Spins on your first deposit!" 
+            buttonText="Claim Now"
+            onButtonClick={() => navigate('/bonuses')}
+          />
+        </div>
+        
+        {/* New Games */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold thunder-glow">New Games</h2>
+            <Button 
+              variant="link" 
+              className="text-casino-thunder-green"
+              onClick={() => navigate('/casino/new')}
+            >
+              View All
+            </Button>
+          </div>
+          <GameGrid games={newGames} />
+        </div>
+        
+        {/* Popular Providers */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Popular Providers</h2>
+          <PopularProviders onProviderClick={(provider) => navigate(`/casino/provider/${provider}`)} />
+        </div>
+        
+        {/* Jackpot Games */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold thunder-glow">Jackpot Games</h2>
+            <Button 
+              variant="link" 
+              className="text-casino-thunder-green"
+              onClick={() => navigate('/casino/jackpots')}
+            >
+              View All
+            </Button>
+          </div>
+          <GameGrid games={jackpotGames} />
+        </div>
+        
+        {/* Recent Winners */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Winners</h2>
+          <RecentWinners />
+        </div>
+        
+        {/* Table Games */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold thunder-glow">Table Games</h2>
+            <Button 
+              variant="link" 
+              className="text-casino-thunder-green"
+              onClick={() => navigate('/casino/table')}
+            >
+              View All
+            </Button>
+          </div>
+          <GameGrid games={tableGames} />
+        </div>
+      </div>
+    </Layout>
   );
 };
-
-const FeatureItem = ({ 
-  icon, 
-  title,
-  text, 
-  onClick 
-}: { 
-  icon: React.ReactNode; 
-  title: string;
-  text: string;
-  onClick?: () => void;
-}) => (
-  <div 
-    className="glass-card p-6 cursor-pointer hover:translate-y-[-5px] transition-all duration-300" 
-    onClick={onClick}
-  >
-    <div className="text-casino-thunder-green mb-4">
-      {icon}
-    </div>
-    <h3 className="font-bold text-xl mb-2">{title}</h3>
-    <p className="text-white/70">{text}</p>
-  </div>
-);
-
-const WhyChooseCard = ({ 
-  icon, 
-  title, 
-  description,
-  onClick
-}: { 
-  icon: React.ReactNode; 
-  title: string; 
-  description: string;
-  onClick?: () => void;
-}) => (
-  <div 
-    className="glass-card p-8 text-center cursor-pointer hover:translate-y-[-5px] transition-all duration-300" 
-    onClick={onClick}
-  >
-    <div className="text-casino-thunder-green mb-6 flex justify-center">
-      {icon}
-    </div>
-    <h3 className="text-2xl font-bold text-white mb-4">{title}</h3>
-    <p className="text-white/70 leading-relaxed">{description}</p>
-  </div>
-);
-
-const GameCategoryCard = ({
-  title,
-  description,
-  icon,
-  onClick
-}: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  onClick?: () => void;
-}) => (
-  <div 
-    className="glass-card p-6 cursor-pointer hover:translate-y-[-5px] transition-all duration-300"
-    onClick={onClick}
-  >
-    <div className="bg-casino-thunder-green/10 w-16 h-16 rounded-full flex items-center justify-center text-casino-thunder-green mb-4">
-      {icon}
-    </div>
-    <h3 className="text-xl font-bold mb-2">{title}</h3>
-    <p className="text-white/70">{description}</p>
-  </div>
-);
 
 export default Index;

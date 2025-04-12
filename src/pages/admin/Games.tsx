@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -20,6 +19,7 @@ import { gamesApi } from "@/services/apiService";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import GameForm from "@/components/admin/GameForm";
+import { v4 as uuidv4 } from 'uuid';
 
 const AdminGames = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -43,12 +43,22 @@ const AdminGames = () => {
         const data = await gamesApi.getGames();
         setGames(data);
         setFilteredGames(data);
+        toast({
+          title: "Success",
+          description: "Games loaded successfully",
+          variant: "default"
+        });
       } catch (error) {
         console.error("Failed to fetch games:", error);
         toast({
           title: "Error",
-          description: "Failed to load games",
+          description: "Failed to load games. Using fallback data.",
           variant: "destructive"
+        });
+        // Fallback to mock data if API fails
+        import('@/data/mock-games').then(module => {
+          setGames(module.default);
+          setFilteredGames(module.default);
         });
       } finally {
         setLoading(false);
@@ -107,6 +117,11 @@ const AdminGames = () => {
     if (window.confirm("Are you sure you want to delete this game?")) {
       try {
         await gamesApi.deleteGame(gameId);
+        toast({
+          title: "Success",
+          description: "Game deleted successfully",
+          variant: "default"
+        });
         // Refresh the game list
         const updatedGames = await gamesApi.getGames();
         setGames(updatedGames);
@@ -114,20 +129,58 @@ const AdminGames = () => {
         setSelectedRows(selectedRows.filter(id => id !== gameId));
       } catch (error) {
         console.error("Failed to delete game:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete game",
+          variant: "destructive"
+        });
+        // Fallback: Remove from local state only
+        const updatedGames = games.filter(game => game.id !== gameId);
+        setGames(updatedGames);
+        setFilteredGames(updatedGames);
+        setSelectedRows(selectedRows.filter(id => id !== gameId));
       }
     }
   };
   
   const handleAddGame = async (gameData: Omit<Game, 'id'>) => {
     try {
-      await gamesApi.addGame(gameData);
+      // Create a complete game object with a new UUID
+      const newGame: Game = {
+        ...gameData,
+        id: uuidv4(),
+      };
+      
+      await gamesApi.addGame(newGame);
       setIsAddDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Game added successfully",
+        variant: "default"
+      });
+      
       // Refresh the game list
       const updatedGames = await gamesApi.getGames();
       setGames(updatedGames);
       setFilteredGames(updatedGames);
     } catch (error) {
       console.error("Failed to add game:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add game",
+        variant: "destructive"
+      });
+      
+      // Fallback: Add to local state only
+      const newGame: Game = {
+        ...gameData,
+        id: uuidv4(),
+      };
+      
+      const updatedGames = [...games, newGame];
+      setGames(updatedGames);
+      setFilteredGames(updatedGames);
+      setIsAddDialogOpen(false);
     }
   };
   
@@ -135,12 +188,31 @@ const AdminGames = () => {
     try {
       await gamesApi.updateGame(gameData);
       setIsEditDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Game updated successfully",
+        variant: "default"
+      });
+      
       // Refresh the game list
       const updatedGames = await gamesApi.getGames();
       setGames(updatedGames);
       setFilteredGames(updatedGames);
     } catch (error) {
       console.error("Failed to update game:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update game",
+        variant: "destructive"
+      });
+      
+      // Fallback: Update in local state only
+      const updatedGames = games.map(game => 
+        game.id === gameData.id ? gameData : game
+      );
+      setGames(updatedGames);
+      setFilteredGames(updatedGames);
+      setIsEditDialogOpen(false);
     }
   };
 

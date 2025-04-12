@@ -16,7 +16,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
   }
   
   return (
-    <div className="flex min-h-screen bg-[#1A1F2C]"> {/* Changed background color to dark blue/purple */}
+    <div className="flex min-h-screen bg-[#1A1F2C]">
       <AdminSidebar />
       <div className="flex-1 pl-16 md:pl-64">
         <div className="p-4 bg-[#222333] border-b border-gray-800">

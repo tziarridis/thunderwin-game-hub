@@ -14,7 +14,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
     image: initialValues?.image || "",
     provider: initialValues?.provider || "",
     category: initialValues?.category || "slots",
-    tags: initialValues?.tags || [],
+    tags: initialValues?.tags?.join(', ') || "",
     rtp: initialValues?.rtp?.toString() || "96",
     minBet: initialValues?.minBet?.toString() || "0.10",
     maxBet: initialValues?.maxBet?.toString() || "100",
@@ -46,6 +46,11 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Process tags from comma-separated string to array
+    const tagsArray = formData.tags
+      ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '')
+      : [];
+    
     // When formatting game data for submission, ensure all required properties are included
     const gameData = {
       ...(initialValues?.id ? { id: initialValues.id } : {}),
@@ -53,14 +58,14 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
       image: formData.image,
       provider: formData.provider,
       category: formData.category as Game['category'],
-      tags: initialValues?.tags || [],
+      tags: tagsArray,
       isPopular: formData.isPopular,
       isNew: formData.isNew,
       rtp: parseFloat(formData.rtp),
       minBet: parseFloat(formData.minBet),
       maxBet: parseFloat(formData.maxBet),
       volatility: formData.volatility as Game['volatility'],
-      jackpot: initialValues?.jackpot || false,
+      jackpot: formData.jackpot,
       releaseDate: formData.releaseDate,
       description: formData.description
     };
@@ -134,6 +139,21 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
             <option value="jackpot">Jackpot</option>
             <option value="other">Other</option>
           </select>
+        </div>
+        
+        <div>
+          <label htmlFor="tags" className="block text-sm font-medium mb-1">
+            Tags (comma-separated)
+          </label>
+          <input
+            type="text"
+            id="tags"
+            name="tags"
+            value={formData.tags}
+            onChange={handleChange}
+            className="thunder-input w-full"
+            placeholder="e.g. popular, new, featured"
+          />
         </div>
         
         <div>
@@ -221,6 +241,20 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
         </div>
         
         <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="jackpot"
+              name="jackpot"
+              checked={formData.jackpot}
+              onChange={handleChange}
+              className="thunder-checkbox"
+            />
+            <label htmlFor="jackpot" className="ml-2 text-sm font-medium">
+              Jackpot
+            </label>
+          </div>
+          
           <div className="flex items-center">
             <input
               type="checkbox"
