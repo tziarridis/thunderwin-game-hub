@@ -52,7 +52,11 @@
   }
 
   body {
-    @apply bg-casino-thunder-dark text-foreground;
+    @apply bg-casino-thunder-dark text-foreground font-montserrat;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
   }
 }
 
@@ -75,4 +79,30 @@
 .header-blur {
   backdrop-filter: blur(10px);
   background-color: rgba(10, 10, 10, 0.8);
+}
+
+.gold-gradient {
+  background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  @apply font-bold;
+}
+
+.shimmer-bg {
+  background-size: 200% 100%;
+  background-image: linear-gradient(to right, #1E1E1E 0%, #2A2A2A 25%, #1E1E1E 50%, #1E1E1E 100%);
+  animation: shimmer 4s ease-in-out infinite;
+}
+
+.glass-card {
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  @apply rounded-lg transition-all duration-300;
+}
+
+.glass-card:hover {
+  border: 1px solid rgba(0, 255, 102, 0.3);
+  box-shadow: 0 0 20px rgba(0, 255, 102, 0.1);
 }

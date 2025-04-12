@@ -19,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				'montserrat': ['Montserrat', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -71,6 +74,10 @@ export default {
 					'thunder-gray': '#1E1E1E',
 					'thunder-accent': '#3FE077',
 					'thunder-highlight': '#00CC52',
+					'gold': '#FFD700',
+					'royal-purple': '#5D3FD3',
+					'royal-blue': '#4169E1',
+					'deep-black': '#050505',
 				}
 			},
 			borderRadius: {
@@ -107,6 +114,14 @@ export default {
 					'0%': { transform: 'scale(1)' },
 					'50%': { transform: 'scale(1.05)' },
 					'100%': { transform: 'scale(1)' },
+				},
+				shimmer: {
+					'0%': { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' },
+				},
+				spin: {
+					from: { transform: 'rotate(0deg)' },
+					to: { transform: 'rotate(360deg)' },
 				}
 			},
 			animation: {
@@ -115,6 +130,8 @@ export default {
 				'lightning': 'lightning 2s ease-in-out infinite',
 				'pulse': 'pulse 1.5s infinite',
 				'scale': 'scale 1.5s infinite',
+				'shimmer': 'shimmer 4s ease-in-out infinite',
+				'spin-slow': 'spin 4s linear infinite',
 			}
 		}
 	},

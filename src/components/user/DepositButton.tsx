@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Wallet, CreditCard, Landmark, DollarSign } from "lucide-react";
+import { Wallet, CreditCard, Landmark } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -56,7 +56,6 @@ const DepositButton = ({ variant = "default", className = "" }: DepositButtonPro
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button size="sm" onClick={handleDepositClick} className={`bg-green-600 hover:bg-green-700 text-white ${className}`}>
-            <DollarSign className="mr-2 h-4 w-4" />
             Deposit
           </Button>
         </DialogTrigger>
@@ -75,7 +74,7 @@ const DepositButton = ({ variant = "default", className = "" }: DepositButtonPro
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button size="icon" onClick={handleDepositClick} className={`bg-green-600 hover:bg-green-700 text-white rounded-full ${className}`}>
-            <DollarSign className="h-4 w-4" />
+            <Wallet className="h-4 w-4" />
           </Button>
         </DialogTrigger>
         <DepositDialogContent 
@@ -93,7 +92,6 @@ const DepositButton = ({ variant = "default", className = "" }: DepositButtonPro
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button onClick={handleDepositClick} className={`bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black ${className}`}>
-            <DollarSign className="mr-2 h-5 w-5" />
             Deposit Now
           </Button>
         </DialogTrigger>
@@ -111,7 +109,6 @@ const DepositButton = ({ variant = "default", className = "" }: DepositButtonPro
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
         <Button onClick={handleDepositClick} className={`bg-green-600 hover:bg-green-700 text-white ${className}`}>
-          <DollarSign className="mr-2 h-5 w-5" />
           Deposit
         </Button>
       </DialogTrigger>
