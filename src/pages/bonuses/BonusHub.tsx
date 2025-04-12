@@ -1,90 +1,135 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, Clock, Check, Zap, TrendingUp, Award, Lock, Percent } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Gift, Zap, Clock, Check, BadgeDollarSign, Award, ChevronRight, Info } from "lucide-react";
+import Layout from "@/components/layout/Layout";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-
-interface Bonus {
-  id: string;
-  title: string;
-  description: string;
-  amount: number;
-  wagerRequired: number;
-  wagerCompleted: number;
-  expiresAt: string;
-  status: "active" | "completed" | "expired";
-  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
-  bonusCode?: string;
-}
-
-interface BonusTemplate {
-  id: string;
-  title: string;
-  description: string;
-  amount: number;
-  wagerMultiplier: number;
-  duration: number; // in days
-  minDeposit: number;
-  isActive: boolean;
-  requiredVipLevel: number;
-  type: "deposit" | "free_spin" | "cashback" | "loyalty" | "vip";
-  bonusCode?: string;
-}
+import { Bonus, BonusTemplate, VipLevel } from "@/types";
 
 const BonusHub = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, updateUser } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("available");
+  
+  const [activeTab, setActiveTab] = useState("active");
+  const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [userBonuses, setUserBonuses] = useState<Bonus[]>([]);
-  const [availableBonuses, setAvailableBonuses] = useState<BonusTemplate[]>([]);
+  const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
+  const [showBonusInfo, setShowBonusInfo] = useState(false);
+  const [selectedBonus, setSelectedBonus] = useState<Bonus | null>(null);
   
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!user) {
       navigate("/login");
       return;
     }
     
-    // Fetch user's active bonuses from localStorage
-    const storedBonuses = JSON.parse(localStorage.getItem("userBonuses") || "[]");
-    if (user) {
-      const userActiveBonuses = storedBonuses.filter((bonus: Bonus) => 
-        bonus.userId === user.id && bonus.status !== "expired"
-      );
-      setUserBonuses(userActiveBonuses);
-    }
+    // Load bonus templates
+    const storedBonusTemplates = JSON.parse(localStorage.getItem("bonusTemplates") || "[]");
+    setBonusTemplates(storedBonusTemplates);
     
-    // Fetch available bonuses from localStorage
-    const availableBonusTemplates = JSON.parse(localStorage.getItem("bonusTemplates") || "[]");
+    // Load VIP levels
+    const storedVipLevels = JSON.parse(localStorage.getItem("vipLevels") || "[]");
+    setVipLevels(storedVipLevels);
     
-    // Filter available bonuses based on user's VIP level
-    if (user) {
-      const filteredBonuses = availableBonusTemplates.filter((bonus: BonusTemplate) => 
-        bonus.isActive && (user.vipLevel || 0) >= bonus.requiredVipLevel
-      );
-      setAvailableBonuses(filteredBonuses);
-    } else {
-      setAvailableBonuses([]);
-    }
-  }, [user, isAuthenticated, navigate]);
+    // Load user bonuses
+    const storedUserBonuses = JSON.parse(localStorage.getItem("userBonuses") || "[]");
+    const userSpecificBonuses = storedUserBonuses.filter((bonus: Bonus) => bonus.userId === user.id);
+    setUserBonuses(userSpecificBonuses);
+  }, [user, navigate]);
   
-  const calculateWagerProgress = (completed: number, required: number) => {
-    return Math.min((completed / required) * 100, 100);
+  const claimBonus = (template: BonusTemplate) => {
+    if (!user) return;
+    
+    // Check if user already has this bonus
+    const existingBonus = userBonuses.find(bonus => 
+      bonus.title === template.title && bonus.status === "active"
+    );
+    
+    if (existingBonus) {
+      toast({
+        title: "Bonus Already Active",
+        description: "You already have this bonus active",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Check VIP level requirement
+    if (user.vipLevel === undefined || user.vipLevel < template.requiredVipLevel) {
+      toast({
+        title: "VIP Level Required",
+        description: `This bonus requires VIP level ${vipLevels.find(level => level.id === template.requiredVipLevel)?.name || template.requiredVipLevel}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Create new bonus
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + template.duration);
+    
+    const newBonus: Bonus = {
+      id: `bonus-${Date.now()}`,
+      userId: user.id,
+      title: template.title,
+      description: template.description,
+      amount: template.amount,
+      wagerRequired: template.amount * template.wagerMultiplier,
+      wagerCompleted: 0,
+      expiresAt: expirationDate.toISOString(),
+      status: "active",
+      type: template.type,
+      bonusCode: template.bonusCode
+    };
+    
+    // Update local storage
+    const allBonuses = JSON.parse(localStorage.getItem("userBonuses") || "[]");
+    const updatedBonuses = [...allBonuses, newBonus];
+    localStorage.setItem("userBonuses", JSON.stringify(updatedBonuses));
+    
+    // Update state
+    setUserBonuses([...userBonuses, newBonus]);
+    
+    toast({
+      title: "Bonus Claimed!",
+      description: `You have successfully claimed the ${template.title}`
+    });
   };
   
-  const formatTimeRemaining = (expiresAt: string) => {
-    const expiryDate = new Date(expiresAt);
-    const now = new Date();
-    
-    const diffTime = expiryDate.getTime() - now.getTime();
-    
-    if (diffTime <= 0) {
-      return "Expired";
+  const openBonusInfo = (bonus: Bonus) => {
+    setSelectedBonus(bonus);
+    setShowBonusInfo(true);
+  };
+  
+  const getBonusIcon = (type: string) => {
+    switch (type) {
+      case "deposit":
+        return <BadgeDollarSign className="h-5 w-5" />;
+      case "free_spin":
+        return <Zap className="h-5 w-5" />;
+      case "cashback":
+        return <BadgeDollarSign className="h-5 w-5" />;
+      case "loyalty":
+        return <Award className="h-5 w-5" />;
+      case "vip":
+        return <Gift className="h-5 w-5" />;
+      default:
+        return <Gift className="h-5 w-5" />;
     }
-    
+  };
+  
+  const getTimeRemaining = (expiresAt: string) => {
+    const now = new Date();
+    const expiration = new Date(expiresAt);
+    const diffTime = Math.max(0, expiration.getTime() - now.getTime());
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     const diffHours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     
@@ -95,315 +140,412 @@ const BonusHub = () => {
     }
   };
   
-  const claimBonus = (bonusTemplate: BonusTemplate) => {
-    if (!user) return;
-    
-    // Create a new bonus instance for the user
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + bonusTemplate.duration);
-    
-    const newBonus: Bonus = {
-      id: `bonus-${Date.now()}`,
-      userId: user.id,
-      title: bonusTemplate.title,
-      description: bonusTemplate.description,
-      amount: bonusTemplate.amount,
-      wagerRequired: bonusTemplate.amount * bonusTemplate.wagerMultiplier,
-      wagerCompleted: 0,
-      expiresAt: expiryDate.toISOString(),
-      status: "active",
-      type: bonusTemplate.type,
-      bonusCode: bonusTemplate.bonusCode
-    };
-    
-    // Save to localStorage
-    const currentBonuses = JSON.parse(localStorage.getItem("userBonuses") || "[]");
-    currentBonuses.push(newBonus);
-    localStorage.setItem("userBonuses", JSON.stringify(currentBonuses));
-    
-    // Update state
-    setUserBonuses([...userBonuses, newBonus]);
-    setActiveTab("active");
+  const getCurrentVipLevel = () => {
+    if (user?.vipLevel !== undefined && vipLevels.length > 0) {
+      return vipLevels.find(level => level.id === user.vipLevel) || null;
+    }
+    return null;
   };
   
-  const getBonusTypeIcon = (type: string) => {
-    switch (type) {
-      case "deposit":
-        return <Percent className="h-5 w-5" />;
-      case "free_spin":
-        return <Zap className="h-5 w-5" />;
-      case "cashback":
-        return <TrendingUp className="h-5 w-5" />;
-      case "loyalty":
-        return <Award className="h-5 w-5" />;
-      case "vip":
-        return <Gift className="h-5 w-5" />;
-      default:
-        return <Gift className="h-5 w-5" />;
+  const getNextVipLevel = () => {
+    if (user?.vipLevel !== undefined && vipLevels.length > 0) {
+      const nextLevelId = user.vipLevel + 1;
+      return vipLevels.find(level => level.id === nextLevelId) || null;
     }
+    return null;
   };
+  
+  const currentVipLevel = getCurrentVipLevel();
+  const nextVipLevel = getNextVipLevel();
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col items-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Bonus Hub</h1>
-        <p className="text-white/70 text-center max-w-2xl">
-          View your active bonuses, track wagering progress, and discover new promotions
-        </p>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-5xl mx-auto">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="active">Active Bonuses</TabsTrigger>
-          <TabsTrigger value="available">Available Bonuses</TabsTrigger>
-          <TabsTrigger value="history">Bonus History</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="active" className="space-y-4">
-          {userBonuses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userBonuses.map((bonus) => (
-                <Card key={bonus.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
-                  <div className={`h-1 ${
-                    bonus.type === 'deposit' ? 'bg-yellow-500' : 
-                    bonus.type === 'free_spin' ? 'bg-green-500' : 
-                    bonus.type === 'cashback' ? 'bg-blue-500' : 
-                    bonus.type === 'loyalty' ? 'bg-purple-500' : 'bg-casino-thunder-green'
-                  }`}></div>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="flex items-center">
-                          {getBonusTypeIcon(bonus.type)}
-                          <span className="ml-2">{bonus.title}</span>
-                        </CardTitle>
-                        <CardDescription className="mt-1">{bonus.description}</CardDescription>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-white">${bonus.amount}</div>
-                        <div className="text-xs text-white/60 flex items-center justify-end mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatTimeRemaining(bonus.expiresAt)}
-                        </div>
-                      </div>
+    <Layout>
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex flex-col lg:flex-row justify-between gap-8">
+          <div className="w-full lg:w-3/4 space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Bonus Hub</h1>
+              <p className="text-white/60">Manage your active bonuses and claim new rewards</p>
+            </div>
+            
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="bg-white/5 mb-6">
+                <TabsTrigger value="active">My Bonuses</TabsTrigger>
+                <TabsTrigger value="available">Available Bonuses</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="active">
+                {userBonuses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {userBonuses.filter(bonus => bonus.status === "active").map((bonus) => (
+                      <Card key={bonus.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
+                        <div className={`h-1 ${
+                          bonus.type === 'deposit' ? 'bg-yellow-500' : 
+                          bonus.type === 'free_spin' ? 'bg-green-500' : 
+                          bonus.type === 'cashback' ? 'bg-blue-500' : 
+                          bonus.type === 'loyalty' ? 'bg-purple-500' : 'bg-casino-thunder-green'
+                        }`}></div>
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start">
+                            <CardTitle className="flex items-center">
+                              {getBonusIcon(bonus.type)}
+                              <span className="ml-2">{bonus.title}</span>
+                            </CardTitle>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => openBonusInfo(bonus)}
+                              className="text-white/70 hover:text-white hover:bg-white/10"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <CardDescription>{bonus.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-white/60">Wagering Progress</span>
+                              <span>{Math.round((bonus.wagerCompleted / bonus.wagerRequired) * 100)}%</span>
+                            </div>
+                            <Progress 
+                              value={(bonus.wagerCompleted / bonus.wagerRequired) * 100} 
+                              className="h-2" 
+                            />
+                            <div className="flex justify-between text-xs mt-1">
+                              <span>${bonus.wagerCompleted.toFixed(2)}</span>
+                              <span>${bonus.wagerRequired.toFixed(2)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-between text-sm">
+                            <span className="text-white/60">Bonus Amount</span>
+                            <span className="font-medium">${bonus.amount.toFixed(2)}</span>
+                          </div>
+                          
+                          <div className="flex items-center text-xs text-white/60">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{getTimeRemaining(bonus.expiresAt)}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 bg-white/5 rounded-lg">
+                    <Gift className="h-12 w-12 mx-auto text-casino-thunder-green opacity-50 mb-4" />
+                    <h3 className="text-xl font-medium mb-2">No Active Bonuses</h3>
+                    <p className="text-white/60 mb-4">You don't have any active bonuses at the moment</p>
+                    <Button 
+                      onClick={() => setActiveTab("available")}
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                    >
+                      Browse Available Bonuses
+                    </Button>
+                  </div>
+                )}
+                
+                {userBonuses.filter(bonus => bonus.status === "completed" || bonus.status === "expired").length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-medium mb-4">Bonus History</h3>
+                    <div className="bg-white/5 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-white/10">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Bonus</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Status</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/10">
+                          {userBonuses
+                            .filter(bonus => bonus.status === "completed" || bonus.status === "expired")
+                            .map((bonus) => (
+                              <tr key={bonus.id} className="hover:bg-white/5">
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    {getBonusIcon(bonus.type)}
+                                    <span className="ml-2">{bonus.title}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  ${bonus.amount.toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    bonus.status === 'completed' ? 'bg-green-900/30 text-green-400' : 
+                                    'bg-red-900/30 text-red-400'
+                                  }`}>
+                                    {bonus.status === 'completed' ? 'Completed' : 'Expired'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-white/60">
+                                  {new Date(bonus.expiresAt).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between mb-1 text-sm">
-                          <span>Wagering Progress</span>
-                          <span>{bonus.wagerCompleted} / {bonus.wagerRequired}</span>
-                        </div>
-                        <Progress value={calculateWagerProgress(bonus.wagerCompleted, bonus.wagerRequired)} className="h-2" />
-                      </div>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="available">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {bonusTemplates
+                    .filter(template => template.isActive)
+                    .map((template) => {
+                      const userHasBonus = userBonuses.some(
+                        bonus => bonus.title === template.title && bonus.status === "active"
+                      );
                       
-                      <div className="text-sm text-white/70">
-                        <p>Wager {formatCurrency(bonus.wagerRequired - bonus.wagerCompleted)} more to unlock your bonus.</p>
+                      const userHasRequiredVipLevel = 
+                        user?.vipLevel !== undefined && user.vipLevel >= template.requiredVipLevel;
+                      
+                      return (
+                        <Card key={template.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
+                          <div className={`h-1 ${
+                            template.type === 'deposit' ? 'bg-yellow-500' : 
+                            template.type === 'free_spin' ? 'bg-green-500' : 
+                            template.type === 'cashback' ? 'bg-blue-500' : 
+                            template.type === 'loyalty' ? 'bg-purple-500' : 'bg-casino-thunder-green'
+                          }`}></div>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center">
+                              {getBonusIcon(template.type)}
+                              <span className="ml-2">{template.title}</span>
+                            </CardTitle>
+                            <CardDescription>{template.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-white/60">Bonus Amount</span>
+                              <span className="font-medium">${template.amount.toFixed(2)}</span>
+                            </div>
+                            
+                            <div className="flex justify-between text-sm">
+                              <span className="text-white/60">Wagering Requirement</span>
+                              <span className="font-medium">{template.wagerMultiplier}x</span>
+                            </div>
+                            
+                            {template.minDeposit > 0 && (
+                              <div className="flex justify-between text-sm">
+                                <span className="text-white/60">Minimum Deposit</span>
+                                <span>${template.minDeposit.toFixed(2)}</span>
+                              </div>
+                            )}
+                            
+                            <div className="flex justify-between text-sm">
+                              <span className="text-white/60">Duration</span>
+                              <span>{template.duration} days</span>
+                            </div>
+                            
+                            <div className="flex justify-between text-sm">
+                              <span className="text-white/60">Required VIP Level</span>
+                              <span>{vipLevels.find(level => level.id === template.requiredVipLevel)?.name || template.requiredVipLevel}</span>
+                            </div>
+                          </CardContent>
+                          <CardFooter>
+                            <Button 
+                              className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                              disabled={userHasBonus || !userHasRequiredVipLevel}
+                              onClick={() => claimBonus(template)}
+                            >
+                              {userHasBonus 
+                                ? "Already Claimed" 
+                                : !userHasRequiredVipLevel 
+                                  ? `Requires ${vipLevels.find(level => level.id === template.requiredVipLevel)?.name} VIP` 
+                                  : "Claim Bonus"}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </div>
+          
+          <div className="w-full lg:w-1/4">
+            <Card className="bg-casino-thunder-dark border-white/10">
+              <CardHeader>
+                <CardTitle>My VIP Status</CardTitle>
+                <CardDescription>
+                  Unlock exclusive rewards as you level up
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {currentVipLevel ? (
+                  <>
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: currentVipLevel.color + '33', borderColor: currentVipLevel.color, borderWidth: '2px' }}
+                      >
+                        <Award className="h-6 w-6" style={{ color: currentVipLevel.color }} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg">{currentVipLevel.name}</h3>
+                        <p className="text-xs text-white/60">{currentVipLevel.description}</p>
                       </div>
                     </div>
-                  </CardContent>
-                  <CardFooter>
+                    
+                    <Separator className="bg-white/10" />
+                    
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Current Benefits</h4>
+                      <ul className="space-y-1">
+                        {currentVipLevel.benefits.map((benefit, index) => (
+                          <li key={index} className="text-sm text-white/70 flex items-start">
+                            <Check className="h-4 w-4 mr-1 flex-shrink-0 text-casino-thunder-green" />
+                            {benefit}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    
+                    {nextVipLevel && (
+                      <>
+                        <Separator className="bg-white/10" />
+                        
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium">Next Level: {nextVipLevel.name}</h4>
+                          <div>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span>Progress to {nextVipLevel.name}</span>
+                              <span>???/{nextVipLevel.requiredPoints} points</span>
+                            </div>
+                            <Progress value={0} className="h-2" />
+                          </div>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="w-full mt-2 text-white/80 border-white/20"
+                            onClick={() => navigate("/vip")}
+                          >
+                            View VIP Program
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-white/60">VIP information not available</p>
                     <Button 
                       variant="outline" 
-                      className="w-full"
-                      onClick={() => navigate("/casino")}
+                      className="mt-2 text-white/80 border-white/20"
+                      onClick={() => navigate("/vip")}
                     >
-                      Play Now
+                      View VIP Program
                     </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="bg-casino-thunder-dark border-white/10">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                  <Gift className="h-8 w-8 text-white/40" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">No Active Bonuses</h3>
-                <p className="text-white/60 text-center max-w-md mb-6">
-                  You don't have any active bonuses right now. Check out the available bonuses to claim one.
-                </p>
-                <Button 
-                  onClick={() => setActiveTab("available")}
-                  className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                >
-                  View Available Bonuses
-                </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="available" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {availableBonuses.map((bonus) => (
-              <Card key={bonus.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
-                <div className={`h-1 ${
-                  bonus.type === 'deposit' ? 'bg-yellow-500' : 
-                  bonus.type === 'free_spin' ? 'bg-green-500' : 
-                  bonus.type === 'cashback' ? 'bg-blue-500' : 
-                  bonus.type === 'loyalty' ? 'bg-purple-500' : 'bg-casino-thunder-green'
-                }`}></div>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center">
-                    {getBonusTypeIcon(bonus.type)}
-                    <span className="ml-2">{bonus.title}</span>
-                  </CardTitle>
-                  <CardDescription>{bonus.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="text-lg font-bold text-white">${bonus.amount}</div>
-                    <div className="text-sm text-white/70">
-                      <p>• Wager: {bonus.wagerMultiplier}x</p>
-                      <p>• Valid for: {bonus.duration} days</p>
-                      {bonus.minDeposit > 0 && (
-                        <p>• Min. deposit: ${bonus.minDeposit}</p>
-                      )}
-                      {bonus.requiredVipLevel > 0 && (
-                        <p>• Required VIP level: {bonus.requiredVipLevel}</p>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  {(user?.vipLevel || 0) >= bonus.requiredVipLevel ? (
-                    <Button 
-                      className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={() => claimBonus(bonus)}
-                    >
-                      Claim Bonus
-                    </Button>
-                  ) : (
-                    <Button 
-                      className="w-full" 
-                      variant="outline"
-                      disabled
-                    >
-                      <Lock className="h-4 w-4 mr-2" /> VIP Level {bonus.requiredVipLevel} Required
-                    </Button>
-                  )}
-                </CardFooter>
-              </Card>
-            ))}
-            
-            {user && user.vipLevel && user.vipLevel > 0 && (
-              <Card className="bg-gradient-to-br from-casino-thunder-gray to-casino-thunder-dark border-white/10">
-                <CardHeader>
-                  <CardTitle>VIP Exclusive Bonuses</CardTitle>
-                  <CardDescription>Unlock premium bonuses with your VIP status</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center py-6">
-                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mb-4">
-                    <Award className="h-8 w-8 text-casino-thunder-green" />
-                  </div>
-                  <p className="text-center text-white/70 mb-4">
-                    Special bonuses tailored to your VIP level are available.
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-casino-thunder-green text-casino-thunder-green hover:bg-casino-thunder-green hover:text-black"
-                    onClick={() => navigate("/vip")}
-                  >
-                    View VIP Bonuses
-                  </Button>
-                </CardFooter>
-              </Card>
-            )}
           </div>
-        </TabsContent>
-        
-        <TabsContent value="history" className="space-y-4">
-          <Card className="bg-casino-thunder-dark border-white/10">
-            <CardHeader>
-              <CardTitle>Bonus History</CardTitle>
-              <CardDescription>
-                View your past bonuses and their outcome
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border border-white/10">
-                <table className="min-w-full divide-y divide-white/10">
-                  <thead className="bg-white/5">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                        Bonus
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-casino-thunder-dark divide-y divide-white/10">
-                    {userBonuses.filter(b => b.status === "completed" || b.status === "expired").map((bonus) => (
-                      <tr key={bonus.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            {getBonusTypeIcon(bonus.type)}
-                            <span className="ml-2">{bonus.title}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          ${bonus.amount}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-white/70">
-                          {new Date(bonus.expiresAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            bonus.status === 'completed' ? 'bg-green-100 text-green-800' : 
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {bonus.status === 'completed' ? (
-                              <>
-                                <Check className="h-3 w-3 mr-1" />
-                                Completed
-                              </>
-                            ) : (
-                              <>
-                                <Clock className="h-3 w-3 mr-1" />
-                                Expired
-                              </>
-                            )}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {(userBonuses.filter(b => b.status === "completed" || b.status === "expired").length === 0) && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-10 text-center text-white/60">
-                          No bonus history found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+        </div>
+      </div>
+      
+      {/* Bonus Detail Dialog */}
+      <Dialog open={showBonusInfo} onOpenChange={setShowBonusInfo}>
+        <DialogContent className="bg-casino-thunder-dark border-white/10">
+          <DialogHeader>
+            <DialogTitle>Bonus Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about your bonus
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedBonus && (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center mb-4">
+                <div 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${
+                    selectedBonus.type === 'deposit' ? 'bg-yellow-500/20' : 
+                    selectedBonus.type === 'free_spin' ? 'bg-green-500/20' : 
+                    selectedBonus.type === 'cashback' ? 'bg-blue-500/20' : 
+                    selectedBonus.type === 'loyalty' ? 'bg-purple-500/20' : 'bg-casino-thunder-green/20'
+                  }`}
+                >
+                  {getBonusIcon(selectedBonus.type)}
+                </div>
+                <div>
+                  <h3 className="font-bold">{selectedBonus.title}</h3>
+                  <p className="text-sm text-white/60">{selectedBonus.description}</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+              
+              <Separator className="bg-white/10" />
+              
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-white/60">Bonus Amount</span>
+                  <span className="font-medium">${selectedBonus.amount.toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-white/60">Wagering Requirement</span>
+                  <span className="font-medium">${selectedBonus.wagerRequired.toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-white/60">Completed Wagering</span>
+                  <span className="font-medium">${selectedBonus.wagerCompleted.toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-white/60">Remaining Wagering</span>
+                  <span className="font-medium">${(selectedBonus.wagerRequired - selectedBonus.wagerCompleted).toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-white/60">Expires On</span>
+                  <span className="font-medium">{new Date(selectedBonus.expiresAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-white/60">Wagering Progress</span>
+                  <span>{Math.round((selectedBonus.wagerCompleted / selectedBonus.wagerRequired) * 100)}%</span>
+                </div>
+                <Progress 
+                  value={(selectedBonus.wagerCompleted / selectedBonus.wagerRequired) * 100} 
+                  className="h-2"
+                />
+              </div>
+              
+              <Separator className="bg-white/10" />
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Bonus Terms</h4>
+                <ul className="space-y-1 text-sm text-white/70">
+                  <li>• Winnings from this bonus will be added to your bonus balance until wagering is complete</li>
+                  <li>• You cannot withdraw bonus funds until all wagering requirements are met</li>
+                  <li>• This bonus will expire on {new Date(selectedBonus.expiresAt).toLocaleDateString()}</li>
+                  <li>• Not all games contribute equally to wagering requirements</li>
+                </ul>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button
+              onClick={() => setShowBonusInfo(false)}
+              className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Layout>
   );
-};
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2
-  }).format(amount);
 };
 
 export default BonusHub;
