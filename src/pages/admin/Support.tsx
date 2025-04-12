@@ -899,4 +899,4 @@ const SupportPage = () => {
                   <TableBody>
                     {autoResponses.map((response) => (
                       <TableRow key={response.id}>
-                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category'])}</TableCell
+                        <TableCell>{getCategoryBadge(response.category as SupportTicket['category']
