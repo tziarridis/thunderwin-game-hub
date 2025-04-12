@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -120,11 +121,20 @@ const VipBonusManagement = () => {
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
     >
   ) => {
-    const { name, value, type, checked } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    const { name, value } = e.target;
+    
+    // For checkbox/switch inputs, we need to handle them differently
+    if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: e.target.checked,
+      }));
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value,
+      }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
@@ -493,8 +503,7 @@ const VipBonusManagement = () => {
                 onChange={handleInputChange}
               />
             </div>
-            <div>
-              <Label htmlFor="isActive">Active</Label>
+            <div className="flex items-center space-x-2">
               <Switch
                 id="isActive"
                 name="isActive"
@@ -503,6 +512,7 @@ const VipBonusManagement = () => {
                   setFormData((prevData) => ({ ...prevData, isActive: checked }))
                 }
               />
+              <Label htmlFor="isActive">Active</Label>
             </div>
             <div className="flex justify-end">
               <Button type="submit">
