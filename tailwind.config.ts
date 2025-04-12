@@ -78,6 +78,11 @@ export default {
 					'royal-purple': '#5D3FD3',
 					'royal-blue': '#4169E1',
 					'deep-black': '#050505',
+					'platinum': '#E5E4E2',
+					'diamond': '#B9F2FF',
+					'vip-gold': '#BF953F',
+					'vip-platinum': '#E5E4E2',
+					'vip-diamond': '#B9F2FF',
 				}
 			},
 			borderRadius: {
@@ -122,6 +127,11 @@ export default {
 				spin: {
 					from: { transform: 'rotate(0deg)' },
 					to: { transform: 'rotate(360deg)' },
+				},
+				float: {
+					'0%': { transform: 'translateY(0px)' },
+					'50%': { transform: 'translateY(-10px)' },
+					'100%': { transform: 'translateY(0px)' },
 				}
 			},
 			animation: {
@@ -132,6 +142,7 @@ export default {
 				'scale': 'scale 1.5s infinite',
 				'shimmer': 'shimmer 4s ease-in-out infinite',
 				'spin-slow': 'spin 4s linear infinite',
+				'float': 'float 3s ease-in-out infinite',
 			}
 		}
 	},
