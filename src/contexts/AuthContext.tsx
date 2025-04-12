@@ -40,7 +40,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    // This would be an API call in a real app
+    // Demo user login
+    if (email === "demo@example.com" && password === "password123") {
+      const userData: User = {
+        id: "demo1",
+        username: "demouser",
+        name: "Demo User",
+        email: email,
+        isAdmin: false,
+        avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: 1000,
+        vipLevel: 3,
+        isVerified: true
+      };
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
+    
+    // Check for users in localStorage
+    const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+    const foundUser = mockUsers.find((u: any) => 
+      u.email === email && u.password === password
+    );
+    
+    if (foundUser) {
+      const userData: User = {
+        id: foundUser.id,
+        username: foundUser.username,
+        name: foundUser.name || foundUser.username,
+        email: foundUser.email,
+        isAdmin: foundUser.isAdmin || foundUser.role === 'admin',
+        avatarUrl: foundUser.avatar || "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: foundUser.balance,
+        vipLevel: foundUser.vipLevel || 0,
+        isVerified: foundUser.isVerified || false
+      };
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
+    
+    // Original hardcoded login
     if (email === "user@example.com" && password === "password") {
       const userData: User = {
         id: "user1",

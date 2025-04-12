@@ -1,3 +1,4 @@
+
 import { User } from "@/types";
 
 const users: User[] = [
@@ -46,6 +47,21 @@ const users: User[] = [
     joined: "2023-04-10",
     role: "user",
   },
+  {
+    id: "4",
+    username: "demouser",
+    email: "demo@example.com",
+    password: "password123",
+    balance: 1000,
+    isAdmin: false,
+    vipLevel: 3,
+    avatar: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+    isVerified: true,
+    name: "Demo User",
+    status: "Active",
+    joined: "2023-03-01",
+    role: "user",
+  }
 ];
 
 // Import mockGames as a default import if needed
@@ -62,10 +78,10 @@ const initializeDatabase = () => {
     localStorage.setItem("mockUsers", JSON.stringify(users));
   }
 
-    // Initialize games
-    if (!localStorage.getItem("games")) {
-      localStorage.setItem("games", JSON.stringify(mockGames));
-    }
+  // Initialize games
+  if (!localStorage.getItem("games")) {
+    localStorage.setItem("games", JSON.stringify(mockGames));
+  }
 };
 
 export default initializeDatabase;

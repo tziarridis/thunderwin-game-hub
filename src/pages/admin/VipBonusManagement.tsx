@@ -47,7 +47,7 @@ const VipBonusManagement = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedBonusTemplate, setSelectedBonusTemplate] =
     useState<BonusTemplate | null>(null);
-  const [formData, setFormData] = useState<Omit<BonusTemplate, "id">>({
+  const [formData, setFormData<Omit<BonusTemplate, "id">> = useState({
     name: "",
     description: "",
     bonusType: "deposit",
@@ -116,20 +116,17 @@ const VipBonusManagement = () => {
   }, []);
 
   const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
     
+    // Type guard: Check if the target is an input element and specifically a checkbox
     if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') {
-      // Handle checkbox inputs
       setFormData((prevData) => ({
         ...prevData,
         [name]: e.target.checked,
       }));
     } else {
-      // Handle all other input types
       setFormData((prevData) => ({
         ...prevData,
         [name]: value,
