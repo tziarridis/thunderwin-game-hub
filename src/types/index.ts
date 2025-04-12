@@ -66,6 +66,7 @@ export type GameBet = {
   multiplier: number;
   payout: number;
   timestamp: string;
+  result?: string; // Added for tracking game results
 };
 
 export type Log = {
@@ -126,6 +127,10 @@ export type KycRequest = {
   documentType: string;
   documentFiles: string[];
   notes?: string;
+  email?: string; // Added for KycManagement component
+  rejectionReason?: string; // Added for rejection reasons
+  reviewedBy?: string; // Added to track which admin reviewed
+  data?: Record<string, any>; // Added for flexible data structure
 };
 
 export type Promotion = {
