@@ -1,99 +1,143 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Plus, Edit, Trash, Users, Zap, Gift, BadgeDollarSign, Award, Star, Percent, UserIcon } from "lucide-react";
-import AdminLayout from "@/components/layout/AdminLayout";
-import { User, VipLevel, BonusTemplate } from "@/types";
+import { PlusCircle, Edit, Trash2, Award, Gift, Calendar, Percent, Users, Search, Filter, UserIcon, Clock, Check, X } from "lucide-react";
+import { Bonus, BonusTemplate, VipLevel } from "@/types";
 
 const VipBonusManagement = () => {
-  const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
-  const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  
-  const [editingVipLevel, setEditingVipLevel] = useState<VipLevel | null>(null);
-  const [isVipDialogOpen, setIsVipDialogOpen] = useState(false);
-  
-  const [editingBonus, setEditingBonus] = useState<BonusTemplate | null>(null);
-  const [isBonusDialogOpen, setIsBonusDialogOpen] = useState(false);
-  
-  const [editingUserVip, setEditingUserVip] = useState<User | null>(null);
-  const [isUserVipDialogOpen, setIsUserVipDialogOpen] = useState(false);
-  
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("vip-levels");
+  const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
+  const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
+  const [activeUsers, setActiveUsers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterVipLevel, setFilterVipLevel] = useState("all");
+  const [isAddVipDialogOpen, setIsAddVipDialogOpen] = useState(false);
+  const [isAddBonusDialogOpen, setIsAddBonusDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  
+  // Form data states
+  const [vipFormData, setVipFormData] = useState({
+    name: "",
+    level: 1,
+    pointsRequired: 1000,
+    depositBonus: 100,
+    withdrawalLimit: 10000,
+    cashbackRate: 5,
+    birthdayBonus: 50,
+    weeklyBonus: 100,
+    dedicated: false,
+    fastWithdrawals: true,
+    exclusivePromos: true,
+    specialEvents: false,
+    customizedOffers: false,
+    icon: "bronze"
+  });
+  
+  const [bonusFormData, setBonusFormData] = useState({
+    name: "",
+    description: "",
+    type: "deposit",
+    amount: 100,
+    percentage: 100,
+    minDeposit: 20,
+    maxBonus: 200,
+    wagering: 35,
+    expiryDays: 7,
+    vipLevelRequired: 0,
+    allowedGames: "all",
+    active: true,
+    code: ""
+  });
   
   useEffect(() => {
-    // Load VIP levels from localStorage
+    // Load data from localStorage
+    const storedBonusTemplates = JSON.parse(localStorage.getItem("bonusTemplates") || "[]");
     const storedVipLevels = JSON.parse(localStorage.getItem("vipLevels") || "[]");
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
     
-    // If no VIP levels exist, initialize with default levels
+    setBonusTemplates(storedBonusTemplates);
+    
+    // If no VIP levels stored, initialize with defaults
     if (storedVipLevels.length === 0) {
-      const defaultVipLevels: VipLevel[] = [
+      const defaultVipLevels = [
         {
-          id: 0,
+          id: "vip1",
           name: "Bronze",
-          requiredPoints: 0,
-          cashbackPercent: 1,
-          depositBonusPercent: 5,
-          withdrawalLimit: 1000,
-          benefits: ["Weekly Cashback", "Basic Support"],
-          description: "Starting level for all players",
-          color: "#CD7F32"
-        },
-        {
-          id: 1,
-          name: "Silver",
-          requiredPoints: 1000,
-          cashbackPercent: 3,
-          depositBonusPercent: 10,
-          withdrawalLimit: 3000,
-          benefits: ["Higher Cashback", "Faster Withdrawals", "Birthday Bonus"],
-          description: "Enjoy improved rewards and benefits",
-          color: "#C0C0C0"
-        },
-        {
-          id: 2,
-          name: "Gold",
-          requiredPoints: 5000,
-          cashbackPercent: 5,
-          depositBonusPercent: 15,
+          level: 1,
+          pointsRequired: 0,
+          depositBonus: 50,
           withdrawalLimit: 5000,
-          benefits: ["Priority Support", "Exclusive Promotions", "Higher Betting Limits"],
-          description: "Premium level with substantial benefits",
-          color: "#FFD700"
+          cashbackRate: 3,
+          birthdayBonus: 25,
+          weeklyBonus: 0,
+          dedicated: false,
+          fastWithdrawals: false,
+          exclusivePromos: false,
+          specialEvents: false,
+          customizedOffers: false,
+          icon: "bronze"
         },
         {
-          id: 3,
-          name: "Platinum",
-          requiredPoints: 15000,
-          cashbackPercent: 7,
-          depositBonusPercent: 20,
+          id: "vip2",
+          name: "Silver",
+          level: 2,
+          pointsRequired: 2500,
+          depositBonus: 100,
           withdrawalLimit: 10000,
-          benefits: ["VIP Account Manager", "Special Event Invites", "Luxury Gifts"],
-          description: "Elite benefits for dedicated players",
-          color: "#E5E4E2"
+          cashbackRate: 5,
+          birthdayBonus: 50,
+          weeklyBonus: 25,
+          dedicated: false,
+          fastWithdrawals: true,
+          exclusivePromos: true,
+          specialEvents: false,
+          customizedOffers: false,
+          icon: "silver"
         },
         {
-          id: 4,
-          name: "Diamond",
-          requiredPoints: 50000,
-          cashbackPercent: 10,
-          depositBonusPercent: 25,
-          withdrawalLimit: 25000,
-          benefits: ["Personalized Offers", "VIP Tournaments", "Travel Packages", "24/7 VIP Support"],
-          description: "The ultimate VIP experience",
-          color: "#B9F2FF"
+          id: "vip3",
+          name: "Gold",
+          level: 3,
+          pointsRequired: 10000,
+          depositBonus: 150,
+          withdrawalLimit: 20000,
+          cashbackRate: 7,
+          birthdayBonus: 100,
+          weeklyBonus: 50,
+          dedicated: true,
+          fastWithdrawals: true,
+          exclusivePromos: true,
+          specialEvents: true,
+          customizedOffers: false,
+          icon: "gold"
+        },
+        {
+          id: "vip4",
+          name: "Platinum",
+          level: 4,
+          pointsRequired: 25000,
+          depositBonus: 200,
+          withdrawalLimit: 50000,
+          cashbackRate: 10,
+          birthdayBonus: 200,
+          weeklyBonus: 100,
+          dedicated: true,
+          fastWithdrawals: true,
+          exclusivePromos: true,
+          specialEvents: true,
+          customizedOffers: true,
+          icon: "platinum"
         }
       ];
       
@@ -103,1013 +147,1285 @@ const VipBonusManagement = () => {
       setVipLevels(storedVipLevels);
     }
     
-    // Load bonus templates from localStorage
-    const storedBonusTemplates = JSON.parse(localStorage.getItem("bonusTemplates") || "[]");
-    
-    // If no bonus templates exist, initialize with default templates
-    if (storedBonusTemplates.length === 0) {
-      const defaultBonusTemplates: BonusTemplate[] = [
-        {
-          id: "bonus-1",
-          title: "Welcome Bonus",
-          description: "100% bonus on your first deposit",
-          amount: 100,
-          wagerMultiplier: 25,
-          duration: 14,
-          minDeposit: 20,
-          isActive: true,
-          requiredVipLevel: 0,
-          type: "deposit"
-        },
-        {
-          id: "bonus-2",
-          title: "Weekly Reload",
-          description: "50% bonus on deposits every Friday",
-          amount: 50,
-          wagerMultiplier: 20,
-          duration: 7,
-          minDeposit: 50,
-          isActive: true,
-          requiredVipLevel: 1,
-          type: "deposit"
-        },
-        {
-          id: "bonus-3",
-          title: "Free Spins Package",
-          description: "50 free spins on selected slots",
-          amount: 25,
-          wagerMultiplier: 15,
-          duration: 3,
-          minDeposit: 0,
-          isActive: true,
-          requiredVipLevel: 2,
-          type: "free_spin"
-        },
-        {
-          id: "bonus-4",
-          title: "VIP Cashback",
-          description: "Get 10% cashback on losses",
-          amount: 100,
-          wagerMultiplier: 5,
-          duration: 30,
-          minDeposit: 0,
-          isActive: true,
-          requiredVipLevel: 3,
-          type: "cashback"
-        },
-        {
-          id: "bonus-5",
-          title: "Diamond VIP Bonus",
-          description: "Exclusive bonus for Diamond VIP members",
-          amount: 200,
-          wagerMultiplier: 15,
-          duration: 14,
-          minDeposit: 100,
-          isActive: true,
-          requiredVipLevel: 4,
-          type: "vip",
-          bonusCode: "DIAMOND"
-        }
-      ];
-      
-      setBonusTemplates(defaultBonusTemplates);
-      localStorage.setItem("bonusTemplates", JSON.stringify(defaultBonusTemplates));
-    } else {
-      setBonusTemplates(storedBonusTemplates);
-    }
-    
-    // Load users from localStorage
-    const storedUsers = JSON.parse(localStorage.getItem("users") || "[]");
-    setUsers(storedUsers);
-    setFilteredUsers(storedUsers);
+    // Filter active users
+    setActiveUsers(users.filter((user: any) => user.status === "Active" && user.vipLevel > 0));
   }, []);
   
-  useEffect(() => {
-    // Filter users based on search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const filtered = users.filter(user => 
-        (user.name && user.name.toLowerCase().includes(query)) || 
-        (user.email && user.email.toLowerCase().includes(query)) ||
-        (user.username && user.username.toLowerCase().includes(query))
-      );
-      setFilteredUsers(filtered);
-    } else {
-      setFilteredUsers(users);
-    }
-  }, [users, searchQuery]);
+  const filteredUsers = activeUsers.filter(user => {
+    // Filter by search query
+    const matchesQuery = searchQuery === "" || 
+      (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       user.email?.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // Filter by VIP level
+    const matchesVipLevel = filterVipLevel === "all" || user.vipLevel === parseInt(filterVipLevel);
+    
+    return matchesQuery && matchesVipLevel;
+  });
   
-  // VIP Level Management
-  const openVipDialog = (vipLevel: VipLevel | null = null) => {
-    setEditingVipLevel(vipLevel ? { ...vipLevel } : {
-      id: vipLevels.length,
+  const handleAddVipLevel = () => {
+    if (!vipFormData.name) {
+      toast({
+        title: "Validation Error",
+        description: "VIP level name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const newVipLevel: VipLevel = {
+      id: `vip${Date.now()}`,
+      ...vipFormData
+    };
+    
+    const updatedVipLevels = [...vipLevels, newVipLevel];
+    setVipLevels(updatedVipLevels);
+    localStorage.setItem("vipLevels", JSON.stringify(updatedVipLevels));
+    
+    setIsAddVipDialogOpen(false);
+    setVipFormData({
       name: "",
-      requiredPoints: 0,
-      cashbackPercent: 0,
-      depositBonusPercent: 0,
-      withdrawalLimit: 1000,
-      benefits: [],
-      description: "",
-      color: "#FFFFFF"
-    } as VipLevel);
-    setIsVipDialogOpen(true);
+      level: 1,
+      pointsRequired: 1000,
+      depositBonus: 100,
+      withdrawalLimit: 10000,
+      cashbackRate: 5,
+      birthdayBonus: 50,
+      weeklyBonus: 100,
+      dedicated: false,
+      fastWithdrawals: true,
+      exclusivePromos: true,
+      specialEvents: false,
+      customizedOffers: false,
+      icon: "bronze"
+    });
+    
+    toast({
+      title: "VIP Level Added",
+      description: `Successfully added ${newVipLevel.name} level`
+    });
   };
   
-  const handleVipLevelChange = (field: keyof VipLevel, value: any) => {
-    if (editingVipLevel) {
-      setEditingVipLevel({
-        ...editingVipLevel,
-        [field]: value
-      });
-    }
-  };
-  
-  const handleVipBenefitsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (editingVipLevel) {
-      // Split the text by new lines into array items
-      const benefits = e.target.value.split('\n').filter(benefit => benefit.trim() !== '');
-      setEditingVipLevel({
-        ...editingVipLevel,
-        benefits
-      });
-    }
-  };
-  
-  const saveVipLevel = () => {
-    if (!editingVipLevel || !editingVipLevel.name) {
+  const handleAddBonusTemplate = () => {
+    if (!bonusFormData.name) {
       toast({
         title: "Validation Error",
-        description: "Please provide a name for the VIP level",
+        description: "Bonus name is required",
         variant: "destructive"
       });
       return;
     }
     
-    // Update existing or add new VIP level
-    const updatedVipLevels = editingVipLevel.id < vipLevels.length 
-      ? vipLevels.map(level => level.id === editingVipLevel.id ? editingVipLevel : level)
-      : [...vipLevels, editingVipLevel];
+    const newBonus: BonusTemplate = {
+      id: `bonus${Date.now()}`,
+      ...bonusFormData,
+      createdAt: new Date().toISOString()
+    };
     
-    // Sort VIP levels by requiredPoints
-    updatedVipLevels.sort((a, b) => a.requiredPoints - b.requiredPoints);
+    const updatedBonusTemplates = [...bonusTemplates, newBonus];
+    setBonusTemplates(updatedBonusTemplates);
+    localStorage.setItem("bonusTemplates", JSON.stringify(updatedBonusTemplates));
     
-    // Update IDs to ensure they are sequential
-    const sortedVipLevels = updatedVipLevels.map((level, index) => ({
-      ...level,
-      id: index
-    }));
-    
-    setVipLevels(sortedVipLevels);
-    localStorage.setItem("vipLevels", JSON.stringify(sortedVipLevels));
-    
-    setIsVipDialogOpen(false);
-    toast({
-      title: "Success",
-      description: `VIP level "${editingVipLevel.name}" has been saved`
-    });
-  };
-  
-  const deleteVipLevel = (id: number) => {
-    // Check if this VIP level is in use
-    const usersWithLevel = users.filter(user => user.vipLevel === id);
-    
-    if (usersWithLevel.length > 0) {
-      toast({
-        title: "Cannot Delete VIP Level",
-        description: `This level is assigned to ${usersWithLevel.length} users. Please reassign them first.`,
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Check if bonuses are using this level
-    const bonusesWithLevel = bonusTemplates.filter(bonus => bonus.requiredVipLevel === id);
-    
-    if (bonusesWithLevel.length > 0) {
-      toast({
-        title: "Cannot Delete VIP Level",
-        description: `This level is used by ${bonusesWithLevel.length} bonus templates. Please update them first.`,
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    const updatedVipLevels = vipLevels.filter(level => level.id !== id);
-    
-    // Update IDs to ensure they are sequential
-    const sortedVipLevels = updatedVipLevels.map((level, index) => ({
-      ...level,
-      id: index
-    }));
-    
-    setVipLevels(sortedVipLevels);
-    localStorage.setItem("vipLevels", JSON.stringify(sortedVipLevels));
-    
-    toast({
-      title: "Success",
-      description: "VIP level has been deleted"
-    });
-  };
-  
-  // Bonus Template Management
-  const openBonusDialog = (bonus: BonusTemplate | null = null) => {
-    setEditingBonus(bonus ? { ...bonus } : {
-      id: `bonus-${Date.now()}`,
-      title: "",
+    setIsAddBonusDialogOpen(false);
+    setBonusFormData({
+      name: "",
       description: "",
-      amount: 0,
-      wagerMultiplier: 20,
-      duration: 7,
-      minDeposit: 0,
-      isActive: true,
-      requiredVipLevel: 0,
-      type: "deposit"
+      type: "deposit",
+      amount: 100,
+      percentage: 100,
+      minDeposit: 20,
+      maxBonus: 200,
+      wagering: 35,
+      expiryDays: 7,
+      vipLevelRequired: 0,
+      allowedGames: "all",
+      active: true,
+      code: ""
     });
-    setIsBonusDialogOpen(true);
+    
+    toast({
+      title: "Bonus Template Added",
+      description: `Successfully added ${newBonus.name} bonus`
+    });
   };
   
-  const handleBonusChange = (field: keyof BonusTemplate, value: any) => {
-    if (editingBonus) {
-      setEditingBonus({
-        ...editingBonus,
-        [field]: value
+  const handleEditItem = (item: any, type: 'vip' | 'bonus') => {
+    setSelectedItem({...item, type});
+    
+    if (type === 'vip') {
+      setVipFormData({
+        name: item.name,
+        level: item.level,
+        pointsRequired: item.pointsRequired,
+        depositBonus: item.depositBonus,
+        withdrawalLimit: item.withdrawalLimit,
+        cashbackRate: item.cashbackRate,
+        birthdayBonus: item.birthdayBonus,
+        weeklyBonus: item.weeklyBonus,
+        dedicated: item.dedicated,
+        fastWithdrawals: item.fastWithdrawals,
+        exclusivePromos: item.exclusivePromos,
+        specialEvents: item.specialEvents,
+        customizedOffers: item.customizedOffers,
+        icon: item.icon
+      });
+    } else {
+      setBonusFormData({
+        name: item.name,
+        description: item.description,
+        type: item.type,
+        amount: item.amount,
+        percentage: item.percentage,
+        minDeposit: item.minDeposit,
+        maxBonus: item.maxBonus,
+        wagering: item.wagering,
+        expiryDays: item.expiryDays,
+        vipLevelRequired: item.vipLevelRequired,
+        allowedGames: item.allowedGames,
+        active: item.active,
+        code: item.code || ""
       });
     }
+    
+    setIsEditDialogOpen(true);
   };
   
-  const saveBonus = () => {
-    if (!editingBonus || !editingBonus.title) {
+  const handleUpdateItem = () => {
+    if (!selectedItem) return;
+    
+    if (selectedItem.type === 'vip') {
+      const updatedVipLevels = vipLevels.map(level => 
+        level.id === selectedItem.id ? { ...level, ...vipFormData } : level
+      );
+      
+      setVipLevels(updatedVipLevels);
+      localStorage.setItem("vipLevels", JSON.stringify(updatedVipLevels));
+      
       toast({
-        title: "Validation Error",
-        description: "Please provide a title for the bonus",
-        variant: "destructive"
+        title: "VIP Level Updated",
+        description: `Successfully updated ${vipFormData.name} level`
       });
-      return;
+    } else {
+      const updatedBonusTemplates = bonusTemplates.map(bonus => 
+        bonus.id === selectedItem.id ? { ...bonus, ...bonusFormData } : bonus
+      );
+      
+      setBonusTemplates(updatedBonusTemplates);
+      localStorage.setItem("bonusTemplates", JSON.stringify(updatedBonusTemplates));
+      
+      toast({
+        title: "Bonus Template Updated",
+        description: `Successfully updated ${bonusFormData.name} bonus`
+      });
     }
     
-    // Update existing or add new bonus template
-    const updatedBonuses = editingBonus.id 
-      ? bonusTemplates.map(bonus => bonus.id === editingBonus.id ? editingBonus : bonus)
-      : [...bonusTemplates, editingBonus];
-    
-    setBonusTemplates(updatedBonuses);
-    localStorage.setItem("bonusTemplates", JSON.stringify(updatedBonuses));
-    
-    setIsBonusDialogOpen(false);
-    toast({
-      title: "Success",
-      description: `Bonus "${editingBonus.title}" has been saved`
-    });
+    setIsEditDialogOpen(false);
+    setSelectedItem(null);
   };
   
-  const deleteBonus = (id: string) => {
-    const updatedBonuses = bonusTemplates.filter(bonus => bonus.id !== id);
-    setBonusTemplates(updatedBonuses);
-    localStorage.setItem("bonusTemplates", JSON.stringify(updatedBonuses));
-    
-    toast({
-      title: "Success",
-      description: "Bonus template has been deleted"
-    });
-  };
-  
-  // User VIP Management
-  const openUserVipDialog = (user: User) => {
-    setEditingUserVip({ ...user });
-    setIsUserVipDialogOpen(true);
-  };
-  
-  const saveUserVip = () => {
-    if (!editingUserVip) return;
-    
-    // Update user's VIP level
-    const updatedUsers = users.map(user => 
-      user.id === editingUserVip.id ? { ...user, vipLevel: editingUserVip.vipLevel } : user
-    );
-    
-    setUsers(updatedUsers);
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-    
-    // Update user in auth storage if applicable
-    const authUser = JSON.parse(localStorage.getItem("thunderwin_user") || "null");
-    if (authUser && authUser.id === editingUserVip.id) {
-      authUser.vipLevel = editingUserVip.vipLevel;
-      localStorage.setItem("thunderwin_user", JSON.stringify(authUser));
+  const handleDeleteItem = (id: string, type: 'vip' | 'bonus') => {
+    if (type === 'vip') {
+      const updatedVipLevels = vipLevels.filter(level => level.id !== id);
+      setVipLevels(updatedVipLevels);
+      localStorage.setItem("vipLevels", JSON.stringify(updatedVipLevels));
+      
+      toast({
+        title: "VIP Level Deleted",
+        description: "Successfully removed VIP level"
+      });
+    } else {
+      const updatedBonusTemplates = bonusTemplates.filter(bonus => bonus.id !== id);
+      setBonusTemplates(updatedBonusTemplates);
+      localStorage.setItem("bonusTemplates", JSON.stringify(updatedBonusTemplates));
+      
+      toast({
+        title: "Bonus Template Deleted",
+        description: "Successfully removed bonus template"
+      });
     }
-    
-    // Update mockUsers for auth system
-    const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
-    const mockUserIndex = mockUsers.findIndex((u: any) => u.id === editingUserVip.id);
-    if (mockUserIndex !== -1) {
-      mockUsers[mockUserIndex].vipLevel = editingUserVip.vipLevel;
-      localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
-    }
-    
-    setIsUserVipDialogOpen(false);
-    toast({
-      title: "Success",
-      description: `${editingUserVip.name || editingUserVip.username}'s VIP level has been updated`
-    });
   };
   
-  const getBonusTypeIcon = (type: string) => {
-    switch (type) {
-      case "deposit":
-        return <Percent className="h-5 w-5" />;
-      case "free_spin":
-        return <Zap className="h-5 w-5" />;
-      case "cashback":
-        return <BadgeDollarSign className="h-5 w-5" />;
-      case "loyalty":
-        return <Award className="h-5 w-5" />;
-      case "vip":
-        return <Gift className="h-5 w-5" />;
-      default:
-        return <Gift className="h-5 w-5" />;
-    }
+  const getVipLevelName = (level: number) => {
+    const vipLevel = vipLevels.find(vl => vl.level === level);
+    return vipLevel ? vipLevel.name : `Level ${level}`;
   };
   
   return (
-    <AdminLayout>
-      <div className="container mx-auto py-6 space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">VIP & Bonus Management</h1>
-            <p className="text-white/60">
-              Manage VIP levels, bonus templates, and user VIP status
-            </p>
-          </div>
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">VIP & Bonus Management</h1>
+          <p className="text-white/60">
+            Configure VIP levels, bonuses, and manage player rewards
+          </p>
         </div>
+      </div>
+      
+      <Tabs defaultValue="vip-levels" onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 w-full md:w-auto mb-6">
+          <TabsTrigger value="vip-levels" className="flex items-center">
+            <Award className="h-4 w-4 mr-2" /> VIP Levels
+          </TabsTrigger>
+          <TabsTrigger value="bonus-templates" className="flex items-center">
+            <Gift className="h-4 w-4 mr-2" /> Bonus Templates
+          </TabsTrigger>
+          <TabsTrigger value="vip-users" className="flex items-center">
+            <Users className="h-4 w-4 mr-2" /> VIP Users
+          </TabsTrigger>
+        </TabsList>
         
-        <Tabs defaultValue="vip-levels">
-          <TabsList className="grid grid-cols-3 w-full md:w-auto mb-6">
-            <TabsTrigger value="vip-levels" className="flex items-center">
-              <Star className="h-4 w-4 mr-2" /> VIP Levels
-            </TabsTrigger>
-            <TabsTrigger value="bonus-templates" className="flex items-center">
-              <Gift className="h-4 w-4 mr-2" /> Bonus Templates
-            </TabsTrigger>
-            <TabsTrigger value="user-vip" className="flex items-center">
-              <Users className="h-4 w-4 mr-2" /> User VIP Status
-            </TabsTrigger>
-          </TabsList>
+        {/* VIP Levels Tab */}
+        <TabsContent value="vip-levels">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">VIP Levels</h2>
+            <Button 
+              onClick={() => setIsAddVipDialogOpen(true)}
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" /> Add VIP Level
+            </Button>
+          </div>
           
-          {/* VIP Levels Tab */}
-          <TabsContent value="vip-levels">
-            <div className="flex justify-between mb-6">
-              <h2 className="text-xl font-semibold">VIP Levels</h2>
-              <Button 
-                onClick={() => openVipDialog()}
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                <Plus className="h-4 w-4 mr-2" /> Add VIP Level
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {vipLevels.map((level) => (
-                <Card key={level.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
-                  <div className="h-1" style={{ backgroundColor: level.color }}></div>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vipLevels.sort((a, b) => a.level - b.level).map((level) => (
+              <Card key={level.id} className="bg-casino-thunder-dark border-white/10">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div>
                       <CardTitle>{level.name}</CardTitle>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => openVipDialog(level)}
-                          className="text-white/70 hover:text-white hover:bg-white/10"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        {level.id > 0 && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => deleteVipLevel(level.id)}
-                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+                      <CardDescription>Level {level.level}</CardDescription>
                     </div>
-                    <CardDescription>{level.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Required Points</span>
-                      <span>{level.requiredPoints.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Cashback</span>
-                      <span>{level.cashbackPercent}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Deposit Bonus</span>
-                      <span>{level.depositBonusPercent}%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-white/60">Withdrawal Limit</span>
-                      <span>${level.withdrawalLimit.toLocaleString()}</span>
-                    </div>
+                    <Badge variant="outline" className="bg-casino-thunder-gray/30">
+                      {level.pointsRequired.toLocaleString()} points
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm space-y-4">
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div className="text-white/60">Deposit Bonus:</div>
+                    <div className="text-right">{level.depositBonus}%</div>
                     
-                    <div className="pt-2">
-                      <h4 className="text-sm font-medium mb-2">Benefits</h4>
-                      <ul className="space-y-1">
-                        {level.benefits.map((benefit, index) => (
-                          <li key={index} className="text-sm text-white/70 flex items-start">
-                            <span className="text-casino-thunder-green mr-2">•</span>
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="text-white/60">Withdrawal Limit:</div>
+                    <div className="text-right">${level.withdrawalLimit.toLocaleString()}</div>
+                    
+                    <div className="text-white/60">Cashback Rate:</div>
+                    <div className="text-right">{level.cashbackRate}%</div>
+                    
+                    <div className="text-white/60">Birthday Bonus:</div>
+                    <div className="text-right">${level.birthdayBonus}</div>
+                    
+                    {level.weeklyBonus > 0 && (
+                      <>
+                        <div className="text-white/60">Weekly Bonus:</div>
+                        <div className="text-right">${level.weeklyBonus}</div>
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="border-t border-white/10 pt-3 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Dedicated Host:</span>
+                      <span>{level.dedicated ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}</span>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Fast Withdrawals:</span>
+                      <span>{level.fastWithdrawals ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Exclusive Promos:</span>
+                      <span>{level.exclusivePromos ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Special Events:</span>
+                      <span>{level.specialEvents ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/60">Customized Offers:</span>
+                      <span>{level.customizedOffers ? <Check size={16} className="text-green-500" /> : <X size={16} className="text-red-500" />}</span>
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-0 flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEditItem(level, 'vip')}>
+                    <Edit className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-500 hover:text-red-600"
+                    onClick={() => handleDeleteItem(level.id, 'vip')}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+        
+        {/* Bonus Templates Tab */}
+        <TabsContent value="bonus-templates">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Bonus Templates</h2>
+            <Button 
+              onClick={() => setIsAddBonusDialogOpen(true)}
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              <PlusCircle className="h-4 w-4 mr-2" /> Add Bonus Template
+            </Button>
+          </div>
           
-          {/* Bonus Templates Tab */}
-          <TabsContent value="bonus-templates">
-            <div className="flex justify-between mb-6">
-              <h2 className="text-xl font-semibold">Bonus Templates</h2>
-              <Button 
-                onClick={() => openBonusDialog()}
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                <Plus className="h-4 w-4 mr-2" /> Add Bonus Template
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {bonusTemplates.map((bonus) => (
+              <Card key={bonus.id} className="bg-casino-thunder-dark border-white/10">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle>{bonus.name}</CardTitle>
+                      <CardDescription>
+                        {bonus.type === "deposit" ? "Deposit Bonus" : 
+                         bonus.type === "freespin" ? "Free Spins" : 
+                         bonus.type === "cashback" ? "Cashback" : "Bonus"}
+                      </CardDescription>
+                    </div>
+                    <Badge variant={bonus.active ? "default" : "outline"} className={bonus.active ? "bg-green-800" : "bg-white/10"}>
+                      {bonus.active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="text-sm space-y-3">
+                  {bonus.description && (
+                    <p className="text-white/80">{bonus.description}</p>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-y-2">
+                    {bonus.code && (
+                      <>
+                        <div className="text-white/60">Bonus Code:</div>
+                        <div className="text-right font-mono">{bonus.code}</div>
+                      </>
+                    )}
+                    
+                    {bonus.type === "deposit" && (
+                      <>
+                        <div className="text-white/60">Bonus Percentage:</div>
+                        <div className="text-right">{bonus.percentage}%</div>
+                        
+                        <div className="text-white/60">Min Deposit:</div>
+                        <div className="text-right">${bonus.minDeposit}</div>
+                        
+                        <div className="text-white/60">Max Bonus:</div>
+                        <div className="text-right">${bonus.maxBonus}</div>
+                      </>
+                    )}
+                    
+                    {bonus.type === "freespin" && (
+                      <>
+                        <div className="text-white/60">Free Spins:</div>
+                        <div className="text-right">{bonus.amount}</div>
+                      </>
+                    )}
+                    
+                    {bonus.type === "cashback" && (
+                      <>
+                        <div className="text-white/60">Cashback Rate:</div>
+                        <div className="text-right">{bonus.percentage}%</div>
+                        
+                        <div className="text-white/60">Max Cashback:</div>
+                        <div className="text-right">${bonus.maxBonus}</div>
+                      </>
+                    )}
+                    
+                    <div className="text-white/60">Wagering:</div>
+                    <div className="text-right">{bonus.wagering}x</div>
+                    
+                    <div className="text-white/60">Expires:</div>
+                    <div className="text-right">{bonus.expiryDays} days</div>
+                    
+                    <div className="text-white/60">VIP Required:</div>
+                    <div className="text-right">
+                      {bonus.vipLevelRequired === 0 ? "None" : getVipLevelName(bonus.vipLevelRequired)}
+                    </div>
+                  </div>
+                </CardContent>
+                <CardFooter className="pt-0 flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEditItem(bonus, 'bonus')}>
+                    <Edit className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-red-500 hover:text-red-600"
+                    onClick={() => handleDeleteItem(bonus.id, 'bonus')}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Delete
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {bonusTemplates.map((bonus) => (
-                <Card key={bonus.id} className="bg-casino-thunder-dark border-white/10 overflow-hidden">
-                  <div className={`h-1 ${
-                    bonus.type === 'deposit' ? 'bg-yellow-500' : 
-                    bonus.type === 'free_spin' ? 'bg-green-500' : 
-                    bonus.type === 'cashback' ? 'bg-blue-500' : 
-                    bonus.type === 'loyalty' ? 'bg-purple-500' : 'bg-casino-thunder-green'
-                  }`}></div>
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="flex items-center">
-                        {getBonusTypeIcon(bonus.type)}
-                        <span className="ml-2">{bonus.title}</span>
-                      </CardTitle>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => openBonusDialog(bonus)}
-                          className="text-white/70 hover:text-white hover:bg-white/10"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => deleteBonus(bonus.id)}
-                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <CardDescription>{bonus.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-white/60">Amount</span>
-                        <span>${bonus.amount}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-white/60">Wager Multiplier</span>
-                        <span>{bonus.wagerMultiplier}x</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-white/60">Duration</span>
-                        <span>{bonus.duration} days</span>
-                      </div>
-                      {bonus.minDeposit > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-white/60">Min. Deposit</span>
-                          <span>${bonus.minDeposit}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-white/60">Required VIP Level</span>
-                        <span>
-                          {vipLevels.find(level => level.id === bonus.requiredVipLevel)?.name || bonus.requiredVipLevel}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-white/60">Status</span>
-                        <span className={bonus.isActive ? "text-green-500" : "text-red-500"}>
-                          {bonus.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                      {bonus.bonusCode && (
-                        <div className="flex justify-between">
-                          <span className="text-white/60">Bonus Code</span>
-                          <span className="font-mono">{bonus.bonusCode}</span>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-          
-          {/* User VIP Status Tab */}
-          <TabsContent value="user-vip">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <h2 className="text-xl font-semibold">User VIP Status</h2>
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50" size={18} />
+            {bonusTemplates.length === 0 && (
+              <Card className="bg-casino-thunder-dark border-white/10 col-span-full">
+                <CardContent className="py-8 text-center text-white/60">
+                  <Gift className="mx-auto h-12 w-12 mb-3 opacity-50" />
+                  <p>No bonus templates defined yet</p>
+                  <Button 
+                    onClick={() => setIsAddBonusDialogOpen(true)}
+                    variant="outline" 
+                    className="mt-4"
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" /> Create Your First Bonus Template
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+        
+        {/* VIP Users Tab */}
+        <TabsContent value="vip-users">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">VIP Users</h2>
+            
+            <div className="flex space-x-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50" size={16} />
                 <Input
                   placeholder="Search users..."
-                  className="pl-10 bg-casino-thunder-gray/50 border-white/10"
+                  className="pl-9 bg-casino-thunder-gray/50 border-white/10 w-full md:w-64"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              
+              <Select value={filterVipLevel} onValueChange={setFilterVipLevel}>
+                <SelectTrigger className="w-44 bg-casino-thunder-gray/50 border-white/10">
+                  <div className="flex items-center">
+                    <Filter className="h-4 w-4 mr-2 opacity-70" />
+                    <SelectValue placeholder="All VIP Levels" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All VIP Levels</SelectItem>
+                  {vipLevels.sort((a, b) => a.level - b.level).map((level) => (
+                    <SelectItem key={level.id} value={level.level.toString()}>{level.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            
-            <Card className="bg-casino-thunder-dark border-white/10">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-white/5 border-b border-white/10">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                          User
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                          Email
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                          Current VIP Level
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
-                          Balance
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-white/70 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/10">
-                      {filteredUsers.map((user) => (
+          </div>
+          
+          <Card className="bg-casino-thunder-dark border-white/10">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-white/5 border-b border-white/10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                        VIP Level
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Balance
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Join Date
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-white/70 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((user) => (
                         <tr key={user.id} className="hover:bg-white/5">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center">
-                                {user.avatarUrl ? (
-                                  <img 
-                                    src={user.avatarUrl} 
-                                    alt={user.name || user.username} 
-                                    className="h-10 w-10 rounded-full"
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = "/placeholder.svg";
-                                    }}
-                                  />
-                                ) : (
-                                  <UserIcon className="h-5 w-5 text-white/60" />
-                                )}
+                                <UserIcon className="h-5 w-5 text-white/60" />
                               </div>
                               <div className="ml-4">
-                                <div className="text-sm font-medium">
-                                  {user.name || user.username}
-                                  {user.isVerified && (
-                                    <span className="ml-2 text-blue-400">✓</span>
-                                  )}
-                                </div>
-                                <div className="text-sm text-white/60">
-                                  Joined: {new Date(user.joined).toLocaleDateString()}
-                                </div>
+                                <div className="text-sm font-medium">{user.name}</div>
+                                <div className="text-sm text-white/60">{user.email}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {user.email}
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge className="bg-casino-thunder-gray/30">
+                              {getVipLevelName(user.vipLevel)}
+                            </Badge>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            ${user.balance.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                             <div className="flex items-center">
-                              {typeof user.vipLevel === "number" ? (
-                                <>
-                                  <div 
-                                    className="w-3 h-3 rounded-full mr-2" 
-                                    style={{ backgroundColor: vipLevels.find(level => level.id === user.vipLevel)?.color || '#FFF' }}
-                                  ></div>
-                                  <span>
-                                    {vipLevels.find(level => level.id === user.vipLevel)?.name || `Level ${user.vipLevel}`}
-                                  </span>
-                                </>
-                              ) : (
-                                <span className="text-white/60">Not Set</span>
-                              )}
+                              <Clock className="h-3.5 w-3.5 mr-1.5 text-white/50" />
+                              {user.joined}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            ${user.balance?.toFixed(2) || "0.00"}
-                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => openUserVipDialog(user)}
-                              className="border-casino-thunder-green text-casino-thunder-green hover:bg-casino-thunder-green/10"
-                            >
-                              <Star className="h-4 w-4 mr-2" />
-                              Edit VIP
+                            <Button variant="outline" size="sm" className="border-white/20">
+                              View Profile
                             </Button>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        {/* VIP Level Edit Dialog */}
-        <Dialog open={isVipDialogOpen} onOpenChange={setIsVipDialogOpen}>
-          <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-3xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingVipLevel && editingVipLevel.id < vipLevels.length ? 'Edit VIP Level' : 'Add VIP Level'}
-              </DialogTitle>
-              <DialogDescription>
-                Configure the VIP level details and benefits
-              </DialogDescription>
-            </DialogHeader>
-            
-            {editingVipLevel && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Level Name</Label>
-                    <Input
-                      id="name"
-                      value={editingVipLevel.name}
-                      onChange={(e) => handleVipLevelChange('name', e.target.value)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={editingVipLevel.description}
-                      onChange={(e) => handleVipLevelChange('description', e.target.value)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="color">Level Color</Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="color"
-                        type="color"
-                        value={editingVipLevel.color}
-                        onChange={(e) => handleVipLevelChange('color', e.target.value)}
-                        className="w-16 h-10 border-white/10"
-                      />
-                      <Input
-                        value={editingVipLevel.color}
-                        onChange={(e) => handleVipLevelChange('color', e.target.value)}
-                        className="border-white/10 flex-1"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="requiredPoints">Required Points</Label>
-                    <Input
-                      id="requiredPoints"
-                      type="number"
-                      min="0"
-                      value={editingVipLevel.requiredPoints}
-                      onChange={(e) => handleVipLevelChange('requiredPoints', parseInt(e.target.value) || 0)}
-                      className="border-white/10"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Cashback Percentage ({editingVipLevel.cashbackPercent}%)</Label>
-                    <Slider
-                      value={[editingVipLevel.cashbackPercent]}
-                      min={0}
-                      max={20}
-                      step={0.5}
-                      onValueChange={(values) => handleVipLevelChange('cashbackPercent', values[0])}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Deposit Bonus Percentage ({editingVipLevel.depositBonusPercent}%)</Label>
-                    <Slider
-                      value={[editingVipLevel.depositBonusPercent]}
-                      min={0}
-                      max={50}
-                      step={1}
-                      onValueChange={(values) => handleVipLevelChange('depositBonusPercent', values[0])}
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="withdrawalLimit">Withdrawal Limit ($)</Label>
-                    <Input
-                      id="withdrawalLimit"
-                      type="number"
-                      min="1000"
-                      step="1000"
-                      value={editingVipLevel.withdrawalLimit}
-                      onChange={(e) => handleVipLevelChange('withdrawalLimit', parseInt(e.target.value) || 0)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="benefits">Benefits (one per line)</Label>
-                    <Textarea
-                      id="benefits"
-                      value={editingVipLevel.benefits.join('\n')}
-                      onChange={handleVipBenefitsChange}
-                      className="border-white/10 min-h-[100px]"
-                      placeholder="Enter one benefit per line"
-                    />
-                  </div>
-                </div>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-8 text-center text-white/60">
+                          <div className="flex flex-col items-center">
+                            <Users className="h-8 w-8 mb-2 opacity-50" />
+                            <span>No VIP users found</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Add VIP Level Dialog */}
+      <Dialog open={isAddVipDialogOpen} onOpenChange={setIsAddVipDialogOpen}>
+        <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New VIP Level</DialogTitle>
+            <DialogDescription>
+              Create a new VIP level with custom benefits and requirements
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Level Name</Label>
+                <Input
+                  id="name"
+                  value={vipFormData.name}
+                  onChange={(e) => setVipFormData({...vipFormData, name: e.target.value})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="level">Level Number</Label>
+                <Input
+                  id="level"
+                  type="number"
+                  value={vipFormData.level}
+                  onChange={(e) => setVipFormData({...vipFormData, level: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            </div>
             
-            <DialogFooter className="mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setIsVipDialogOpen(false)}
-                className="border-white/20"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={saveVipLevel}
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                Save VIP Level
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Bonus Template Edit Dialog */}
-        <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
-          <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingBonus && bonusTemplates.find(b => b.id === editingBonus.id) ? 'Edit Bonus Template' : 'Add Bonus Template'}
-              </DialogTitle>
-              <DialogDescription>
-                Configure the bonus template details
-              </DialogDescription>
-            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="pointsRequired">Points Required</Label>
+              <Input
+                id="pointsRequired"
+                type="number"
+                value={vipFormData.pointsRequired}
+                onChange={(e) => setVipFormData({...vipFormData, pointsRequired: Number(e.target.value)})}
+                className="bg-casino-thunder-gray/50 border-white/10"
+              />
+            </div>
             
-            {editingBonus && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Bonus Title</Label>
-                    <Input
-                      id="title"
-                      value={editingBonus.title}
-                      onChange={(e) => handleBonusChange('title', e.target.value)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="bonusType">Bonus Type</Label>
-                    <Select
-                      value={editingBonus.type}
-                      onValueChange={(value) => handleBonusChange('type', value)}
-                    >
-                      <SelectTrigger className="border-white/10">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="deposit">Deposit Bonus</SelectItem>
-                        <SelectItem value="free_spin">Free Spins</SelectItem>
-                        <SelectItem value="cashback">Cashback</SelectItem>
-                        <SelectItem value="loyalty">Loyalty Bonus</SelectItem>
-                        <SelectItem value="vip">VIP Bonus</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="depositBonus">Deposit Bonus (%)</Label>
+                <Input
+                  id="depositBonus"
+                  type="number"
+                  value={vipFormData.depositBonus}
+                  onChange={(e) => setVipFormData({...vipFormData, depositBonus: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cashbackRate">Cashback Rate (%)</Label>
+                <Input
+                  id="cashbackRate"
+                  type="number"
+                  value={vipFormData.cashbackRate}
+                  onChange={(e) => setVipFormData({...vipFormData, cashbackRate: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="withdrawalLimit">Withdrawal Limit ($)</Label>
+                <Input
+                  id="withdrawalLimit"
+                  type="number"
+                  value={vipFormData.withdrawalLimit}
+                  onChange={(e) => setVipFormData({...vipFormData, withdrawalLimit: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="birthdayBonus">Birthday Bonus ($)</Label>
+                <Input
+                  id="birthdayBonus"
+                  type="number"
+                  value={vipFormData.birthdayBonus}
+                  onChange={(e) => setVipFormData({...vipFormData, birthdayBonus: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="weeklyBonus">Weekly Bonus ($)</Label>
+              <Input
+                id="weeklyBonus"
+                type="number"
+                value={vipFormData.weeklyBonus}
+                onChange={(e) => setVipFormData({...vipFormData, weeklyBonus: Number(e.target.value)})}
+                className="bg-casino-thunder-gray/50 border-white/10"
+              />
+            </div>
+            
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-medium">Additional Perks</h3>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="dedicated" className="cursor-pointer flex items-center">
+                  Dedicated Account Manager
+                </Label>
+                <Switch
+                  id="dedicated"
+                  checked={vipFormData.dedicated}
+                  onCheckedChange={(checked) => setVipFormData({...vipFormData, dedicated: checked})}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="fastWithdrawals" className="cursor-pointer flex items-center">
+                  Fast Withdrawals
+                </Label>
+                <Switch
+                  id="fastWithdrawals"
+                  checked={vipFormData.fastWithdrawals}
+                  onCheckedChange={(checked) => setVipFormData({...vipFormData, fastWithdrawals: checked})}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="exclusivePromos" className="cursor-pointer flex items-center">
+                  Exclusive Promotions
+                </Label>
+                <Switch
+                  id="exclusivePromos"
+                  checked={vipFormData.exclusivePromos}
+                  onCheckedChange={(checked) => setVipFormData({...vipFormData, exclusivePromos: checked})}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="specialEvents" className="cursor-pointer flex items-center">
+                  Special Event Invitations
+                </Label>
+                <Switch
+                  id="specialEvents"
+                  checked={vipFormData.specialEvents}
+                  onCheckedChange={(checked) => setVipFormData({...vipFormData, specialEvents: checked})}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="customizedOffers" className="cursor-pointer flex items-center">
+                  Customized Offers
+                </Label>
+                <Switch
+                  id="customizedOffers"
+                  checked={vipFormData.customizedOffers}
+                  onCheckedChange={(checked) => setVipFormData({...vipFormData, customizedOffers: checked})}
+                />
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddVipDialogOpen(false)}
+              className="border-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddVipLevel}
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              Add VIP Level
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Bonus Template Dialog */}
+      <Dialog open={isAddBonusDialogOpen} onOpenChange={setIsAddBonusDialogOpen}>
+        <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Bonus Template</DialogTitle>
+            <DialogDescription>
+              Create a new bonus template that can be offered to players
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bonusName">Bonus Name</Label>
+              <Input
+                id="bonusName"
+                value={bonusFormData.name}
+                onChange={(e) => setBonusFormData({...bonusFormData, name: e.target.value})}
+                className="bg-casino-thunder-gray/50 border-white/10"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bonusDescription">Description</Label>
+              <Input
+                id="bonusDescription"
+                value={bonusFormData.description}
+                onChange={(e) => setBonusFormData({...bonusFormData, description: e.target.value})}
+                className="bg-casino-thunder-gray/50 border-white/10"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bonusType">Bonus Type</Label>
+              <Select 
+                value={bonusFormData.type} 
+                onValueChange={(value) => setBonusFormData({...bonusFormData, type: value})}
+              >
+                <SelectTrigger id="bonusType" className="bg-casino-thunder-gray/50 border-white/10">
+                  <SelectValue placeholder="Select bonus type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deposit">Deposit Bonus</SelectItem>
+                  <SelectItem value="freespin">Free Spins</SelectItem>
+                  <SelectItem value="cashback">Cashback</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {bonusFormData.type === "deposit" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="percentage">Bonus Percentage (%)</Label>
+                  <Input
+                    id="percentage"
+                    type="number"
+                    value={bonusFormData.percentage}
+                    onChange={(e) => setBonusFormData({...bonusFormData, percentage: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={editingBonus.description}
-                    onChange={(e) => handleBonusChange('description', e.target.value)}
-                    className="border-white/10"
+                  <Label htmlFor="minDeposit">Min Deposit ($)</Label>
+                  <Input
+                    id="minDeposit"
+                    type="number"
+                    value={bonusFormData.minDeposit}
+                    onChange={(e) => setBonusFormData({...bonusFormData, minDeposit: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
                   />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="amount">Amount ($)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      min="0"
-                      value={editingBonus.amount}
-                      onChange={(e) => handleBonusChange('amount', parseFloat(e.target.value) || 0)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="wagerMultiplier">Wager Multiplier (x)</Label>
-                    <Input
-                      id="wagerMultiplier"
-                      type="number"
-                      min="1"
-                      value={editingBonus.wagerMultiplier}
-                      onChange={(e) => handleBonusChange('wagerMultiplier', parseInt(e.target.value) || 1)}
-                      className="border-white/10"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Duration (days)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="1"
-                      value={editingBonus.duration}
-                      onChange={(e) => handleBonusChange('duration', parseInt(e.target.value) || 1)}
-                      className="border-white/10"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="minDeposit">Minimum Deposit ($)</Label>
-                    <Input
-                      id="minDeposit"
-                      type="number"
-                      min="0"
-                      value={editingBonus.minDeposit}
-                      onChange={(e) => handleBonusChange('minDeposit', parseFloat(e.target.value) || 0)}
-                      className="border-white/10"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="requiredVipLevel">Required VIP Level</Label>
-                    <Select
-                      value={String(editingBonus.requiredVipLevel)}
-                      onValueChange={(value) => handleBonusChange('requiredVipLevel', parseInt(value))}
-                    >
-                      <SelectTrigger className="border-white/10">
-                        <SelectValue placeholder="Select VIP level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vipLevels.map((level) => (
-                          <SelectItem key={level.id} value={String(level.id)}>
-                            {level.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="bonusCode">Bonus Code (optional)</Label>
-                    <Input
-                      id="bonusCode"
-                      value={editingBonus.bonusCode || ''}
-                      onChange={(e) => handleBonusChange('bonusCode', e.target.value)}
-                      className="border-white/10"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 pt-2">
-                  <Switch
-                    id="isActive"
-                    checked={editingBonus.isActive}
-                    onCheckedChange={(checked) => handleBonusChange('isActive', checked)}
-                  />
-                  <Label htmlFor="isActive">Active</Label>
                 </div>
               </div>
             )}
             
-            <DialogFooter className="mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setIsBonusDialogOpen(false)}
-                className="border-white/20"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={saveBonus}
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                Save Bonus Template
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        
-        {/* User VIP Edit Dialog */}
-        <Dialog open={isUserVipDialogOpen} onOpenChange={setIsUserVipDialogOpen}>
-          <DialogContent className="bg-casino-thunder-dark border-white/10">
-            <DialogHeader>
-              <DialogTitle>
-                Update VIP Level
-              </DialogTitle>
-              <DialogDescription>
-                Change the VIP level for {editingUserVip?.name || editingUserVip?.username}
-              </DialogDescription>
-            </DialogHeader>
+            {bonusFormData.type === "freespin" && (
+              <div className="space-y-2">
+                <Label htmlFor="amount">Number of Free Spins</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  value={bonusFormData.amount}
+                  onChange={(e) => setBonusFormData({...bonusFormData, amount: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            )}
             
-            {editingUserVip && (
-              <div className="space-y-4">
-                <Label htmlFor="userVipLevel">Select VIP Level</Label>
-                <Select
-                  value={String(editingUserVip.vipLevel || 0)}
-                  onValueChange={(value) => {
-                    setEditingUserVip({
-                      ...editingUserVip,
-                      vipLevel: parseInt(value)
-                    });
-                  }}
+            {bonusFormData.type === "cashback" && (
+              <div className="space-y-2">
+                <Label htmlFor="cashbackPercentage">Cashback Percentage (%)</Label>
+                <Input
+                  id="cashbackPercentage"
+                  type="number"
+                  value={bonusFormData.percentage}
+                  onChange={(e) => setBonusFormData({...bonusFormData, percentage: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="maxBonus">Max Bonus Amount ($)</Label>
+                <Input
+                  id="maxBonus"
+                  type="number"
+                  value={bonusFormData.maxBonus}
+                  onChange={(e) => setBonusFormData({...bonusFormData, maxBonus: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="wagering">Wagering Requirement (x)</Label>
+                <Input
+                  id="wagering"
+                  type="number"
+                  value={bonusFormData.wagering}
+                  onChange={(e) => setBonusFormData({...bonusFormData, wagering: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="expiryDays">Expiry (Days)</Label>
+                <Input
+                  id="expiryDays"
+                  type="number"
+                  value={bonusFormData.expiryDays}
+                  onChange={(e) => setBonusFormData({...bonusFormData, expiryDays: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="vipLevelRequired">Required VIP Level</Label>
+                <Select 
+                  value={bonusFormData.vipLevelRequired.toString()} 
+                  onValueChange={(value) => setBonusFormData({...bonusFormData, vipLevelRequired: Number(value)})}
                 >
-                  <SelectTrigger className="border-white/10">
-                    <SelectValue placeholder="Select VIP level" />
+                  <SelectTrigger id="vipLevelRequired" className="bg-casino-thunder-gray/50 border-white/10">
+                    <SelectValue placeholder="Select required VIP level" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">None (All Users)</SelectItem>
                     {vipLevels.map((level) => (
-                      <SelectItem key={level.id} value={String(level.id)}>
-                        {level.name}
-                      </SelectItem>
+                      <SelectItem key={level.id} value={level.level.toString()}>{level.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                
-                {editingUserVip.vipLevel !== undefined && (
-                  <div className="mt-4 p-4 bg-white/5 rounded-md">
-                    <h4 className="font-medium mb-2">Level Benefits</h4>
-                    <ul className="space-y-1">
-                      {vipLevels.find(level => level.id === editingUserVip.vipLevel)?.benefits.map((benefit, index) => (
-                        <li key={index} className="text-sm text-white/70 flex items-start">
-                          <span className="text-casino-thunder-green mr-2">•</span>
-                          {benefit}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
-            )}
+            </div>
             
-            <DialogFooter className="mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setIsUserVipDialogOpen(false)}
-                className="border-white/20"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={saveUserVip}
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                Update VIP Level
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AdminLayout>
+            <div className="space-y-2">
+              <Label htmlFor="code">Bonus Code (Optional)</Label>
+              <Input
+                id="code"
+                value={bonusFormData.code}
+                onChange={(e) => setBonusFormData({...bonusFormData, code: e.target.value})}
+                className="bg-casino-thunder-gray/50 border-white/10"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-2">
+              <Label htmlFor="active" className="cursor-pointer flex items-center">
+                Active Status
+              </Label>
+              <Switch
+                id="active"
+                checked={bonusFormData.active}
+                onCheckedChange={(checked) => setBonusFormData({...bonusFormData, active: checked})}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddBonusDialogOpen(false)}
+              className="border-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddBonusTemplate}
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              Add Bonus Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Dialog (for both VIP and Bonus) */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-casino-thunder-dark border-white/10 max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedItem?.type === 'vip' ? 'Edit VIP Level' : 'Edit Bonus Template'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedItem?.type === 'vip' 
+                ? 'Update the VIP level configuration' 
+                : 'Update the bonus template configuration'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedItem?.type === 'vip' ? (
+            <div className="space-y-4 py-4">
+              {/* VIP edit form - same as add form */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name">Level Name</Label>
+                  <Input
+                    id="edit-name"
+                    value={vipFormData.name}
+                    onChange={(e) => setVipFormData({...vipFormData, name: e.target.value})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-level">Level Number</Label>
+                  <Input
+                    id="edit-level"
+                    type="number"
+                    value={vipFormData.level}
+                    onChange={(e) => setVipFormData({...vipFormData, level: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-pointsRequired">Points Required</Label>
+                <Input
+                  id="edit-pointsRequired"
+                  type="number"
+                  value={vipFormData.pointsRequired}
+                  onChange={(e) => setVipFormData({...vipFormData, pointsRequired: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-depositBonus">Deposit Bonus (%)</Label>
+                  <Input
+                    id="edit-depositBonus"
+                    type="number"
+                    value={vipFormData.depositBonus}
+                    onChange={(e) => setVipFormData({...vipFormData, depositBonus: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cashbackRate">Cashback Rate (%)</Label>
+                  <Input
+                    id="edit-cashbackRate"
+                    type="number"
+                    value={vipFormData.cashbackRate}
+                    onChange={(e) => setVipFormData({...vipFormData, cashbackRate: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-withdrawalLimit">Withdrawal Limit ($)</Label>
+                  <Input
+                    id="edit-withdrawalLimit"
+                    type="number"
+                    value={vipFormData.withdrawalLimit}
+                    onChange={(e) => setVipFormData({...vipFormData, withdrawalLimit: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-birthdayBonus">Birthday Bonus ($)</Label>
+                  <Input
+                    id="edit-birthdayBonus"
+                    type="number"
+                    value={vipFormData.birthdayBonus}
+                    onChange={(e) => setVipFormData({...vipFormData, birthdayBonus: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-weeklyBonus">Weekly Bonus ($)</Label>
+                <Input
+                  id="edit-weeklyBonus"
+                  type="number"
+                  value={vipFormData.weeklyBonus}
+                  onChange={(e) => setVipFormData({...vipFormData, weeklyBonus: Number(e.target.value)})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-3 pt-2">
+                <h3 className="text-sm font-medium">Additional Perks</h3>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-dedicated" className="cursor-pointer flex items-center">
+                    Dedicated Account Manager
+                  </Label>
+                  <Switch
+                    id="edit-dedicated"
+                    checked={vipFormData.dedicated}
+                    onCheckedChange={(checked) => setVipFormData({...vipFormData, dedicated: checked})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-fastWithdrawals" className="cursor-pointer flex items-center">
+                    Fast Withdrawals
+                  </Label>
+                  <Switch
+                    id="edit-fastWithdrawals"
+                    checked={vipFormData.fastWithdrawals}
+                    onCheckedChange={(checked) => setVipFormData({...vipFormData, fastWithdrawals: checked})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-exclusivePromos" className="cursor-pointer flex items-center">
+                    Exclusive Promotions
+                  </Label>
+                  <Switch
+                    id="edit-exclusivePromos"
+                    checked={vipFormData.exclusivePromos}
+                    onCheckedChange={(checked) => setVipFormData({...vipFormData, exclusivePromos: checked})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-specialEvents" className="cursor-pointer flex items-center">
+                    Special Event Invitations
+                  </Label>
+                  <Switch
+                    id="edit-specialEvents"
+                    checked={vipFormData.specialEvents}
+                    onCheckedChange={(checked) => setVipFormData({...vipFormData, specialEvents: checked})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="edit-customizedOffers" className="cursor-pointer flex items-center">
+                    Customized Offers
+                  </Label>
+                  <Switch
+                    id="edit-customizedOffers"
+                    checked={vipFormData.customizedOffers}
+                    onCheckedChange={(checked) => setVipFormData({...vipFormData, customizedOffers: checked})}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              {/* Bonus edit form - same as add form */}
+              <div className="space-y-2">
+                <Label htmlFor="edit-bonusName">Bonus Name</Label>
+                <Input
+                  id="edit-bonusName"
+                  value={bonusFormData.name}
+                  onChange={(e) => setBonusFormData({...bonusFormData, name: e.target.value})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-bonusDescription">Description</Label>
+                <Input
+                  id="edit-bonusDescription"
+                  value={bonusFormData.description}
+                  onChange={(e) => setBonusFormData({...bonusFormData, description: e.target.value})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-bonusType">Bonus Type</Label>
+                <Select 
+                  value={bonusFormData.type} 
+                  onValueChange={(value) => setBonusFormData({...bonusFormData, type: value})}
+                >
+                  <SelectTrigger id="edit-bonusType" className="bg-casino-thunder-gray/50 border-white/10">
+                    <SelectValue placeholder="Select bonus type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deposit">Deposit Bonus</SelectItem>
+                    <SelectItem value="freespin">Free Spins</SelectItem>
+                    <SelectItem value="cashback">Cashback</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {bonusFormData.type === "deposit" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-percentage">Bonus Percentage (%)</Label>
+                    <Input
+                      id="edit-percentage"
+                      type="number"
+                      value={bonusFormData.percentage}
+                      onChange={(e) => setBonusFormData({...bonusFormData, percentage: Number(e.target.value)})}
+                      className="bg-casino-thunder-gray/50 border-white/10"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-minDeposit">Min Deposit ($)</Label>
+                    <Input
+                      id="edit-minDeposit"
+                      type="number"
+                      value={bonusFormData.minDeposit}
+                      onChange={(e) => setBonusFormData({...bonusFormData, minDeposit: Number(e.target.value)})}
+                      className="bg-casino-thunder-gray/50 border-white/10"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {bonusFormData.type === "freespin" && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-amount">Number of Free Spins</Label>
+                  <Input
+                    id="edit-amount"
+                    type="number"
+                    value={bonusFormData.amount}
+                    onChange={(e) => setBonusFormData({...bonusFormData, amount: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              )}
+              
+              {bonusFormData.type === "cashback" && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-cashbackPercentage">Cashback Percentage (%)</Label>
+                  <Input
+                    id="edit-cashbackPercentage"
+                    type="number"
+                    value={bonusFormData.percentage}
+                    onChange={(e) => setBonusFormData({...bonusFormData, percentage: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              )}
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-maxBonus">Max Bonus Amount ($)</Label>
+                  <Input
+                    id="edit-maxBonus"
+                    type="number"
+                    value={bonusFormData.maxBonus}
+                    onChange={(e) => setBonusFormData({...bonusFormData, maxBonus: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-wagering">Wagering Requirement (x)</Label>
+                  <Input
+                    id="edit-wagering"
+                    type="number"
+                    value={bonusFormData.wagering}
+                    onChange={(e) => setBonusFormData({...bonusFormData, wagering: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-expiryDays">Expiry (Days)</Label>
+                  <Input
+                    id="edit-expiryDays"
+                    type="number"
+                    value={bonusFormData.expiryDays}
+                    onChange={(e) => setBonusFormData({...bonusFormData, expiryDays: Number(e.target.value)})}
+                    className="bg-casino-thunder-gray/50 border-white/10"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-vipLevelRequired">Required VIP Level</Label>
+                  <Select 
+                    value={bonusFormData.vipLevelRequired.toString()} 
+                    onValueChange={(value) => setBonusFormData({...bonusFormData, vipLevelRequired: Number(value)})}
+                  >
+                    <SelectTrigger id="edit-vipLevelRequired" className="bg-casino-thunder-gray/50 border-white/10">
+                      <SelectValue placeholder="Select required VIP level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">None (All Users)</SelectItem>
+                      {vipLevels.map((level) => (
+                        <SelectItem key={level.id} value={level.level.toString()}>{level.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="edit-code">Bonus Code (Optional)</Label>
+                <Input
+                  id="edit-code"
+                  value={bonusFormData.code}
+                  onChange={(e) => setBonusFormData({...bonusFormData, code: e.target.value})}
+                  className="bg-casino-thunder-gray/50 border-white/10"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between pt-2">
+                <Label htmlFor="edit-active" className="cursor-pointer flex items-center">
+                  Active Status
+                </Label>
+                <Switch
+                  id="edit-active"
+                  checked={bonusFormData.active}
+                  onCheckedChange={(checked) => setBonusFormData({...bonusFormData, active: checked})}
+                />
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+              className="border-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateItem}
+              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 

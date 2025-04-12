@@ -10,7 +10,9 @@ const AdminLayout = () => {
         <div className="p-4 bg-gray-900 border-b border-gray-800">
           <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
         </div>
-        <Outlet />
+        <main>
+          <Outlet />
+        </main>
       </div>
     </div>
   );
