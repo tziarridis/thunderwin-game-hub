@@ -49,6 +49,7 @@ export interface User {
   joined?: string;
   role?: "user" | "admin";
   favoriteGames?: string[];
+  password?: string; // Added for dbInitializer
 }
 
 // Transaction Types
@@ -91,14 +92,22 @@ export interface Promotion {
   id: string;
   title: string;
   description: string;
-  imageUrl: string;
+  image?: string;
+  imageUrl?: string;
   startDate: string;
   endDate: string;
   isActive: boolean;
-  promotionType: "welcome" | "deposit" | "noDeposit" | "cashback" | "tournament";
-  terms: string;
-  image?: string;
+  promotionType?: "welcome" | "deposit" | "noDeposit" | "cashback" | "tournament";
+  terms?: string;
   category?: string;
+  termsAndConditions?: string; // Added for compatibility
+  type?: string; // Added for compatibility
+  bonusCode?: string;
+  minDeposit?: number;
+  bonusPercentage?: number;
+  maxBonusAmount?: number;
+  wageringRequirements?: number;
+  eligibleGames?: string[];
 }
 
 // Bonus Types
@@ -111,13 +120,14 @@ export interface Bonus {
   requirements: string;
   expiryDays: number;
   isActive: boolean;
-  status?: "active" | "used" | "expired";
+  status?: "active" | "used" | "expired" | "completed";
   progress?: number;
   wagering?: number;
   expiresAt?: string;
   userId?: string;
   templateId?: string;
   isCompleted?: boolean;
+  createdAt?: string; // Added for compatibility
 }
 
 export type BonusType = "deposit" | "free_spins" | "cashback" | "no_deposit" | "reload" | "loyalty";
@@ -138,6 +148,7 @@ export interface BonusTemplate {
   vipLevelRequired?: number;
   allowedGames?: string[];
   code?: string;
+  createdAt?: string;
 }
 
 // Affiliate Types
@@ -181,6 +192,9 @@ export interface VipLevel {
   fastWithdrawals?: boolean;
   color?: string;
   icon?: string;
+  requiredPoints?: number;
+  cashbackPercent?: number;
+  depositBonusPercent?: number;
 }
 
 // KYC Types
@@ -188,7 +202,7 @@ export interface KycRequest {
   id: string;
   userId: string;
   userName: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "verified";
   documentType: string;
   documentImage: string;
   submittedDate: string;
@@ -198,6 +212,7 @@ export interface KycRequest {
   email?: string;
   documentFiles?: string[];
   rejectionReason?: string;
+  notes?: string;
 }
 
 export enum KycStatus {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +62,7 @@ const Promotions = () => {
       });
     } else {
       // Initial default promotions if none exist yet
-      const defaultPromotions = [
+      const defaultPromotions: Promotion[] = [
         {
           id: "1",
           title: "Welcome Bonus",
@@ -71,15 +70,9 @@ const Promotions = () => {
           image: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
           startDate: "2023-01-01",
           endDate: "Ongoing",
-          termsAndConditions: "Terms and conditions apply",
           isActive: true,
-          type: "deposit" as const,
-          bonusCode: "WELCOME100",
-          minDeposit: 20,
-          bonusPercentage: 100,
-          maxBonusAmount: 1000,
-          wageringRequirements: 35,
-          eligibleGames: ["slots", "table games"],
+          promotionType: "deposit",
+          terms: "Terms and conditions apply",
           category: "deposit"
         },
         {
@@ -89,15 +82,9 @@ const Promotions = () => {
           image: "https://images.unsplash.com/photo-1587302273406-7104978770d2?auto=format&fit=crop&q=80&w=400",
           startDate: "2023-01-01",
           endDate: "Every Thursday",
-          termsAndConditions: "Terms and conditions apply",
           isActive: true,
-          type: "free_spin" as const,
-          bonusCode: "THUNDER50",
-          minDeposit: 50,
-          bonusPercentage: 0,
-          maxBonusAmount: 0,
-          wageringRequirements: 20,
-          eligibleGames: ["selected slots"],
+          promotionType: "deposit",
+          terms: "Terms and conditions apply",
           category: "recurring"
         },
         {
@@ -107,15 +94,9 @@ const Promotions = () => {
           image: "https://images.unsplash.com/photo-1593183630166-2b4c86293796?auto=format&fit=crop&q=80&w=400",
           startDate: "2023-01-01",
           endDate: "Every Weekend",
-          termsAndConditions: "Terms and conditions apply",
           isActive: true,
-          type: "deposit" as const,
-          bonusCode: "WEEKEND75",
-          minDeposit: 30,
-          bonusPercentage: 75,
-          maxBonusAmount: 500,
-          wageringRequirements: 30,
-          eligibleGames: ["all games"],
+          promotionType: "deposit",
+          terms: "Terms and conditions apply",
           category: "deposit"
         }
       ];
@@ -143,7 +124,7 @@ const Promotions = () => {
         claimed: stats.claimed // Keep existing claimed count
       });
     }
-  }, [promotions]);
+  }, [promotions, stats.claimed]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -187,15 +168,9 @@ const Promotions = () => {
           image: formData.image,
           startDate: new Date().toISOString().split('T')[0],
           endDate: formData.endDate,
-          termsAndConditions: "Standard terms and conditions apply.",
           isActive: true,
-          type: "deposit",
-          bonusCode: `BONUS${Math.floor(Math.random() * 1000)}`,
-          minDeposit: 20,
-          bonusPercentage: 100,
-          maxBonusAmount: 200,
-          wageringRequirements: 35,
-          eligibleGames: ["All games"],
+          promotionType: "deposit",
+          terms: "Standard terms and conditions apply.",
           category: formData.category
         };
         setPromotions(prev => [...prev, newPromotion]);

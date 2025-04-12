@@ -1,442 +1,435 @@
-
-import React, { useState, useEffect } from "react";
-import { Eye, Check, X, Search, Filter } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/use-toast";
-import { KycRequest } from "@/types";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { PlusCircle, Loader2, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { KycRequest, KycStatus } from "@/types";
 
 const KycManagement = () => {
   const [kycRequests, setKycRequests] = useState<KycRequest[]>([]);
-  const [filteredRequests, setFilteredRequests] = useState<KycRequest[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedKyc, setSelectedKyc] = useState<KycRequest | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "verified" | "rejected">("all");
-  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
-  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  
+  const [newRequest, setNewRequest] = useState({
+    userId: "",
+    userName: "",
+    email: "",
+    documentType: "",
+    documentImage: "",
+    documentFiles: [] as string[],
+    rejectionReason: ""
+  });
+
   useEffect(() => {
-    const fetchKycRequests = async () => {
-      setLoading(true);
-      
-      // Simulate API call
-      setTimeout(() => {
-        const mockKycRequests: KycRequest[] = [
-          {
-            id: "kyc-1",
-            userId: "user-1",
-            userName: "johndoe",
-            email: "john.doe@example.com",
-            submittedDate: "2023-03-15T10:30:00Z",
-            status: "pending",
-            documentType: "ID Verification",
-            documentFiles: ["/path/to/id_front.jpg", "/path/to/id_back.jpg"],
-            notes: "First-time submission"
-          },
-          {
-            id: "kyc-2",
-            userId: "user-2",
-            userName: "janedoe",
-            email: "jane.doe@example.com",
-            submittedDate: "2023-03-14T14:20:00Z",
-            status: "verified",
-            documentType: "Address Verification",
-            documentFiles: ["/path/to/utility_bill.pdf"],
-            notes: "Address matches user profile"
-          },
-          {
-            id: "kyc-3",
-            userId: "user-3",
-            userName: "bobsmith",
-            email: "bob.smith@example.com",
-            submittedDate: "2023-03-13T09:15:00Z",
-            status: "rejected",
-            documentType: "ID Verification",
-            documentFiles: ["/path/to/id_front.jpg", "/path/to/id_back.jpg"],
-            rejectionReason: "ID appears to be expired"
-          }
-        ];
-        
-        setKycRequests(mockKycRequests);
-        setFilteredRequests(mockKycRequests);
-        setLoading(false);
-      }, 1000);
-    };
-    
-    fetchKycRequests();
+    const storedKycRequests = localStorage.getItem('kycRequests');
+    if (storedKycRequests) {
+      setKycRequests(JSON.parse(storedKycRequests));
+    } else {
+      // Initialize with some mock data
+      const initialKycRequests = [
+        {
+          id: "1",
+          userId: "user1",
+          userName: "John Doe",
+          email: "john.doe@example.com",
+          submittedDate: new Date().toISOString(),
+          status: "pending" as const,
+          documentType: "Passport",
+          documentImage: "https://via.placeholder.com/150",
+          documentFiles: ["passport_front.jpg", "passport_back.jpg"],
+          rejectionReason: ""
+        },
+        {
+          id: "2",
+          userId: "user2",
+          userName: "Jane Smith",
+          email: "jane.smith@example.com",
+          submittedDate: new Date().toISOString(),
+          status: "approved" as const,
+          documentType: "Driver's License",
+          documentImage: "https://via.placeholder.com/150",
+          documentFiles: ["license_front.jpg", "license_back.jpg"],
+          rejectionReason: ""
+        },
+        {
+          id: "3",
+          userId: "user3",
+          userName: "Alice Johnson",
+          email: "alice.johnson@example.com",
+          submittedDate: new Date().toISOString(),
+          status: "rejected" as const,
+          documentType: "ID Card",
+          documentImage: "https://via.placeholder.com/150",
+          documentFiles: ["id_front.jpg", "id_back.jpg"],
+          rejectionReason: "Invalid document"
+        }
+      ];
+      localStorage.setItem('kycRequests', JSON.stringify(initialKycRequests));
+      setKycRequests(initialKycRequests);
+    }
+    setIsLoading(false);
   }, []);
-  
+
   useEffect(() => {
-    let results = kycRequests;
-    
-    // Apply status filter
-    if (statusFilter !== "all") {
-      results = results.filter(kyc => kyc.status === statusFilter);
-    }
-    
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      results = results.filter(
-        kyc => 
-          kyc.userName.toLowerCase().includes(query) ||
-          (kyc.email && kyc.email.toLowerCase().includes(query)) ||
-          kyc.userId.toLowerCase().includes(query)
-      );
-    }
-    
-    setFilteredRequests(results);
-  }, [kycRequests, statusFilter, searchQuery]);
-  
-  const handleApprove = () => {
-    if (!selectedKyc) return;
-    
-    const updatedKycRequests = kycRequests.map(kyc => 
-      kyc.id === selectedKyc.id 
-        ? { 
-            ...kyc, 
-            status: "verified" as const
-          } 
-        : kyc
-    );
-    
-    setKycRequests(updatedKycRequests);
-    setFilteredRequests(updatedKycRequests);
-    setIsActionDialogOpen(false);
-    setSelectedKyc(null);
-    
-    toast({
-      title: "KYC Approved",
-      description: `${selectedKyc.userName}'s KYC has been approved.`,
-      variant: "default"
-    });
+    localStorage.setItem('kycRequests', JSON.stringify(kycRequests));
+  }, [kycRequests]);
+
+  const handleOpenDialog = (kycRequest: KycRequest) => {
+    setSelectedKyc(kycRequest);
+    setIsDialogOpen(true);
   };
-  
-  const handleReject = () => {
-    if (!selectedKyc) return;
-    
-    const updatedKycRequests = kycRequests.map(kyc => 
-      kyc.id === selectedKyc.id 
-        ? { 
-            ...kyc, 
-            status: "rejected" as const, 
-            rejectionReason: rejectionReason,
-            reviewedBy: "Admin"
-          } 
-        : kyc
-    );
-    
-    setKycRequests(updatedKycRequests);
-    setFilteredRequests(updatedKycRequests);
-    setIsActionDialogOpen(false);
+
+  const handleCloseDialog = () => {
     setSelectedKyc(null);
+    setIsDialogOpen(false);
     setRejectionReason("");
-    
-    toast({
-      title: "KYC Rejected",
-      description: `${selectedKyc.userName}'s KYC has been rejected.`,
-      variant: "destructive"
+  };
+
+  const handleApprove = (id: string) => {
+    const updatedRequests = kycRequests.map(req =>
+      req.id === id ? { ...req, status: "approved" } : req
+    );
+    setKycRequests(updatedRequests);
+    handleCloseDialog();
+    toast.success("KYC request approved");
+  };
+
+  const handleReject = (id: string) => {
+    if (!rejectionReason.trim()) {
+      toast.error("Rejection reason is required");
+      return;
+    }
+    const updatedRequests = kycRequests.map(req =>
+      req.id === id ? { ...req, status: "rejected", rejectionReason } : req
+    );
+    setKycRequests(updatedRequests);
+    handleCloseDialog();
+    toast.success("KYC request rejected");
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setNewRequest({
+      ...newRequest,
+      [e.target.name]: e.target.value
     });
   };
-  
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+
+  const handleSubmit = () => {
+    if (!newRequest.userId.trim() || !newRequest.userName.trim() || !newRequest.email.trim() || !newRequest.documentType.trim() || !newRequest.documentImage.trim()) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    const newKycRequest: KycRequest = {
+      id: Date.now().toString(),
+      userId: newRequest.userId,
+      userName: newRequest.userName,
+      email: newRequest.email,
+      submittedDate: new Date().toISOString(),
+      status: "pending",
+      documentType: newRequest.documentType,
+      documentImage: newRequest.documentImage,
+      documentFiles: [],
+      rejectionReason: ""
+    };
+
+    setKycRequests(prev => [...prev, newKycRequest]);
+    setNewRequest({
+      userId: "",
+      userName: "",
+      email: "",
+      documentType: "",
+      documentImage: "",
+      documentFiles: [],
+      rejectionReason: ""
+    });
+    setIsDialogOpen(false);
+    toast.success("KYC request added successfully");
   };
-  
+
+  const handleDelete = (id: string) => {
+    if (confirm("Are you sure you want to delete this KYC request?")) {
+      setKycRequests(prev => prev.filter(req => req.id !== id));
+      toast.success("KYC request deleted successfully");
+    }
+  };
+
+  const isVerified = (status: string) => status === "verified" || status === "approved";
+
+  const createRejectedKyc = (id: string, userId: string, userName: string, email: string, reason: string) => {
+    return {
+      id,
+      userId,
+      userName,
+      email,
+      submittedDate: new Date().toISOString(),
+      status: "rejected" as const,
+      documentType: "Identity Document",
+      documentImage: "placeholder-image-url.jpg", // Ensure this field is always present
+      documentFiles: ["document1.jpg", "document2.jpg"],
+      rejectionReason: reason
+    };
+  };
+
   return (
-    <div className="py-8 px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold">KYC Management</h1>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative flex-grow">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Search className="w-5 h-5 text-gray-400" />
-            </div>
-            <input
-              type="search"
-              className="thunder-input w-full pl-10"
-              placeholder="Search by username, email, or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          <Button variant="outline" className="flex items-center">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">KYC Management</h1>
+          <p className="text-gray-500">Manage user KYC verification requests</p>
         </div>
-      </div>
-      
-      <Tabs 
-        defaultValue="all" 
-        value={statusFilter}
-        onValueChange={(value) => setStatusFilter(value as any)}
-        className="mb-6"
-      >
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="verified">Verified</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all" className="mt-4">
-          <div className="thunder-card overflow-hidden">
-            {renderKycTable()}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="pending" className="mt-4">
-          <div className="thunder-card overflow-hidden">
-            {renderKycTable()}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="verified" className="mt-4">
-          <div className="thunder-card overflow-hidden">
-            {renderKycTable()}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="rejected" className="mt-4">
-          <div className="thunder-card overflow-hidden">
-            {renderKycTable()}
-          </div>
-        </TabsContent>
-      </Tabs>
-      
-      {/* Document Viewer Dialog */}
-      <Dialog open={isDocumentDialogOpen} onOpenChange={setIsDocumentDialogOpen}>
-        <DialogContent className="sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Document Viewer - {selectedKyc?.documentType}</DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <h3 className="text-base font-medium mb-2">User: {selectedKyc?.userName} ({selectedKyc?.email})</h3>
-            <p className="text-sm text-white/70 mb-4">
-              Submitted: {selectedKyc && formatDate(selectedKyc.submittedDate)}
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              {selectedKyc?.documentFiles.map((file, index) => (
-                <div key={index} className="bg-white/5 p-3 rounded-lg">
-                  <img 
-                    src={file} 
-                    alt={`Document ${index + 1}`} 
-                    className="w-full h-auto max-h-[300px] object-contain rounded border border-white/10"
-                  />
-                  <p className="text-center mt-2 text-sm text-white/70">Document {index + 1}</p>
-                </div>
-              ))}
-            </div>
-            
-            {selectedKyc?.status === "rejected" && selectedKyc?.rejectionReason && (
-              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                <h4 className="font-medium text-red-400">Rejection Reason:</h4>
-                <p className="text-white/70">{selectedKyc.rejectionReason}</p>
+
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => {
+              setNewRequest({
+                userId: "",
+                userName: "",
+                email: "",
+                documentType: "",
+                documentImage: "",
+                documentFiles: [],
+                rejectionReason: ""
+              });
+              setSelectedKyc(null);
+            }}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add KYC Request
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New KYC Request</DialogTitle>
+              <DialogDescription>
+                Fill in the details to create a new KYC request.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="userId">User ID</Label>
+                <Input
+                  id="userId"
+                  name="userId"
+                  value={newRequest.userId}
+                  onChange={handleInputChange}
+                  placeholder="e.g. user123"
+                />
               </div>
-            )}
-            
-            {selectedKyc?.status === "pending" && (
-              <div className="flex justify-end gap-3">
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    setIsDocumentDialogOpen(false);
-                    setIsActionDialogOpen(true);
-                  }}
-                >
-                  <X className="mr-2 h-4 w-4" />
+
+              <div className="grid gap-2">
+                <Label htmlFor="userName">User Name</Label>
+                <Input
+                  id="userName"
+                  name="userName"
+                  value={newRequest.userName}
+                  onChange={handleInputChange}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={newRequest.email}
+                  onChange={handleInputChange}
+                  placeholder="e.g. john.doe@example.com"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="documentType">Document Type</Label>
+                <Input
+                  id="documentType"
+                  name="documentType"
+                  value={newRequest.documentType}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Passport"
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="documentImage">Document Image URL</Label>
+                <Input
+                  id="documentImage"
+                  name="documentImage"
+                  value={newRequest.documentImage}
+                  onChange={handleInputChange}
+                  placeholder="e.g. https://example.com/image.jpg"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={handleSubmit}>
+                Create KYC Request
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin inline-block" />
+          Loading KYC requests...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {kycRequests.map(request => (
+            <Card key={request.id} className="bg-casino-thunder-dark border-white/10">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>{request.userName}</CardTitle>
+                  {isVerified(request.status) ? (
+                    <CheckCircle className="text-green-500 h-5 w-5" />
+                  ) : request.status === "rejected" ? (
+                    <XCircle className="text-red-500 h-5 w-5" />
+                  ) : (
+                    <AlertTriangle className="text-yellow-500 h-5 w-5" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Email: {request.email}
+                  <br />
+                  Document: {request.documentType}
+                  <br />
+                  Submitted: {new Date(request.submittedDate).toLocaleDateString()}
+                </CardDescription>
+              </CardContent>
+              <div className="p-3 flex justify-between items-center">
+                <Button variant="outline" onClick={() => handleOpenDialog(request)}>
+                  View Details
+                </Button>
+                <Button variant="destructive" onClick={() => handleDelete(request.id)}>
+                  Delete
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {kycRequests.length === 0 && !isLoading && (
+        <div className="text-center py-12 bg-muted rounded-lg">
+          <p className="text-muted-foreground">No KYC requests available.</p>
+        </div>
+      )}
+
+      {/* KYC Request Details Dialog */}
+      <Dialog open={!!selectedKyc} onOpenChange={() => handleCloseDialog()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>KYC Request Details</DialogTitle>
+            <DialogDescription>
+              Review and manage the KYC request for {selectedKyc?.userName}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedKyc && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label>User ID</Label>
+                <CardDescription>{selectedKyc.userId}</CardDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>User Name</Label>
+                <CardDescription>{selectedKyc.userName}</CardDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Email</Label>
+                <CardDescription>{selectedKyc.email}</CardDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Document Type</Label>
+                <CardDescription>{selectedKyc.documentType}</CardDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Submitted Date</Label>
+                <CardDescription>{new Date(selectedKyc.submittedDate).toLocaleDateString()}</CardDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Document Image</Label>
+                <img src={selectedKyc.documentImage} alt="Document" className="rounded-md" />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Document Files</Label>
+                <div className="flex space-x-2">
+                  {selectedKyc.documentFiles.map((file, index) => (
+                    <a key={index} href={file} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+                      {file}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              {selectedKyc.status === "rejected" && (
+                <div className="grid gap-2">
+                  <Label>Rejection Reason</Label>
+                  <CardDescription>{selectedKyc.rejectionReason}</CardDescription>
+                </div>
+              )}
+
+              {selectedKyc.status === "pending" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="rejectionReason">Rejection Reason</Label>
+                  <Textarea
+                    id="rejectionReason"
+                    placeholder="Enter rejection reason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {selectedKyc?.status === "pending" ? (
+              <>
+                <Button variant="destructive" onClick={() => selectedKyc && handleReject(selectedKyc.id)}>
                   Reject
                 </Button>
-                <Button
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={handleApprove}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve
-                </Button>
-              </div>
+                <Button onClick={() => selectedKyc && handleApprove(selectedKyc.id)}>Approve</Button>
+              </>
+            ) : (
+              <Button onClick={() => handleCloseDialog()}>Close</Button>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Rejection Dialog */}
-      <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Reject KYC Request</DialogTitle>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <p className="mb-4">
-              Please provide a reason for rejecting the KYC request from {selectedKyc?.userName}.
-            </p>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1" htmlFor="rejection-reason">
-                Rejection Reason
-              </label>
-              <textarea
-                id="rejection-reason"
-                className="thunder-input w-full"
-                rows={4}
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Explain why this KYC request is being rejected..."
-              />
-            </div>
-            
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setIsActionDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={!rejectionReason.trim()}
-              >
-                Confirm Rejection
-              </Button>
-            </div>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-  
-  function renderKycTable() {
-    if (loading) {
-      return (
-        <div className="flex justify-center items-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-casino-thunder-green"></div>
-        </div>
-      );
-    }
-    
-    if (filteredRequests.length === 0) {
-      return (
-        <div className="text-center py-12">
-          <p className="text-white/60">No KYC requests found</p>
-        </div>
-      );
-    }
-    
-    return (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-white/10">
-          <thead>
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                Document Type
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                Submitted Date
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-white/60 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10">
-            {filteredRequests.map((kyc) => (
-              <tr key={kyc.id} className="hover:bg-white/5">
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="ml-4">
-                      <div className="text-sm font-medium">{kyc.userName}</div>
-                      <div className="text-xs text-white/60">{kyc.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm">
-                  {kyc.documentType}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap text-sm">
-                  {formatDate(kyc.submittedDate)}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    kyc.status === 'pending' 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : kyc.status === 'verified' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                  }`}>
-                    {kyc.status.charAt(0).toUpperCase() + kyc.status.slice(1)}
-                  </span>
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-white/70"
-                    onClick={() => {
-                      setSelectedKyc(kyc);
-                      setIsDocumentDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  
-                  {kyc.status === 'pending' && (
-                    <>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-green-500"
-                        onClick={() => {
-                          setSelectedKyc(kyc);
-                          handleApprove();
-                        }}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-red-500"
-                        onClick={() => {
-                          setSelectedKyc(kyc);
-                          setIsActionDialogOpen(true);
-                        }}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
 };
 
 export default KycManagement;

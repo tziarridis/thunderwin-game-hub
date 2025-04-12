@@ -7,12 +7,13 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "@/utils/navigationUtils";
+import { Game } from "@/types";
 
 interface GameCardProps {
   id?: string;
-  title: string;
-  image?: string; // Make image optional
-  provider: string;
+  title?: string;
+  image?: string;
+  provider?: string;
   isPopular?: boolean;
   isNew?: boolean;
   rtp?: number;
@@ -21,12 +22,14 @@ interface GameCardProps {
   isFavorite?: boolean;
   onFavoriteToggle?: () => void;
   className?: string;
+  game?: Game;
+  onClick?: () => void;
 }
 
 const GameCard = ({ 
-  id = "1", // Default ID if none provided
+  id = "1",
   title, 
-  image = "/file.svg", // Default to the SVG if no image is provided
+  image = "/file.svg", 
   provider, 
   isPopular = false,
   isNew = false,
@@ -36,16 +39,30 @@ const GameCard = ({
   isFavorite = false,
   onFavoriteToggle,
   className,
+  game,
+  onClick,
   ...props 
 }: GameCardProps) => {
-  const [isFav, setIsFav] = useState(isFavorite);
+  // If a game object is provided, use its properties
+  const gameId = game?.id || id;
+  const gameTitle = game?.title || title || "Game Title";
+  const gameImage = game?.image || image;
+  const gameProvider = game?.provider || provider || "Provider";
+  const gameIsPopular = game?.isPopular || isPopular;
+  const gameIsNew = game?.isNew || isNew;
+  const gameRtp = game?.rtp || rtp;
+  const gameMinBet = game?.minBet || minBet;
+  const gameMaxBet = game?.maxBet || maxBet;
+  const gameIsFavorite = game?.isFavorite || isFavorite;
+  
+  const [isFav, setIsFav] = useState(gameIsFavorite);
   const { toast } = useToast();
   const navigate = useNavigate();
   
   // Update internal state when the prop changes
   useEffect(() => {
-    setIsFav(isFavorite);
-  }, [isFavorite]);
+    setIsFav(gameIsFavorite);
+  }, [gameIsFavorite]);
   
   const handleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -61,8 +78,8 @@ const GameCard = ({
       toast({
         title: isFav ? "Removed from favorites" : "Added to favorites",
         description: isFav 
-          ? `${title} has been removed from your favorites.` 
-          : `${title} has been added to your favorites.`,
+          ? `${gameTitle} has been removed from your favorites.` 
+          : `${gameTitle} has been added to your favorites.`,
       });
     }
   };
@@ -73,7 +90,7 @@ const GameCard = ({
     
     toast({
       title: "Demo Mode",
-      description: `${title} is launching in demo mode. No real money will be wagered.`,
+      description: `${gameTitle} is launching in demo mode. No real money will be wagered.`,
     });
   };
   
@@ -83,12 +100,23 @@ const GameCard = ({
     navigateByButtonName(buttonText, navigate);
   };
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (gameId) {
+      navigate(`/casino/game/${gameId}`);
+    }
+  };
+
   return (
-    <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}>
+    <div 
+      className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}
+      onClick={handleClick}
+    >
       <div className="aspect-[3/4] overflow-hidden relative">
         <img 
-          src={image} 
-          alt={title}
+          src={gameImage} 
+          alt={gameTitle}
           onError={(e) => {
             // Fallback to SVG if image fails to load
             const imgElement = e.target as HTMLImageElement;
@@ -125,7 +153,11 @@ const GameCard = ({
             <Button 
               variant="outline" 
               className="w-full"
-              onClick={() => navigate(`/casino/game/${id}`)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/casino/game/${gameId}`);
+              }}
             >
               <Info className="h-4 w-4 mr-1" />
               Details
@@ -133,24 +165,24 @@ const GameCard = ({
           </div>
           
           {/* Game quick info on hover */}
-          {(rtp || minBet || maxBet) && (
+          {(gameRtp || gameMinBet || gameMaxBet) && (
             <div className="mt-3 w-full grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-white/80">
-              {rtp && (
+              {gameRtp && (
                 <div className="flex justify-between">
                   <span>RTP:</span>
-                  <span className="text-casino-thunder-green">{rtp}%</span>
+                  <span className="text-casino-thunder-green">{gameRtp}%</span>
                 </div>
               )}
-              {minBet && (
+              {gameMinBet && (
                 <div className="flex justify-between">
                   <span>Min Bet:</span>
-                  <span>${minBet}</span>
+                  <span>${gameMinBet}</span>
                 </div>
               )}
-              {maxBet && (
+              {gameMaxBet && (
                 <div className="flex justify-between">
                   <span>Max Bet:</span>
-                  <span>${maxBet}</span>
+                  <span>${gameMaxBet}</span>
                 </div>
               )}
             </div>
@@ -159,12 +191,12 @@ const GameCard = ({
 
         {/* Tags */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {isPopular && (
+          {gameIsPopular && (
             <span className="bg-yellow-500 text-black text-xs px-2 py-1 rounded-sm font-medium flex items-center">
               <Star className="h-3 w-3 mr-1" /> Popular
             </span>
           )}
-          {isNew && (
+          {gameIsNew && (
             <span className="bg-casino-thunder-green text-black text-xs px-2 py-1 rounded-sm font-medium">
               <Zap className="h-3 w-3 mr-1" /> New
             </span>
@@ -174,10 +206,10 @@ const GameCard = ({
       
       {/* Game info */}
       <div className="p-3">
-        <h3 className="font-medium text-white truncate">{title}</h3>
+        <h3 className="font-medium text-white truncate">{gameTitle}</h3>
         <div className="flex justify-between items-center">
-          <p className="text-white/60 text-xs">{provider}</p>
-          {rtp && <p className="text-white/60 text-xs">RTP: {rtp}%</p>}
+          <p className="text-white/60 text-xs">{gameProvider}</p>
+          {gameRtp && <p className="text-white/60 text-xs">RTP: {gameRtp}%</p>}
         </div>
       </div>
     </div>

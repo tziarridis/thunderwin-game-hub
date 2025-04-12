@@ -1,241 +1,242 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Affiliate } from "@/types";
-import { 
-  BarChart, 
-  PieChart
-} from "@/components/ui/chart";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { 
-  BarChart3, 
-  LineChart as LineChartIcon, 
-  PieChart as PieChartIcon, 
-  Calendar, 
-  TrendingUp, 
-  User, 
-  DollarSign,
-  Users,
-  Clock 
-} from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line } from 'recharts';
+import { DollarSign, Users, TrendingUp, Activity } from "lucide-react";
 
 interface AffiliateStatsProps {
-  affiliate?: Affiliate;
+  affiliates: Affiliate[];
 }
 
-// Generate sample historical data for the charts
-const generateMonthlyData = (affiliate?: Affiliate) => {
-  const today = new Date();
-  const months = [];
-  const signupsBase = affiliate?.signups || 30;
-  const revenueBase = affiliate?.totalRevenue || 5000;
+const AffiliateStats = ({ affiliates }: AffiliateStatsProps) => {
+  const [totalSignups, setTotalSignups] = useState(0);
+  const [totalCommission, setTotalCommission] = useState(0);
+  const [conversionRate, setConversionRate] = useState(0);
+  const [performance, setPerformance] = useState<any[]>([]);
   
-  for (let i = 5; i >= 0; i--) {
-    const month = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const signups = Math.max(0, Math.floor(signupsBase / 6) + Math.floor(Math.random() * 10) - 5);
-    const revenue = Math.max(0, Math.floor(revenueBase / 6) + Math.floor(Math.random() * 300) - 150);
-    
-    months.push({
-      name: month.toLocaleString('default', { month: 'short' }),
-      signups: signups,
-      revenue: revenue,
-      commission: Math.floor(revenue * ((affiliate?.commission || 20) / 100))
-    });
-  }
-  return months;
-};
-
-const generateTrafficSourceData = () => {
-  return [
-    { name: 'Blog', value: 35 },
-    { name: 'Social', value: 25 },
-    { name: 'Email', value: 20 },
-    { name: 'Direct', value: 15 },
+  useEffect(() => {
+    if (affiliates.length > 0) {
+      // Calculate total signups
+      const signups = affiliates.reduce((sum, affiliate) => sum + (affiliate.signups || 0), 0);
+      setTotalSignups(signups);
+      
+      // Calculate total commission
+      const commission = affiliates.reduce((sum, affiliate) => sum + (affiliate.totalCommissions || 0), 0);
+      setTotalCommission(commission);
+      
+      // Calculate conversion rate
+      const visits = 1000; // Mock data for total visits
+      setConversionRate(signups > 0 ? Math.round((signups / visits) * 100) : 0);
+      
+      // Create performance data
+      const topPerformers = affiliates
+        .sort((a, b) => (b.totalCommissions || 0) - (a.totalCommissions || 0))
+        .slice(0, 5)
+        .map(affiliate => ({
+          name: affiliate.name,
+          commission: affiliate.totalCommissions || 0,
+          signups: affiliate.signups || 0
+        }));
+        
+      setPerformance(topPerformers);
+    }
+  }, [affiliates]);
+  
+  // Create trend data (mock for now)
+  const trendData = [
+    { name: 'Jan', signups: 10, commission: 800 },
+    { name: 'Feb', signups: 15, commission: 1200 },
+    { name: 'Mar', signups: 25, commission: 2000 },
+    { name: 'Apr', signups: 30, commission: 2400 },
+    { name: 'May', signups: 40, commission: 3200 },
+    { name: 'Jun', signups: 50, commission: 4000 },
+  ];
+  
+  const pieData = [
+    { name: 'Facebook', value: 35 },
+    { name: 'Google', value: 25 },
+    { name: 'Direct', value: 20 },
+    { name: 'Bloggers', value: 15 },
     { name: 'Other', value: 5 },
   ];
-};
-
-const generateDailyData = (affiliate?: Affiliate) => {
-  const days = [];
-  const today = new Date();
   
-  for (let i = 13; i >= 0; i--) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - i);
-    
-    days.push({
-      name: day.getDate().toString(),
-      clicks: Math.floor(Math.random() * 50),
-      signups: Math.floor(Math.random() * 5),
-      revenue: Math.floor(Math.random() * 200)
-    });
-  }
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
   
-  return days;
-};
-
-const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
-  const [timeframe, setTimeframe] = useState<"daily" | "monthly">("monthly");
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString()}`;
+  };
   
-  const monthlyData = generateMonthlyData(affiliate);
-  const dailyData = generateDailyData(affiliate);
-  const trafficSourceData = generateTrafficSourceData();
+  // Helper to safely check if value is number
+  const isNumber = (value: any): value is number => {
+    return typeof value === 'number';
+  };
   
-  const data = timeframe === "monthly" ? monthlyData : dailyData;
+  // Helper to get growth percentage
+  const getGrowthPercentage = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
   
-  const signups = affiliate?.signups || affiliate?.referredUsers || 0;
-  const totalRevenue = affiliate?.totalRevenue || 0;
-  const commission = affiliate?.commission || 20;
+  // Get growth for signups - mocked previous value for demonstration
+  const signupsGrowth = getGrowthPercentage(totalSignups, 45);
   
-  const conversionRate = signups > 0 
-    ? ((totalRevenue / signups)).toFixed(2)
-    : "0.00";
-  
-  const commissionEarned = (totalRevenue * (commission / 100)).toFixed(2);
+  // Get growth for commission - mocked previous value for demonstration
+  const commissionGrowth = getGrowthPercentage(totalCommission, 3200);
   
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">{affiliate?.name || "Affiliate Overview"}</h2>
-          <p className="text-muted-foreground">{affiliate?.email || "All affiliates"} • {affiliate?.joinedDate ? `Joined ${affiliate.joinedDate}` : "Overview"}</p>
-        </div>
-        <Tabs value={timeframe} onValueChange={(v) => setTimeframe(v as "daily" | "monthly")}>
-          <TabsList>
-            <TabsTrigger value="daily">
-              <Clock className="h-4 w-4 mr-2" />
-              Daily
-            </TabsTrigger>
-            <TabsTrigger value="monthly">
-              <Calendar className="h-4 w-4 mr-2" />
-              Monthly
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="py-4 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium">Total Signups</CardTitle>
-            <User className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold">{signups}</div>
-            <p className="text-xs text-muted-foreground mt-1">Referred players</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="py-4 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium">Revenue Generated</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total player deposits</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="py-4 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium">Commission Earned</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold">${commissionEarned}</div>
-            <p className="text-xs text-muted-foreground mt-1">At {commission}% rate</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="py-4 flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold">${conversionRate}</div>
-            <p className="text-xs text-muted-foreground mt-1">Revenue per signup</p>
+          <CardContent>
+            <div className="text-2xl font-bold">{affiliates.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(signupsGrowth) ? (
+                <>
+                  <span className={signupsGrowth > 0 ? "text-green-500" : signupsGrowth < 0 ? "text-red-500" : ""}>
+                    {signupsGrowth > 0 ? `+${signupsGrowth}%` : `${signupsGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Signups</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalSignups}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(signupsGrowth) ? (
+                <>
+                  <span className={signupsGrowth > 0 ? "text-green-500" : signupsGrowth < 0 ? "text-red-500" : ""}>
+                    {signupsGrowth > 0 ? `+${signupsGrowth}%` : `${signupsGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalCommission)}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(commissionGrowth) ? (
+                <>
+                  <span className={commissionGrowth > 0 ? "text-green-500" : commissionGrowth < 0 ? "text-red-500" : ""}>
+                    {commissionGrowth > 0 ? `+${commissionGrowth}%` : `${commissionGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{conversionRate}%</div>
+            <p className="text-xs text-muted-foreground">
+              From total site visitors
+            </p>
           </CardContent>
         </Card>
       </div>
       
-      {/* Charts */}
-      <Tabs defaultValue="performance">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="performance">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Performance
-          </TabsTrigger>
-          <TabsTrigger value="revenue">
-            <LineChartIcon className="h-4 w-4 mr-2" />
-            Revenue
-          </TabsTrigger>
-          <TabsTrigger value="traffic">
-            <PieChartIcon className="h-4 w-4 mr-2" />
-            Traffic Sources
-          </TabsTrigger>
-        </TabsList>
+      {/* Trends and Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Commission Trend */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Commission Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value}`, 'Commission']} />
+                  <Line type="monotone" dataKey="commission" stroke="#0ea5e9" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
         
-        <TabsContent value="performance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Signups Over Time</CardTitle>
-              <CardDescription>Number of new players referred</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              <BarChart 
-                data={data}
-                index="name"
-                categories={["signups"]}
-                colors={["#8884d8"]}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="revenue" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Revenue & Commission</CardTitle>
-              <CardDescription>Revenue generated and commission earned over time</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              <BarChart
-                data={data}
-                index="name"
-                categories={["revenue", "commission"]}
-                colors={["#8884d8", "#82ca9d"]}
-                valueFormatter={(value) => `$${value}`}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="traffic" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Traffic Sources</CardTitle>
-              <CardDescription>Where affiliate traffic is coming from</CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              <PieChart data={trafficSourceData} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        {/* Traffic Sources */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Traffic Sources</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Top Affiliates Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Affiliates Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={performance}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis yAxisId="left" orientation="left" stroke="#0ea5e9" />
+                <YAxis yAxisId="right" orientation="right" stroke="#22c55e" />
+                <Tooltip formatter={(value, name) => [name === 'commission' ? formatCurrency(Number(value)) : value, name === 'commission' ? 'Commission' : 'Signups']} />
+                <Bar yAxisId="left" dataKey="commission" fill="#0ea5e9" name="Commission" />
+                <Bar yAxisId="right" dataKey="signups" fill="#22c55e" name="Signups" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

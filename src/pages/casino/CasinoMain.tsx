@@ -131,9 +131,18 @@ const CasinoMain = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {filteredGames.map(game => (
             <GameCard 
-              key={game.id} 
-              game={game} 
-              onClick={() => navigate(`/casino/game/${game.id}`)} 
+              key={game.id}
+              id={game.id}
+              title={game.title}
+              image={game.image}
+              provider={game.provider}
+              isPopular={game.isPopular}
+              isNew={game.isNew}
+              rtp={game.rtp}
+              isFavorite={game.isFavorite}
+              minBet={game.minBet}
+              maxBet={game.maxBet}
+              onClick={() => navigate(`/casino/game/${game.id}`)}
             />
           ))}
         </div>
