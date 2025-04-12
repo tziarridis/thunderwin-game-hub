@@ -411,11 +411,11 @@ const Header = () => {
                     </PopoverContent>
                   </Popover>
                   
-                  {/* User Menu */}
+                  {/* User Menu - Fix user button issue */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <motion.button
-                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center"
+                        className="relative h-9 w-9 rounded-full p-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm border-none outline-none flex items-center justify-center cursor-pointer"
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                       >

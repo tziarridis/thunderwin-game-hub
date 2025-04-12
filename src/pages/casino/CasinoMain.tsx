@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
 import WinningRoller from "@/components/casino/WinningRoller";
+import GameCategories from "@/components/casino/GameCategories";
 
 const CasinoMain = () => {
   const { games, loading, error } = useGames();
@@ -83,6 +85,12 @@ const CasinoMain = () => {
           <p className="text-white/70 max-w-2xl mx-auto">
             Explore our vast selection of casino games, from slots to table games and live dealer experiences.
           </p>
+        </div>
+        
+        {/* Add GameCategories component */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+          <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
         </div>
         
         <div className="mb-6">

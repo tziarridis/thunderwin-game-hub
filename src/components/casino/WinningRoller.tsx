@@ -43,7 +43,7 @@ const WinningRoller = () => {
   if (!currentWinner) return null;
 
   return (
-    <div className="fixed top-20 right-0 z-50 overflow-hidden w-full pointer-events-none">
+    <div className="fixed top-20 z-50 w-full pointer-events-none overflow-hidden">
       <AnimatePresence mode="wait">
         <motion.div 
           key={currentWinner.id}

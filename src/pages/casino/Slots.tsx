@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Gamepad2, Search, Filter, Star, Zap, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,11 +9,14 @@ import GameGrid from "@/components/casino/GameGrid";
 import { useGames } from "@/hooks/useGames";
 import { motion } from "framer-motion";
 import WinningRoller from "@/components/casino/WinningRoller";
+import GameCategories from "@/components/casino/GameCategories";
+import { useNavigate } from "react-router-dom";
 
 const SlotsPage = () => {
   const { games, loading, error } = useGames();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
+  const navigate = useNavigate();
   
   // Filter slots games only
   const slotsGames = games.filter(game => 
@@ -82,6 +86,12 @@ const SlotsPage = () => {
             </Button>
           </div>
         </motion.div>
+        
+        {/* Add GameCategories component */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+          <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
+        </div>
         
         <motion.div 
           className="bg-white/5 backdrop-blur-md rounded-lg p-4 mb-8 overflow-x-auto flex items-center"
