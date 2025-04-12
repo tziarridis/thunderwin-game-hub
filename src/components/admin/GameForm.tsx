@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Game } from "@/types";
@@ -22,6 +21,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
     jackpot: initialValues?.jackpot || false,
     isNew: initialValues?.isNew || false,
     isPopular: initialValues?.isPopular || false,
+    isFavorite: initialValues?.isFavorite || false,
     releaseDate: initialValues?.releaseDate || new Date().toISOString().split('T')[0],
     description: initialValues?.description || ""
   });
@@ -57,20 +57,21 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
       title: formData.title,
       image: formData.image,
       provider: formData.provider,
-      category: formData.category as Game['category'],
+      category: formData.category,
       tags: tagsArray,
       isPopular: formData.isPopular,
       isNew: formData.isNew,
+      isFavorite: formData.isFavorite,
       rtp: parseFloat(formData.rtp),
       minBet: parseFloat(formData.minBet),
       maxBet: parseFloat(formData.maxBet),
-      volatility: formData.volatility as Game['volatility'],
+      volatility: formData.volatility,
       jackpot: formData.jackpot,
       releaseDate: formData.releaseDate,
       description: formData.description
     };
     
-    onSubmit(gameData);
+    onSubmit(gameData as Game);
   };
 
   return (
@@ -280,6 +281,20 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues }) => {
             />
             <label htmlFor="isPopular" className="ml-2 text-sm font-medium">
               Popular Game
+            </label>
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="isFavorite"
+              name="isFavorite"
+              checked={formData.isFavorite}
+              onChange={handleChange}
+              className="thunder-checkbox"
+            />
+            <label htmlFor="isFavorite" className="ml-2 text-sm font-medium">
+              Featured
             </label>
           </div>
         </div>

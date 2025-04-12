@@ -1,6 +1,14 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { Transaction, OxaPayWallet } from "@/types";
+import { Transaction } from "@/types";
+
+interface OxaPayWallet {
+  id: string;
+  currency: string;
+  address: string;
+  status: string;
+  balance: number;
+}
 
 // Function to create a new transaction
 export const createTransaction = async (
@@ -84,7 +92,7 @@ export const createWallet = async (currency: string, address: string): Promise<O
     currency: currency,
     address: address,
     status: "active",
-    balance: 0 // Added this to match the OxaPayWallet type
+    balance: 0
   };
   
   let wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];

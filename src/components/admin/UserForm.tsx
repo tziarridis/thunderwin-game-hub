@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 interface UserFormProps {
   initialValues?: User;
@@ -23,10 +23,11 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
     role: initialValues?.role || "user",
     vipLevel: initialValues?.vipLevel || 0,
     isVerified: initialValues?.isVerified || false,
-    avatarUrl: initialValues?.avatarUrl || "/placeholder.svg"
+    avatar: initialValues?.avatar || "/placeholder.svg"
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { toast } = useToast();
   
   const handleChange = (field: string, value: any) => {
     setFormData({
@@ -85,9 +86,9 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
       joined: formData.joined,
       favoriteGames: initialValues?.favoriteGames || [],
       role: formData.role,
-      vipLevel: parseInt(formData.vipLevel),
+      vipLevel: parseInt(formData.vipLevel.toString()),
       isVerified: formData.isVerified,
-      avatarUrl: formData.avatarUrl
+      avatar: formData.avatar
     };
     
     // If this is an update to an existing user, also update the auth system if applicable
@@ -98,7 +99,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         currentUser.balance = parseFloat(formData.balance);
         currentUser.name = formData.name;
         currentUser.username = formData.username;
-        currentUser.vipLevel = parseInt(formData.vipLevel);
+        currentUser.vipLevel = parseInt(formData.vipLevel.toString());
         currentUser.isVerified = formData.isVerified;
         localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
         
@@ -120,9 +121,9 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
             username: formData.username,
             email: formData.email,
             role: formData.role,
-            vipLevel: parseInt(formData.vipLevel),
+            vipLevel: parseInt(formData.vipLevel.toString()),
             isVerified: formData.isVerified,
-            avatarUrl: formData.avatarUrl
+            avatar: formData.avatar
           };
           localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
         }
@@ -131,7 +132,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
       }
     }
     
-    onSubmit(userData);
+    onSubmit(userData as User);
   };
 
   return (

@@ -13,10 +13,10 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
   const routeMap: Record<string, string> = {
     'slots': '/casino/slots',
     'slot': '/casino/slots',
-    'live': '/casino/live',
-    'live casino': '/casino/live',
-    'table': '/casino/table',
-    'table games': '/casino/table',
+    'live': '/casino/live-casino',
+    'live casino': '/casino/live-casino',
+    'table': '/casino/table-games',
+    'table games': '/casino/table-games',
     'jackpot': '/casino/jackpots',
     'jackpots': '/casino/jackpots',
     'sport': '/sports',
@@ -29,6 +29,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'esports': '/sports/esports',
     'bonus': '/bonuses',
     'bonuses': '/bonuses',
+    'claim bonus': '/bonuses',
     'promotions': '/promotions',
     'promo': '/promotions',
     'vip': '/vip',
@@ -36,12 +37,12 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'sign in': '/login',
     'register': '/register',
     'sign up': '/register',
-    'profile': '/user/profile',
-    'account': '/user/profile',
-    'deposit': '/user/deposit',
-    'withdraw': '/user/withdraw',
-    'transactions': '/user/transactions',
-    'support': '/support',
+    'profile': '/profile',
+    'account': '/profile',
+    'deposit': '/transactions',
+    'withdraw': '/transactions',
+    'transactions': '/transactions',
+    'support': '/support/contact',
     'help': '/support/help',
     'faq': '/support/faq',
     'contact': '/support/contact',
@@ -50,18 +51,21 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'privacy': '/legal/privacy',
     'home': '/',
     'main': '/',
-    'dashboard': '/'
+    'dashboard': '/',
+    'play now': '/casino'
   };
   
   // Find the matching route or default to home
   for (const [key, route] of Object.entries(routeMap)) {
     if (name.includes(key)) {
+      console.log(`Navigating to ${route} based on button name: ${name}`);
       navigate(route);
       return;
     }
   }
   
   // Default to home if no match
+  console.log(`No route match found for button name: ${name}. Defaulting to home.`);
   navigate('/');
 };
 

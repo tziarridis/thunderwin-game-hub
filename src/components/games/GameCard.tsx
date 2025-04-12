@@ -1,9 +1,12 @@
+
 import { cn } from "@/lib/utils";
 import { Play, Star, Info, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { navigateByButtonName } from "@/utils/navigationUtils";
 
 interface GameCardProps {
   id?: string;
@@ -37,6 +40,7 @@ const GameCard = ({
 }: GameCardProps) => {
   const [isFav, setIsFav] = useState(isFavorite);
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Update internal state when the prop changes
   useEffect(() => {
@@ -72,6 +76,12 @@ const GameCard = ({
       description: `${title} is launching in demo mode. No real money will be wagered.`,
     });
   };
+  
+  const handleButtonClick = (e: React.MouseEvent, buttonText: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigateByButtonName(buttonText, navigate);
+  };
 
   return (
     <div className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}>
@@ -97,14 +107,13 @@ const GameCard = ({
         
         {/* Overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-end p-4">
-          <Link to={`/casino/game/${id}`} className="w-full">
-            <Button 
-              className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-2 w-full"
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Play Now
-            </Button>
-          </Link>
+          <Button 
+            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-2 w-full"
+            onClick={(e) => handleButtonClick(e, "Play Now")}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Play Now
+          </Button>
           <div className="grid grid-cols-2 gap-2 w-full">
             <Button 
               variant="outline" 
@@ -113,12 +122,14 @@ const GameCard = ({
             >
               Demo
             </Button>
-            <Link to={`/casino/game/${id}`} className="w-full">
-              <Button variant="outline" className="w-full">
-                <Info className="h-4 w-4 mr-1" />
-                Details
-              </Button>
-            </Link>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => navigate(`/casino/game/${id}`)}
+            >
+              <Info className="h-4 w-4 mr-1" />
+              Details
+            </Button>
           </div>
           
           {/* Game quick info on hover */}
