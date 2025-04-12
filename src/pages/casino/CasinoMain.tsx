@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
-import WinningRoller from "@/components/casino/WinningRoller";
+import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 
 const CasinoMain = () => {
@@ -76,8 +75,7 @@ const CasinoMain = () => {
 
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
-      {/* Add WinningRoller at the top of the component */}
-      <WinningRoller />
+      <WinningSlideshow />
       
       <div className="container mx-auto px-4 py-8 pt-20">
         <div className="text-center mb-8">

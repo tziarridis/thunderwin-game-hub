@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Gamepad2, Search, Filter, Star, Zap, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GameGrid from "@/components/casino/GameGrid";
 import { useGames } from "@/hooks/useGames";
 import { motion } from "framer-motion";
-import WinningRoller from "@/components/casino/WinningRoller";
+import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
 
@@ -49,8 +48,7 @@ const SlotsPage = () => {
 
   return (
     <div className="bg-casino-thunder-darker min-h-screen pb-16 relative overflow-hidden">
-      {/* Place WinningRoller above the main content */}
-      <WinningRoller />
+      <WinningSlideshow />
       
       <div className="pt-20 container mx-auto px-4">
         <motion.div 
