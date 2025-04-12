@@ -100,15 +100,22 @@
 }
 
 .glass-card {
-  background: rgba(30, 30, 30, 0.6);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  @apply rounded-lg transition-all duration-300;
+  @apply backdrop-blur-md bg-white/5 border border-white/10 rounded-lg transition-all duration-300;
 }
 
 .glass-card:hover {
-  border: 1px solid rgba(0, 255, 102, 0.3);
+  @apply border-casino-thunder-green/30;
   box-shadow: 0 0 20px rgba(0, 255, 102, 0.1);
+}
+
+/* Glass button style */
+.glass-button {
+  @apply backdrop-blur-md bg-white/5 border border-white/10 transition-all duration-300;
+}
+
+.glass-button:hover {
+  @apply border-casino-thunder-green/30 bg-white/10;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.1);
 }
 
 /* VIP utility classes */
@@ -376,4 +383,74 @@
 @keyframes button-flash {
   0% { transform: rotate(45deg) translateX(-100%); }
   100% { transform: rotate(45deg) translateX(100%); }
+}
+
+/* New 3D effect for cards */
+.card-3d {
+  @apply transition-all duration-300;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.card-3d:hover {
+  transform: rotateY(5deg) rotateX(5deg);
+}
+
+/* New animated border */
+.animated-border {
+  @apply relative rounded-lg overflow-hidden;
+}
+
+.animated-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    45deg,
+    rgba(0, 255, 102, 0),
+    rgba(0, 255, 102, 1),
+    rgba(0, 255, 102, 0)
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: rotate-border 4s linear infinite;
+}
+
+@keyframes rotate-border {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 130% 50%; }
+}
+
+/* Scrollbar styling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar for elements that should have it */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 102, 0.3);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 102, 0.5);
 }
