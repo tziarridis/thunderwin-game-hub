@@ -64,13 +64,13 @@ const BonusHub = () => {
     
     // Create a new active bonus for the user
     const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + bonus.expiryDays);
+    expirationDate.setDate(expirationDate.getDate() + (bonus.expiryDays || 7));
     
     const newBonus: Bonus = {
       id: `bonus_${Date.now()}`,
       userId: user.id,
       templateId: bonus.id,
-      name: bonus.name,
+      name: bonus.name || "",
       description: bonus.description,
       type: bonus.type,
       amount: bonus.amount,
@@ -161,7 +161,7 @@ const BonusHub = () => {
                         <CardTitle>{bonus.name}</CardTitle>
                         <CardDescription>
                           {bonus.type === "deposit" ? "Deposit Bonus" : 
-                           bonus.type === "freespin" ? "Free Spins" : 
+                           bonus.type === "free_spin" ? "Free Spins" : 
                            bonus.type === "cashback" ? "Cashback" : "Bonus"}
                         </CardDescription>
                       </div>
@@ -191,7 +191,7 @@ const BonusHub = () => {
                         </>
                       )}
                       
-                      {bonus.type === "freespin" && (
+                      {bonus.type === "free_spin" && (
                         <div className="flex items-center text-white/60">
                           <Zap className="h-4 w-4 mr-2" />
                           <span>{bonus.amount} Free Spins</span>
@@ -264,7 +264,7 @@ const BonusHub = () => {
                         <CardTitle>{bonus.name}</CardTitle>
                         <CardDescription>
                           {bonus.type === "deposit" ? "Deposit Bonus" : 
-                           bonus.type === "freespin" ? "Free Spins" : 
+                           bonus.type === "free_spin" ? "Free Spins" : 
                            bonus.type === "cashback" ? "Cashback" : "Bonus"}
                         </CardDescription>
                       </div>
@@ -281,12 +281,12 @@ const BonusHub = () => {
                       <div>
                         <div className="flex justify-between text-sm mb-1">
                           <span className="text-white/60">Wagering Progress</span>
-                          <span className="text-white/80">{Math.min(100, Math.round((bonus.progress / bonus.wagering) * 100))}%</span>
+                          <span className="text-white/80">{Math.min(100, Math.round(((bonus.progress || 0) / (bonus.wagering || 1)) * 100))}%</span>
                         </div>
                         <div className="w-full bg-white/10 rounded-full h-2.5">
                           <div 
                             className="bg-casino-thunder-green h-2.5 rounded-full" 
-                            style={{ width: `${Math.min(100, Math.round((bonus.progress / bonus.wagering) * 100))}%` }}
+                            style={{ width: `${Math.min(100, Math.round(((bonus.progress || 0) / (bonus.wagering || 1)) * 100))}%` }}
                           ></div>
                         </div>
                       </div>
@@ -300,7 +300,7 @@ const BonusHub = () => {
                       
                       <div className="flex items-center text-white/60">
                         <Lock className="h-4 w-4 mr-2" />
-                        <span>Wagering: ${bonus.progress.toFixed(2)}/${bonus.wagering}x</span>
+                        <span>Wagering: ${(bonus.progress || 0).toFixed(2)}/${bonus.wagering}x</span>
                       </div>
                       
                       <div className="flex items-center text-white/60">
@@ -350,7 +350,7 @@ const BonusHub = () => {
                         <CardTitle>{bonus.name}</CardTitle>
                         <CardDescription>
                           {bonus.type === "deposit" ? "Deposit Bonus" : 
-                           bonus.type === "freespin" ? "Free Spins" : 
+                           bonus.type === "free_spin" ? "Free Spins" : 
                            bonus.type === "cashback" ? "Cashback" : "Bonus"}
                         </CardDescription>
                       </div>
@@ -430,7 +430,7 @@ const BonusHub = () => {
                   </>
                 )}
                 
-                {selectedBonus.type === "freespin" && (
+                {selectedBonus.type === "free_spin" && (
                   <div className="flex justify-between">
                     <span className="text-white/60">Free Spins:</span>
                     <span>{selectedBonus.amount}</span>
