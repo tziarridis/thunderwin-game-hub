@@ -1,6 +1,7 @@
 import { Game, GameProvider, User, Transaction, Promotion, Bonus, BonusTemplate, Affiliate, VipLevel, KycRequest, RegionStats, GameStats, ProviderStats } from "@/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+// In Vite, we need to use import.meta.env instead of process.env
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
 
 // Mock data for games
 const mockGames: Game[] = [

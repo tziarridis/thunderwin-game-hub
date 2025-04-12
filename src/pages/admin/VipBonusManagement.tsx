@@ -1,818 +1,517 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Switch,
+} from "@/components/ui/switch"
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { PlusCircle, Loader2, Star, Gift } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VipLevel, BonusTemplate, BonusType } from "@/types";
+} from "@/components/ui/dialog"
+import { Plus, Edit, Trash } from "lucide-react";
+import { BonusTemplate, VipLevel } from "@/types";
+import { getVipLevels } from "@/services/apiService";
 
 const VipBonusManagement = () => {
-  const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
-  const [isVipDialogOpen, setIsVipDialogOpen] = useState(false);
-  const [isBonusDialogOpen, setIsBonusDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [editingVipId, setEditingVipId] = useState<string | null>(null);
-  const [editingBonusId, setEditingBonusId] = useState<string | null>(null);
-  
-  const [formData, setFormData] = useState({
+  const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedBonusTemplate, setSelectedBonusTemplate] =
+    useState<BonusTemplate | null>(null);
+  const [formData, setFormData] = useState<Omit<BonusTemplate, "id">>({
     name: "",
-    level: "",
-    requiredPoints: "",
-    cashbackPercent: "",
-    withdrawalLimit: "",
-    depositBonusPercent: "",
-    color: "",
-    icon: "",
     description: "",
-    type: "deposit" as BonusType,
-    amount: "",
-    percentage: "",
-    minDeposit: "",
-    maxBonus: "",
-    wagering: "",
-    expiryDays: "",
-    vipLevelRequired: "",
+    bonusType: "deposit",
+    amount: 0,
+    wagering: 0,
+    expiryDays: 0,
+    isActive: true,
+    percentage: 0,
+    minDeposit: 0,
+    maxBonus: 0,
+    vipLevelRequired: 0,
+    allowedGames: "",
     code: "",
-    allowedGames: ""
   });
-  
+
   useEffect(() => {
-    // Load VIP levels from localStorage
-    const storedVipLevels = localStorage.getItem('vipLevels');
-    if (storedVipLevels) {
-      setVipLevels(JSON.parse(storedVipLevels));
-    } else {
-      // Initialize with default VIP levels if none exist
-      const defaultVipLevels: VipLevel[] = [
-        {
-          id: 1,
-          name: "Bronze",
-          level: 1,
-          pointsRequired: 0,
-          cashbackRate: 0.05,
-          withdrawalLimit: 5000,
-          personalManager: false,
-          customGifts: false,
-          specialPromotions: false,
-          requirements: "Reach 0 points to unlock",
-          benefits: ["5% Cashback", "Standard Support"],
-          color: "#CD7F32",
-          icon: "🥉",
-          cashbackPercent: 5,
-          depositBonus: 10,
-          depositBonusPercent: 10,
-          requiredPoints: 0
-        },
-        {
-          id: 2,
-          name: "Silver",
-          level: 2,
-          pointsRequired: 1000,
-          cashbackRate: 0.10,
-          withdrawalLimit: 10000,
-          personalManager: false,
-          customGifts: false,
-          specialPromotions: true,
-          requirements: "Reach 1000 points to unlock",
-          benefits: ["10% Cashback", "Priority Support", "Special Promotions"],
-          color: "#C0C0C0",
-          icon: "🥈",
-          cashbackPercent: 10,
-          depositBonus: 20,
-          depositBonusPercent: 20,
-          requiredPoints: 1000
-        },
-        {
-          id: 3,
-          name: "Gold",
-          level: 3,
-          pointsRequired: 5000,
-          cashbackRate: 0.15,
-          withdrawalLimit: 20000,
-          personalManager: true,
-          customGifts: false,
-          specialPromotions: true,
-          requirements: "Reach 5000 points to unlock",
-          benefits: ["15% Cashback", "Dedicated Support", "Exclusive Gifts"],
-          color: "#FFD700",
-          icon: "🥇",
-          cashbackPercent: 15,
-          depositBonus: 30,
-          depositBonusPercent: 30,
-          requiredPoints: 5000
-        }
-      ];
-      setVipLevels(defaultVipLevels);
-      localStorage.setItem('vipLevels', JSON.stringify(defaultVipLevels));
-    }
-    
-    // Load bonus templates from localStorage
-    const storedBonusTemplates = localStorage.getItem('bonusTemplates');
-    if (storedBonusTemplates) {
-      setBonusTemplates(JSON.parse(storedBonusTemplates));
-    }
-  }, []);
-  
-  useEffect(() => {
-    // Save VIP levels to localStorage whenever they change
-    if (vipLevels.length > 0) {
-      localStorage.setItem('vipLevels', JSON.stringify(vipLevels));
-    }
-    
-    // Save bonus templates to localStorage whenever they change
-    if (bonusTemplates.length > 0) {
-      localStorage.setItem('bonusTemplates', JSON.stringify(bonusTemplates));
-    }
-  }, [vipLevels, bonusTemplates]);
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-  
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: value
-    });
-  };
-  
-  const handleSubmitVip = (id?: string) => {
-    setIsSubmitting(true);
-    
-    setTimeout(() => {
-      const vipLevel: VipLevel = {
-        id: Number(id || Date.now()),
-        name: formData.name,
-        level: Number(formData.level),
-        pointsRequired: Number(formData.requiredPoints),
-        cashbackRate: Number(formData.cashbackPercent),
-        withdrawalLimit: Number(formData.withdrawalLimit),
-        depositBonus: Number(formData.depositBonusPercent),
-        color: formData.color,
-        icon: formData.icon,
-		requirements: `Requires ${formData.requiredPoints} points to unlock`, // Add required field
-        benefits: [`${formData.cashbackPercent}% Cashback`, `${formData.depositBonusPercent}% Deposit Bonus`], // Add required field
-        personalManager: Number(formData.level) >= 5, // Add required field
-        customGifts: Number(formData.level) >= 7, // Add required field
-        specialPromotions: Number(formData.level) >= 3 // Add required field
-      };
-      
-      if (editingVipId) {
-        // Update existing VIP level
-        setVipLevels(prev => 
-          prev.map(vip => 
-            vip.id === Number(editingVipId) ? vipLevel : vip
-          )
-        );
-        toast.success("VIP level updated successfully");
-      } else {
-        // Add new VIP level
-        setVipLevels(prev => [...prev, vipLevel]);
-        toast.success("VIP level added successfully");
-      }
-      
-      setFormData({
-        name: "",
-        level: "",
-        requiredPoints: "",
-        cashbackPercent: "",
-        withdrawalLimit: "",
-        depositBonusPercent: "",
-        color: "",
-        icon: "",
-        description: "",
-        type: "deposit" as BonusType,
-        amount: "",
-        percentage: "",
-        minDeposit: "",
-        maxBonus: "",
-        wagering: "",
-        expiryDays: "",
-        vipLevelRequired: "",
-        code: "",
-        allowedGames: ""
-      });
-      setEditingVipId(null);
-      setIsSubmitting(false);
-      setIsVipDialogOpen(false);
-    }, 500);
-  };
-  
-  const handleSubmitBonus = (id?: string) => {
-    setIsSubmitting(true);
-    
-    setTimeout(() => {
-      const bonusTemplate: BonusTemplate = {
-        id: id || `${Date.now()}`,
-        name: formData.name,
-        description: formData.description,
-        bonusType: formData.type, // Make sure to include this
-		type: formData.type, // For compatibility
-        amount: Number(formData.amount),
-        percentage: Number(formData.percentage),
-        minDeposit: Number(formData.minDeposit),
-        maxBonus: Number(formData.maxBonus),
-        wagering: Number(formData.wagering),
-        expiryDays: Number(formData.expiryDays),
-        vipLevelRequired: Number(formData.vipLevelRequired),
+    // Mock bonus templates for demonstration
+    const mockBonusTemplates: BonusTemplate[] = [
+      {
+        id: "1",
+        name: "VIP Welcome Bonus",
+        description: "Exclusive welcome bonus for VIP members",
+        bonusType: "deposit",
+        amount: 200,
+        wagering: 30,
+        expiryDays: 30,
         isActive: true,
-        code: formData.code,
-        allowedGames: formData.allowedGames.split(',').map(game => game.trim()), // Make sure this is string[]
-		createdAt: new Date().toISOString()
-      };
-      
-      if (editingBonusId) {
-        // Update existing bonus template
-        setBonusTemplates(prev => 
-          prev.map(bonus => 
-            bonus.id === editingBonusId ? bonusTemplate : bonus
-          )
-        );
-        toast.success("Bonus template updated successfully");
-      } else {
-        // Add new bonus template
-        setBonusTemplates(prev => [...prev, bonusTemplate]);
-        toast.success("Bonus template added successfully");
+        percentage: 100,
+        minDeposit: 50,
+        maxBonus: 500,
+        vipLevelRequired: 5,
+        allowedGames: "slots",
+        code: "VIPWELCOME",
+      },
+      {
+        id: "2",
+        name: "VIP Reload Bonus",
+        description: "Weekly reload bonus for VIP members",
+        bonusType: "reload",
+        amount: 50,
+        wagering: 25,
+        expiryDays: 7,
+        isActive: true,
+        percentage: 50,
+        minDeposit: 20,
+        maxBonus: 200,
+        vipLevelRequired: 3,
+        allowedGames: "all",
+        code: "VIPRELOAD",
+      },
+    ];
+
+    setBonusTemplates(mockBonusTemplates);
+
+    // Fetch VIP levels from API
+    const fetchVipLevels = async () => {
+      try {
+        const levels = await getVipLevels();
+        setVipLevels(levels);
+      } catch (error) {
+        console.error("Error fetching VIP levels:", error);
       }
-      
-      setFormData({
-        name: "",
-        level: "",
-        requiredPoints: "",
-        cashbackPercent: "",
-        withdrawalLimit: "",
-        depositBonusPercent: "",
-        color: "",
-        icon: "",
-        description: "",
-        type: "deposit" as BonusType,
-        amount: "",
-        percentage: "",
-        minDeposit: "",
-        maxBonus: "",
-        wagering: "",
-        expiryDays: "",
-        vipLevelRequired: "",
-        code: "",
-        allowedGames: ""
-      });
-      setEditingBonusId(null);
-      setIsSubmitting(false);
-      setIsBonusDialogOpen(false);
-    }, 500);
+    };
+
+    fetchVipLevels();
+  }, []);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
-  
-  const handleEditVip = (vip: VipLevel) => {
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleAllowedGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const allowedGames = e.target.value.split(",").map((game) => game.trim());
+    setFormData((prevData) => ({
+      ...prevData,
+      allowedGames: allowedGames.join(","),
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate form data
+    if (!formData.name || !formData.description) {
+      alert("Name and description are required.");
+      return;
+    }
+
+    if (formData.amount <= 0 && formData.percentage <= 0) {
+      alert("Amount or percentage must be greater than zero.");
+      return;
+    }
+
+    if (formData.wagering < 0) {
+      alert("Wagering requirement cannot be negative.");
+      return;
+    }
+
+    if (formData.expiryDays <= 0) {
+      alert("Expiry days must be greater than zero.");
+      return;
+    }
+
+    if (formData.minDeposit < 0) {
+      alert("Minimum deposit cannot be negative.");
+      return;
+    }
+
+    if (formData.maxBonus < 0) {
+      alert("Maximum bonus cannot be negative.");
+      return;
+    }
+
+    if (!formData.vipLevelRequired) {
+      alert("VIP level is required.");
+      return;
+    }
+
+    if (!formData.allowedGames) {
+      alert("Allowed games are required.");
+      return;
+    }
+
+    // Create or update bonus template
+    if (isEditMode && selectedBonusTemplate) {
+      // Update existing bonus template
+      const updatedBonusTemplates = bonusTemplates.map((template) =>
+        template.id === selectedBonusTemplate.id
+          ? { ...template, ...formData }
+          : template
+      );
+      setBonusTemplates(updatedBonusTemplates);
+    } else {
+      // Create new bonus template
+      const newBonusTemplate: BonusTemplate = {
+        id: Date.now().toString(),
+        ...formData,
+      };
+      setBonusTemplates([...bonusTemplates, newBonusTemplate]);
+    }
+
+    // Reset form and close dialog
     setFormData({
-      name: vip.name,
-      level: vip.level?.toString() || "",
-      requiredPoints: vip.pointsRequired?.toString() || "",
-      cashbackPercent: vip.cashbackRate?.toString() || "",
-      withdrawalLimit: vip.withdrawalLimit?.toString() || "",
-      depositBonusPercent: vip.depositBonus?.toString() || "",
-      color: vip.color || "",
-      icon: vip.icon || "",
+      name: "",
       description: "",
-      type: "deposit" as BonusType,
-      amount: "",
-      percentage: "",
-      minDeposit: "",
-      maxBonus: "",
-      wagering: "",
-      expiryDays: "",
-      vipLevelRequired: "",
+      bonusType: "deposit",
+      amount: 0,
+      wagering: 0,
+      expiryDays: 0,
+      isActive: true,
+      percentage: 0,
+      minDeposit: 0,
+      maxBonus: 0,
+      vipLevelRequired: 0,
+      allowedGames: "",
       code: "",
-      allowedGames: ""
     });
-    setEditingVipId(vip.id.toString());
-    setIsVipDialogOpen(true);
+    setIsDialogOpen(false);
+    setIsEditMode(false);
+    setSelectedBonusTemplate(null);
   };
-  
-  const handleEditBonus = (bonus: BonusTemplate) => {
+
+  const handleEdit = (bonusTemplate: BonusTemplate) => {
+    setSelectedBonusTemplate(bonusTemplate);
+    setIsEditMode(true);
+    setIsDialogOpen(true);
     setFormData({
-      name: bonus.name,
-      description: bonus.description,
-      type: bonus.bonusType,
-      amount: bonus.amount.toString(),
-      percentage: bonus.percentage?.toString() || "",
-      minDeposit: bonus.minDeposit?.toString() || "",
-      maxBonus: bonus.maxBonus?.toString() || "",
-      wagering: bonus.wagering.toString(),
-      expiryDays: bonus.expiryDays.toString(),
-      vipLevelRequired: bonus.vipLevelRequired?.toString() || "",
-      code: bonus.code || "",
-      allowedGames: bonus.allowedGames?.join(',') || "",
-      level: "",
-      requiredPoints: "",
-      cashbackPercent: "",
-      withdrawalLimit: "",
-      depositBonusPercent: "",
-      color: "",
-      icon: ""
+      name: bonusTemplate.name,
+      description: bonusTemplate.description,
+      bonusType: bonusTemplate.bonusType || "deposit",
+      amount: bonusTemplate.amount,
+      wagering: bonusTemplate.wagering,
+      expiryDays: bonusTemplate.expiryDays,
+      isActive: bonusTemplate.isActive,
+      percentage: bonusTemplate.percentage || 0,
+      minDeposit: bonusTemplate.minDeposit || 0,
+      maxBonus: bonusTemplate.maxBonus || 0,
+      vipLevelRequired: bonusTemplate.vipLevelRequired || 0,
+      allowedGames: bonusTemplate.allowedGames || "",
+      code: bonusTemplate.code || "",
     });
-    setEditingBonusId(bonus.id);
-    setIsBonusDialogOpen(true);
   };
-  
-  const handleDeleteVip = (id: number) => {
-    if (confirm("Are you sure you want to delete this VIP level?")) {
-      setVipLevels(prev => prev.filter(vip => vip.id !== id));
-      toast.success("VIP level deleted successfully");
-    }
+
+  const handleDelete = (bonusTemplateId: string) => {
+    const updatedBonusTemplates = bonusTemplates.filter(
+      (template) => template.id !== bonusTemplateId
+    );
+    setBonusTemplates(updatedBonusTemplates);
   };
-  
-  const handleDeleteBonus = (id: string) => {
-    if (confirm("Are you sure you want to delete this bonus template?")) {
-      setBonusTemplates(prev => prev.filter(bonus => bonus.id !== id));
-      toast.success("Bonus template deleted successfully");
-    }
+
+  const handleOpenDialog = () => {
+    setIsDialogOpen(true);
+    setIsEditMode(false);
+    setSelectedBonusTemplate(null);
+    setFormData({
+      name: "",
+      description: "",
+      bonusType: "deposit",
+      amount: 0,
+      wagering: 0,
+      expiryDays: 0,
+      isActive: true,
+      percentage: 0,
+      minDeposit: 0,
+      maxBonus: 0,
+      vipLevelRequired: 0,
+      allowedGames: "",
+      code: "",
+    });
   };
-  
-  const isVipLevelEligible = (userVipLevel: number, requiredLevel: number) => 
-  userVipLevel >= requiredLevel;
-  
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">VIP Levels</h1>
-          <p className="text-gray-500">Manage VIP levels and their benefits</p>
-        </div>
-        
-        <Dialog open={isVipDialogOpen} onOpenChange={setIsVipDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              setFormData({
-                name: "",
-                level: "",
-                requiredPoints: "",
-                cashbackPercent: "",
-                withdrawalLimit: "",
-                depositBonusPercent: "",
-                color: "",
-                icon: "",
-                description: "",
-                type: "deposit" as BonusType,
-                amount: "",
-                percentage: "",
-                minDeposit: "",
-                maxBonus: "",
-                wagering: "",
-                expiryDays: "",
-                vipLevelRequired: "",
-                code: "",
-                allowedGames: ""
-              });
-              setEditingVipId(null);
-            }}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add VIP Level
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingVipId ? "Edit VIP Level" : "Add New VIP Level"}</DialogTitle>
-              <DialogDescription>
-                Fill in the details to {editingVipId ? "update the" : "create a new"} VIP level.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="e.g. Gold"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="level">Level (1-10)</Label>
-                  <Input
-                    id="level"
-                    name="level"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={formData.level}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 3"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="requiredPoints">Required Points</Label>
-                  <Input
-                    id="requiredPoints"
-                    name="requiredPoints"
-                    type="number"
-                    min="0"
-                    value={formData.requiredPoints}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 5000"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="cashbackPercent">Cashback (%)</Label>
-                  <Input
-                    id="cashbackPercent"
-                    name="cashbackPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.cashbackPercent}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 15"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="withdrawalLimit">Withdrawal Limit</Label>
-                  <Input
-                    id="withdrawalLimit"
-                    name="withdrawalLimit"
-                    type="number"
-                    min="0"
-                    value={formData.withdrawalLimit}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 20000"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="depositBonusPercent">Deposit Bonus (%)</Label>
-                  <Input
-                    id="depositBonusPercent"
-                    name="depositBonusPercent"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.depositBonusPercent}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 30"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="color">Color</Label>
-                  <Input
-                    id="color"
-                    name="color"
-                    type="color"
-                    value={formData.color}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="icon">Icon</Label>
-                  <Input
-                    id="icon"
-                    name="icon"
-                    value={formData.icon}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 🥇"
-                  />
-                </div>
-              </div>
+    <div className="container mx-auto py-10">
+      <Card className="shadow-md rounded-md">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-2xl font-bold">
+            VIP Bonus Management
+          </CardTitle>
+          <Button onClick={handleOpenDialog}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Bonus Template
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableCaption>
+              A list of your VIP bonus templates.
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[200px]">Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Bonus Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Wagering</TableHead>
+                <TableHead>Expiry Days</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {bonusTemplates.map((bonusTemplate) => (
+                <TableRow key={bonusTemplate.id}>
+                  <TableCell className="font-medium">{bonusTemplate.name}</TableCell>
+                  <TableCell>{bonusTemplate.description}</TableCell>
+                  <TableCell>{bonusTemplate.bonusType}</TableCell>
+                  <TableCell>{bonusTemplate.amount}</TableCell>
+                  <TableCell>{bonusTemplate.wagering}</TableCell>
+                  <TableCell>{bonusTemplate.expiryDays}</TableCell>
+                  <TableCell>
+                    {bonusTemplate.isActive ? "Active" : "Inactive"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(bonusTemplate)}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(bonusTemplate.id)}
+                    >
+                      <Trash className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {isEditMode ? "Edit Bonus Template" : "Add Bonus Template"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditMode
+                ? "Edit the details of the selected bonus template."
+                : "Create a new bonus template for VIP members."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Name</Label>
+              <Input
+                type="text"
+                id="name"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+              />
             </div>
-            
-            <DialogFooter>
-              <Button 
-                onClick={() => handleSubmitVip(editingVipId)} 
-                disabled={isSubmitting}
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                type="text"
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="bonusType">Bonus Type</Label>
+              <Select
+                value={formData.bonusType}
+                onValueChange={(value) => handleSelectChange("bonusType", value)}
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingVipId ? "Updating..." : "Creating..."}
-                  </>
-                ) : (
-                  editingVipId ? "Update VIP Level" : "Create VIP Level"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {vipLevels.map(vip => (
-          <Card key={vip.id} className="bg-muted">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <span className="mr-2">{vip.icon}</span>
-                {vip.name} (Level {vip.level})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>Requires: {vip.pointsRequired} points</p>
-              <p>Cashback: {vip.cashbackRate}%</p>
-              <p>Withdrawal Limit: ${vip.withdrawalLimit}</p>
-              <p>Deposit Bonus: {vip.depositBonus}%</p>
-            </CardContent>
-            <div className="flex justify-end space-x-2 p-4">
-              <Button variant="outline" size="sm" onClick={() => handleEditVip(vip)}>
-                Edit
-              </Button>
-              <Button variant="destructive" size="sm" onClick={() => handleDeleteVip(vip.id)}>
-                Delete
-              </Button>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a bonus type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="deposit">Deposit</SelectItem>
+                  <SelectItem value="reload">Reload</SelectItem>
+                  <SelectItem value="cashback">Cashback</SelectItem>
+                  <SelectItem value="free_spins">Free Spins</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </Card>
-        ))}
-      </div>
-      
-      <div className="flex justify-between items-center mt-12 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Bonus Templates</h1>
-          <p className="text-gray-500">Manage bonus templates for promotions</p>
-        </div>
-        
-        <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              setFormData({
-                name: "",
-                level: "",
-                requiredPoints: "",
-                cashbackPercent: "",
-                withdrawalLimit: "",
-                depositBonusPercent: "",
-                color: "",
-                icon: "",
-                description: "",
-                type: "deposit" as BonusType,
-                amount: "",
-                percentage: "",
-                minDeposit: "",
-                maxBonus: "",
-                wagering: "",
-                expiryDays: "",
-                vipLevelRequired: "",
-                code: "",
-                allowedGames: ""
-              });
-              setEditingBonusId(null);
-            }}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Bonus Template
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingBonusId ? "Edit Bonus Template" : "Add New Bonus Template"}</DialogTitle>
-              <DialogDescription>
-                Fill in the details to {editingBonusId ? "update the" : "create a new"} bonus template.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Welcome Bonus"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Describe the bonus"
-                  rows={3}
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Bonus Type</Label>
-                  <Select 
-                    value={formData.type} 
-                    onValueChange={(value) => handleSelectChange('type', value)}
-                  >
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="deposit">Deposit</SelectItem>
-                      <SelectItem value="free_spins">Free Spins</SelectItem>
-                      <SelectItem value="cashback">Cashback</SelectItem>
-                      <SelectItem value="no_deposit">No Deposit</SelectItem>
-                      <SelectItem value="reload">Reload</SelectItem>
-                      <SelectItem value="loyalty">Loyalty</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="amount">Amount</Label>
-                  <Input
-                    id="amount"
-                    name="amount"
-                    type="number"
-                    min="0"
-                    value={formData.amount}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 100"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="percentage">Percentage (%)</Label>
-                  <Input
-                    id="percentage"
-                    name="percentage"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.percentage}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 100"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="minDeposit">Min Deposit</Label>
-                  <Input
-                    id="minDeposit"
-                    name="minDeposit"
-                    type="number"
-                    min="0"
-                    value={formData.minDeposit}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 20"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="maxBonus">Max Bonus</Label>
-                  <Input
-                    id="maxBonus"
-                    name="maxBonus"
-                    type="number"
-                    min="0"
-                    value={formData.maxBonus}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 200"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="wagering">Wagering</Label>
-                  <Input
-                    id="wagering"
-                    name="wagering"
-                    type="number"
-                    min="0"
-                    value={formData.wagering}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 35"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="expiryDays">Expiry Days</Label>
-                  <Input
-                    id="expiryDays"
-                    name="expiryDays"
-                    type="number"
-                    min="1"
-                    value={formData.expiryDays}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 30"
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="vipLevelRequired">VIP Level Required</Label>
-                  <Input
-                    id="vipLevelRequired"
-                    name="vipLevelRequired"
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={formData.vipLevelRequired}
-                    onChange={handleInputChange}
-                    placeholder="e.g. 3"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="code">Bonus Code</Label>
-                <Input
-                  id="code"
-                  name="code"
-                  value={formData.code}
-                  onChange={handleInputChange}
-                  placeholder="e.g. WELCOME100"
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="allowedGames">Allowed Games (comma separated)</Label>
-                <Input
-                  id="allowedGames"
-                  name="allowedGames"
-                  value={formData.allowedGames}
-                  onChange={handleInputChange}
-                  placeholder="e.g. slots, table games"
-                />
-              </div>
+            <div>
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                type="number"
+                id="amount"
+                name="amount"
+                value={formData.amount}
+                onChange={handleInputChange}
+              />
             </div>
-            
-            <DialogFooter>
-              <Button 
-                onClick={() => handleSubmitBonus(editingBonusId)} 
-                disabled={isSubmitting}
+            <div>
+              <Label htmlFor="percentage">Percentage</Label>
+              <Input
+                type="number"
+                id="percentage"
+                name="percentage"
+                value={formData.percentage}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="wagering">Wagering Requirement</Label>
+              <Input
+                type="number"
+                id="wagering"
+                name="wagering"
+                value={formData.wagering}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="expiryDays">Expiry Days</Label>
+              <Input
+                type="number"
+                id="expiryDays"
+                name="expiryDays"
+                value={formData.expiryDays}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="minDeposit">Minimum Deposit</Label>
+              <Input
+                type="number"
+                id="minDeposit"
+                name="minDeposit"
+                value={formData.minDeposit}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="maxBonus">Maximum Bonus</Label>
+              <Input
+                type="number"
+                id="maxBonus"
+                name="maxBonus"
+                value={formData.maxBonus}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="vipLevelRequired">VIP Level Required</Label>
+              <Select
+                value={String(formData.vipLevelRequired)}
+                onValueChange={(value) =>
+                  handleSelectChange("vipLevelRequired", value)
+                }
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingBonusId ? "Updating..." : "Creating..."}
-                  </>
-                ) : (
-                  editingBonusId ? "Update Bonus Template" : "Create Bonus Template"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {bonusTemplates.map(bonus => (
-          <Card key={bonus.id} className="bg-muted">
-            <CardHeader>
-              <CardTitle>{bonus.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{bonus.description}</p>
-              <p>Type: {bonus.bonusType}</p>
-              <p>Amount: {bonus.amount}</p>
-              <p>Wagering: {bonus.wagering}</p>
-              {bonus.vipLevelRequired && (
-                <p>VIP Level Required: {bonus.vipLevelRequired}</p>
-              )}
-              {isVipLevelEligible(5, Number(bonus.vipLevelRequired)) ? (
-                <p className="text-green-500">Eligible for VIP Level 5</p>
-              ) : (
-                <p className="text-red-500">Not eligible for VIP Level 5</p>
-              )}
-            </CardContent>
-            <div className="flex justify-end space-x-2 p-4">
-              <Button variant="outline" size="sm" onClick={() => handleEditBonus(bonus)}>
-                Edit
-              </Button>
-              <Button variant="destructive" size="sm" onClick={() => handleDeleteBonus(bonus.id)}>
-                Delete
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a VIP level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vipLevels.map((level) => (
+                    <SelectItem key={String(level.id)} value={String(level.id)}>
+                      {level.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="allowedGames">Allowed Games (comma-separated)</Label>
+              <Input
+                type="text"
+                id="allowedGames"
+                name="allowedGames"
+                value={formData.allowedGames}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="code">Bonus Code</Label>
+              <Input
+                type="text"
+                id="code"
+                name="code"
+                value={formData.code}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="isActive">Active</Label>
+              <Switch
+                id="isActive"
+                name="isActive"
+                checked={formData.isActive}
+                onCheckedChange={(checked) =>
+                  setFormData((prevData) => ({ ...prevData, isActive: checked }))
+                }
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit">
+                {isEditMode ? "Update Bonus Template" : "Create Bonus Template"}
               </Button>
             </div>
-          </Card>
-        ))}
-      </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
