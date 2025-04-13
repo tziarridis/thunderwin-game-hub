@@ -48,6 +48,29 @@ export const query = async (sql: string, params?: any[]) => {
   }
 };
 
+// Execute transactions with multiple queries
+export const transaction = async (queries: { sql: string; params?: any[] }[]) => {
+  const connection = await getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    const results = [];
+    for (const q of queries) {
+      const [result] = await connection.query(q.sql, q.params);
+      results.push(result);
+    }
+    
+    await connection.commit();
+    return results;
+  } catch (error) {
+    await connection.rollback();
+    console.error('Transaction error:', error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
 // For development/testing only
 export const mockQuery = (data: any) => {
   console.log('Executing mock query with:', data);

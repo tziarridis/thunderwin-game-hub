@@ -5,7 +5,7 @@ import {
   ImageIcon, 
   Gamepad2,  
   Grid3x3, 
-  Award as SportIcon,  // Replace Football with Award
+  Award as SportIcon,
   Globe,
   BarChart2 
 } from 'lucide-react';
@@ -71,7 +71,7 @@ const CMSOverview = () => {
         <CMSModule 
           title="Sportsbook" 
           description="Configure sportsbook banners, features and promotions." 
-          icon={<SportIcon size={24} />}  // Updated icon
+          icon={<SportIcon size={24} />}
           path="/admin/cms/sportsbook" 
         />
         

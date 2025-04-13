@@ -1,22 +1,29 @@
 
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
-import { query, mockQuery } from './databaseService';
+import { query, transaction, mockQuery } from './databaseService';
 
 const API_URL = process.env.API_URL || 'https://api.casino.example.com';
+const API_KEY = process.env.API_KEY || 'your-api-key';
 
 // API service for production use
 export const gamesApi = {
   // Get all games with filtering and pagination
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     try {
-      const response = await axios.get(`${API_URL}/games`, { params });
+      const response = await axios.get(`${API_URL}/games`, { 
+        params,
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching games:', error);
-      // Fallback to local mock data in development
+      // Fallback to local database if API fails
       if (process.env.NODE_ENV === 'development') {
-        return mockGamesService.getGames(params);
+        return gamesDbService.getGames(params);
       }
       throw error;
     }
@@ -25,12 +32,17 @@ export const gamesApi = {
   // Get a single game by ID
   getGame: async (id: number | string): Promise<Game> => {
     try {
-      const response = await axios.get(`${API_URL}/games/${id}`);
+      const response = await axios.get(`${API_URL}/games/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error(`Error fetching game with id ${id}:`, error);
       if (process.env.NODE_ENV === 'development') {
-        return mockGamesService.getGame(id);
+        return gamesDbService.getGame(id);
       }
       throw error;
     }
@@ -39,12 +51,17 @@ export const gamesApi = {
   // Get all game providers
   getProviders: async (): Promise<GameProvider[]> => {
     try {
-      const response = await axios.get(`${API_URL}/providers`);
+      const response = await axios.get(`${API_URL}/providers`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error fetching game providers:', error);
       if (process.env.NODE_ENV === 'development') {
-        return mockGamesService.getProviders();
+        return gamesDbService.getProviders();
       }
       throw error;
     }
@@ -53,7 +70,12 @@ export const gamesApi = {
   // Add a new game
   addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
     try {
-      const response = await axios.post(`${API_URL}/games`, game);
+      const response = await axios.post(`${API_URL}/games`, game, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error('Error adding game:', error);
@@ -64,7 +86,12 @@ export const gamesApi = {
   // Update an existing game
   updateGame: async (game: Game): Promise<Game> => {
     try {
-      const response = await axios.put(`${API_URL}/games/${game.id}`, game);
+      const response = await axios.put(`${API_URL}/games/${game.id}`, game, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       return response.data;
     } catch (error) {
       console.error(`Error updating game with id ${game.id}:`, error);
@@ -75,9 +102,49 @@ export const gamesApi = {
   // Delete a game
   deleteGame: async (id: number | string): Promise<void> => {
     try {
-      await axios.delete(`${API_URL}/games/${id}`);
+      await axios.delete(`${API_URL}/games/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
     } catch (error) {
       console.error(`Error deleting game with id ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  // Import games from provider
+  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+    try {
+      const response = await axios.post(`${API_URL}/providers/${providerId}/import`, {}, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error importing games from provider ${providerId}:`, error);
+      throw error;
+    }
+  },
+  
+  // Toggle game feature status
+  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
+    try {
+      const response = await axios.patch(`${API_URL}/games/${id}/feature`, {
+        feature,
+        value
+      }, {
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error toggling feature for game ${id}:`, error);
       throw error;
     }
   }
@@ -86,42 +153,47 @@ export const gamesApi = {
 // Database service for direct DB access (if API is not available)
 export const gamesDbService = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    let sql = 'SELECT * FROM games WHERE 1=1';
+    let sql = `
+      SELECT g.*, p.name as provider_name, p.logo as provider_logo 
+      FROM games g
+      LEFT JOIN providers p ON g.provider_id = p.id
+      WHERE 1=1
+    `;
     const sqlParams: any[] = [];
 
     if (params.provider_id) {
-      sql += ' AND provider_id = ?';
+      sql += ' AND g.provider_id = ?';
       sqlParams.push(params.provider_id);
     }
 
     if (params.game_type) {
-      sql += ' AND game_type = ?';
+      sql += ' AND g.game_type = ?';
       sqlParams.push(params.game_type);
     }
 
     if (params.status) {
-      sql += ' AND status = ?';
+      sql += ' AND g.status = ?';
       sqlParams.push(params.status);
     }
 
     if (params.is_featured !== undefined) {
-      sql += ' AND is_featured = ?';
+      sql += ' AND g.is_featured = ?';
       sqlParams.push(params.is_featured ? 1 : 0);
     }
 
     if (params.show_home !== undefined) {
-      sql += ' AND show_home = ?';
+      sql += ' AND g.show_home = ?';
       sqlParams.push(params.show_home ? 1 : 0);
     }
 
     if (params.search) {
-      sql += ' AND (game_name LIKE ? OR game_code LIKE ? OR description LIKE ?)';
+      sql += ' AND (g.game_name LIKE ? OR g.game_code LIKE ? OR g.description LIKE ?)';
       const searchTerm = `%${params.search}%`;
       sqlParams.push(searchTerm, searchTerm, searchTerm);
     }
 
     // Count total records for pagination
-    const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as total');
+    const countSql = sql.replace('SELECT g.*, p.name as provider_name, p.logo as provider_logo', 'SELECT COUNT(*) as total');
     const countResult = await query(countSql, sqlParams) as any[];
     const total = countResult[0]?.total || 0;
 
@@ -133,10 +205,21 @@ export const gamesDbService = {
     sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
     sqlParams.push(limit, offset);
 
-    const games = await query(sql, sqlParams) as Game[];
+    const games = await query(sql, sqlParams) as any[];
+    
+    // Format the results to match the Game type
+    const formattedGames = games.map(game => ({
+      ...game,
+      provider: {
+        id: game.provider_id,
+        name: game.provider_name,
+        logo: game.provider_logo,
+        status: 'active'
+      }
+    }));
 
     return {
-      data: games,
+      data: formattedGames,
       total,
       page,
       limit
@@ -144,27 +227,41 @@ export const gamesDbService = {
   },
 
   getGame: async (id: number | string): Promise<Game> => {
-    const sql = 'SELECT * FROM games WHERE id = ?';
-    const games = await query(sql, [id]) as Game[];
+    const sql = `
+      SELECT g.*, p.name as provider_name, p.logo as provider_logo 
+      FROM games g
+      LEFT JOIN providers p ON g.provider_id = p.id
+      WHERE g.id = ?
+    `;
+    const games = await query(sql, [id]) as any[];
     
     if (games.length === 0) {
       throw new Error(`Game with id ${id} not found`);
     }
     
-    return games[0];
+    const game = games[0];
+    return {
+      ...game,
+      provider: {
+        id: game.provider_id,
+        name: game.provider_name,
+        logo: game.provider_logo,
+        status: 'active'
+      }
+    };
   },
 
   getProviders: async (): Promise<GameProvider[]> => {
-    const sql = 'SELECT * FROM providers';
+    const sql = 'SELECT * FROM providers WHERE status = "active"';
     return query(sql) as Promise<GameProvider[]>;
   },
 
   addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    const fields = Object.keys(game).join(', ');
-    const placeholders = Object.keys(game).map(() => '?').join(', ');
-    const values = Object.values(game);
+    const fields = Object.keys(game).filter(key => key !== 'provider');
+    const placeholders = fields.map(() => '?').join(', ');
+    const values = fields.map(field => (game as any)[field]);
 
-    const sql = `INSERT INTO games (${fields}) VALUES (${placeholders})`;
+    const sql = `INSERT INTO games (${fields.join(', ')}) VALUES (${placeholders})`;
     const result = await query(sql, values) as any;
     
     return {
@@ -174,7 +271,7 @@ export const gamesDbService = {
   },
 
   updateGame: async (game: Game): Promise<Game> => {
-    const { id, ...data } = game;
+    const { id, provider, ...data } = game;
     const fields = Object.keys(data).map(field => `${field} = ?`).join(', ');
     const values = [...Object.values(data), id];
 
@@ -187,6 +284,19 @@ export const gamesDbService = {
   deleteGame: async (id: number | string): Promise<void> => {
     const sql = 'DELETE FROM games WHERE id = ?';
     await query(sql, [id]);
+  },
+  
+  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
+    const sql = `UPDATE games SET ${feature} = ? WHERE id = ?`;
+    await query(sql, [value ? 1 : 0, id]);
+    return this.getGame(id);
+  },
+  
+  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+    // This would typically connect to the provider's API to fetch games
+    // Here we'll just return a message that this is a mock implementation
+    console.log(`Mock import games from provider ${providerId}`);
+    return mockQuery([]) as Promise<Game[]>;
   }
 };
 
