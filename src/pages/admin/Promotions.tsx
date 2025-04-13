@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -194,26 +195,27 @@ const Promotions = () => {
     }, 500);
   };
 
-  const handleEdit = (promo: Promotion) => {
-    setFormData({
-      title: promo.title,
-      description: promo.description,
-      image: promo.image,
-      endDate: promo.endDate,
-      category: promo.category || "deposit"
-    });
-    setEditingId(promo.id);
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this promotion?")) {
-      setPromotions(prev => prev.filter(promo => promo.id !== id));
-      toast.success("Promotion deleted successfully");
+  const handleEditPromotion = (id: string) => {
+    const promotionToEdit = promotions.find(p => p.id === id);
+    if (promotionToEdit) {
+      setFormData({
+        title: promotionToEdit.title,
+        description: promotionToEdit.description,
+        image: promotionToEdit.image || "",
+        endDate: promotionToEdit.endDate,
+        category: promotionToEdit.category || "deposit"
+      });
+      setEditingId(id);
+      setIsDialogOpen(true);
     }
   };
   
-  const handleToggleStatus = (id: string) => {
+  const handleDeletePromotion = (id: string) => {
+    setPromotions(prev => prev.filter(promo => promo.id !== id));
+    toast.success("Promotion deleted successfully");
+  };
+  
+  const handleToggleActive = (id: string) => {
     setPromotions(prev => 
       prev.map(promo => 
         promo.id === id 
@@ -221,32 +223,34 @@ const Promotions = () => {
           : promo
       )
     );
-    toast.success("Promotion status updated");
-  };
-
-  const getFilteredPromotions = () => {
-    const filtered = activeTab === "all" 
-      ? promotions 
-      : promotions.filter(promo => promo.category === activeTab);
     
-    if (!searchQuery) return filtered;
-    
-    return filtered.filter(promo => 
-      promo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      promo.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const promotion = promotions.find(p => p.id === id);
+    const action = promotion?.isActive ? "deactivated" : "activated";
+    toast.success(`Promotion ${action} successfully`);
   };
-
-  const filteredPromotions = getFilteredPromotions();
+  
+  const filteredPromotions = promotions.filter(promo => {
+    // Filter by tab
+    if (activeTab !== "all" && promo.category !== activeTab) {
+      return false;
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        promo.title.toLowerCase().includes(query) ||
+        promo.description.toLowerCase().includes(query)
+      );
+    }
+    
+    return true;
+  });
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Promotions</h1>
-          <p className="text-gray-500">Manage casino promotions and offers</p>
-        </div>
-        
+        <h1 className="text-2xl font-bold text-white">Promotions Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => {
@@ -258,78 +262,82 @@ const Promotions = () => {
                 category: "deposit"
               });
               setEditingId(null);
-            }}
-            className="hover-scale"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
+            }}>
+              <PlusCircle className="h-4 w-4 mr-2" />
               Add Promotion
             </Button>
           </DialogTrigger>
-          <DialogContent className="glass-card">
+          <DialogContent className="sm:max-w-[600px] bg-casino-thunder-dark text-white border-casino-thunder-green/50">
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit Promotion" : "Add New Promotion"}</DialogTitle>
-              <DialogDescription>
-                Fill in the details to {editingId ? "update the" : "create a new"} promotion.
+              <DialogDescription className="text-white/70">
+                Fill in the details below to {editingId ? "update" : "create"} a promotion.
               </DialogDescription>
             </DialogHeader>
-            
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">
+                  Title
+                </Label>
                 <Input
                   id="title"
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="e.g. Welcome Bonus"
+                  className="col-span-3 bg-casino-thunder-gray/30 border-white/10"
                 />
               </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="description" className="text-right">
+                  Description
+                </Label>
                 <Textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  placeholder="Describe the promotion"
+                  className="col-span-3 bg-casino-thunder-gray/30 border-white/10"
                   rows={3}
                 />
               </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="image">Image URL</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="image" className="text-right">
+                  Image URL
+                </Label>
                 <Input
                   id="image"
                   name="image"
                   value={formData.image}
                   onChange={handleInputChange}
-                  placeholder="https://example.com/image.jpg"
+                  className="col-span-3 bg-casino-thunder-gray/30 border-white/10"
                 />
               </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="endDate">End Date</Label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="endDate" className="text-right">
+                  End Date
+                </Label>
                 <Input
                   id="endDate"
                   name="endDate"
                   value={formData.endDate}
                   onChange={handleInputChange}
-                  placeholder="e.g. 2025-04-30 or 'Ongoing'"
+                  placeholder="Ongoing, Every Weekend, etc."
+                  className="col-span-3 bg-casino-thunder-gray/30 border-white/10"
                 />
               </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="category">Category</Label>
-                <Select 
-                  value={formData.category} 
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="category" className="text-right">
+                  Category
+                </Label>
+                <Select
+                  value={formData.category}
                   onValueChange={handleCategoryChange}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="col-span-3 bg-casino-thunder-gray/30 border-white/10">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map(category => (
+                    {categories.map((category) => (
                       <SelectItem key={category.value} value={category.value}>
                         {category.label}
                       </SelectItem>
@@ -338,130 +346,130 @@ const Promotions = () => {
                 </Select>
               </div>
             </div>
-            
             <DialogFooter>
               <Button 
-                onClick={handleSubmit} 
+                type="submit" 
+                onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="hover-scale"
+                className="bg-casino-thunder-green text-black"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {editingId ? "Updating..." : "Creating..."}
-                  </>
-                ) : (
-                  editingId ? "Update Promotion" : "Create Promotion"
-                )}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingId ? "Update" : "Save"}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
-      
-      {/* Stats Cards */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }} 
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6"
-      >
-        <Card className="hover-scale">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Promotions</CardTitle>
-            <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
-              <BarChart className="h-5 w-5" />
-            </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card className="thunder-card">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart className="h-5 w-5 mr-2 text-casino-thunder-green" />
+              Total Promotions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">Promotions in the system</p>
+            <div className="text-3xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
-        
-        <Card className="hover-scale">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Promotions</CardTitle>
-            <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
-              <BarChart className="h-5 w-5" />
-            </div>
+        <Card className="thunder-card">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart className="h-5 w-5 mr-2 text-casino-thunder-green" />
+              Active Promotions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">Currently visible to users</p>
+            <div className="text-3xl font-bold">{stats.active}</div>
           </CardContent>
         </Card>
-        
-        <Card className="hover-scale">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Claimed Promotions</CardTitle>
-            <div className="text-muted-foreground bg-primary/10 p-2 rounded-full">
-              <Users className="h-5 w-5" />
-            </div>
+        <Card className="thunder-card">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Users className="h-5 w-5 mr-2 text-casino-thunder-green" />
+              Claimed Promotions
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.claimed}</div>
-            <p className="text-xs text-muted-foreground">Total user claims</p>
+            <div className="text-3xl font-bold">{stats.claimed}</div>
           </CardContent>
         </Card>
-      </motion.div>
-      
-      <div className="mb-6 flex flex-col md:flex-row justify-between gap-4">
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input 
-            placeholder="Search promotions..." 
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full md:max-w-xl">
-          <TabsList className="w-full enhanced-tabs">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="deposit">Deposit</TabsTrigger>
-            <TabsTrigger value="cashback">Cashback</TabsTrigger>
-            <TabsTrigger value="tournament">Tournament</TabsTrigger>
-            <TabsTrigger value="recurring">Recurring</TabsTrigger>
-            <TabsTrigger value="special">Special</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
-      
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-      >
-        {filteredPromotions.map((promo, index) => (
-          <motion.div
-            key={promo.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.3 }}
-          >
-            <PromotionCard
-              title={promo.title}
-              description={promo.description}
-              image={promo.image}
-              endDate={promo.endDate}
-              isAdmin={true}
-              onEdit={() => handleEdit(promo)}
-              onDelete={() => handleDelete(promo.id)}
-              onClick={() => handleToggleStatus(promo.id)}
-              className={!promo.isActive ? "opacity-60" : "hover-scale"}
-            />
-          </motion.div>
-        ))}
-      </motion.div>
-      
-      {filteredPromotions.length === 0 && (
-        <div className="text-center py-12 bg-muted rounded-lg">
-          <p className="text-muted-foreground">No promotions available. {searchQuery ? "Try a different search term." : "Add your first promotion!"}</p>
-        </div>
-      )}
+
+      <Card className="thunder-card mb-6">
+        <CardHeader>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-2 md:space-y-0">
+            <CardTitle>Manage Promotions</CardTitle>
+            <div className="flex space-x-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
+                <Input
+                  placeholder="Search promotions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 w-60 bg-casino-thunder-gray/30 border-white/10"
+                />
+              </div>
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <Filter className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="all">All</TabsTrigger>
+              {categories.map((category) => (
+                <TabsTrigger key={category.value} value={category.value}>
+                  {category.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <TabsContent value="all" className="mt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredPromotions.map((promotion) => (
+                  <PromotionCard
+                    key={promotion.id}
+                    promotion={promotion}
+                    onEdit={() => handleEditPromotion(promotion.id)}
+                    onDelete={() => handleDeletePromotion(promotion.id)}
+                    onToggleActive={() => handleToggleActive(promotion.id)}
+                    isAdmin
+                  />
+                ))}
+              </div>
+              {filteredPromotions.length === 0 && (
+                <div className="text-center py-12 text-white/60">
+                  No promotions found. Create your first promotion!
+                </div>
+              )}
+            </TabsContent>
+            {categories.map((category) => (
+              <TabsContent key={category.value} value={category.value} className="mt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredPromotions.map((promotion) => (
+                    <PromotionCard
+                      key={promotion.id}
+                      promotion={promotion}
+                      onEdit={() => handleEditPromotion(promotion.id)}
+                      onDelete={() => handleDeletePromotion(promotion.id)}
+                      onToggleActive={() => handleToggleActive(promotion.id)}
+                      isAdmin
+                    />
+                  ))}
+                </div>
+                {filteredPromotions.length === 0 && (
+                  <div className="text-center py-12 text-white/60">
+                    No {category.label.toLowerCase()} promotions found. Create one!
+                  </div>
+                )}
+              </TabsContent>
+            ))}
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };

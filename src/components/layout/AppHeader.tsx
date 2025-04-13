@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { scrollToTop } from "@/utils/scrollUtils";
+import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
 
 const AppHeader = () => {
   const { isAuthenticated, user, logout } = useAuth();
