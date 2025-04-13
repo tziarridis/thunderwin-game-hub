@@ -20,7 +20,13 @@ import {
   Gift,
   Crown,
   Zap,
-  Activity
+  Activity,
+  Sparkles,
+  Table2,
+  Users,
+  DollarSign,
+  Star,
+  Heart
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -128,23 +134,23 @@ const Header = () => {
             </Button>
           )}
 
-          {/* Logo */}
+          {/* Logo - Increased size for both mobile and desktop */}
           <Link to="/" className="flex items-center">
             <motion.img 
               src="/file.svg" 
               alt="ThunderWin" 
-              className="h-8 thunder-glow"
+              className={`thunder-glow ${isMobile ? 'h-10' : 'h-12'}`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             />
           </Link>
 
-          {/* Mobile Menu */}
+          {/* Mobile Menu - Updated with unique icons */}
           {isMobile && isMenuOpen && (
             <div className="fixed top-0 left-0 w-full h-screen bg-casino-thunder-darker/95 backdrop-blur-lg z-50 p-4">
               <div className="flex items-center justify-between mb-6">
                 <Link to="/" className="flex items-center">
-                  <img src="/file.svg" alt="ThunderWin" className="h-8 thunder-glow" />
+                  <img src="/file.svg" alt="ThunderWin" className="h-10 thunder-glow" />
                 </Link>
                 <Button
                   variant="ghost"
@@ -180,12 +186,12 @@ const Header = () => {
                     transition={{ staggerChildren: 0.1 }}
                   >
                     {[
-                      { icon: <Gamepad2 className="h-5 w-5 mr-3" />, label: "All Games", path: "/casino" },
-                      { icon: <Activity className="h-5 w-5 mr-3" />, label: "Slots", path: "/casino/slots" },
-                      { icon: <Activity className="h-5 w-5 mr-3" />, label: "Table Games", path: "/casino/table-games" },
-                      { icon: <Activity className="h-5 w-5 mr-3" />, label: "Live Casino", path: "/casino/live-casino" },
-                      { icon: <Activity className="h-5 w-5 mr-3" />, label: "Jackpots", path: "/casino/jackpots" },
-                      { icon: <Activity className="h-5 w-5 mr-3" />, label: "Providers", path: "/casino/providers" },
+                      { icon: <Gamepad2 className="h-5 w-5 mr-3 text-casino-thunder-green" />, label: "All Games", path: "/casino" },
+                      { icon: <Activity className="h-5 w-5 mr-3 text-pink-400" />, label: "Slots", path: "/casino/slots" },
+                      { icon: <Table2 className="h-5 w-5 mr-3 text-blue-400" />, label: "Table Games", path: "/casino/table-games" },
+                      { icon: <Users className="h-5 w-5 mr-3 text-purple-400" />, label: "Live Casino", path: "/casino/live-casino" },
+                      { icon: <Sparkles className="h-5 w-5 mr-3 text-yellow-400" />, label: "Jackpots", path: "/casino/jackpots" },
+                      { icon: <Star className="h-5 w-5 mr-3 text-orange-400" />, label: "Providers", path: "/casino/providers" },
                     ].map((item, index) => (
                       <motion.div 
                         key={item.path}
@@ -208,22 +214,28 @@ const Header = () => {
 
                 {mobileTab === "sports" && (
                   <div className="flex flex-col space-y-3">
-                    <Link to="/sports" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Trophy className="h-5 w-5 mr-3 text-casino-thunder-green" />
                       All Sports
                     </Link>
-                    <Link to="/sports/football" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports/football" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Activity className="h-5 w-5 mr-3 text-green-400" />
                       Football
                     </Link>
-                    <Link to="/sports/basketball" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports/basketball" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Activity className="h-5 w-5 mr-3 text-orange-400" />
                       Basketball
                     </Link>
-                    <Link to="/sports/tennis" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports/tennis" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Activity className="h-5 w-5 mr-3 text-yellow-300" />
                       Tennis
                     </Link>
-                    <Link to="/sports/hockey" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports/hockey" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Activity className="h-5 w-5 mr-3 text-blue-300" />
                       Hockey
                     </Link>
-                    <Link to="/sports/esports" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/sports/esports" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Gamepad2 className="h-5 w-5 mr-3 text-purple-400" />
                       Esports
                     </Link>
                   </div>
@@ -231,8 +243,17 @@ const Header = () => {
 
                 {mobileTab === "promotions" && (
                   <div className="flex flex-col space-y-3">
-                    <Link to="/promotions" className="block py-2 text-white hover:text-casino-thunder-green">
+                    <Link to="/promotions" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Gift className="h-5 w-5 mr-3 text-red-400" />
                       All Promotions
+                    </Link>
+                    <Link to="/bonuses" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Zap className="h-5 w-5 mr-3 text-yellow-400" />
+                      Bonuses
+                    </Link>
+                    <Link to="/vip" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                      <Crown className="h-5 w-5 mr-3 text-purple-400" />
+                      VIP Program
                     </Link>
                   </div>
                 )}
@@ -240,31 +261,38 @@ const Header = () => {
                 <div className="border-t border-white/10 mt-6 pt-6">
                   {isAuthenticated ? (
                     <div className="flex flex-col space-y-3">
-                      <Link to="/profile" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/profile" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <User className="h-5 w-5 mr-3 text-blue-400" />
                         My Profile
                       </Link>
-                      <Link to="/transactions" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/transactions" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <CreditCard className="h-5 w-5 mr-3 text-green-400" />
                         Transactions
                       </Link>
-                      <Link to="/settings" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/settings" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <Settings className="h-5 w-5 mr-3 text-gray-400" />
                         Settings
                       </Link>
-                      <Link to="/support/help" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/support/help" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <HelpCircle className="h-5 w-5 mr-3 text-purple-400" />
                         Support
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="block py-2 text-white hover:text-casino-thunder-green text-left"
+                        className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all text-left"
                       >
+                        <LogOut className="h-5 w-5 mr-3 text-red-400" />
                         Logout
                       </button>
                     </div>
                   ) : (
                     <div className="flex flex-col space-y-3">
-                      <Link to="/login" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/login" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <User className="h-5 w-5 mr-3 text-blue-400" />
                         Login
                       </Link>
-                      <Link to="/register" className="block py-2 text-white hover:text-casino-thunder-green">
+                      <Link to="/register" className="flex items-center py-3 px-4 text-white hover:text-casino-thunder-green bg-white/5 rounded-lg hover:bg-white/10 transition-all">
+                        <UserCircle className="h-5 w-5 mr-3 text-green-400" />
                         Register
                       </Link>
                     </div>
