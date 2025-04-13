@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { toast } from 'sonner';
 import MD5 from 'crypto-js/md5';
@@ -98,7 +99,7 @@ export const pragmaticPlayService = {
     } = options;
 
     try {
-      // For demo mode, we can use a simpler approach since no real wallet is involved
+      // For demo mode, use the direct demo URL
       if (mode === 'demo') {
         // Demo URL format
         const demoUrl = `${PP_API_BASE}/v1/game/demo/${gameCode}?lang=${language}&platform=${platform}&lobbyUrl=${encodeURIComponent(returnUrl)}`;
@@ -106,7 +107,7 @@ export const pragmaticPlayService = {
         return demoUrl;
       }
       
-      // For real money, we need to make an API call with proper authentication
+      // For real money mode, make an authenticated API call
       const requestData = {
         agentid: PP_AGENT_ID,
         playerid: playerId,
@@ -131,6 +132,8 @@ export const pragmaticPlayService = {
         }
       });
 
+      console.log('Launch game response:', response.data);
+
       // Check for errors in response
       if (response.data.errorcode !== '0') {
         throw new Error(response.data.errormessage || 'Unknown error from Pragmatic Play API');
@@ -146,7 +149,7 @@ export const pragmaticPlayService = {
     } catch (error: any) {
       console.error('Error launching PP game:', error);
       
-      // Fallback to demo mode if there's an error
+      // Fallback to demo mode if there's an error in real money mode
       if (mode === 'real') {
         toast.error("Failed to launch real money game. Falling back to demo mode.");
         return pragmaticPlayService.launchGame({
@@ -161,44 +164,56 @@ export const pragmaticPlayService = {
   
   /**
    * Process wallet callback from Pragmatic Play
-   * This would normally be on your server
    * @param callback Wallet callback data
    * @returns Promise with response data
    */
   processWalletCallback: async (callback: PPWalletCallback): Promise<{errorcode: string, balance: number}> => {
-    // This is a client-side mock implementation
-    // In a real implementation, this would be a server-side endpoint
-    
     try {
-      // Validate agent ID
+      console.log('Processing wallet callback:', callback);
+
+      // Validate the incoming request
+      // 1. Verify agent ID
       if (callback.agentid !== PP_AGENT_ID) {
         console.error('Invalid agent ID in callback:', callback.agentid);
         return { errorcode: "1", balance: 0 };
       }
       
-      // Verify signature (would be implemented on server)
-      // const expectedSignature = generateSignature(callback);
-      // if (signature !== expectedSignature) {
+      // 2. Verify signature (in a real implementation, would be checked from headers)
+      // const signature = request.headers['x-signature'];
+      // const calculatedSignature = generateSignature(callback);
+      // if (signature !== calculatedSignature) {
       //   return { errorcode: "1", balance: 0 };
       // }
       
-      console.log('Processing wallet callback:', callback);
+      // 3. Handle different transaction types
+      let playerBalance = 100.00; // In a real implementation, get this from your database
       
-      // Handle different transaction types
       switch (callback.type) {
-        case 'debit':
-          // Process bet (deduct from player balance)
-          console.log(`Processing bet of ${callback.amount} for player ${callback.playerid}`);
+        case 'debit': // Handle bet
+          console.log(`Processing bet of ${callback.amount} for player ${callback.playerid} in round ${callback.roundid}`);
+          // In a real implementation: 
+          // - Deduct amount from player balance
+          // - Record the transaction
+          // - Update game session state
+          playerBalance -= callback.amount;
           break;
           
-        case 'credit':
-          // Process win (add to player balance)
-          console.log(`Processing win of ${callback.amount} for player ${callback.playerid}`);
+        case 'credit': // Handle win
+          console.log(`Processing win of ${callback.amount} for player ${callback.playerid} in round ${callback.roundid}`);
+          // In a real implementation: 
+          // - Add amount to player balance
+          // - Record the transaction
+          // - Update game session state
+          playerBalance += callback.amount;
           break;
           
-        case 'rollback':
-          // Process rollback (reverse previous transaction)
-          console.log(`Processing rollback for transaction ${callback.trxid}`);
+        case 'rollback': // Handle rollback
+          console.log(`Processing rollback for transaction ${callback.trxid} in round ${callback.roundid}`);
+          // In a real implementation: 
+          // - Find the referenced transaction
+          // - Reverse its effect on player balance
+          // - Mark the original transaction as rolled back
+          // For this demo, we'll just use a fixed balance
           break;
           
         default:
@@ -206,11 +221,11 @@ export const pragmaticPlayService = {
           return { errorcode: "2", balance: 0 };
       }
       
-      // Return success with mock balance
+      // Return success with the updated balance
       // In a real implementation, this would be the actual player balance after the transaction
       return {
         errorcode: "0",  // 0 means success
-        balance: 100.00  // Mock balance, would be real in production
+        balance: playerBalance
       };
     } catch (error) {
       console.error('Error processing wallet callback:', error);
@@ -222,11 +237,13 @@ export const pragmaticPlayService = {
   },
   
   /**
-   * Get available PP games from the API
+   * Get available games from the Pragmatic Play API
    * @returns Promise with array of game data
    */
   getGamesFromAPI: async (): Promise<PPGame[]> => {
     try {
+      console.log('Fetching games from Pragmatic Play API');
+
       // Prepare request data
       const requestData = {
         agentid: PP_AGENT_ID,
@@ -236,7 +253,7 @@ export const pragmaticPlayService = {
       // Generate signature
       const signature = pragmaticPlayService.generateSignature(requestData);
       
-      // Make API call
+      // Make API call to get the game list
       const response = await axios.post<PPApiResponse>(`${PP_API_BASE}/v1/gamelist`, {
         ...requestData,
         signature
@@ -247,13 +264,18 @@ export const pragmaticPlayService = {
         }
       });
       
+      console.log('Game list response:', response.data);
+
       // Check for errors
       if (response.data.errorcode !== '0') {
         throw new Error(response.data.errormessage || 'Failed to fetch games');
       }
       
       // Return the games array
-      return response.data.games || [];
+      const games = response.data.games || [];
+      console.log(`Retrieved ${games.length} games from API`);
+      
+      return games;
     } catch (error: any) {
       console.error('Error fetching PP games:', error);
       
