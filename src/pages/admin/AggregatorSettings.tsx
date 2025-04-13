@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Server, Database, Settings, RefreshCw } from "lucide-react";
+import { Shield, Server, Database, Settings, RefreshCw, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const AggregatorSettings = () => {
   const [apiEndpoint, setApiEndpoint] = useState("https://apipg.slotgamesapi.com");
@@ -27,6 +28,14 @@ const AggregatorSettings = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">Aggregator Settings</h1>
+        <div className="flex space-x-2">
+          <Link to="/casino/gitslotpark-seamless" target="_blank">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Seamless Wallet
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="general" className="w-full">

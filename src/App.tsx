@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import CasinoMain from "./pages/casino/CasinoMain";
 import GameDetails from "./pages/casino/GameDetails";
 import Seamless from "./pages/casino/Seamless";
+import GitSlotParkSeamless from "./pages/casino/GitSlotParkSeamless"; // Added this import
 import Slots from "./pages/casino/Slots";
 import Sports from "./pages/sports/Sports";
 import TableGames from "./pages/casino/TableGames";

@@ -6,6 +6,9 @@ import GitSlotParkTester from "@/components/games/GitSlotParkTester";
 import { useEffect, useState } from "react";
 import { getProviderConfig } from "@/config/gameProviders";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 
 /**
  * Game Aggregator component for admin dashboard
@@ -61,7 +64,17 @@ const GameAggregator = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Game Aggregator</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Game Aggregator</h1>
+        <div className="flex space-x-2">
+          <Link to="/casino/gitslotpark-seamless" target="_blank">
+            <Button variant="outline" size="sm">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Seamless Wallet Integration
+            </Button>
+          </Link>
+        </div>
+      </div>
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
