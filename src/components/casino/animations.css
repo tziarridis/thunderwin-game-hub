@@ -1,0 +1,90 @@
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shine-animation {
+  transform: skewX(-20deg);
+  animation: shine 3s infinite;
+  animation-delay: 2s;
+}
+
+.thunder-pulse {
+  animation: thunderPulse 2s infinite;
+}
+
+@keyframes thunderPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 5px rgba(0, 255, 102, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 15px rgba(0, 255, 102, 0.7));
+  }
+}
+
+.card-hover-effect {
+  transition: all 0.3s ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.card-hover-effect::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #00FF66, #5D3FD3, #FFD700, #00FF66);
+  z-index: -1;
+  background-size: 400%;
+  opacity: 0;
+  border-radius: calc(var(--radius) + 2px);
+  transition: opacity 0.3s ease;
+}
+
+.card-hover-effect:hover::before {
+  opacity: 1;
+  animation: borderAnimation 3s ease infinite;
+}
+
+@keyframes borderAnimation {
+  0% {
+    background-position: 0 0;
+  }
+  50% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+.zoom-on-hover {
+  transition: transform 0.3s ease;
+}
+
+.zoom-on-hover:hover {
+  transform: scale(1.05);
+}
+
+.floating-animation {
+  animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}

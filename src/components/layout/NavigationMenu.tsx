@@ -21,9 +21,10 @@ import {
   Users,
   Activity,
   CreditCard,
-  Dribbble  // Replace Football with Dribbble or another appropriate icon
+  Dribbble
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { motion } from "framer-motion";
 
 interface MenuLink {
   title: string;
@@ -87,6 +88,11 @@ const NavigationMenuDemo = () => {
     { title: "Welcome Bonus", path: "/bonuses", icon: <Gift className="h-4 w-4 mr-2" /> },
   ];
 
+  const menuItemVariants = {
+    hidden: { opacity: 0, y: -10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
+  };
+
   return (
     <NavigationMenu className="max-w-none justify-start">
       <NavigationMenuList className="flex space-x-2">
@@ -94,28 +100,36 @@ const NavigationMenuDemo = () => {
         <NavigationMenuItem>
           <NavigationMenuTrigger 
             className={cn(
-              "bg-transparent hover:bg-white/10",
-              location.pathname === '/casino' || location.pathname.startsWith('/casino/') ? "text-casino-thunder-green" : ""
+              "bg-transparent hover:bg-white/10 transition-all duration-300",
+              location.pathname === '/casino' || location.pathname.startsWith('/casino/') 
+                ? "text-casino-thunder-green shadow-neon" 
+                : ""
             )}
           >
             Casino
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-              {casinoLinks.map((link) => (
-                <li key={link.path}>
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] bg-casino-deep-black/95 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg">
+              {casinoLinks.map((link, index) => (
+                <motion.li 
+                  key={link.path}
+                  initial="hidden"
+                  animate="visible"
+                  variants={menuItemVariants}
+                  transition={{ delay: index * 0.05 }}
+                >
                   <NavigationMenuLink asChild>
                     <a
-                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer"
+                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 hover:shadow-neon no-underline outline-none focus:shadow-md transition-all duration-300 cursor-pointer group"
                       onClick={() => handleNavigation(link.path)}
                     >
-                      <div className="flex items-center mb-2">
+                      <div className="flex items-center mb-2 group-hover:text-casino-thunder-green transition-colors">
                         {link.icon}
                         <span className="text-sm font-medium">{link.title}</span>
                       </div>
                     </a>
                   </NavigationMenuLink>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </NavigationMenuContent>
@@ -125,28 +139,36 @@ const NavigationMenuDemo = () => {
         <NavigationMenuItem>
           <NavigationMenuTrigger 
             className={cn(
-              "bg-transparent hover:bg-white/10",
-              location.pathname === '/sports' || location.pathname.startsWith('/sports/') ? "text-casino-thunder-green" : ""
+              "bg-transparent hover:bg-white/10 transition-all duration-300",
+              location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
+                ? "text-casino-thunder-green shadow-neon" 
+                : ""
             )}
           >
             Sports
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-              {sportsLinks.map((link) => (
-                <li key={link.path}>
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] bg-casino-deep-black/95 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg">
+              {sportsLinks.map((link, index) => (
+                <motion.li 
+                  key={link.path}
+                  initial="hidden"
+                  animate="visible"
+                  variants={menuItemVariants}
+                  transition={{ delay: index * 0.05 }}
+                >
                   <NavigationMenuLink asChild>
                     <a
-                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer"
+                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 hover:shadow-neon no-underline outline-none focus:shadow-md transition-all duration-300 cursor-pointer group"
                       onClick={() => handleNavigation(link.path)}
                     >
-                      <div className="flex items-center mb-2">
+                      <div className="flex items-center mb-2 group-hover:text-casino-thunder-green transition-colors">
                         {link.icon}
                         <span className="text-sm font-medium">{link.title}</span>
                       </div>
                     </a>
                   </NavigationMenuLink>
-                </li>
+                </motion.li>
               ))}
             </ul>
           </NavigationMenuContent>
@@ -158,12 +180,17 @@ const NavigationMenuDemo = () => {
             <a
               className={cn(
                 navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10",
-                location.pathname === '/vip' ? "text-casino-thunder-green" : ""
+                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2",
+                location.pathname === '/vip' 
+                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
+                  : "border-transparent"
               )}
               onClick={() => handleNavigation('/vip')}
             >
-              VIP
+              <span className="relative overflow-hidden group">
+                VIP
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+              </span>
             </a>
           </NavigationMenuLink>
         </NavigationMenuItem>
@@ -174,12 +201,17 @@ const NavigationMenuDemo = () => {
             <a
               className={cn(
                 navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10",
-                location.pathname === '/bonuses' ? "text-casino-thunder-green" : ""
+                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2",
+                location.pathname === '/bonuses' 
+                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
+                  : "border-transparent"
               )}
               onClick={() => handleNavigation('/bonuses')}
             >
-              Bonuses
+              <span className="relative overflow-hidden group">
+                Bonuses
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+              </span>
             </a>
           </NavigationMenuLink>
         </NavigationMenuItem>
@@ -190,12 +222,17 @@ const NavigationMenuDemo = () => {
             <a
               className={cn(
                 navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10",
-                location.pathname === '/promotions' ? "text-casino-thunder-green" : ""
+                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2",
+                location.pathname === '/promotions' 
+                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
+                  : "border-transparent"
               )}
               onClick={() => handleNavigation('/promotions')}
             >
-              Promotions
+              <span className="relative overflow-hidden group">
+                Promotions
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+              </span>
             </a>
           </NavigationMenuLink>
         </NavigationMenuItem>
@@ -204,28 +241,36 @@ const NavigationMenuDemo = () => {
           <NavigationMenuItem>
             <NavigationMenuTrigger 
               className={cn(
-                "bg-transparent hover:bg-white/10",
-                location.pathname.startsWith('/admin') ? "text-casino-thunder-green" : ""
+                "bg-transparent hover:bg-white/10 transition-all duration-300",
+                location.pathname.startsWith('/admin') 
+                  ? "text-casino-thunder-green shadow-neon" 
+                  : ""
               )}
             >
               Admin
             </NavigationMenuTrigger>
             <NavigationMenuContent>
-              <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
-                {adminLinks.map((link) => (
-                  <li key={link.path}>
+              <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 bg-casino-deep-black/95 backdrop-blur-lg border border-white/10 rounded-lg shadow-lg">
+                {adminLinks.map((link, index) => (
+                  <motion.li 
+                    key={link.path}
+                    initial="hidden"
+                    animate="visible"
+                    variants={menuItemVariants}
+                    transition={{ delay: index * 0.05 }}
+                  >
                     <NavigationMenuLink asChild>
                       <a
-                        className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer"
+                        className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 hover:shadow-neon no-underline outline-none focus:shadow-md transition-all duration-300 cursor-pointer group"
                         onClick={() => handleNavigation(link.path)}
                       >
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center mb-2 group-hover:text-casino-thunder-green transition-colors">
                           {link.icon}
                           <span className="text-sm font-medium">{link.title}</span>
                         </div>
                       </a>
                     </NavigationMenuLink>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </NavigationMenuContent>
