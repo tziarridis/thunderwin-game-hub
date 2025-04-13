@@ -10,6 +10,7 @@ import { Game, GameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { clientGamesApi } from "@/services/mockGamesService";
 import { adaptProvidersForUI } from "@/utils/gameAdapter";
+import { convertUIGameToAPIGame, convertAPIGameToUIGame } from "@/utils/gameTypeAdapter";
 
 export interface GameFormProps {
   onSubmit: (gameData: Game | Omit<Game, "id">) => void;
