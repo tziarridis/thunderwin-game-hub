@@ -1,9 +1,24 @@
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
-import { query, transaction, mockQuery } from './databaseService';
+
+// Check if we're running in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Import the appropriate database service based on environment
+const dbService = isBrowser 
+  ? require('./browserSafeDatabaseService')
+  : require('./databaseService');
 
 const API_URL = process.env.API_URL || 'https://api.casino.example.com';
 const API_KEY = process.env.API_KEY || 'your-api-key';
+
+// Import mock games data for browser environment
+const getMockGames = async () => {
+  if (isBrowser) {
+    return import('@/data/mock-games').then(module => module.default);
+  }
+  return [];
+};
 
 // API service for production use
 export const gamesApi = {
@@ -150,6 +165,10 @@ export const gamesApi = {
 // Database service for direct DB access
 export const gamesDbService = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
+    if (isBrowser) {
+      return mockGamesService.getGames(params);
+    }
+    
     let sql = `
       SELECT g.*, p.name as provider_name, p.logo as provider_logo 
       FROM games g
@@ -191,7 +210,7 @@ export const gamesDbService = {
 
     // Count total records for pagination
     const countSql = sql.replace('SELECT g.*, p.name as provider_name, p.logo as provider_logo', 'SELECT COUNT(*) as total');
-    const countResult = await query(countSql, sqlParams) as any[];
+    const countResult = await dbService.query(countSql, sqlParams) as any[];
     const total = countResult && countResult.length > 0 ? countResult[0]?.total || 0 : 0;
 
     // Pagination
@@ -202,7 +221,7 @@ export const gamesDbService = {
     sql += ' ORDER BY id DESC LIMIT ? OFFSET ?';
     sqlParams.push(limit, offset);
 
-    const games = await query(sql, sqlParams) as any[];
+    const games = await dbService.query(sql, sqlParams) as any[];
     
     // Format the results to match the Game type
     const formattedGames = games.map(game => ({
@@ -224,13 +243,17 @@ export const gamesDbService = {
   },
 
   getGame: async (id: number | string): Promise<Game> => {
+    if (isBrowser) {
+      return mockGamesService.getGame(id);
+    }
+    
     const sql = `
       SELECT g.*, p.name as provider_name, p.logo as provider_logo 
       FROM games g
       LEFT JOIN providers p ON g.provider_id = p.id
       WHERE g.id = ?
     `;
-    const games = await query(sql, [id]) as any[];
+    const games = await dbService.query(sql, [id]) as any[];
     
     if (!games || games.length === 0) {
       throw new Error(`Game with id ${id} not found`);
@@ -249,17 +272,25 @@ export const gamesDbService = {
   },
 
   getProviders: async (): Promise<GameProvider[]> => {
+    if (isBrowser) {
+      return mockGamesService.getProviders();
+    }
+    
     const sql = 'SELECT * FROM providers WHERE status = "active"';
-    return query(sql) as Promise<GameProvider[]>;
+    return dbService.query(sql) as Promise<GameProvider[]>;
   },
 
   addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
+    if (isBrowser) {
+      return mockGamesService.addGame(game);
+    }
+    
     const fields = Object.keys(game).filter(key => key !== 'provider');
     const placeholders = fields.map(() => '?').join(', ');
     const values = fields.map(field => (game as any)[field]);
 
     const sql = `INSERT INTO games (${fields.join(', ')}) VALUES (${placeholders})`;
-    const result = await query(sql, values) as any;
+    const result = await dbService.query(sql, values) as any;
     
     return {
       ...game,
@@ -268,32 +299,47 @@ export const gamesDbService = {
   },
 
   updateGame: async (game: Game): Promise<Game> => {
+    if (isBrowser) {
+      return mockGamesService.updateGame(game);
+    }
+    
     const { id, provider, ...data } = game;
     const fields = Object.keys(data).map(field => `${field} = ?`).join(', ');
     const values = [...Object.values(data), id];
 
     const sql = `UPDATE games SET ${fields} WHERE id = ?`;
-    await query(sql, values);
+    await dbService.query(sql, values);
     
     return game;
   },
 
   deleteGame: async (id: number | string): Promise<void> => {
+    if (isBrowser) {
+      return mockGamesService.deleteGame(id);
+    }
+    
     const sql = 'DELETE FROM games WHERE id = ?';
-    await query(sql, [id]);
+    await dbService.query(sql, [id]);
   },
   
   toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
+    if (isBrowser) {
+      return mockGamesService.toggleGameFeature(id, feature, value);
+    }
+    
     const sql = `UPDATE games SET ${feature} = ? WHERE id = ?`;
-    await query(sql, [value ? 1 : 0, id]);
+    await dbService.query(sql, [value ? 1 : 0, id]);
     return this.getGame(id);
   },
   
   importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+    if (isBrowser) {
+      return mockGamesService.importGamesFromProvider(providerId);
+    }
     // This would typically connect to the provider's API to fetch games
     // Here we'll just return a message that this is a mock implementation
     console.log(`Mock import games from provider ${providerId}`);
-    return mockQuery([]) as Promise<Game[]>;
+    return dbService.mockQuery([]) as Promise<Game[]>;
   }
 };
 
@@ -301,16 +347,16 @@ export const gamesDbService = {
 export const mockGamesService = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     // Import mock data dynamically
-    const mockData = await import('@/data/mock-games').then(module => module.default);
+    const mockData = await getMockGames();
     
     let filteredGames = [...mockData]
       .map(game => ({
         id: parseInt(game.id),
         provider_id: 1,
         game_id: game.id,
-        game_name: game.title,
-        game_code: game.id.replace(/\D/g, ''),
-        game_type: game.category,
+        game_name: game.title || '',
+        game_code: (game.id && game.id.replace(/\D/g, '')) || '',
+        game_type: game.category || 'slots',
         description: game.description || '',
         cover: game.image || '',
         status: 'active',
@@ -321,10 +367,10 @@ export const mockGamesService = {
         has_tables: game.category === 'table',
         only_demo: false,
         rtp: game.rtp || 96,
-        distribution: game.provider,
+        distribution: typeof game.provider === 'string' ? game.provider : '',
         views: Math.floor(Math.random() * 1000),
-        is_featured: game.isPopular,
-        show_home: game.isNew,
+        is_featured: game.isPopular || false,
+        show_home: game.isNew || false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as Game));
@@ -370,7 +416,7 @@ export const mockGamesService = {
   },
 
   getGame: async (id: number | string): Promise<Game> => {
-    const mockData = await import('@/data/mock-games').then(module => module.default);
+    const mockData = await getMockGames();
     const game = mockData.find(g => g.id === id.toString() || parseInt(g.id) === id);
     
     if (!game) {
@@ -405,7 +451,7 @@ export const mockGamesService = {
 
   getProviders: async (): Promise<GameProvider[]> => {
     // Generate mock providers
-    return mockQuery([
+    return dbService.mockQuery([
       { id: 1, name: 'Pragmatic Play', logo: '/providers/pragmatic.png', status: 'active' },
       { id: 2, name: 'Evolution Gaming', logo: '/providers/evolution.png', status: 'active' },
       { id: 3, name: 'NetEnt', logo: '/providers/netent.png', status: 'active' },

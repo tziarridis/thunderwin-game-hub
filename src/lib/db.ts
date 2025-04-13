@@ -1,10 +1,31 @@
 
-import mysql from 'mysql2/promise';
-import { initDatabase } from '@/services/databaseService';
+// Check if we're running in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Only import mysql2 if we're in a Node.js environment
+let mysql: any;
+let initDatabase: any;
+
+if (!isBrowser) {
+  // Server-side only imports
+  const serverImports = require('@/services/databaseService');
+  mysql = require('mysql2/promise');
+  initDatabase = serverImports.initDatabase;
+} else {
+  // Browser-safe mock imports
+  const { browserDb } = require('@/services/browserSafeDatabaseService');
+  mysql = null;
+  initDatabase = () => browserDb;
+}
 
 // Initialize the database connection once at startup
 export const initializeDatabase = async () => {
   try {
+    if (isBrowser) {
+      console.log("Running in browser environment, using mock database");
+      return true;
+    }
+    
     const pool = initDatabase();
     console.log("Database connection initialized successfully");
     
@@ -21,6 +42,10 @@ export const initializeDatabase = async () => {
 
 // Export a function to get the database status
 export const getDatabaseStatus = async () => {
+  if (isBrowser) {
+    return { connected: true, message: "Mock database connected (browser environment)" };
+  }
+  
   try {
     const connection = await mysql.createConnection({
       host: process.env.DB_HOST || 'localhost',
@@ -43,11 +68,13 @@ export const getDatabaseStatus = async () => {
 };
 
 // For development and testing purposes only
-export const db = {
-  connect: initializeDatabase,
-  status: getDatabaseStatus,
-  disconnect: () => {
-    console.log("Disconnected from database");
-    return true;
-  }
-};
+export const db = isBrowser 
+  ? require('@/services/browserSafeDatabaseService').browserDb
+  : {
+      connect: initializeDatabase,
+      status: getDatabaseStatus,
+      disconnect: () => {
+        console.log("Disconnected from database");
+        return true;
+      }
+    };

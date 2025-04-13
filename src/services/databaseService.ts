@@ -1,5 +1,20 @@
 
-import mysql from 'mysql2/promise';
+// Check if we're running in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Only import mysql2 if we're in a Node.js environment
+let mysql: any;
+let pool: any;
+
+if (!isBrowser) {
+  // Server-side only imports
+  mysql = require('mysql2/promise');
+} else {
+  // Import browser-safe mock
+  const { browserDb } = require('./browserSafeDatabaseService');
+  mysql = null;
+  pool = browserDb;
+}
 
 // Configuration for the database connection
 const dbConfig = {
@@ -13,10 +28,13 @@ const dbConfig = {
 };
 
 // Create a connection pool
-let pool: mysql.Pool;
-
 export const initDatabase = () => {
   try {
+    if (isBrowser) {
+      console.log('Browser environment detected, using mock database');
+      return require('./browserSafeDatabaseService').browserDb;
+    }
+    
     pool = mysql.createPool(dbConfig);
     console.log('Database pool created successfully');
     return pool;
@@ -27,6 +45,10 @@ export const initDatabase = () => {
 };
 
 export const getConnection = async () => {
+  if (isBrowser) {
+    return require('./browserSafeDatabaseService').browserDb.getConnection();
+  }
+  
   if (!pool) {
     initDatabase();
   }
@@ -34,6 +56,10 @@ export const getConnection = async () => {
 };
 
 export const query = async (sql: string, params?: any[]) => {
+  if (isBrowser) {
+    return require('./browserSafeDatabaseService').mockQuery({ sql, params });
+  }
+  
   try {
     const connection = await getConnection();
     try {
@@ -50,6 +76,10 @@ export const query = async (sql: string, params?: any[]) => {
 
 // Execute transactions with multiple queries
 export const transaction = async (queries: { sql: string; params?: any[] }[]) => {
+  if (isBrowser) {
+    return require('./browserSafeDatabaseService').mockTransaction(queries);
+  }
+  
   const connection = await getConnection();
   try {
     await connection.beginTransaction();

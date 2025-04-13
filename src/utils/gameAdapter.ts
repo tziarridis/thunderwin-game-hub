@@ -1,111 +1,67 @@
 
-import { Game as GameFromAPI, GameProvider as GameProviderFromAPI } from '@/types/game';
+import { Game as APIGame, GameProvider as APIGameProvider } from '@/types/game';
 import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
 
-/**
- * Converts a Game from the API format to the UI format
- */
-export function adaptGameForUI(game: GameFromAPI): UIGame {
-  // Create provider object or string based on what's available
-  let provider: UIGameProvider | string = '';
-  
-  if (typeof game.provider === 'object' && game.provider) {
-    provider = {
-      id: game.provider.id?.toString() || '0',
-      name: game.provider.name || '',
-      logo: game.provider.logo || '',
-      gamesCount: 0, // Default value
-      isPopular: false, // Default value
-      description: game.provider.description || '',
-      featured: false // Default value
-    };
-  } else if (game.distribution) {
-    provider = game.distribution;
-  }
-
+export const adaptGameForUI = (apiGame: APIGame): UIGame => {
   return {
-    id: game.id ? game.id.toString() : '',
-    title: game.game_name,
-    provider: provider,
-    category: game.game_type || 'slots',
-    image: game.cover || '',
-    rtp: game.rtp || 96,
-    volatility: 'medium', // Default value as this isn't in the API model
-    minBet: 0.1, // Default values as these aren't in the API model
-    maxBet: 100,
-    isPopular: game.is_featured || false,
-    isNew: game.show_home || false,
-    isFavorite: false, // Default value
-    releaseDate: game.created_at || new Date().toISOString(),
-    jackpot: false, // Default value
-    description: game.description || '',
-    tags: [],
+    id: apiGame.id.toString(),
+    title: apiGame.game_name || '',
+    description: apiGame.description || '',
+    provider: apiGame.distribution || '',
+    category: apiGame.game_type || 'slots',
+    image: apiGame.cover || '',
+    rtp: apiGame.rtp || 96,
+    volatility: 'medium', // Default value as API doesn't have this
+    minBet: 0.1, // Default value as API doesn't have this
+    maxBet: 100, // Default value as API doesn't have this 
+    isPopular: apiGame.is_featured || false,
+    isNew: apiGame.show_home || false,
+    isFavorite: false,
+    jackpot: false,
+    releaseDate: apiGame.created_at || new Date().toISOString(),
+    tags: []
   };
-}
+};
 
-/**
- * Converts an array of Games from the API format to the UI format
- */
-export function adaptGamesForUI(games: GameFromAPI[]): UIGame[] {
-  return games.map(adaptGameForUI);
-}
-
-/**
- * Converts a Game from the UI format to the API format
- */
-export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
-  let providerId = 1;
-  let providerName = '';
-  
-  // Handle different provider formats
-  if (typeof game.provider === 'object' && game.provider) {
-    providerId = parseInt(game.provider.id || '1');
-    providerName = game.provider.name || '';
-  } else if (typeof game.provider === 'string') {
-    providerName = game.provider;
-  }
-    
+export const adaptGameForAPI = (uiGame: UIGame): Omit<APIGame, 'id'> => {
   return {
-    provider_id: providerId,
-    game_id: game.id || '',
-    game_name: game.title,
-    game_code: game.id ? (game.id.replace(/\D/g, '') || '') : '',
-    game_type: game.category,
-    description: game.description || '',
-    cover: game.image || '',
+    provider_id: 1, // Default provider ID
+    game_id: uiGame.id || '',
+    game_name: uiGame.title || '',
+    game_code: uiGame.id ? uiGame.id.replace(/\D/g, '') : '',
+    game_type: uiGame.category || 'slots',
+    description: uiGame.description || '',
+    cover: uiGame.image || '',
     status: 'active',
     technology: 'HTML5',
     has_lobby: false,
     is_mobile: true,
-    has_freespins: game.category === 'slots',
-    has_tables: game.category === 'table',
+    has_freespins: uiGame.category === 'slots',
+    has_tables: uiGame.category === 'table',
     only_demo: false,
-    rtp: game.rtp || 96,
-    distribution: providerName,
-    views: 0,
-    is_featured: game.isPopular,
-    show_home: game.isNew,
+    rtp: uiGame.rtp || 96,
+    distribution: typeof uiGame.provider === 'string' ? uiGame.provider : '',
+    views: Math.floor(Math.random() * 1000),
+    is_featured: uiGame.isPopular || false,
+    show_home: uiGame.isNew || false,
+    created_at: uiGame.releaseDate || new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
-}
+};
 
-/**
- * Converts a provider from API format to UI format
- */
-export function adaptProviderForUI(provider: GameProviderFromAPI): UIGameProvider {
+export const adaptGamesForUI = (apiGames: APIGame[]): UIGame[] => {
+  return apiGames.map(adaptGameForUI);
+};
+
+export const adaptProviderForUI = (apiProvider: APIGameProvider): UIGameProvider => {
   return {
-    id: provider.id?.toString() || '0',
-    name: provider.name || '',
-    logo: provider.logo || '',
-    gamesCount: 0, // Default value
-    isPopular: false, // Default value
-    description: provider.description || '',
-    featured: false, // Default value
+    id: apiProvider.id.toString(),
+    name: apiProvider.name || '',
+    logo: apiProvider.logo || '',
+    gamesCount: 0
   };
-}
+};
 
-/**
- * Converts an array of providers from API format to UI format
- */
-export function adaptProvidersForUI(providers: GameProviderFromAPI[]): UIGameProvider[] {
-  return providers.map(adaptProviderForUI);
-}
+export const adaptProvidersForUI = (apiProviders: APIGameProvider[]): UIGameProvider[] => {
+  return apiProviders.map(adaptProviderForUI);
+};

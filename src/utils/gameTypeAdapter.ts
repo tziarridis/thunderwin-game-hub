@@ -1,48 +1,52 @@
 
-import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
+import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
-import { adaptGameForUI, adaptGameForAPI } from './gameAdapter';
 
-/**
- * Adapts a game from API format to UI format for use in components
- * This helps resolve type incompatibilities between different Game types
- */
-export function convertAPIGameToUIGame(apiGame: APIGame): UIGame {
-  return adaptGameForUI(apiGame);
-}
-
-/**
- * Adapts a game from UI format to API format for use in services
- */
-export function convertUIGameToAPIGame(uiGame: UIGame): Omit<APIGame, 'id'> {
-  return adaptGameForAPI(uiGame);
-}
-
-/**
- * Wraps add/update handlers to handle type conversions automatically
- */
-export function createGameHandlerAdapter(
-  apiAddHandler: (game: Omit<APIGame, 'id'>) => Promise<APIGame>,
-  apiUpdateHandler: (game: APIGame) => Promise<APIGame>
-) {
-  // Create a UI-compatible handler that works with UI Game type
+// Convert UI Game format to API Game format
+export const convertUIGameToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
   return {
-    handleAddOrUpdateGame: async (gameData: UIGame | Omit<UIGame, 'id'>): Promise<UIGame> => {
-      if ('id' in gameData && gameData.id) {
-        // Update existing game
-        const apiGame = {
-          id: typeof gameData.id === 'string' ? parseInt(gameData.id) : gameData.id,
-          ...adaptGameForAPI(gameData as UIGame)
-        } as APIGame;
-        
-        const result = await apiUpdateHandler(apiGame);
-        return adaptGameForUI(result);
-      } else {
-        // Add new game
-        const apiGame = adaptGameForAPI(gameData as UIGame);
-        const result = await apiAddHandler(apiGame);
-        return adaptGameForUI(result);
-      }
-    }
+    provider_id: 1, // Default provider ID
+    game_id: uiGame.id || '',
+    game_name: uiGame.title || '',
+    game_code: uiGame.id ? uiGame.id.replace(/\D/g, '') : '',
+    game_type: uiGame.category || 'slots',
+    description: uiGame.description || '',
+    cover: uiGame.image || '',
+    status: 'active',
+    technology: 'HTML5',
+    has_lobby: false,
+    is_mobile: true,
+    has_freespins: uiGame.category === 'slots',
+    has_tables: uiGame.category === 'table',
+    only_demo: false,
+    rtp: uiGame.rtp || 96,
+    distribution: typeof uiGame.provider === 'string' ? uiGame.provider : '',
+    views: Math.floor(Math.random() * 1000),
+    is_featured: uiGame.isPopular || false,
+    show_home: uiGame.isNew || false,
+    created_at: uiGame.releaseDate || new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
-}
+};
+
+// Convert API Game format to UI Game format
+export const convertAPIGameToUIGame = (apiGame: APIGame): UIGame => {
+  return {
+    id: apiGame.id.toString(),
+    title: apiGame.game_name || '',
+    description: apiGame.description || '',
+    provider: apiGame.distribution || '',
+    category: apiGame.game_type || 'slots',
+    image: apiGame.cover || '',
+    rtp: apiGame.rtp || 96,
+    volatility: 'medium', // Default value as API doesn't have this
+    minBet: 0.1, // Default value as API doesn't have this
+    maxBet: 100, // Default value as API doesn't have this 
+    isPopular: apiGame.is_featured || false,
+    isNew: apiGame.show_home || false,
+    isFavorite: false,
+    jackpot: false,
+    releaseDate: apiGame.created_at || new Date().toISOString(),
+    tags: []
+  };
+};
