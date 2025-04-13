@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,30 @@ import RecentBigWins from "@/components/casino/RecentBigWins";
 import GameCategories from "@/components/casino/GameCategories";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
+
+// Mock data for configurable banners from backend
+const banners = [
+  {
+    id: 1,
+    title: "Welcome Bonus",
+    description: "Get 100% up to $500 + 100 Free Spins on your first deposit!",
+    imageUrl: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81",
+    ctaText: "Claim Now",
+    ctaUrl: "/promotions",
+    backgroundColor: "from-purple-900 to-blue-900",
+    textColor: "text-white"
+  },
+  {
+    id: 2,
+    title: "Casino Tournament",
+    description: "Win big in our weekly casino tournament with $10,000 prize pool",
+    imageUrl: "https://images.unsplash.com/photo-1518998053901-5348d3961a04",
+    ctaText: "Join Now",
+    ctaUrl: "/tournaments",
+    backgroundColor: "from-green-800 to-blue-900",
+    textColor: "text-white"
+  }
+];
 
 const CasinoMain = () => {
   const { games, loading, error } = useGames();
@@ -86,9 +111,40 @@ const CasinoMain = () => {
           </p>
         </div>
         
-        {/* Recent Big Wins - Full Width */}
+        {/* Configurable Banners Section - Added at top */}
         <div className="mb-8">
-          <RecentBigWins />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {banners.map(banner => (
+              <div
+                key={banner.id}
+                className={`rounded-lg overflow-hidden relative h-60 bg-gradient-to-r ${banner.backgroundColor}`}
+              >
+                <div className="absolute inset-0 opacity-60 bg-black">
+                  <img 
+                    src={banner.imageUrl} 
+                    alt={banner.title} 
+                    className="w-full h-full object-cover mix-blend-overlay"
+                  />
+                </div>
+                <div className="absolute inset-0 flex flex-col justify-center p-8 z-10">
+                  <h3 className={`text-2xl font-bold mb-2 ${banner.textColor}`}>
+                    {banner.title}
+                  </h3>
+                  <p className={`${banner.textColor} mb-4 opacity-80 max-w-md`}>
+                    {banner.description}
+                  </p>
+                  <div>
+                    <Button 
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                      onClick={() => navigate(banner.ctaUrl)}
+                    >
+                      {banner.ctaText}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
         
         {/* Game Categories */}
@@ -98,6 +154,12 @@ const CasinoMain = () => {
             navigate(`/casino/${category}`);
             scrollToTop();
           }} />
+        </div>
+        
+        {/* Recent Big Wins - Moved under Game Categories */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Big Wins</h2>
+          <RecentBigWins />
         </div>
         
         <div className="mb-6">
