@@ -1,142 +1,148 @@
+import React from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+} from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { ToastContainer } from 'sonner';
 
-import { Route, Routes } from "react-router-dom";
-import AppLayout from "./components/layout/AppLayout";
-import ScrollToTop from "./components/layout/ScrollToTop";
-import Index from "./pages/Index";
-import CasinoMain from "./pages/casino/CasinoMain";
-import SlotGames from "./pages/casino/Slots";
-import TableGames from "./pages/casino/TableGames";
-import LiveCasino from "./pages/casino/LiveCasino";
-import Jackpots from "./pages/casino/Jackpots";
-import Providers from "./pages/casino/Providers";
-import GameDetails from "./pages/casino/GameDetails";
-import CrashGamesPage from "./pages/casino/Crash";
-import NewGamesPage from "./pages/casino/NewGames";
-import FavoritesPage from "./pages/casino/Favorites";
-import Sports from "./pages/sports/Sports";
-import Football from "./pages/sports/Football";
-import Basketball from "./pages/sports/Basketball";
-import Tennis from "./pages/sports/Tennis";
-import Hockey from "./pages/sports/Hockey";
-import Esports from "./pages/sports/Esports";
-import Promotions from "./pages/promotions/Promotions";
-import VIP from "./pages/vip/VIP";
-import BonusHub from "./pages/bonuses/BonusHub";
-import Profile from "./pages/user/Profile";
-import Transactions from "./pages/user/Transactions";
-import Settings from "./pages/user/Settings";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import AdminLogin from "./pages/auth/AdminLogin";
-import AdminLayout from "./components/layout/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import AdminUsers from "./pages/admin/Users";
-import AdminGames from "./pages/admin/Games";
-import AdminTransactions from "./pages/admin/Transactions";
-import AdminReports from "./pages/admin/Reports";
-import AdminPromotions from "./pages/admin/Promotions";
-import AdminLogs from "./pages/admin/Logs";
-import AdminSettings from "./pages/admin/Settings";
-import AdminSecurity from "./pages/admin/Security";
-import AdminSupport from "./pages/admin/Support";
-import AdminKycManagement from "./pages/admin/KycManagement";
-import AdminVipBonusManagement from "./pages/admin/VipBonusManagement";
-import AdminAffiliates from "./pages/admin/Affiliates";
-import Contact from "./pages/support/Contact";
-import Help from "./pages/support/Help";
-import Faq from "./pages/support/Faq";
-import ResponsibleGaming from "./pages/support/ResponsibleGaming";
-import KycStatus from "./pages/kyc/KycStatus";
-import NotFound from "./pages/NotFound";
-import Privacy from "./pages/legal/Privacy";
-import Terms from "./pages/legal/Terms";
-import SupportChat from "./components/support/SupportChat";
-import "./App.css";
+// Public Pages
+import Home from './pages/Home';
+import Games from './pages/Games';
+import Promotions from './pages/Promotions';
+import Support from './pages/Support';
+import Register from './pages/Register';
+import Login from './pages/Login';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import NotFound from './pages/NotFound';
+import GameDetails from './pages/GameDetails';
+
+// User Dashboard Pages
+import Dashboard from './pages/user/Dashboard';
+import UserProfile from './pages/user/UserProfile';
+import Transactions from './pages/user/Transactions';
+import MyBonuses from './pages/user/MyBonuses';
+import MyAffiliate from './pages/user/MyAffiliate';
+import VerifyEmail from './pages/VerifyEmail';
+
+// Admin Dashboard Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
+import TransactionManagement from './pages/admin/TransactionManagement';
+import ReportManagement from './pages/admin/ReportManagement';
+import GameManagement from './pages/admin/GameManagement';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminLayout from './components/layout/AdminLayout';
+import GameForm from './pages/admin/GameForm';
+import PromotionManagement from './pages/admin/Promotions';
+import AffiliateManagement from './pages/admin/AffiliateManagement';
+import KycManagement from './pages/admin/KycManagement';
+import VipManagement from './pages/admin/VipManagement';
+import SecuritySettings from './pages/admin/SecuritySettings';
+import SystemLogs from './pages/admin/SystemLogs';
+import AdminSettings from './pages/admin/AdminSettings';
+import BonusManagement from './pages/admin/BonusManagement';
+import BonusForm from './pages/admin/BonusForm';
+import PlayerSegmentation from "@/pages/admin/PlayerSegmentation";
+
+// Protected Route Component
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicLayout from './components/layout/PublicLayout';
+import UserLayout from './components/layout/UserLayout';
 
 function App() {
   return (
-    <>
-      {/* Add ScrollToTop component to ensure all page changes start at the top */}
-      <ScrollToTop />
-      
-      <Routes>
-        {/* Main Routes */}
-        <Route path="/" element={<AppLayout />}>
-          <Route index element={<Index />} />
-          
-          {/* Casino Routes */}
-          <Route path="casino" element={<CasinoMain />} />
-          <Route path="casino/slots" element={<SlotGames />} />
-          <Route path="casino/table-games" element={<TableGames />} />
-          <Route path="casino/live-casino" element={<LiveCasino />} />
-          <Route path="casino/jackpots" element={<Jackpots />} />
-          <Route path="casino/providers" element={<Providers />} />
-          <Route path="casino/game/:id" element={<GameDetails />} />
-          <Route path="casino/crash" element={<CrashGamesPage />} />
-          <Route path="casino/new" element={<NewGamesPage />} />
-          <Route path="casino/favorites" element={<FavoritesPage />} />
-          
-          {/* Sports Routes */}
-          <Route path="sports" element={<Sports />} />
-          <Route path="sports/football" element={<Football />} />
-          <Route path="sports/basketball" element={<Basketball />} />
-          <Route path="sports/tennis" element={<Tennis />} />
-          <Route path="sports/hockey" element={<Hockey />} />
-          <Route path="sports/esports" element={<Esports />} />
-          
-          {/* Other Main Routes */}
-          <Route path="promotions" element={<Promotions />} />
-          <Route path="vip" element={<VIP />} />
-          <Route path="bonuses" element={<BonusHub />} />
-          
-          {/* User Routes */}
-          <Route path="profile" element={<Profile />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="settings" element={<Settings />} />
-          
-          {/* Support Routes */}
-          <Route path="support/contact" element={<Contact />} />
-          <Route path="support/help" element={<Help />} />
-          <Route path="support/faq" element={<Faq />} />
-          <Route path="support/responsible-gaming" element={<ResponsibleGaming />} />
-          
-          {/* KYC Routes */}
-          <Route path="kyc/status" element={<KycStatus />} />
-          
-          {/* Legal Routes */}
-          <Route path="legal/privacy" element={<Privacy />} />
-          <Route path="legal/terms" element={<Terms />} />
-        </Route>
-        
-        {/* Auth Routes */}
-        <Route path="login" element={<Login />} />
-        <Route path="register" element={<Register />} />
-        <Route path="admin/login" element={<AdminLogin />} />
-        
-        {/* Admin Routes */}
-        <Route path="admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="games" element={<AdminGames />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="promotions" element={<AdminPromotions />} />
-          <Route path="logs" element={<AdminLogs />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="security" element={<AdminSecurity />} />
-          <Route path="support" element={<AdminSupport />} />
-          <Route path="kyc" element={<AdminKycManagement />} />
-          <Route path="vip-management" element={<AdminVipBonusManagement />} />
-          <Route path="affiliates" element={<AdminAffiliates />} />
-        </Route>
-        
-        {/* 404 Route */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-      
-      {/* Global Support Chat */}
-      <SupportChat />
-    </>
+    <AuthProvider>
+      <Router>
+        <ToastContainer richColors closeButton />
+        <Routes>
+          {/* Public Routes */}
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/games" element={<Games />} />
+             <Route path="/games/:id" element={<GameDetails />} />
+            <Route path="/promotions" element={<Promotions />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+          </Route>
+
+          {/* User Dashboard Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <UserLayout><Dashboard /></UserLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <UserLayout><UserProfile /></UserLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute>
+                <UserLayout><Transactions /></UserLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-bonuses"
+            element={
+              <ProtectedRoute>
+                <UserLayout><MyBonuses /></UserLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-affiliate"
+            element={
+              <ProtectedRoute>
+                <UserLayout><MyAffiliate /></UserLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Dashboard Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<ProtectedRoute isAdmin={true}><AdminLayout /></ProtectedRoute>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="transactions" element={<TransactionManagement />} />
+            <Route path="reports" element={<ReportManagement />} />
+            <Route path="games" element={<GameManagement />} />
+              <Route path="games/new" element={<GameForm />} />
+              <Route path="games/edit/:id" element={<GameForm />} />
+            <Route path="promotions" element={<PromotionManagement />} />
+            <Route path="affiliates" element={<AffiliateManagement />} />
+            <Route path="kyc" element={<KycManagement />} />
+            <Route path="vip-management" element={<VipManagement />} />
+            <Route path="security" element={<SecuritySettings />} />
+            <Route path="logs" element={<SystemLogs />} />
+            <Route path="settings" element={<AdminSettings />} />
+              <Route path="bonuses" element={<BonusManagement />} />
+              <Route path="bonuses/new" element={<BonusForm />} />
+              <Route path="bonuses/edit/:id" element={<BonusForm />} />
+              <Route path="segmentation" element={<PlayerSegmentation />} />
+          </Route>
+
+          {/* Not Found Route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

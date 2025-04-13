@@ -18,7 +18,9 @@ import {
   Star,
   Award,
   Shield,
-  LogIn
+  LogIn,
+  PieChart,
+  Layers
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -100,6 +102,13 @@ const AdminSidebar = () => {
             label="Users" 
             expanded={expanded}
             isActive={isActive("/admin/users")}
+          />
+          <SidebarLink 
+            to="/admin/segmentation" 
+            icon={<PieChart size={20} />} 
+            label="Segmentation" 
+            expanded={expanded}
+            isActive={isActive("/admin/segmentation")}
           />
           <SidebarLink 
             to="/admin/transactions" 
