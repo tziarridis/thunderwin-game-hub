@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,6 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
       await launchGame(game, {
         providerId: selectedProvider,
         mode,
-        playerId: 'demo_player'
       });
     } catch (error) {
       console.error('Error launching game:', error);

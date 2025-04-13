@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,12 +24,12 @@ const GameAggregator: React.FC = () => {
     status: 'idle',
   });
   
-  const [syncResults, setSyncResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [syncProgress, setSyncProgress] = useState(0);
-  const [currentProvider, setCurrentProvider] = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [syncResults, setSyncResults = useState<any>(null);
+  const [activeTab, setActiveTab = useState("dashboard");
+  const [syncProgress, setSyncProgress = useState(0);
+  const [currentProvider, setCurrentProvider = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen = useState(false);
+  const [selectedGame, setSelectedGame = useState<Game | null>(null);
   const navigate = useNavigate();
   
   // Use Games hook to connect with Games Management
@@ -430,7 +429,7 @@ const GameAggregator: React.FC = () => {
                         <TableCell>
                           {typeof game.provider === 'string' 
                             ? game.provider 
-                            : game.provider?.name || 'Unknown'}
+                            : (game.provider as any)?.name || 'Unknown'}
                         </TableCell>
                         <TableCell className="capitalize">{game.category}</TableCell>
                         <TableCell>

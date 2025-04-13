@@ -10,6 +10,7 @@ export const useGames = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [totalGames, setTotalGames] = useState(0);
+  const [launchingGame, setLaunchingGame] = useState(false);
   
   // Fetch games on component mount
   const fetchGames = useCallback(async () => {
@@ -96,6 +97,36 @@ export const useGames = () => {
     }
   };
   
+  // Launch a game
+  const launchGame = async (game: Game, options: { mode?: 'real' | 'demo', providerId?: string } = {}) => {
+    try {
+      setLaunchingGame(true);
+      const { mode = 'demo', providerId = 'ppeur' } = options;
+      
+      // In a real implementation, this would call your game launch service
+      // For now, just simulate a game launch
+      toast.info(`Launching ${game.title} in ${mode} mode`);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Create a mock game URL - in a real implementation, this would come from your game provider
+      const gameUrl = `/casino/play/${game.id}?mode=${mode}&provider=${providerId}`;
+      
+      // Open the game in a new window or redirect
+      window.open(gameUrl, '_blank');
+      
+      return gameUrl;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to launch game');
+      setError(error);
+      toast.error(error.message);
+      throw error;
+    } finally {
+      setLaunchingGame(false);
+    }
+  };
+  
   // Import games from aggregator to game management
   const importGamesFromAggregator = async () => {
     try {
@@ -145,6 +176,8 @@ export const useGames = () => {
     updateGame,
     deleteGame,
     importGamesFromAggregator,
-    refreshGames: fetchGames
+    refreshGames: fetchGames,
+    launchGame,
+    launchingGame
   };
 };
