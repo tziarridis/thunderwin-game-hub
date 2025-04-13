@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { MessageSquare, Send, X, Minimize2, Maximize2, HelpCircle, ChevronDown, Search } from "lucide-react";
 import { scrollToTop } from "@/utils/scrollUtils";
 import { useNavigate } from "react-router-dom";
@@ -86,7 +86,7 @@ const SupportChat = () => {
   const sendMessage = () => {
     if (!message.trim()) return;
     
-    const newUserMessage = {
+    const newUserMessage: Message = {
       id: messages.length + 1,
       sender: "user",
       text: message,
@@ -108,7 +108,7 @@ const SupportChat = () => {
       
       const randomResponse = agentResponses[Math.floor(Math.random() * agentResponses.length)];
       
-      const newAgentMessage = {
+      const newAgentMessage: Message = {
         id: messages.length + 2,
         sender: "agent",
         text: randomResponse,
@@ -154,7 +154,7 @@ const SupportChat = () => {
   };
   
   const handleFaqClick = (answer: string) => {
-    const newAgentMessage = {
+    const newAgentMessage: Message = {
       id: messages.length + 1,
       sender: "agent",
       text: answer,

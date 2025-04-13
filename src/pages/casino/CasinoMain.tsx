@@ -10,6 +10,8 @@ import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
 import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
+import { useAuth } from "@/contexts/AuthContext";
+import { scrollToTop } from "@/utils/scrollUtils";
 
 const CasinoMain = () => {
   const { games, loading, error } = useGames();
@@ -17,6 +19,7 @@ const CasinoMain = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (games) {
@@ -66,6 +69,16 @@ const CasinoMain = () => {
     setSearchText("");
   };
 
+  const handleVipClick = () => {
+    if (!isAuthenticated) {
+      navigate('/register');
+      scrollToTop();
+    } else {
+      navigate('/vip');
+      scrollToTop();
+    }
+  };
+
   if (loading) {
     return <div className="container mx-auto px-4 py-12">Loading games...</div>;
   }
@@ -111,8 +124,11 @@ const CasinoMain = () => {
                   <span>Faster Withdrawals</span>
                 </li>
               </ul>
-              <Button className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500/10" onClick={() => navigate('/vip')}>
-                Learn More
+              <Button 
+                className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500/10" 
+                onClick={handleVipClick}
+              >
+                {!isAuthenticated ? "Join Now" : "Learn More"}
               </Button>
             </div>
             
@@ -141,8 +157,11 @@ const CasinoMain = () => {
                   <span>Luxury Gifts</span>
                 </li>
               </ul>
-              <Button className="w-full bg-gradient-to-r from-slate-400 to-slate-300 text-black hover:from-slate-300 hover:to-slate-400" onClick={() => navigate('/vip')}>
-                Join Platinum VIP
+              <Button 
+                className="w-full bg-gradient-to-r from-slate-400 to-slate-300 text-black hover:from-slate-300 hover:to-slate-400" 
+                onClick={handleVipClick}
+              >
+                {!isAuthenticated ? "Join Now" : "Join Platinum VIP"}
               </Button>
             </div>
             
@@ -171,8 +190,11 @@ const CasinoMain = () => {
                   <span>Luxury Travel Packages</span>
                 </li>
               </ul>
-              <Button className="w-full bg-transparent border border-blue-300 text-blue-300 hover:bg-blue-500/10" onClick={() => navigate('/vip')}>
-                Learn More
+              <Button 
+                className="w-full bg-transparent border border-blue-300 text-blue-300 hover:bg-blue-500/10" 
+                onClick={handleVipClick}
+              >
+                {!isAuthenticated ? "Join Now" : "Learn More"}
               </Button>
             </div>
           </div>
@@ -181,7 +203,10 @@ const CasinoMain = () => {
         {/* Game Categories */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-          <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
+          <GameCategories onCategoryClick={(category) => {
+            navigate(`/casino/${category}`);
+            scrollToTop();
+          }} />
         </div>
         
         <div className="mb-6">
@@ -245,7 +270,10 @@ const CasinoMain = () => {
                 isFavorite={game.isFavorite}
                 minBet={game.minBet}
                 maxBet={game.maxBet}
-                onClick={() => navigate(`/casino/game/${game.id}`)}
+                onClick={() => {
+                  navigate(`/casino/game/${game.id}`);
+                  scrollToTop();
+                }}
               />
             ))}
           </div>

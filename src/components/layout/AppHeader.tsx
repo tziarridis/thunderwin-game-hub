@@ -42,6 +42,12 @@ const AppHeader = () => {
     navigate("/support/help");
     scrollToTop();
   };
+  
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    scrollToTop();
+    setIsMenuOpen(false);
+  };
 
   return (
     <header className="fixed w-full z-50 bg-casino-thunder-darker/80 backdrop-blur-md border-b border-white/10">
@@ -49,7 +55,10 @@ const AppHeader = () => {
         <div className="flex items-center">
           <div 
             className="cursor-pointer mr-4" 
-            onClick={() => navigate("/")}
+            onClick={() => {
+              navigate("/");
+              scrollToTop();
+            }}
           >
             <img 
               src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
@@ -132,75 +141,37 @@ const AppHeader = () => {
                     <MobileNavLink 
                       title="Casino" 
                       icon={<span className="text-casino-thunder-green">♠️</span>}
-                      onClick={() => {
-                        navigate("/casino");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/casino")}
                     />
                     <MobileNavLink 
                       title="Slots" 
                       icon={<span className="text-casino-thunder-green">🎰</span>}
-                      onClick={() => {
-                        navigate("/casino/slots");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/casino/slots")}
                     />
                     <MobileNavLink 
                       title="Table Games" 
                       icon={<span className="text-casino-thunder-green">♣️</span>}
-                      onClick={() => {
-                        navigate("/casino/table-games");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/casino/table-games")}
                     />
                     <MobileNavLink 
                       title="Live Casino" 
                       icon={<span className="text-casino-thunder-green">🎮</span>}
-                      onClick={() => {
-                        navigate("/casino/live-casino");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/casino/live-casino")}
                     />
                     <MobileNavLink 
                       title="Jackpots" 
                       icon={<span className="text-casino-thunder-green">💰</span>}
-                      onClick={() => {
-                        navigate("/casino/jackpots");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/casino/jackpots")}
                     />
                     <MobileNavLink 
                       title="Promotions" 
                       icon={<span className="text-casino-thunder-green">🎁</span>}
-                      onClick={() => {
-                        navigate("/promotions");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
-                    />
-                    <MobileNavLink 
-                      title="VIP Program" 
-                      icon={<span className="text-casino-thunder-green">👑</span>}
-                      onClick={() => {
-                        navigate("/vip");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
-                      highlight
+                      onClick={() => handleNavigate("/promotions")}
                     />
                     <MobileNavLink 
                       title="Help Center" 
                       icon={<span className="text-casino-thunder-green">❓</span>}
-                      onClick={() => {
-                        navigate("/support/help");
-                        setIsMenuOpen(false);
-                        scrollToTop();
-                      }}
+                      onClick={() => handleNavigate("/support/help")}
                     />
                     
                     {isAuthenticated && (
@@ -209,21 +180,13 @@ const AppHeader = () => {
                         <MobileNavLink 
                           title="Profile" 
                           icon={<span className="text-casino-thunder-green">👤</span>}
-                          onClick={() => {
-                            navigate("/profile");
-                            setIsMenuOpen(false);
-                            scrollToTop();
-                          }}
+                          onClick={() => handleNavigate("/profile")}
                         />
                         {user?.isAdmin && (
                           <MobileNavLink 
                             title="Admin Dashboard" 
                             icon={<span className="text-casino-thunder-green">⚙️</span>}
-                            onClick={() => {
-                              navigate("/admin");
-                              setIsMenuOpen(false);
-                              scrollToTop();
-                            }}
+                            onClick={() => handleNavigate("/admin")}
                           />
                         )}
                       </>

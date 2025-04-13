@@ -12,8 +12,16 @@ import {
   DollarSign
 } from "lucide-react";
 import { scrollToTop } from "../../utils/scrollUtils";
+import { useNavigate } from "react-router-dom";
 
 const Footer = () => {
+  const navigate = useNavigate();
+  
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    scrollToTop();
+  };
+  
   return (
     <footer className="bg-casino-thunder-darker border-t border-white/5 pt-12 pb-6">
       <div className="container mx-auto px-4">
@@ -38,6 +46,8 @@ const Footer = () => {
                 src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
                 alt="ThunderWin" 
                 className="h-8 w-auto thunder-glow"
+                onClick={() => handleNavigate("/")}
+                style={{ cursor: 'pointer' }}
               />
             </div>
             <p className="text-white/70 text-sm mb-4">
