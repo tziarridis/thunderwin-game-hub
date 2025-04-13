@@ -1,195 +1,214 @@
 
-import { Game } from '@/types';
-import { toast } from 'sonner';
+import axios from 'axios';
+import { Game as APIGame, GameListParams, GameResponse } from '@/types/game';
+import { getProviderConfig } from '@/config/gameProviders';
 
-// In a real application, this would interact with your database
-// For this demo, we'll use localStorage to simulate a database
-
-/**
- * Get all games
- * @returns Promise with array of games
- */
-export const getAllGames = async (): Promise<Game[]> => {
-  try {
-    // In a real implementation, this would be a database query
-    const storedGames = localStorage.getItem('games');
-    if (storedGames) {
-      return JSON.parse(storedGames);
-    }
-    return [];
-  } catch (error) {
-    console.error('Error getting games:', error);
-    return [];
-  }
-};
-
-/**
- * Get a game by ID
- * @param id Game ID
- * @returns Promise with game or null
- */
-export const getGameById = async (id: number | string): Promise<Game | null> => {
-  try {
-    const games = await getAllGames();
-    return games.find(game => game.id.toString() === id.toString()) || null;
-  } catch (error) {
-    console.error('Error getting game:', error);
-    return null;
-  }
-};
-
-/**
- * Get a game by game ID (not database ID)
- * @param gameId Game ID from provider
- * @returns Promise with game or null
- */
-export const getGameByGameId = async (gameId: string): Promise<Game | null> => {
-  try {
-    const games = await getAllGames();
-    return games.find(game => game.id === gameId) || null;
-  } catch (error) {
-    console.error('Error getting game by game ID:', error);
-    return null;
-  }
-};
-
-/**
- * Create a new game
- * @param game Game data
- * @returns Promise with created game
- */
-export const createGame = async (game: Omit<Game, 'id'>): Promise<Game> => {
-  try {
-    const games = await getAllGames();
-    const newGame = {
-      id: games.length > 0 ? Math.max(...games.map(g => typeof g.id === 'string' ? parseInt(g.id) : 0)) + 1 : 1,
-      ...game
-    };
-    
-    const gameWithStringId = {
-      ...newGame,
-      id: newGame.id.toString()
-    };
-    
-    games.push(gameWithStringId);
-    localStorage.setItem('games', JSON.stringify(games));
-    
-    return gameWithStringId;
-  } catch (error) {
-    console.error('Error creating game:', error);
-    throw error;
-  }
-};
-
-/**
- * Update a game
- * @param id Game ID
- * @param game Updated game data
- * @returns Promise with updated game
- */
-export const updateGame = async (id: number | string, game: Partial<Game>): Promise<Game> => {
-  try {
-    const games = await getAllGames();
-    const index = games.findIndex(g => g.id.toString() === id.toString());
-    
-    if (index === -1) {
-      throw new Error(`Game with ID ${id} not found`);
-    }
-    
-    games[index] = { ...games[index], ...game };
-    localStorage.setItem('games', JSON.stringify(games));
-    
-    return games[index];
-  } catch (error) {
-    console.error('Error updating game:', error);
-    throw error;
-  }
-};
-
-/**
- * Delete a game
- * @param id Game ID
- * @returns Promise with success status
- */
-export const deleteGame = async (id: number | string): Promise<boolean> => {
-  try {
-    const games = await getAllGames();
-    const filteredGames = games.filter(g => g.id.toString() !== id.toString());
-    
-    if (filteredGames.length === games.length) {
-      throw new Error(`Game with ID ${id} not found`);
-    }
-    
-    localStorage.setItem('games', JSON.stringify(filteredGames));
-    return true;
-  } catch (error) {
-    console.error('Error deleting game:', error);
-    return false;
-  }
-};
-
-/**
- * Import games from an external source
- * @param games Array of games to import
- * @returns Promise with count of imported games
- */
-export const importGames = async (games: Omit<Game, 'id'>[]): Promise<number> => {
-  try {
-    const existingGames = await getAllGames();
-    let importedCount = 0;
-    
-    for (const game of games) {
-      // Check if game already exists by a unique identifier (using title as example)
-      const existingGame = existingGames.find(g => g.title === game.title);
-      
-      if (existingGame) {
-        // Update existing game
-        await updateGame(existingGame.id, game);
-      } else {
-        // Create new game
-        await createGame(game);
-        importedCount++;
-      }
-    }
-    
-    toast.success(`Successfully imported ${importedCount} new games`);
-    return importedCount;
-  } catch (error) {
-    console.error('Error importing games:', error);
-    toast.error('Failed to import games');
-    return 0;
-  }
-};
-
-// Create a clientGamesApi object that wraps the functions
+// Game API client for admin operations
 export const clientGamesApi = {
-  getGames: getAllGames,
-  getGameById,
-  getGameByGameId,
-  addGame: createGame,
-  updateGame: (game: Game) => updateGame(game.id, game),
-  deleteGame,
-  toggleGameFeature: async (id: number | string, feature: string, value: boolean) => {
-    return updateGame(id, { [feature]: value });
+  getAllGames: async (): Promise<APIGame[]> => {
+    try {
+      // This would normally be an API call to fetch games from your backend
+      // For now, we return a mock response
+      return [
+        {
+          id: '1',
+          provider_id: 1,
+          game_id: 'vs20fruitsw',
+          game_name: 'Sweet Bonanza',
+          game_code: 'vs20fruitsw',
+          game_type: 'slot',
+          description: 'A sweet slot game with multiplier symbols',
+          cover: '/lovable-uploads/sweet-bonanza.jpg',
+          status: 'active',
+          technology: 'html5',
+          has_lobby: false,
+          is_mobile: true,
+          has_freespins: true,
+          has_tables: false,
+          rtp: 96,
+          distribution: 'Pragmatic Play',
+          views: 1000,
+          is_featured: true,
+          show_home: true
+        }
+      ];
+    } catch (error) {
+      console.error('Error fetching games:', error);
+      throw error;
+    }
   },
-  getProviders: async () => {
-    // Mock function to return providers
-    return [
-      { id: 1, name: 'Pragmatic Play', logo: '', status: 'active' },
-      { id: 2, name: 'Evolution Gaming', logo: '', status: 'active' },
-      { id: 3, name: 'NetEnt', logo: '', status: 'active' },
-      { id: 4, name: 'Microgaming', logo: '', status: 'active' }
-    ];
+
+  // Get game by ID
+  getGame: async (id: string): Promise<APIGame> => {
+    try {
+      // Mock response
+      return {
+        id,
+        provider_id: 1,
+        game_id: 'vs20fruitsw',
+        game_name: 'Sweet Bonanza',
+        game_code: 'vs20fruitsw',
+        game_type: 'slot',
+        description: 'A sweet slot game with multiplier symbols',
+        cover: '/lovable-uploads/sweet-bonanza.jpg',
+        status: 'active',
+        technology: 'html5',
+        has_lobby: false,
+        is_mobile: true,
+        has_freespins: true,
+        has_tables: false,
+        rtp: 96,
+        distribution: 'Pragmatic Play',
+        views: 1000,
+        is_featured: true,
+        show_home: true
+      };
+    } catch (error) {
+      console.error(`Error fetching game ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Add a new game
+  addGame: async (game: Omit<APIGame, 'id'>): Promise<APIGame> => {
+    try {
+      // This would normally be an API call to add a game
+      // For now, we return a mock response
+      return {
+        ...game,
+        id: Math.floor(Math.random() * 10000).toString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error adding game:', error);
+      throw error;
+    }
+  },
+
+  // Update a game
+  updateGame: async (game: APIGame): Promise<APIGame> => {
+    try {
+      // This would normally be an API call to update a game
+      // For now, we return a mock response
+      return {
+        ...game,
+        updated_at: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error(`Error updating game ${game.id}:`, error);
+      throw error;
+    }
+  },
+
+  // Delete a game
+  deleteGame: async (id: string): Promise<boolean> => {
+    try {
+      // This would normally be an API call to delete a game
+      // For now, we return a mock success response
+      return true;
+    } catch (error) {
+      console.error(`Error deleting game ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Toggle game feature (popular/new)
+  toggleGameFeature: async (
+    id: string,
+    feature: 'is_featured' | 'show_home',
+    value: boolean
+  ): Promise<APIGame> => {
+    try {
+      // This would normally be an API call to toggle a game feature
+      // For now, we return a mock response
+      const game = await clientGamesApi.getGame(id);
+      return {
+        ...game,
+        [feature]: value,
+        updated_at: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error(`Error toggling feature for game ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Fetch games from a provider API
+  fetchGamesFromProvider: async (providerId: string): Promise<APIGame[]> => {
+    try {
+      const config = getProviderConfig(providerId);
+      if (!config) {
+        throw new Error(`No configuration found for provider ${providerId}`);
+      }
+
+      // This would normally be an API call to fetch games from a provider
+      // For now, we return a mock response
+      return [
+        {
+          id: '1001',
+          provider_id: parseInt(providerId),
+          game_id: 'vs20fruitsw',
+          game_name: 'Sweet Bonanza',
+          game_code: 'vs20fruitsw',
+          game_type: 'slot',
+          description: 'A sweet slot game with multiplier symbols',
+          cover: '/lovable-uploads/sweet-bonanza.jpg',
+          status: 'active',
+          technology: 'html5',
+          has_lobby: false,
+          is_mobile: true,
+          has_freespins: true,
+          has_tables: false,
+          rtp: 96,
+          distribution: 'Pragmatic Play',
+          views: 0,
+          is_featured: false,
+          show_home: false
+        }
+      ];
+    } catch (error) {
+      console.error(`Error fetching games from provider ${providerId}:`, error);
+      throw error;
+    }
   }
 };
 
-export default {
-  getAllGames,
-  getGameById,
-  getGameByGameId,
-  createGame,
-  updateGame,
-  deleteGame,
-  importGames,
-  clientGamesApi
+// Functions for getting game data (used by components)
+export const getAllGames = async () => {
+  // This function would normally call your API to fetch games
+  // For now, we'll return mock data
+  const apiGames = await clientGamesApi.getAllGames();
+  return apiGames.map(game => ({
+    id: game.id.toString(),
+    title: game.game_name,
+    provider: game.distribution,
+    category: game.game_type || 'slot',
+    image: game.cover,
+    rtp: game.rtp,
+    volatility: 'medium', // Default since API doesn't provide this
+    minBet: 0.1, // Default since API doesn't provide this
+    maxBet: 100, // Default since API doesn't provide this
+    isPopular: game.is_featured || false,
+    isNew: game.show_home || false,
+    isFavorite: false,
+    releaseDate: game.created_at || new Date().toISOString(),
+    jackpot: false,
+    description: game.description || ''
+  }));
+};
+
+export const createGame = async (gameData) => {
+  // Implementation would call your API
+  return { id: 'new-game-id', ...gameData };
+};
+
+export const updateGame = async (id, gameData) => {
+  // Implementation would call your API
+  return { id, ...gameData };
+};
+
+export const deleteGame = async (id) => {
+  // Implementation would call your API
+  return true;
 };

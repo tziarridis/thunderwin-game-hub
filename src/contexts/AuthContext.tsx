@@ -25,7 +25,7 @@ type AuthContextType = {
   register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserBalance: (amount: number) => void;
-  adminLogin?: (email: string, password: string) => Promise<boolean>;
+  adminLogin: (username: string, password: string) => Promise<boolean>;
   deposit?: (amount: number) => void;
   updateBalance?: (amount: number) => void;
 };
@@ -147,8 +147,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Admin Login - same as login but specifically for admin panel
-  const adminLogin = login;
+  // Specific Admin Login function
+  const adminLogin = async (username: string, password: string): Promise<boolean> => {
+    setLoading(true);
+    
+    try {
+      // Simulate API call with a 1 second delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // For demo purposes, only accept admin/admin credentials
+      if (username === 'admin' && password === 'admin') {
+        const userData = { ...adminUser };
+        setUser(userData);
+        setIsAuthenticated(true);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        toast.success(`Welcome back, Administrator!`);
+        setLoading(false);
+        return true;
+      } else {
+        throw new Error('Invalid admin credentials');
+      }
+    } catch (error) {
+      console.error('Admin login error:', error);
+      toast.error('Admin login failed. Please check your credentials.');
+      setLoading(false);
+      return false;
+    }
+  };
 
   // Register function
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
