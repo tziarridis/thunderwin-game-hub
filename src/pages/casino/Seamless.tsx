@@ -100,7 +100,7 @@ const Seamless = () => {
                   {lastCallback.type === 'rollback' && `Rollback of transaction ${lastCallback.trxid} processed.`}
                 </p>
                 <p className="mt-2">
-                  New Balance: {response?.balance || 0} {lastCallback.currency || 'EUR'}
+                  New Balance: {response?.balance || 0} EUR
                 </p>
               </div>
             </>

@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface User {
   id: string;
@@ -18,6 +18,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  loading: boolean; // Add the missing loading property
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (username: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // Add loading state
   
   useEffect(() => {
     // Check for existing session on load
@@ -37,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    setLoading(false); // Set loading to false after checking
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -244,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user, 
         isAuthenticated: !!user, 
         isAdmin: !!user?.isAdmin,
+        loading, // Add loading to the context
         login, 
         adminLogin,
         register,

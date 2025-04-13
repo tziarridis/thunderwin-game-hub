@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import MD5 from 'crypto-js/md5';
@@ -31,6 +30,8 @@ export interface PPWalletCallback {
   gameref?: string;
   gameid?: string;
   metadata?: string;
+  // Note: currency is not actually in the interface
+  // We'll hardcode EUR where needed
 }
 
 // Interface for API response

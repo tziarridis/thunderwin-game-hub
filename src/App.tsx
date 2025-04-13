@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
@@ -5,25 +6,24 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { Layout } from "./components/layout/Layout";
-import { Home } from "./pages/Home";
-import { Casino } from "./pages/Casino";
-import { Sportsbook } from "./pages/Sportsbook";
-import { Promotions } from "./pages/Promotions";
-import { Profile } from "./pages/Profile";
-import { Login } from "./pages/Login";
-import { Registration } from "./pages/Registration";
-import { ForgotPassword } from "./pages/ForgotPassword";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { UserManagement } from "./pages/admin/UserManagement";
-import { GameManagement } from "./pages/admin/GameManagement";
-import { TransactionHistory } from "./pages/admin/TransactionHistory";
-import { AggregatorSettings } from "./pages/admin/AggregatorSettings";
-import { GameAggregatorPage } from "./pages/admin/GameAggregator";
-import { useAuth } from "./contexts/AuthContext";
-import { Seamless } from "./pages/casino/Seamless";
+import Layout from "./components/layout/Layout";
+import { Home } from "./pages/Index";
+import { Casino } from "./pages/casino/CasinoMain";
+import { Sportsbook } from "./pages/sports/Sports";
+import { Promotions } from "./pages/promotions/Promotions";
+import { Profile } from "./pages/user/Profile";
+import Login from "./pages/auth/Login";
+import Registration from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import AdminDashboard from "./pages/admin/Dashboard";
+import UserManagement from "./pages/admin/Users";
+import GameManagement from "./pages/admin/Games";
+import TransactionHistory from "./pages/admin/Transactions";
+import AggregatorSettings from "./pages/admin/AggregatorSettings";
+import GameAggregatorPage from "./pages/admin/GameAggregator";
+import Seamless from "./pages/casino/Seamless";
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
