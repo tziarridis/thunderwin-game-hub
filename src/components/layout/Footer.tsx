@@ -42,7 +42,7 @@ const Footer = () => {
             <PaymentMethodCard icon={<CreditCard className="h-6 w-6" />} name="Vouchers" />
           </div>
         </div>
-
+        
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
