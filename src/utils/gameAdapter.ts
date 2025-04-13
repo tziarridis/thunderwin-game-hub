@@ -92,8 +92,8 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
  */
 export function adaptProviderForUI(provider: GameProviderFromAPI): UIGameProvider {
   return {
-    id: provider.id.toString(),
-    name: provider.name,
+    id: provider.id?.toString() || '0',
+    name: provider.name || '',
     logo: provider.logo || '',
     gamesCount: 0, // Default value
     isPopular: false, // Default value

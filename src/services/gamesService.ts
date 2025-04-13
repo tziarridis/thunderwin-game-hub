@@ -208,12 +208,12 @@ export const gamesDbService = {
     // Format the results to match the Game type
     const formattedGames = games.map(game => ({
       ...game,
-      provider: game.provider_id && {
+      provider: game.provider_id ? {
         id: game.provider_id,
         name: game.provider_name || '',
         logo: game.provider_logo || '',
         status: 'active'
-      }
+      } : undefined
     }));
 
     return {
@@ -240,12 +240,12 @@ export const gamesDbService = {
     const game = games[0];
     return {
       ...game,
-      provider: {
+      provider: game.provider_id ? {
         id: game.provider_id,
         name: game.provider_name || '',
         logo: game.provider_logo || '',
         status: 'active'
-      }
+      } : undefined
     };
   },
 
@@ -395,7 +395,7 @@ export const mockGamesService = {
       has_tables: game.category === 'table',
       only_demo: false,
       rtp: game.rtp,
-      distribution: game.provider || '',
+      distribution: typeof game.provider === 'string' ? game.provider : '',
       views: Math.floor(Math.random() * 1000),
       is_featured: game.isPopular,
       show_home: game.isNew,
@@ -413,10 +413,49 @@ export const mockGamesService = {
       { id: 4, name: 'Microgaming', logo: '/providers/microgaming.png', status: 'active' },
       { id: 5, name: 'Play\'n GO', logo: '/providers/playngo.png', status: 'active' }
     ]);
+  },
+  
+  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
+    console.log("Mock adding game:", game);
+    return {
+      ...game,
+      id: Math.floor(Math.random() * 10000),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as Game;
+  },
+  
+  updateGame: async (game: Game): Promise<Game> => {
+    console.log("Mock updating game:", game);
+    return {
+      ...game,
+      updated_at: new Date().toISOString()
+    };
+  },
+  
+  deleteGame: async (id: number | string): Promise<void> => {
+    console.log("Mock deleting game:", id);
+    return Promise.resolve();
+  },
+  
+  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
+    console.log(`Mock toggling ${feature} to ${value} for game ${id}`);
+    const game = await this.getGame(id);
+    if (feature === 'is_featured') {
+      game.is_featured = value;
+    } else if (feature === 'show_home') {
+      game.show_home = value;
+    }
+    return game;
+  },
+  
+  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+    console.log(`Mock import games from provider ${providerId}`);
+    return [];
   }
 };
 
-// Export a simplified API interface that doesn't use Node.js dependencies
+// Export a simplified API interface for client-side use
 export const clientGamesApi = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     try {
