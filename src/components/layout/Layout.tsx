@@ -1,6 +1,6 @@
 
 import { Outlet } from "react-router-dom";
-import AppHeader from "./AppHeader";
+import Header from "./Header";
 import Footer from "./Footer";
 
 const Layout = () => {
@@ -13,8 +13,8 @@ const Layout = () => {
       <div className="fixed -top-40 -left-40 w-80 h-80 bg-casino-thunder-green/20 rounded-full filter blur-[100px] opacity-30"></div>
       <div className="fixed top-1/2 -right-40 w-80 h-80 bg-purple-500/20 rounded-full filter blur-[100px] opacity-20"></div>
       
-      <AppHeader />
-      <main className="flex-1 relative z-10">
+      <Header />
+      <main className="flex-1 relative z-10 pt-20">
         <Outlet />
       </main>
       <Footer />
