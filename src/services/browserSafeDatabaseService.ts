@@ -1,11 +1,11 @@
 
 // This is a browser-safe version of the database service
-// It does not use mysql2 directly which causes issues in the browser
+// It provides mock implementations that are safe to use in browser environments
 
 // Create mock functions that match the signature of the database service
 export const mockQuery = (data: any) => {
   console.log('Executing mock query with:', data);
-  return Promise.resolve(data);
+  return Promise.resolve([]);
 };
 
 export const mockTransaction = (queries: { sql: string; params?: any[] }[]) => {
