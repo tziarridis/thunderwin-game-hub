@@ -13,12 +13,18 @@ import {
 } from "lucide-react";
 import { scrollToTop } from "../../utils/scrollUtils";
 import { useNavigate } from "react-router-dom";
+import { navigateByButtonName } from "../../utils/navigationUtils";
 
 const Footer = () => {
   const navigate = useNavigate();
   
   const handleNavigate = (path: string) => {
     navigate(path);
+    scrollToTop();
+  };
+  
+  const handleTextNavigation = (text: string) => {
+    navigateByButtonName(text, navigate);
     scrollToTop();
   };
   
