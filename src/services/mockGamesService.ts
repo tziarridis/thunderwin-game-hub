@@ -1,4 +1,3 @@
-
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { adaptGamesForUI, adaptProvidersForUI } from '@/utils/gameAdapter';
 
@@ -59,7 +58,7 @@ export const mockGamesService = {
         const searchTerm = params.search.toLowerCase();
         filteredGames = filteredGames.filter(game => 
           game.game_name.toLowerCase().includes(searchTerm) || 
-          game.game_code.toLowerCase().includes(searchTerm) ||
+          (game.game_code && game.game_code.toLowerCase().includes(searchTerm)) ||
           (game.description && game.description.toLowerCase().includes(searchTerm))
         );
       }

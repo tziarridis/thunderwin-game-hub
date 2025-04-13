@@ -232,7 +232,7 @@ export const gamesDbService = {
     `;
     const games = await query(sql, [id]) as any[];
     
-    if (games.length === 0) {
+    if (!games || games.length === 0) {
       throw new Error(`Game with id ${id} not found`);
     }
     

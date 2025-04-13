@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
-import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI } from "@/utils/gameAdapter";
+import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
 import { clientGamesApi } from "@/services/mockGamesService";
 
 export const useGames = (initialParams: GameListParams = {}) => {

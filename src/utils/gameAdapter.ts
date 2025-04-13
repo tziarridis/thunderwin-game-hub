@@ -57,6 +57,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
   let providerId = 1;
   let providerName = '';
   
+  // Handle different provider formats
   if (typeof game.provider === 'object' && game.provider) {
     providerId = parseInt(game.provider.id || '1');
     providerName = game.provider.name || '';
