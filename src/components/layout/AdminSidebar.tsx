@@ -290,8 +290,12 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
           {isAuthenticated && user ? (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-white/10">
-                  {/* You can add user avatar here */}
+                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-sm font-medium text-white">{user.name?.charAt(0) || "A"}</span>
+                  )}
                 </div>
                 {!collapsed && (
                   <div>

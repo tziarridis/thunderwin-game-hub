@@ -108,7 +108,7 @@ const NavigationMenuDemo = () => {
           </NavigationMenuLink>
         </NavigationMenuItem>
 
-        {/* VIP - Direct link (NEW) */}
+        {/* VIP - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
             <a
@@ -130,29 +130,27 @@ const NavigationMenuDemo = () => {
           </NavigationMenuLink>
         </NavigationMenuItem>
 
-        {/* Sports - Direct link (conditionally rendered) */}
-        {showSportsSection && (
-          <NavigationMenuItem>
-            <NavigationMenuLink asChild>
-              <a
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                  location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
-                    ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                    : "border-transparent"
-                )}
-                onClick={() => handleNavigation('/sports')}
-              >
-                <Trophy className="mr-2 h-4 w-4" />
-                <span className="relative overflow-hidden group">
-                  Sports
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-                </span>
-              </a>
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        )}
+        {/* Sports - Direct link (always visible now) */}
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <a
+              className={cn(
+                navigationMenuTriggerStyle(),
+                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
+                location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
+                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
+                  : "border-transparent"
+              )}
+              onClick={() => handleNavigation('/sports')}
+            >
+              <Trophy className="mr-2 h-4 w-4" />
+              <span className="relative overflow-hidden group">
+                Sports
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+              </span>
+            </a>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
 
         {/* Promotions - Direct link */}
         <NavigationMenuItem>

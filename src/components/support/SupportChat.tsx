@@ -12,7 +12,9 @@ import {
   Smile,
   Image as ImageIcon,
   ArrowUpRight,
-  Check
+  Check,
+  Sparkles,
+  Phone
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +30,7 @@ interface Message {
   sender: "user" | "agent";
   text: string;
   timestamp: Date;
+  status?: "sending" | "sent" | "delivered" | "read";
 }
 
 const presetMessages = [
@@ -48,10 +51,30 @@ const SupportChat = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [showPresets, setShowPresets] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsMounted(true);
-    return () => setIsMounted(false);
+    
+    // Simulate an initial greeting message after 5 seconds if chat is not open
+    const timer = setTimeout(() => {
+      if (!isOpen && messages.length === 0) {
+        setUnreadCount(1);
+        const welcomeMessage: Message = {
+          id: Date.now(),
+          sender: "agent",
+          text: "👋 Hi there! How can I help you today?",
+          timestamp: new Date(),
+          status: "delivered"
+        };
+        setMessages([welcomeMessage]);
+      }
+    }, 5000);
+    
+    return () => {
+      setIsMounted(false);
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -61,17 +84,10 @@ const SupportChat = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      // Add welcome message
-      const welcomeMessage: Message = {
-        id: Date.now(),
-        sender: "agent",
-        text: "👋 Hi there! How can I help you today?",
-        timestamp: new Date(),
-      };
-      setMessages([welcomeMessage]);
+    if (isOpen) {
+      setUnreadCount(0);
     }
-  }, [isOpen, messages.length]);
+  }, [isOpen]);
 
   const handleSendMessage = () => {
     if (inputMessage.trim() === "") return;
@@ -79,13 +95,32 @@ const SupportChat = () => {
     // Add user message
     const userMessage: Message = {
       id: Date.now(),
-      sender: "agent",
+      sender: "user",
       text: inputMessage,
       timestamp: new Date(),
+      status: "sending"
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
+    
+    // Update status to sent after a brief delay
+    setTimeout(() => {
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === userMessage.id ? {...msg, status: "sent"} : msg
+        )
+      );
+    }, 500);
+    
+    // Update status to delivered after another delay
+    setTimeout(() => {
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === userMessage.id ? {...msg, status: "delivered"} : msg
+        )
+      );
+    }, 1000);
     
     // Show typing indicator
     setIsTyping(true);
@@ -99,13 +134,26 @@ const SupportChat = () => {
         sender: "agent",
         text: getAgentResponse(inputMessage),
         timestamp: new Date(),
+        status: "delivered"
       };
       
       setMessages(prev => [...prev, agentMessage]);
       
+      // Update previous user message to read
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === userMessage.id ? {...msg, status: "read"} : msg
+        )
+      );
+      
       // Hide preset messages after first user message
       if (showPresets) {
         setShowPresets(false);
+      }
+      
+      // Add unread count if chat is minimized
+      if (isMinimized) {
+        setUnreadCount(prev => prev + 1);
       }
     }, 1500);
   };
@@ -135,8 +183,14 @@ const SupportChat = () => {
   const toggleChat = () => {
     if (isMinimized) {
       setIsMinimized(false);
+      setIsOpen(true);
     } else {
       setIsOpen(!isOpen);
+    }
+    
+    // Reset unread count when opening
+    if (!isOpen) {
+      setUnreadCount(0);
     }
   };
 
@@ -149,6 +203,19 @@ const SupportChat = () => {
     e.stopPropagation();
     setIsOpen(false);
     setIsMinimized(false);
+  };
+
+  const renderMessageStatus = (status?: string) => {
+    if (!status || status === "sending") {
+      return <span className="text-xs text-white/40">Sending...</span>;
+    } else if (status === "sent") {
+      return <span className="text-xs text-white/40">Sent</span>;
+    } else if (status === "delivered") {
+      return <Check className="h-3 w-3 text-white/60" />;
+    } else if (status === "read") {
+      return <span className="flex"><Check className="h-3 w-3 text-casino-thunder-green" /><Check className="h-3 w-3 text-casino-thunder-green -ml-1" /></span>;
+    }
+    return null;
   };
 
   if (!isMounted) return null;
@@ -164,21 +231,24 @@ const SupportChat = () => {
             className="mb-4 w-80 sm:w-96 bg-casino-thunder-dark border border-white/10 rounded-xl overflow-hidden shadow-2xl"
           >
             {/* Chat header */}
-            <div className="bg-casino-thunder-darker p-3 border-b border-white/10 flex justify-between items-center">
+            <div className="bg-gradient-to-r from-casino-thunder-darker to-casino-thunder-dark p-3 border-b border-white/10 flex justify-between items-center">
               <div className="flex items-center">
-                <Avatar className="h-8 w-8 mr-3">
+                <Avatar className="h-8 w-8 mr-3 ring-2 ring-casino-thunder-green ring-offset-2 ring-offset-casino-thunder-darker">
                   <AvatarImage src="/lovable-uploads/avatar-support.jpg" />
                   <AvatarFallback className="bg-casino-thunder-green">TS</AvatarFallback>
                 </Avatar>
                 <div>
                   <h3 className="font-medium text-white">ThunderWin Support</h3>
                   <Badge variant="outline" className="text-xs bg-green-500/20 text-green-300 border-green-500/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block mr-1"></span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block mr-1 animate-pulse"></span>
                     Online
                   </Badge>
                 </div>
               </div>
               <div className="flex items-center">
+                <Button variant="ghost" size="icon" onClick={() => window.open('/support/contact', '_blank')} className="h-7 w-7 hover:text-casino-thunder-green">
+                  <Phone className="h-4 w-4" />
+                </Button>
                 <Button variant="ghost" size="icon" onClick={minimizeChat} className="h-7 w-7">
                   <MinusCircle className="h-4 w-4" />
                 </Button>
@@ -209,9 +279,16 @@ const SupportChat = () => {
                     }`}
                   >
                     <p>{message.text}</p>
-                    <span className="text-xs opacity-70 mt-1 block text-right">
-                      {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </span>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs opacity-70">
+                        {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                      {message.sender === 'user' && (
+                        <div className="flex items-center">
+                          {renderMessageStatus(message.status)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {message.sender === 'user' && (
                     <Avatar className="h-8 w-8 ml-2 mt-1 flex-shrink-0">
@@ -247,7 +324,7 @@ const SupportChat = () => {
                     <button
                       key={index}
                       onClick={() => handlePresetMessage(message)}
-                      className="bg-casino-thunder-gray/50 hover:bg-casino-thunder-gray text-white text-sm py-2 px-3 rounded-lg text-left transition-colors"
+                      className="bg-casino-thunder-gray/50 hover:bg-casino-thunder-gray text-white text-sm py-2 px-3 rounded-lg text-left transition-colors hover:scale-105 transform duration-200"
                     >
                       {message}
                     </button>
@@ -259,7 +336,7 @@ const SupportChat = () => {
             </div>
             
             {/* Chat input */}
-            <div className="p-3 border-t border-white/10 bg-casino-thunder-darker">
+            <div className="p-3 border-t border-white/10 bg-gradient-to-b from-casino-thunder-darker to-casino-thunder-dark">
               <div className="flex items-center">
                 <DialogTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-white/70 hover:text-white">
@@ -303,14 +380,19 @@ const SupportChat = () => {
             initial={{ x: 80, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 80, opacity: 0 }}
-            className="mb-4 bg-casino-thunder-darker text-white px-4 py-2 rounded-full shadow-lg border border-white/10 cursor-pointer"
+            className="mb-4 bg-gradient-to-r from-casino-thunder-darker to-casino-thunder-dark text-white px-4 py-2 rounded-full shadow-lg border border-white/10 cursor-pointer hover:border-casino-thunder-green transition-all duration-300"
             onClick={() => setIsMinimized(false)}
           >
             <div className="flex items-center">
               <Badge variant="outline" className="text-xs mr-2 bg-green-500/20 text-green-300 border-green-500/30">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block mr-1"></span>
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block mr-1 animate-pulse"></span>
               </Badge>
               <span>ThunderWin Support</span>
+              {unreadCount > 0 && (
+                <div className="ml-2 bg-red-500 h-5 w-5 flex items-center justify-center rounded-full text-xs font-bold">
+                  {unreadCount}
+                </div>
+              )}
             </div>
           </motion.div>
         ) : null}
@@ -321,13 +403,20 @@ const SupportChat = () => {
           className={`h-14 w-14 rounded-full shadow-lg transition-colors ${
             isOpen || isMinimized
               ? "bg-red-500 hover:bg-red-600 text-white"
-              : "bg-casino-thunder-green hover:bg-casino-thunder-green/90 text-black"
+              : "bg-gradient-to-r from-casino-thunder-green to-emerald-400 hover:from-emerald-400 hover:to-casino-thunder-green text-black"
           }`}
         >
-          {isOpen || isMinimized ? (
+          {(isOpen || isMinimized) ? (
             <X className="h-6 w-6" />
           ) : (
-            <MessageCircle className="h-6 w-6" />
+            <>
+              <MessageCircle className="h-6 w-6" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </>
           )}
         </Button>
       </div>
@@ -338,7 +427,8 @@ const SupportChat = () => {
           <h3 className="text-xl font-semibold mb-2">Attach Files</h3>
           <p className="text-white/60 mb-6">Upload screenshots or other files to help us assist you better</p>
           
-          <div className="border-2 border-dashed border-white/20 rounded-lg p-8 mb-4 text-center hover:border-casino-thunder-green/50 transition-colors cursor-pointer">
+          <div className="border-2 border-dashed border-white/20 rounded-lg p-8 mb-4 text-center hover:border-casino-thunder-green/50 transition-colors cursor-pointer group">
+            <Sparkles className="h-8 w-8 mx-auto mb-2 text-white/40 group-hover:text-casino-thunder-green transition-colors" />
             <p className="text-white/60">Drag and drop files here, or click to select</p>
           </div>
           

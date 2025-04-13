@@ -1,11 +1,8 @@
 
-import React, { useState } from "react";
-import AdminLayout from "@/components/layout/AdminLayout";
+import React from "react";
 import GameAggregator from "@/components/admin/GameAggregator";
 
 const GameAggregatorPage = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  
   return (
     <GameAggregator />
   );
