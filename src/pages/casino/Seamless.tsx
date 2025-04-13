@@ -1,9 +1,10 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { pragmaticPlayService } from "@/services/pragmaticPlayService";
+import { pragmaticPlayService, PPWalletCallback } from "@/services/pragmaticPlayService";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * This component demonstrates how a seamless wallet integration works with Pragmatic Play.
@@ -13,9 +14,11 @@ const Seamless = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("logs");
+  const { user } = useAuth();
   
+  // This simulates handling a callback request on component mount
   useEffect(() => {
-    // This is purely for demonstration purposes
+    // Add initial logs
     setLogs([
       "Seamless wallet integration endpoint for Pragmatic Play",
       "In a real implementation, this would be a server-side API endpoint",
@@ -38,18 +41,50 @@ const Seamless = () => {
       }, null, 2)
     ]);
     
-    // Mock transactions for demonstration
-    setTransactions([
-      {
-        id: "trx_123456",
-        playerId: "player123",
-        type: "debit",
+    // Simulate handling a callback request
+    const handleMockCallback = async () => {
+      const mockCallback: PPWalletCallback = {
+        agentid: "captaingambleEUR",
+        playerid: user?.id || "player123",
         amount: 5.00,
-        gameId: "vs20bonzanza",
-        roundId: "round_789012",
-        status: "completed",
-        timestamp: new Date().toISOString()
-      },
+        type: "debit",
+        trxid: `trx_${Date.now()}`,
+        roundid: `round_${Math.floor(Math.random() * 1000000)}`
+      };
+      
+      // Log the request
+      setLogs(prev => [...prev, "", "Received new callback:", JSON.stringify(mockCallback, null, 2)]);
+      
+      try {
+        // Process the callback
+        const response = await pragmaticPlayService.processWalletCallback(mockCallback);
+        
+        // Log the response
+        setLogs(prev => [...prev, "", "Response:", JSON.stringify(response, null, 2)]);
+        
+        // Add to transactions
+        setTransactions(prev => [{
+          id: mockCallback.trxid,
+          playerId: mockCallback.playerid,
+          type: mockCallback.type,
+          amount: mockCallback.amount,
+          gameId: "vs20bonzanza",
+          roundId: mockCallback.roundid,
+          status: response.errorcode === "0" ? "completed" : "failed",
+          timestamp: new Date().toISOString()
+        }, ...prev]);
+      } catch (error) {
+        console.error("Error processing callback:", error);
+        setLogs(prev => [...prev, "", "Error processing callback:", JSON.stringify(error, null, 2)]);
+      }
+    };
+    
+    // Call the mock handler
+    handleMockCallback();
+    
+    // Add some mock transactions for demonstration
+    setTransactions(prev => [
+      ...prev,
       {
         id: "trx_123457",
         playerId: "player123",
@@ -71,7 +106,7 @@ const Seamless = () => {
         timestamp: new Date(Date.now() - 600000).toISOString()
       }
     ]);
-  }, []);
+  }, [user]);
 
   return (
     <div className="container mx-auto px-4 py-12 pt-24">
@@ -80,6 +115,7 @@ const Seamless = () => {
           <CardTitle>Pragmatic Play Seamless Wallet Integration</CardTitle>
           <CardDescription>
             This page demonstrates how the seamless wallet integration with Pragmatic Play works.
+            In a production environment, this would be implemented as a server-side API endpoint.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,14 +157,24 @@ const Seamless = () => {
                           <td className="p-2 font-mono text-xs">{transaction.id}</td>
                           <td className="p-2">{transaction.playerId}</td>
                           <td className="p-2">
-                            <Badge className={transaction.type === 'debit' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}>
+                            <Badge className={
+                              transaction.type === 'debit' 
+                                ? 'bg-red-500/20 text-red-400' 
+                                : transaction.type === 'credit'
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-blue-500/20 text-blue-400'
+                            }>
                               {transaction.type}
                             </Badge>
                           </td>
                           <td className="p-2">{transaction.amount.toFixed(2)} EUR</td>
                           <td className="p-2">{transaction.gameId}</td>
                           <td className="p-2">
-                            <Badge className="bg-blue-500/20 text-blue-400">
+                            <Badge className={
+                              transaction.status === 'completed'
+                                ? 'bg-blue-500/20 text-blue-400'
+                                : 'bg-red-500/20 text-red-400'
+                            }>
                               {transaction.status}
                             </Badge>
                           </td>
@@ -157,7 +203,7 @@ const Seamless = () => {
   "agentid": "captaingambleEUR",
   "playerid": "string",
   "amount": number,
-  "type": "debit" | "credit",
+  "type": "debit" | "credit" | "rollback",
   "trxid": "string",
   "roundid": "string",
   "gameref": "string"
@@ -183,6 +229,18 @@ const Seamless = () => {
                       <li><span className="font-mono">2</span> - Invalid Transaction</li>
                       <li><span className="font-mono">3</span> - Insufficient Balance</li>
                     </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-1">Signature Verification</h4>
+                    <p>All requests should include a signature hash generated using MD5:</p>
+                    <pre className="bg-slate-900 p-2 rounded font-mono text-xs">
+{`// 1. Sort all parameters alphabetically
+// 2. Concatenate key=value pairs
+// 3. Append secret key
+// 4. Generate MD5 hash
+md5(param1=value1param2=value2...secretKey)`}
+                    </pre>
                   </div>
                 </div>
               </div>
