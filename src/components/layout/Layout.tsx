@@ -14,7 +14,7 @@ const Layout = () => {
       <div className="fixed top-1/2 -right-40 w-80 h-80 bg-purple-500/20 rounded-full filter blur-[100px] opacity-20"></div>
       
       <AppHeader />
-      <main className="flex-1 relative z-10 pt-16">
+      <main className="flex-1 relative z-10">
         <Outlet />
       </main>
       <Footer />

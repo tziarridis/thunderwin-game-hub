@@ -23,7 +23,7 @@ import NotFound from "./pages/NotFound";
 import CasinoMain from "./pages/casino/CasinoMain";
 import GameDetails from "./pages/casino/GameDetails";
 import Seamless from "./pages/casino/Seamless";
-import GitSlotParkSeamless from "./pages/casino/GitSlotParkSeamless"; // Added this import
+import GitSlotParkSeamless from "./pages/casino/GitSlotParkSeamless";
 import Slots from "./pages/casino/Slots";
 import Sports from "./pages/sports/Sports";
 import TableGames from "./pages/casino/TableGames";
@@ -82,7 +82,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<AppLayout />}>
+          <Route path="/" element={<Layout />}>
             <Route index element={<IndexPage />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
@@ -128,7 +128,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Route>
           
-          {/* Admin Login Route - Added here */}
+          {/* Admin Login Route */}
           <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* Admin Routes */}
