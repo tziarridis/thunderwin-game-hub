@@ -164,10 +164,10 @@ export const SegmentFilterSidebar = () => {
                       <SelectValue placeholder="All stages" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="newcomer">Newcomers (< 30 days)</SelectItem>
+                      <SelectItem value="newcomer">Newcomers (&lt; 30 days)</SelectItem>
                       <SelectItem value="regular">Regular Players</SelectItem>
-                      <SelectItem value="inactive">Inactive (> 30 days)</SelectItem>
-                      <SelectItem value="churned">Churned (> 90 days)</SelectItem>
+                      <SelectItem value="inactive">Inactive (&gt; 30 days)</SelectItem>
+                      <SelectItem value="churned">Churned (&gt; 90 days)</SelectItem>
                       <SelectItem value="reactivated">Recently Reactivated</SelectItem>
                     </SelectContent>
                   </Select>
@@ -297,9 +297,9 @@ export const SegmentFilterSidebar = () => {
                       <SelectValue placeholder="Any ratio" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="high">High (>1.2)</SelectItem>
+                      <SelectItem value="high">High (&gt;1.2)</SelectItem>
                       <SelectItem value="balanced">Balanced (0.8-1.2)</SelectItem>
-                      <SelectItem value="low">Low (<0.8)</SelectItem>
+                      <SelectItem value="low">Low (&lt;0.8)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
