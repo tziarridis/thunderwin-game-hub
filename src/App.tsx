@@ -1,5 +1,5 @@
-
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import AppLayout from "./components/layout/AppLayout";
 import ScrollToTop from "./components/layout/ScrollToTop";
 import Index from "./pages/Index";
@@ -63,6 +63,21 @@ import CMSSiteData from "./pages/admin/cms/SiteData";
 import "./App.css";
 
 function App() {
+  const [showSportsSection, setShowSportsSection] = useState(true);
+  
+  useEffect(() => {
+    // Check if sports section should be hidden from localStorage
+    const interfaceSettings = localStorage.getItem("backoffice_interface_settings");
+    if (interfaceSettings) {
+      try {
+        const settings = JSON.parse(interfaceSettings);
+        setShowSportsSection(settings.showSportsSection !== false); // Default to true if not explicitly false
+      } catch (error) {
+        console.error("Error parsing interface settings:", error);
+      }
+    }
+  }, []);
+
   return (
     <>
       {/* Add ScrollToTop component to ensure all page changes start at the top */}
@@ -85,13 +100,19 @@ function App() {
           <Route path="casino/new" element={<NewGamesPage />} />
           <Route path="casino/favorites" element={<FavoritesPage />} />
           
-          {/* Sports Routes */}
-          <Route path="sports" element={<Sports />} />
-          <Route path="sports/football" element={<Football />} />
-          <Route path="sports/basketball" element={<Basketball />} />
-          <Route path="sports/tennis" element={<Tennis />} />
-          <Route path="sports/hockey" element={<Hockey />} />
-          <Route path="sports/esports" element={<Esports />} />
+          {/* Sports Routes - Conditionally rendered */}
+          {showSportsSection ? (
+            <>
+              <Route path="sports" element={<Sports />} />
+              <Route path="sports/football" element={<Football />} />
+              <Route path="sports/basketball" element={<Basketball />} />
+              <Route path="sports/tennis" element={<Tennis />} />
+              <Route path="sports/hockey" element={<Hockey />} />
+              <Route path="sports/esports" element={<Esports />} />
+            </>
+          ) : (
+            <Route path="sports/*" element={<Navigate to="/casino" replace />} />
+          )}
           
           {/* Other Main Routes */}
           <Route path="promotions" element={<Promotions />} />

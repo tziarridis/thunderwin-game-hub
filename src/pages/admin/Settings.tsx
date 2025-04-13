@@ -27,7 +27,8 @@ import {
   Mail, 
   Clock, 
   Save,
-  Database
+  Database,
+  Layout
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,6 +71,10 @@ const Settings = () => {
     autoCleanup: true
   });
 
+  const [interfaceSettings, setInterfaceSettings] = useState({
+    showSportsSection: true,
+  });
+
   const handleGeneralChange = (field: string, value: any) => {
     setGeneralSettings({
       ...generalSettings,
@@ -105,6 +110,21 @@ const Settings = () => {
     });
   };
 
+  const handleInterfaceChange = (field: string, value: any) => {
+    setInterfaceSettings({
+      ...interfaceSettings,
+      [field]: value
+    });
+    
+    // Save immediately to localStorage for the interface settings
+    localStorage.setItem("backoffice_interface_settings", JSON.stringify({
+      ...interfaceSettings,
+      [field]: value
+    }));
+    
+    toast.info(`${field === 'showSportsSection' ? 'Sports section' : field} visibility updated.`);
+  };
+
   const saveSettings = () => {
     // In a real implementation, this would save to the backend
     localStorage.setItem("backoffice_general_settings", JSON.stringify(generalSettings));
@@ -112,6 +132,7 @@ const Settings = () => {
     localStorage.setItem("backoffice_notification_settings", JSON.stringify(notificationSettings));
     localStorage.setItem("backoffice_limits_settings", JSON.stringify(limitsSettings));
     localStorage.setItem("backoffice_database_settings", JSON.stringify(databaseSettings));
+    localStorage.setItem("backoffice_interface_settings", JSON.stringify(interfaceSettings));
     
     toast.success("Settings saved successfully");
   };
@@ -136,6 +157,9 @@ const Settings = () => {
         <TabsList className="mb-6 bg-casino-thunder-dark">
           <TabsTrigger value="general" className="data-[state=active]:bg-casino-thunder-green data-[state=active]:text-black">
             General
+          </TabsTrigger>
+          <TabsTrigger value="interface" className="data-[state=active]:bg-casino-thunder-green data-[state=active]:text-black">
+            Interface
           </TabsTrigger>
           <TabsTrigger value="security" className="data-[state=active]:bg-casino-thunder-green data-[state=active]:text-black">
             Security
@@ -210,6 +234,52 @@ const Settings = () => {
                     maintenance: false
                   });
                   toast.info("General settings reset to default values");
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reset to Default
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        {/* Interface Settings */}
+        <TabsContent value="interface">
+          <Card className="bg-casino-thunder-dark border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center text-white">
+                <Layout className="mr-2 text-casino-thunder-green" />
+                Interface Settings
+              </CardTitle>
+              <CardDescription>
+                Configure navigation and visibility of website sections
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Show Sports Section</Label>
+                    <p className="text-sm text-muted-foreground">Enable or disable the sports betting section of the website</p>
+                  </div>
+                  <Switch
+                    checked={interfaceSettings.showSportsSection}
+                    onCheckedChange={(checked) => handleInterfaceChange('showSportsSection', checked)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setInterfaceSettings({
+                    showSportsSection: true
+                  });
+                  localStorage.setItem("backoffice_interface_settings", JSON.stringify({
+                    showSportsSection: true
+                  }));
+                  toast.info("Interface settings reset to default values");
                 }}
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
