@@ -66,9 +66,9 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
     
   return {
     provider_id: providerId,
-    game_id: game.id,
+    game_id: game.id || '',
     game_name: game.title,
-    game_code: game.id.replace(/\D/g, '') || '',
+    game_code: game.id ? game.id.replace(/\D/g, '') || '' : '',
     game_type: game.category,
     description: game.description || '',
     cover: game.image || '',
@@ -79,7 +79,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
     has_freespins: game.category === 'slots',
     has_tables: game.category === 'table',
     only_demo: false,
-    rtp: game.rtp,
+    rtp: game.rtp || 96,
     distribution: providerName,
     views: 0,
     is_featured: game.isPopular,

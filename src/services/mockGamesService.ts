@@ -1,4 +1,3 @@
-
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { adaptGamesForUI, adaptProvidersForUI } from '@/utils/gameAdapter';
 
@@ -18,7 +17,7 @@ export const mockGamesService = {
           provider_id: 1,
           game_id: game.id,
           game_name: game.title,
-          game_code: game.id.replace(/\D/g, '') || '',
+          game_code: game.id ? game.id.replace(/\D/g, '') || '' : '',
           game_type: game.category,
           description: game.description || '',
           cover: game.image || '',
@@ -101,7 +100,7 @@ export const mockGamesService = {
         provider_id: 1,
         game_id: game.id,
         game_name: game.title,
-        game_code: game.id.replace(/\D/g, '') || '',
+        game_code: game.id ? game.id.replace(/\D/g, '') || '' : '',
         game_type: game.category,
         description: game.description || '',
         cover: game.image || '',
