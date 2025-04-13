@@ -20,13 +20,18 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
   const [loadingProviders, setLoadingProviders] = useState(false);
   const { toast } = useToast();
   
+  // Helper to safely extract provider value
+  const getProviderValue = (provider: any): string => {
+    if (!provider) return "";
+    if (typeof provider === 'string') return provider;
+    return provider.name || "";
+  };
+  
   // Form state
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
-    provider: typeof initialData?.provider === 'string' 
-      ? initialData?.provider 
-      : initialData?.provider?.name || "",
+    provider: getProviderValue(initialData?.provider),
     category: initialData?.category || "slots",
     image: initialData?.image || "",
     rtp: initialData?.rtp || 96,

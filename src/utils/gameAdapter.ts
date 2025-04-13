@@ -11,13 +11,13 @@ export function adaptGameForUI(game: GameFromAPI): UIGame {
   
   if (typeof game.provider === 'object' && game.provider) {
     provider = {
-      id: game.provider.id.toString(),
-      name: game.provider.name,
+      id: game.provider.id?.toString() || '0',
+      name: game.provider.name || '',
       logo: game.provider.logo || '',
-      gamesCount: 0,
-      isPopular: false,
+      gamesCount: 0, // Default value
+      isPopular: false, // Default value
       description: game.provider.description || '',
-      featured: false
+      featured: false // Default value
     };
   } else {
     provider = game.distribution || '';
@@ -54,13 +54,15 @@ export function adaptGamesForUI(games: GameFromAPI[]): UIGame[] {
  * Converts a Game from the UI format to the API format
  */
 export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
-  const providerId = typeof game.provider === 'object' && game.provider && game.provider.id
-    ? parseInt(game.provider.id) 
-    : 1;
-    
-  const providerName = typeof game.provider === 'object' && game.provider && game.provider.name
-    ? game.provider.name 
-    : (typeof game.provider === 'string' ? game.provider : '');
+  let providerId = 1;
+  let providerName = '';
+  
+  if (typeof game.provider === 'object' && game.provider) {
+    providerId = game.provider.id ? parseInt(game.provider.id) : 1;
+    providerName = game.provider.name || '';
+  } else if (typeof game.provider === 'string') {
+    providerName = game.provider;
+  }
     
   return {
     provider_id: providerId,

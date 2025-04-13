@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -43,15 +42,20 @@ const AdminGames = () => {
     deleteGame
   } = useGames();
   
+  // Helper function to get provider name
+  const getProviderName = (provider: string | { name?: string } | undefined): string => {
+    if (!provider) return 'Unknown';
+    if (typeof provider === 'string') return provider;
+    return provider.name || 'Unknown';
+  };
+  
   // Update filtered games when games change
   useEffect(() => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const results = games.filter(game => 
         game.title.toLowerCase().includes(query) || 
-        (typeof game.provider === 'string' ? 
-          game.provider.toLowerCase().includes(query) : 
-          (game.provider?.name?.toLowerCase() || '').includes(query)) ||
+        getProviderName(game.provider).toLowerCase().includes(query) ||
         game.id.includes(query)
       );
       setFilteredGames(results);
@@ -67,9 +71,7 @@ const AdminGames = () => {
     if (query) {
       const results = games.filter(game => 
         game.title.toLowerCase().includes(query) || 
-        (typeof game.provider === 'string' ? 
-          game.provider.toLowerCase().includes(query) : 
-          (game.provider?.name?.toLowerCase() || '').includes(query)) ||
+        getProviderName(game.provider).toLowerCase().includes(query) ||
         game.id.includes(query)
       );
       setFilteredGames(results);
@@ -140,13 +142,6 @@ const AdminGames = () => {
     } catch (error) {
       console.error("Failed to update game:", error);
     }
-  };
-
-  // Helper function to get provider name
-  const getProviderName = (provider: string | { name?: string } | undefined): string => {
-    if (!provider) return 'Unknown';
-    if (typeof provider === 'string') return provider;
-    return provider.name || 'Unknown';
   };
 
   // Calculate pagination
