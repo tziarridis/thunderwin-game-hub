@@ -1,346 +1,292 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { gitSlotParkService, GSPWalletCallback, GSPWalletResponse } from "@/services/gitSlotParkService";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
-/**
- * This component demonstrates how a seamless wallet integration works with GitSlotPark.
- * In a real implementation, this would be a server-side endpoint.
- */
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "sonner";
+import { Loader2, RefreshCw, DollarSign, Plus, Minus, RotateCw, Clock } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Transaction } from "@/services/transactionService";
+import { gitSlotParkService } from "@/services/gitSlotParkService";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
 const GitSlotParkSeamless = () => {
-  const [logs, setLogs] = useState<string[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("logs");
-  const [testResponse, setTestResponse] = useState<GSPWalletResponse | null>(null);
-  
-  const addLog = (message: string) => {
-    setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
-  };
+  const [balance, setBalance] = useState<number | null>(null);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
+  const [amount, setAmount] = useState("10.00");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { isAuthenticated, user } = useAuth();
   
   useEffect(() => {
-    // Initialize logs
-    setLogs([
-      "Seamless wallet integration endpoint for GitSlotPark",
-      "In a real implementation, this would be a server-side API endpoint",
-      "GitSlotPark will send POST requests to this endpoint to perform wallet operations"
-    ]);
-    
-    // Mock transactions for demonstration
-    setTransactions([
-      {
-        id: "474e1a293c2f4e7ab122c52d68423fcb",
-        playerId: "Player01",
-        type: "Withdraw",
-        amount: 12.30,
-        gameId: "2001",
-        roundId: "ab9c15f2efdd46278e4a56b303127234",
-        status: "completed",
-        timestamp: new Date().toISOString()
-      },
-      {
-        id: "7d8f2b3a9c5e6f1d2a8b7c6d5e4f3a2b",
-        playerId: "Player01",
-        type: "Deposit",
-        amount: 25.50,
-        gameId: "2003",
-        roundId: "ef7g8h9i0j1k2l3m4n5o6p7q8r9s0t1",
-        status: "completed",
-        timestamp: new Date(Date.now() - 300000).toISOString()
-      },
-      {
-        id: "1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p",
-        playerId: "Player02",
-        type: "RollbackTransaction",
-        amount: 5.00,
-        gameId: "2005",
-        roundId: "ab1cd2ef3gh4ij5kl6mn7op8qr9st0uv",
-        status: "completed",
-        timestamp: new Date(Date.now() - 600000).toISOString()
-      }
-    ]);
+    fetchBalance();
+    fetchTransactions();
   }, []);
-
-  // Test different wallet operations
-  const testOperation = async (operationType: string) => {
-    setTestResponse(null);
-    
-    let testRequest: GSPWalletCallback;
-    let mockSign = "475D834ACC3AB61D7DF4EA42751C6275387BC1787A098D2D0E091698D9BF2043"; // Simplified
-    
-    switch (operationType) {
-      case "GetBalance":
-        testRequest = {
-          agentID: "Partner01",
-          userID: "Player01",
-          type: "GetBalance",
-          sign: mockSign
-        };
-        break;
-        
-      case "Withdraw":
-        testRequest = {
-          agentID: "Partner01",
-          userID: "Player01",
-          amount: 12.30,
-          transactionID: "474e1a293c2f4e7ab122c52d68423fcb",
-          roundID: "ab9c15f2efdd46278e4a56b303127234",
-          gameID: 2001,
-          type: "Withdraw",
-          sign: mockSign
-        };
-        break;
-        
-      case "Deposit":
-        testRequest = {
-          agentID: "Partner01",
-          userID: "Player01",
-          amount: 25.50,
-          transactionID: "2f489d44b61f4650af780ab4c28a7745",
-          refTransactionID: "474e1a293c2f4e7ab122c52d68423fcb",
-          roundID: "ab9c15f2efdd46278e4a56b303127234",
-          gameID: 2001,
-          type: "Deposit",
-          sign: mockSign
-        };
-        break;
-        
-      case "RollbackTransaction":
-        testRequest = {
-          agentID: "Partner01",
-          userID: "Player01",
-          refTransactionID: "474e1a293c2f4e7ab122c52d68423fcb",
-          gameID: 2001,
-          type: "RollbackTransaction",
-          sign: mockSign
-        };
-        break;
-        
-      default:
-        addLog(`Unknown operation type: ${operationType}`);
-        return;
-    }
-    
+  
+  const fetchBalance = async () => {
+    setIsLoadingBalance(true);
     try {
-      // Log the request
-      addLog(`Testing ${operationType} operation:`);
-      addLog(JSON.stringify(testRequest, null, 2));
-      
-      // Process the request
-      const response = await gitSlotParkService.processWalletCallback(testRequest);
-      
-      // Log the response
-      addLog(`Response:`);
-      addLog(JSON.stringify(response, null, 2));
-      setTestResponse(response);
-      
-      // Add to transactions if successful
-      if (response.code === 0 && operationType !== "GetBalance") {
-        const newTransaction = {
-          id: testRequest.transactionID || `test-${Date.now()}`,
-          playerId: testRequest.userID,
-          type: operationType,
-          amount: testRequest.amount || 0,
-          gameId: testRequest.gameID,
-          roundId: testRequest.roundID || "N/A",
-          status: "completed",
-          timestamp: new Date().toISOString()
-        };
-        
-        setTransactions(prev => [newTransaction, ...prev]);
-      }
+      const balanceData = await gitSlotParkService.getBalance(
+        isAuthenticated ? user?.id || 'guest' : 'guest'
+      );
+      setBalance(balanceData.balance);
     } catch (error: any) {
-      addLog(`Error processing request: ${error.message}`);
+      console.error("Error fetching balance:", error);
+      toast.error("Failed to fetch balance");
+    } finally {
+      setIsLoadingBalance(false);
     }
   };
-
+  
+  const fetchTransactions = async () => {
+    setIsLoadingTx(true);
+    try {
+      const txData = await gitSlotParkService.getTransactions(
+        isAuthenticated ? user?.id || 'guest' : 'guest'
+      );
+      setTransactions(txData);
+    } catch (error: any) {
+      console.error("Error fetching transactions:", error);
+      toast.error("Failed to fetch transactions");
+    } finally {
+      setIsLoadingTx(false);
+    }
+  };
+  
+  const handleRefresh = () => {
+    fetchBalance();
+    fetchTransactions();
+    toast.success("Data refreshed");
+  };
+  
+  const handleTransaction = async (type: 'credit' | 'debit') => {
+    if (!amount || isNaN(parseFloat(amount))) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const amountValue = parseFloat(amount);
+      let result;
+      
+      if (type === 'credit') {
+        result = await gitSlotParkService.credit(
+          isAuthenticated ? user?.id || 'guest' : 'guest', 
+          amountValue
+        );
+      } else {
+        result = await gitSlotParkService.debit(
+          isAuthenticated ? user?.id || 'guest' : 'guest', 
+          amountValue
+        );
+      }
+      
+      if (result.success) {
+        toast.success(`${type === 'credit' ? 'Deposit' : 'Withdrawal'} successful!`);
+        fetchBalance();
+        fetchTransactions();
+      } else {
+        toast.error(result.message || `${type === 'credit' ? 'Deposit' : 'Withdrawal'} failed!`);
+      }
+    } catch (error: any) {
+      console.error(`Error processing ${type}:`, error);
+      toast.error(error.message || `Failed to process ${type}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-600">Completed</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-600">Pending</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-600">Failed</Badge>;
+      default:
+        return <Badge>{status}</Badge>;
+    }
+  };
+  
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+  };
+  
   return (
-    <div className="container mx-auto px-4 py-12 pt-24">
-      <Card className="bg-slate-900 border-slate-800">
+    <div className="container mx-auto px-4 pt-8 pb-16">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">GitSlotPark Seamless Wallet</h1>
+          <p className="text-white/70">Test and manage your seamless wallet integration</p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={handleRefresh}
+          className="mt-4 md:mt-0"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="col-span-full md:col-span-1 bg-casino-thunder-dark border-white/10">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <DollarSign className="mr-2 h-5 w-5 text-casino-thunder-green" />
+              Wallet Balance
+            </CardTitle>
+            <CardDescription>Current GitSlotPark wallet balance</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingBalance ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-4xl font-bold mb-2">
+                  €{balance !== null ? balance.toFixed(2) : "0.00"}
+                </div>
+                <p className="text-white/60 text-sm">
+                  Player ID: {isAuthenticated ? user?.id || 'guest' : 'guest'}
+                </p>
+              </div>
+            )}
+            
+            <div className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount (EUR)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="bg-casino-thunder-darker border-white/10"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  onClick={() => handleTransaction('credit')}
+                  disabled={isProcessing}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Deposit
+                </Button>
+                
+                <Button
+                  onClick={() => handleTransaction('debit')}
+                  disabled={isProcessing}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Minus className="mr-2 h-4 w-4" />
+                  )}
+                  Withdraw
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="col-span-full md:col-span-2 bg-casino-thunder-dark border-white/10">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Clock className="mr-2 h-5 w-5 text-casino-thunder-green" />
+              Recent Transactions
+            </CardTitle>
+            <CardDescription>
+              Latest GitSlotPark wallet transactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingTx ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="text-center py-8 text-white/60">
+                No transactions found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions.filter(tx => tx.provider === 'GitSlotPark').slice(0, 10).map((tx) => (
+                      <TableRow key={tx.transactionId}>
+                        <TableCell className="font-mono text-xs">
+                          {tx.transactionId.substring(0, 8)}...
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={tx.type === 'bet' || tx.type === 'debit' ? 'destructive' : 'default'}>
+                            {tx.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className={tx.type === 'win' || tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}>
+                          {tx.type === 'win' || tx.type === 'credit' ? '+' : '-'}€{tx.amount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(tx.status)}
+                        </TableCell>
+                        <TableCell className="text-white/60">
+                          {formatDateTime(tx.timestamp)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card className="bg-casino-thunder-dark border-white/10">
         <CardHeader>
-          <CardTitle>GitSlotPark Seamless Wallet Integration</CardTitle>
+          <CardTitle>Testing Instructions</CardTitle>
           <CardDescription>
-            This page demonstrates how the seamless wallet integration with GitSlotPark works.
+            How to test the GitSlotPark seamless wallet integration
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="logs">API Logs</TabsTrigger>
-              <TabsTrigger value="transactions">Transactions</TabsTrigger>
-              <TabsTrigger value="test">Test Operations</TabsTrigger>
-              <TabsTrigger value="docs">Documentation</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="logs">
-              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-                <h3 className="font-mono text-sm text-white mb-2">API Logs</h3>
-                <pre className="text-white font-mono text-xs whitespace-pre-wrap overflow-auto max-h-80">
-                  {logs.join('\n')}
-                </pre>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="transactions">
-              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-                <h3 className="font-mono text-sm text-white mb-2">Recent Transactions</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-800">
-                        <th className="text-left p-2">Transaction ID</th>
-                        <th className="text-left p-2">Player</th>
-                        <th className="text-left p-2">Type</th>
-                        <th className="text-left p-2">Amount</th>
-                        <th className="text-left p-2">Game</th>
-                        <th className="text-left p-2">Status</th>
-                        <th className="text-left p-2">Timestamp</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map(transaction => (
-                        <tr key={transaction.id} className="border-b border-slate-800">
-                          <td className="p-2 font-mono text-xs">{transaction.id}</td>
-                          <td className="p-2">{transaction.playerId}</td>
-                          <td className="p-2">
-                            <Badge className={
-                              transaction.type === 'Withdraw' 
-                                ? 'bg-red-500/20 text-red-400'
-                                : transaction.type === 'Deposit'
-                                  ? 'bg-green-500/20 text-green-400'
-                                  : 'bg-yellow-500/20 text-yellow-400'
-                            }>
-                              {transaction.type}
-                            </Badge>
-                          </td>
-                          <td className="p-2">{transaction.amount.toFixed(2)} EUR</td>
-                          <td className="p-2">{transaction.gameId}</td>
-                          <td className="p-2">
-                            <Badge className="bg-blue-500/20 text-blue-400">
-                              {transaction.status}
-                            </Badge>
-                          </td>
-                          <td className="p-2">{new Date(transaction.timestamp).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="test">
-              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-                <h3 className="font-mono text-sm text-white mb-2">Test Wallet Operations</h3>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  <Button 
-                    onClick={() => testOperation("GetBalance")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Test GetBalance
-                  </Button>
-                  <Button 
-                    onClick={() => testOperation("Withdraw")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Test Withdraw (Bet)
-                  </Button>
-                  <Button 
-                    onClick={() => testOperation("Deposit")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Test Deposit (Win)
-                  </Button>
-                  <Button 
-                    onClick={() => testOperation("RollbackTransaction")}
-                    variant="outline"
-                    size="sm"
-                  >
-                    Test Rollback
-                  </Button>
-                </div>
-                
-                {testResponse && (
-                  <Alert className={testResponse.code === 0 ? "bg-green-950/20" : "bg-red-950/20"}>
-                    <AlertDescription>
-                      <div className="mt-2">
-                        <p className="font-semibold">Response:</p>
-                        <pre className="text-xs mt-1 bg-slate-900 p-2 rounded">{JSON.stringify(testResponse, null, 2)}</pre>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="docs">
-              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
-                <h3 className="font-mono text-sm text-white mb-2">Integration Documentation</h3>
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <h4 className="font-semibold mb-1">Endpoint</h4>
-                    <p className="font-mono bg-slate-900 p-2 rounded">https://yoursite.com/casino/gitslotpark-seamless</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-1">Sign Calculation</h4>
-                    <p>HMAC-SHA-256 is used with the secret key.</p>
-                    <pre className="bg-slate-900 p-2 rounded font-mono text-xs">
-{`// Example for withdrawal transaction
-const message = "Partner01Player0112.30474e1a293c2f4e7ab122c52d68423fcbab9c15f2efdd46278e4a56b303127234";
-const secretKey = "1234567890";
-const sign = generateSign(secretKey, message);
-// Result: 475D834ACC3AB61D7DF4EA42751C6275387BC1787A098D2D0E091698D9BF2043`}
-                    </pre>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-1">Available Operations</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li>GetBalance - Retrieves player balance</li>
-                      <li>Withdraw - Deducts funds from player's balance (betting)</li>
-                      <li>Deposit - Adds funds to player's balance (winning)</li>
-                      <li>BetWin - Processes a combined bet and win</li>
-                      <li>RollbackTransaction - Rolls back a previous transaction</li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-1">Response Format</h4>
-                    <pre className="bg-slate-900 p-2 rounded font-mono text-xs">
-{`{
-  "code": 0,   // Result code (0 = success)
-  "balance": 100.00,  // Player's current balance
-  "message": "Optional error message", // Only present on error
-  "platformTransactionID": "generated-transaction-id" // Your system's transaction ID
-}`}
-                    </pre>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-1">Result Codes</h4>
-                    <ul className="list-disc pl-5 space-y-1">
-                      <li><span className="font-mono">0</span> - Success</li>
-                      <li><span className="font-mono">1</span> - General error</li>
-                      <li><span className="font-mono">2</span> - Wrong input parameters</li>
-                      <li><span className="font-mono">3</span> - Invalid Sign</li>
-                      <li><span className="font-mono">4</span> - Invalid Agent</li>
-                      <li><span className="font-mono">5</span> - User ID not found</li>
-                      <li><span className="font-mono">6</span> - Insufficient funds</li>
-                      <li><span className="font-mono">8</span> - Could not find reference transaction id</li>
-                      <li><span className="font-mono">9</span> - Transaction is already rolled back</li>
-                      <li><span className="font-mono">11</span> - Duplicate transaction</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+        <CardContent className="space-y-4">
+          <ol className="list-decimal pl-5 space-y-2">
+            <li>Use the <strong>Deposit</strong> button to add funds to your wallet.</li>
+            <li>Launch a game from the casino lobby that uses the GitSlotPark provider.</li>
+            <li>Play the game and observe the transactions being recorded.</li>
+            <li>Return to this page and click <strong>Refresh</strong> to see your updated balance and transaction history.</li>
+            <li>Use the <strong>Withdraw</strong> button to remove funds from your wallet.</li>
+          </ol>
+          
+          <div className="bg-casino-thunder-darker p-4 rounded-md mt-4">
+            <p className="text-white/80 text-sm">
+              <strong>Note:</strong> This is a test environment. In a production environment, deposits and withdrawals would be connected to real payment processors.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

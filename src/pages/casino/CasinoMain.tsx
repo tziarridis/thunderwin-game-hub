@@ -10,6 +10,7 @@ import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
 import RecentBigWins from "@/components/casino/RecentBigWins";
 import GameCategories from "@/components/casino/GameCategories";
+import AggregatorGameSection from "@/components/casino/AggregatorGameSection";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
 
@@ -156,7 +157,12 @@ const CasinoMain = () => {
           }} />
         </div>
         
-        {/* Recent Big Wins - Moved under Game Categories */}
+        {/* Aggregator Game Section - NEW SECTION */}
+        <div className="mb-8">
+          <AggregatorGameSection />
+        </div>
+        
+        {/* Recent Big Wins */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Big Wins</h2>
           <RecentBigWins />
