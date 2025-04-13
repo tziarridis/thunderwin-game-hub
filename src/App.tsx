@@ -51,6 +51,15 @@ import NotFound from "./pages/NotFound";
 import Privacy from "./pages/legal/Privacy";
 import Terms from "./pages/legal/Terms";
 import SupportChat from "./components/support/SupportChat";
+
+// CMS Pages
+import CMSOverview from "./pages/admin/cms/CMSOverview";
+import CMSBanners from "./pages/admin/cms/Banners";
+import CMSCasino from "./pages/admin/cms/Casino";
+import CMSCategories from "./pages/admin/cms/Categories";
+import CMSSportsbook from "./pages/admin/cms/Sportsbook";
+import CMSSiteData from "./pages/admin/cms/SiteData";
+
 import "./App.css";
 
 function App() {
@@ -121,6 +130,15 @@ function App() {
           <Route path="transactions" element={<AdminTransactions />} />
           <Route path="reports" element={<AdminReports />} />
           <Route path="promotions" element={<AdminPromotions />} />
+          
+          {/* CMS Routes */}
+          <Route path="cms" element={<CMSOverview />} />
+          <Route path="cms/banners" element={<CMSBanners />} />
+          <Route path="cms/casino" element={<CMSCasino />} />
+          <Route path="cms/categories" element={<CMSCategories />} />
+          <Route path="cms/sportsbook" element={<CMSSportsbook />} />
+          <Route path="cms/site-data" element={<CMSSiteData />} />
+          
           <Route path="logs" element={<AdminLogs />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="security" element={<AdminSecurity />} />

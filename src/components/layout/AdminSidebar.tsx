@@ -18,7 +18,14 @@ import {
   Star,
   Award,
   Shield,
-  LogIn
+  LogIn,
+  Paintbrush,
+  ImageIcon,
+  Casino,
+  Grid3x3,
+  FootballIcon,
+  Globe,
+  Layers
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -122,6 +129,57 @@ const AdminSidebar = () => {
             expanded={expanded}
             isActive={isActive("/admin/games")}
           />
+          
+          {/* CMS Section */}
+          <SidebarLink 
+            to="/admin/cms" 
+            icon={<Paintbrush size={20} />} 
+            label="CMS" 
+            expanded={expanded}
+            isActive={isActive("/admin/cms")}
+          />
+          
+          {/* Only show CMS submenu items when expanded */}
+          {expanded && isActive("/admin/cms") && (
+            <div className="pl-8 mt-1 space-y-1">
+              <SidebarLink 
+                to="/admin/cms/banners" 
+                icon={<ImageIcon size={16} />} 
+                label="Banners" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/banners")}
+              />
+              <SidebarLink 
+                to="/admin/cms/casino" 
+                icon={<Casino size={16} />} 
+                label="Casino" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/casino")}
+              />
+              <SidebarLink 
+                to="/admin/cms/categories" 
+                icon={<Grid3x3 size={16} />} 
+                label="Dashboard Categories" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/categories")}
+              />
+              <SidebarLink 
+                to="/admin/cms/sportsbook" 
+                icon={<FootballIcon size={16} />} 
+                label="Sportsbook" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/sportsbook")}
+              />
+              <SidebarLink 
+                to="/admin/cms/site-data" 
+                icon={<Globe size={16} />} 
+                label="Site Data" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/site-data")}
+              />
+            </div>
+          )}
+          
           <SidebarLink 
             to="/admin/promotions" 
             icon={<Gift size={20} />} 
