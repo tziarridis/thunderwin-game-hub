@@ -7,7 +7,7 @@ import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
  */
 export function adaptGameForUI(game: GameFromAPI): UIGame {
   // Create provider object or string based on what's available
-  let provider: UIGameProvider | string;
+  let provider: UIGameProvider | string = '';
   
   if (typeof game.provider === 'object' && game.provider) {
     provider = {
@@ -19,8 +19,8 @@ export function adaptGameForUI(game: GameFromAPI): UIGame {
       description: game.provider.description || '',
       featured: false // Default value
     };
-  } else {
-    provider = game.distribution || '';
+  } else if (game.distribution) {
+    provider = game.distribution;
   }
 
   return {

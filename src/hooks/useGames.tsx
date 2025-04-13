@@ -1,10 +1,11 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
 import { clientGamesApi } from "@/services/mockGamesService";
+import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
+import { availableProviders } from "@/config/gameProviders";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -14,6 +15,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   const [totalGames, setTotalGames] = useState(0);
   const [providers, setProviders] = useState<UIGameProvider[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(false);
+  const [launchingGame, setLaunchingGame] = useState(false);
   const { toast } = useToast();
   
   const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
@@ -160,6 +162,52 @@ export const useGames = (initialParams: GameListParams = {}) => {
     }
   };
 
+  // New function to launch a game with a provider
+  const launchGame = async (game: UIGame, options: Partial<GameLaunchOptions> = {}) => {
+    try {
+      setLaunchingGame(true);
+      
+      // Determine provider ID
+      let providerId = "ppeur"; // Default to Pragmatic Play EUR as requested
+      
+      // Prepare launch options
+      const launchOptions: GameLaunchOptions = {
+        gameId: game.id,
+        providerId,
+        mode: options.mode || "demo",
+        playerId: options.playerId || "demo_player",
+        language: options.language || "en",
+        returnUrl: options.returnUrl || window.location.href
+      };
+      
+      // Get game URL from provider service
+      const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
+      
+      // Launch the game in appropriate way
+      if (options.mode === "embedded") {
+        // For embedded mode, return URL to be used in iframe
+        return gameUrl;
+      } else {
+        // For standalone mode, open in new window/tab
+        window.open(gameUrl, "_blank");
+        toast({
+          title: "Game Launched",
+          description: `${game.title} is opening in a new window`,
+        });
+      }
+    } catch (err: any) {
+      console.error("Error launching game:", err);
+      toast({
+        title: "Error",
+        description: `Failed to launch game: ${err.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLaunchingGame(false);
+    }
+  };
+
   // Initial fetch
   useEffect(() => {
     fetchGames();
@@ -169,6 +217,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   return {
     games,
     loading,
+    launchingGame,
     error,
     params,
     totalGames,
@@ -179,6 +228,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     addGame,
     updateGame,
     deleteGame,
-    toggleGameFeature
+    toggleGameFeature,
+    launchGame
   };
 };
