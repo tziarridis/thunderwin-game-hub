@@ -1,9 +1,11 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { gitSlotParkService } from "@/services/gitSlotParkService";
+import { gitSlotParkService, GSPWalletCallback, GSPWalletResponse } from "@/services/gitSlotParkService";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 /**
  * This component demonstrates how a seamless wallet integration works with GitSlotPark.
@@ -13,36 +15,18 @@ const GitSlotParkSeamless = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("logs");
+  const [testResponse, setTestResponse] = useState<GSPWalletResponse | null>(null);
+  
+  const addLog = (message: string) => {
+    setLogs(prev => [...prev, `[${new Date().toISOString()}] ${message}`]);
+  };
   
   useEffect(() => {
-    // This is purely for demonstration purposes
+    // Initialize logs
     setLogs([
       "Seamless wallet integration endpoint for GitSlotPark",
       "In a real implementation, this would be a server-side API endpoint",
-      "GitSlotPark will send POST requests to this endpoint to perform wallet operations",
-      "",
-      "Example GetBalance request:",
-      JSON.stringify({
-        agentID: "Partner01",
-        userID: "Player01",
-        sign: "475D834ACC3AB61D7DF4EA42751C6275387BC1787A098D2D0E091698D9BF2043"
-      }, null, 2),
-      "",
-      "Example Withdraw request:",
-      JSON.stringify({
-        agentID: "Partner01",
-        userID: "Player01",
-        amount: 12.30,
-        transactionID: "474e1a293c2f4e7ab122c52d68423fcb",
-        roundID: "ab9c15f2efdd46278e4a56b303127234",
-        sign: "475D834ACC3AB61D7DF4EA42751C6275387BC1787A098D2D0E091698D9BF2043"
-      }, null, 2),
-      "",
-      "Example response:",
-      JSON.stringify({
-        code: 0,
-        balance: 87.70
-      }, null, 2)
+      "GitSlotPark will send POST requests to this endpoint to perform wallet operations"
     ]);
     
     // Mock transactions for demonstration
@@ -70,7 +54,7 @@ const GitSlotParkSeamless = () => {
       {
         id: "1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p",
         playerId: "Player02",
-        type: "Withdraw",
+        type: "RollbackTransaction",
         amount: 5.00,
         gameId: "2005",
         roundId: "ab1cd2ef3gh4ij5kl6mn7op8qr9st0uv",
@@ -79,6 +63,99 @@ const GitSlotParkSeamless = () => {
       }
     ]);
   }, []);
+
+  // Test different wallet operations
+  const testOperation = async (operationType: string) => {
+    setTestResponse(null);
+    
+    let testRequest: GSPWalletCallback;
+    let mockSign = "475D834ACC3AB61D7DF4EA42751C6275387BC1787A098D2D0E091698D9BF2043"; // Simplified
+    
+    switch (operationType) {
+      case "GetBalance":
+        testRequest = {
+          agentID: "Partner01",
+          userID: "Player01",
+          type: "GetBalance",
+          sign: mockSign
+        };
+        break;
+        
+      case "Withdraw":
+        testRequest = {
+          agentID: "Partner01",
+          userID: "Player01",
+          amount: 12.30,
+          transactionID: "474e1a293c2f4e7ab122c52d68423fcb",
+          roundID: "ab9c15f2efdd46278e4a56b303127234",
+          gameID: 2001,
+          type: "Withdraw",
+          sign: mockSign
+        };
+        break;
+        
+      case "Deposit":
+        testRequest = {
+          agentID: "Partner01",
+          userID: "Player01",
+          amount: 25.50,
+          transactionID: "2f489d44b61f4650af780ab4c28a7745",
+          refTransactionID: "474e1a293c2f4e7ab122c52d68423fcb",
+          roundID: "ab9c15f2efdd46278e4a56b303127234",
+          gameID: 2001,
+          type: "Deposit",
+          sign: mockSign
+        };
+        break;
+        
+      case "RollbackTransaction":
+        testRequest = {
+          agentID: "Partner01",
+          userID: "Player01",
+          refTransactionID: "474e1a293c2f4e7ab122c52d68423fcb",
+          gameID: 2001,
+          type: "RollbackTransaction",
+          sign: mockSign
+        };
+        break;
+        
+      default:
+        addLog(`Unknown operation type: ${operationType}`);
+        return;
+    }
+    
+    try {
+      // Log the request
+      addLog(`Testing ${operationType} operation:`);
+      addLog(JSON.stringify(testRequest, null, 2));
+      
+      // Process the request
+      const response = await gitSlotParkService.processWalletCallback(testRequest);
+      
+      // Log the response
+      addLog(`Response:`);
+      addLog(JSON.stringify(response, null, 2));
+      setTestResponse(response);
+      
+      // Add to transactions if successful
+      if (response.code === 0 && operationType !== "GetBalance") {
+        const newTransaction = {
+          id: testRequest.transactionID || `test-${Date.now()}`,
+          playerId: testRequest.userID,
+          type: operationType,
+          amount: testRequest.amount || 0,
+          gameId: testRequest.gameID,
+          roundId: testRequest.roundID || "N/A",
+          status: "completed",
+          timestamp: new Date().toISOString()
+        };
+        
+        setTransactions(prev => [newTransaction, ...prev]);
+      }
+    } catch (error: any) {
+      addLog(`Error processing request: ${error.message}`);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-12 pt-24">
@@ -94,6 +171,7 @@ const GitSlotParkSeamless = () => {
             <TabsList className="mb-4">
               <TabsTrigger value="logs">API Logs</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="test">Test Operations</TabsTrigger>
               <TabsTrigger value="docs">Documentation</TabsTrigger>
             </TabsList>
             
@@ -128,7 +206,13 @@ const GitSlotParkSeamless = () => {
                           <td className="p-2 font-mono text-xs">{transaction.id}</td>
                           <td className="p-2">{transaction.playerId}</td>
                           <td className="p-2">
-                            <Badge className={transaction.type === 'Withdraw' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}>
+                            <Badge className={
+                              transaction.type === 'Withdraw' 
+                                ? 'bg-red-500/20 text-red-400'
+                                : transaction.type === 'Deposit'
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-yellow-500/20 text-yellow-400'
+                            }>
                               {transaction.type}
                             </Badge>
                           </td>
@@ -145,6 +229,53 @@ const GitSlotParkSeamless = () => {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="test">
+              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
+                <h3 className="font-mono text-sm text-white mb-2">Test Wallet Operations</h3>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <Button 
+                    onClick={() => testOperation("GetBalance")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Test GetBalance
+                  </Button>
+                  <Button 
+                    onClick={() => testOperation("Withdraw")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Test Withdraw (Bet)
+                  </Button>
+                  <Button 
+                    onClick={() => testOperation("Deposit")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Test Deposit (Win)
+                  </Button>
+                  <Button 
+                    onClick={() => testOperation("RollbackTransaction")}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Test Rollback
+                  </Button>
+                </div>
+                
+                {testResponse && (
+                  <Alert className={testResponse.code === 0 ? "bg-green-950/20" : "bg-red-950/20"}>
+                    <AlertDescription>
+                      <div className="mt-2">
+                        <p className="font-semibold">Response:</p>
+                        <pre className="text-xs mt-1 bg-slate-900 p-2 rounded">{JSON.stringify(testResponse, null, 2)}</pre>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             </TabsContent>
             
@@ -173,8 +304,8 @@ const sign = generateSign(secretKey, message);
                     <h4 className="font-semibold mb-1">Available Operations</h4>
                     <ul className="list-disc pl-5 space-y-1">
                       <li>GetBalance - Retrieves player balance</li>
-                      <li>Withdraw - Deducts funds from player's balance</li>
-                      <li>Deposit - Adds funds to player's balance</li>
+                      <li>Withdraw - Deducts funds from player's balance (betting)</li>
+                      <li>Deposit - Adds funds to player's balance (winning)</li>
                       <li>BetWin - Processes a combined bet and win</li>
                       <li>RollbackTransaction - Rolls back a previous transaction</li>
                     </ul>
@@ -186,7 +317,8 @@ const sign = generateSign(secretKey, message);
 {`{
   "code": 0,   // Result code (0 = success)
   "balance": 100.00,  // Player's current balance
-  "message": "Optional error message" // Only present on error
+  "message": "Optional error message", // Only present on error
+  "platformTransactionID": "generated-transaction-id" // Your system's transaction ID
 }`}
                     </pre>
                   </div>
