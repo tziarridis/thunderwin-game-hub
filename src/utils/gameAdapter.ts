@@ -68,7 +68,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
     provider_id: providerId,
     game_id: game.id,
     game_name: game.title,
-    game_code: game.id.replace(/\D/g, ''),
+    game_code: game.id.replace(/\D/g, '') || '',
     game_type: game.category,
     description: game.description || '',
     cover: game.image || '',
