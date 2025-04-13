@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -6,136 +7,77 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ToastContainer } from 'sonner';
-
-// Public Pages
-import Home from './pages/Home';
-import Games from './pages/Games';
-import Promotions from './pages/Promotions';
-import Support from './pages/Support';
-import Register from './pages/Register';
-import Login from './pages/Login';
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
+import { Toaster } from 'sonner';
 import NotFound from './pages/NotFound';
-import GameDetails from './pages/GameDetails';
+import Layout from './components/layout/Layout';
+import { AppLayout } from './components/layout/AppLayout';
 
-// User Dashboard Pages
-import Dashboard from './pages/user/Dashboard';
-import UserProfile from './pages/user/UserProfile';
-import Transactions from './pages/user/Transactions';
-import MyBonuses from './pages/user/MyBonuses';
-import MyAffiliate from './pages/user/MyAffiliate';
-import VerifyEmail from './pages/VerifyEmail';
-
-// Admin Dashboard Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import UserManagement from './pages/admin/UserManagement';
-import TransactionManagement from './pages/admin/TransactionManagement';
-import ReportManagement from './pages/admin/ReportManagement';
-import GameManagement from './pages/admin/GameManagement';
-import AdminLogin from './pages/admin/AdminLogin';
-import AdminLayout from './components/layout/AdminLayout';
-import GameForm from './pages/admin/GameForm';
-import PromotionManagement from './pages/admin/Promotions';
-import AffiliateManagement from './pages/admin/AffiliateManagement';
-import KycManagement from './pages/admin/KycManagement';
-import VipManagement from './pages/admin/VipManagement';
-import SecuritySettings from './pages/admin/SecuritySettings';
-import SystemLogs from './pages/admin/SystemLogs';
-import AdminSettings from './pages/admin/AdminSettings';
-import BonusManagement from './pages/admin/BonusManagement';
-import BonusForm from './pages/admin/BonusForm';
-import PlayerSegmentation from "@/pages/admin/PlayerSegmentation";
-
-// Protected Route Component
-import ProtectedRoute from './components/ProtectedRoute';
-import PublicLayout from './components/layout/PublicLayout';
-import UserLayout from './components/layout/UserLayout';
+// Placeholder for pages that haven't been created yet
+import PlaceholderPage from './components/PlaceholderPage';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
-        <ToastContainer richColors closeButton />
+        <Toaster richColors closeButton />
         <Routes>
           {/* Public Routes */}
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/games" element={<Games />} />
-             <Route path="/games/:id" element={<GameDetails />} />
-            <Route path="/promotions" element={<Promotions />} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route element={<Layout />}>
+            <Route path="/" element={<PlaceholderPage title="Home" />} />
+            <Route path="/games" element={<PlaceholderPage title="Games" />} />
+            <Route path="/games/:id" element={<PlaceholderPage title="Game Details" />} />
+            <Route path="/promotions" element={<PlaceholderPage title="Promotions" />} />
+            <Route path="/support" element={<PlaceholderPage title="Support" />} />
+            <Route path="/register" element={<PlaceholderPage title="Register" />} />
+            <Route path="/login" element={<PlaceholderPage title="Login" />} />
+            <Route path="/terms" element={<PlaceholderPage title="Terms" />} />
+            <Route path="/privacy" element={<PlaceholderPage title="Privacy" />} />
+            <Route path="/verify-email" element={<PlaceholderPage title="Verify Email" />} />
           </Route>
 
-          {/* User Dashboard Routes */}
+          {/* User Dashboard Routes - using placeholders */}
           <Route
             path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <UserLayout><Dashboard /></UserLayout>
-              </ProtectedRoute>
-            }
+            element={<PlaceholderPage title="User Dashboard" />}
           />
           <Route
             path="/profile"
-            element={
-              <ProtectedRoute>
-                <UserLayout><UserProfile /></UserLayout>
-              </ProtectedRoute>
-            }
+            element={<PlaceholderPage title="User Profile" />}
           />
           <Route
             path="/transactions"
-            element={
-              <ProtectedRoute>
-                <UserLayout><Transactions /></UserLayout>
-              </ProtectedRoute>
-            }
+            element={<PlaceholderPage title="Transactions" />}
           />
           <Route
             path="/my-bonuses"
-            element={
-              <ProtectedRoute>
-                <UserLayout><MyBonuses /></UserLayout>
-              </ProtectedRoute>
-            }
+            element={<PlaceholderPage title="My Bonuses" />}
           />
           <Route
             path="/my-affiliate"
-            element={
-              <ProtectedRoute>
-                <UserLayout><MyAffiliate /></UserLayout>
-              </ProtectedRoute>
-            }
+            element={<PlaceholderPage title="My Affiliate" />}
           />
 
-          {/* Admin Dashboard Routes */}
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<ProtectedRoute isAdmin={true}><AdminLayout /></ProtectedRoute>}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="users" element={<UserManagement />} />
-            <Route path="transactions" element={<TransactionManagement />} />
-            <Route path="reports" element={<ReportManagement />} />
-            <Route path="games" element={<GameManagement />} />
-              <Route path="games/new" element={<GameForm />} />
-              <Route path="games/edit/:id" element={<GameForm />} />
-            <Route path="promotions" element={<PromotionManagement />} />
-            <Route path="affiliates" element={<AffiliateManagement />} />
-            <Route path="kyc" element={<KycManagement />} />
-            <Route path="vip-management" element={<VipManagement />} />
-            <Route path="security" element={<SecuritySettings />} />
-            <Route path="logs" element={<SystemLogs />} />
-            <Route path="settings" element={<AdminSettings />} />
-              <Route path="bonuses" element={<BonusManagement />} />
-              <Route path="bonuses/new" element={<BonusForm />} />
-              <Route path="bonuses/edit/:id" element={<BonusForm />} />
-              <Route path="segmentation" element={<PlayerSegmentation />} />
+          {/* Admin Dashboard Routes - using placeholders */}
+          <Route path="/admin/login" element={<PlaceholderPage title="Admin Login" />} />
+          <Route path="/admin" element={<PlaceholderPage title="Admin Layout" />}>
+            <Route index element={<PlaceholderPage title="Admin Dashboard" />} />
+            <Route path="users" element={<PlaceholderPage title="User Management" />} />
+            <Route path="transactions" element={<PlaceholderPage title="Transaction Management" />} />
+            <Route path="reports" element={<PlaceholderPage title="Report Management" />} />
+            <Route path="games" element={<PlaceholderPage title="Game Management" />} />
+            <Route path="games/new" element={<PlaceholderPage title="New Game Form" />} />
+            <Route path="games/edit/:id" element={<PlaceholderPage title="Edit Game Form" />} />
+            <Route path="promotions" element={<PlaceholderPage title="Promotion Management" />} />
+            <Route path="affiliates" element={<PlaceholderPage title="Affiliate Management" />} />
+            <Route path="kyc" element={<PlaceholderPage title="KYC Management" />} />
+            <Route path="vip-management" element={<PlaceholderPage title="VIP Management" />} />
+            <Route path="security" element={<PlaceholderPage title="Security Settings" />} />
+            <Route path="logs" element={<PlaceholderPage title="System Logs" />} />
+            <Route path="settings" element={<PlaceholderPage title="Admin Settings" />} />
+            <Route path="bonuses" element={<PlaceholderPage title="Bonus Management" />} />
+            <Route path="bonuses/new" element={<PlaceholderPage title="New Bonus Form" />} />
+            <Route path="bonuses/edit/:id" element={<PlaceholderPage title="Edit Bonus Form" />} />
+            <Route path="segmentation" element={<PlaceholderPage title="Player Segmentation" />} />
           </Route>
 
           {/* Not Found Route */}
