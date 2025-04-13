@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  BrowserRouter as Router,
   Route,
   Routes,
   Navigate,
@@ -10,12 +9,12 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/layout/Layout";
 import Home from "./pages/Index";
-import Casino from "./pages/casino/CasinoMain";
-import Sportsbook from "./pages/sports/Sports";
+import CasinoMain from "./pages/casino/CasinoMain";
+import Sports from "./pages/sports/Sports";
 import Promotions from "./pages/promotions/Promotions";
 import Profile from "./pages/user/Profile";
 import Login from "./pages/auth/Login";
-import Registration from "./pages/auth/Register";
+import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import AdminDashboard from "./pages/admin/Dashboard";
 import UserManagement from "./pages/admin/Users";
@@ -24,6 +23,7 @@ import TransactionHistory from "./pages/admin/Transactions";
 import AggregatorSettings from "./pages/admin/AggregatorSettings";
 import GameAggregatorPage from "./pages/admin/GameAggregator";
 import Seamless from "./pages/casino/Seamless";
+import ScrollToTop from "./components/layout/ScrollToTop";
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -57,8 +57,8 @@ function App() {
   // Set up routes
   const routes = [
     { path: "/", element: <Home /> },
-    { path: "/casino", element: <Casino /> },
-    { path: "/sportsbook", element: <Sportsbook /> },
+    { path: "/casino", element: <CasinoMain /> },
+    { path: "/sportsbook", element: <Sports /> },
     { path: "/promotions", element: <Promotions /> },
     {
       path: "/profile",
@@ -69,7 +69,7 @@ function App() {
       ),
     },
     { path: "/login", element: <Login /> },
-    { path: "/register", element: <Registration /> },
+    { path: "/register", element: <Register /> },
     { path: "/forgot-password", element: <ForgotPassword /> },
     {
       path: "/admin",
@@ -125,15 +125,14 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <Layout>
-            <Routes>
-              {routes.map((route, index) => (
-                <Route key={index} path={route.path} element={route.element} />
-              ))}
-            </Routes>
-          </Layout>
-        </Router>
+        <ScrollToTop />
+        <Layout>
+          <Routes>
+            {routes.map((route, index) => (
+              <Route key={index} path={route.path} element={route.element} />
+            ))}
+          </Routes>
+        </Layout>
       </AuthProvider>
     </ThemeProvider>
   );

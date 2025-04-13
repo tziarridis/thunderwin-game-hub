@@ -11,16 +11,23 @@ type User = {
   balance: number;
   currency: string;
   avatarUrl?: string;
+  name?: string;
+  vipLevel?: number;
+  isVerified?: boolean;
 };
 
 type AuthContextType = {
   isAuthenticated: boolean;
   user: User | null;
   loading: boolean;
+  isAdmin?: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (username: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserBalance: (amount: number) => void;
+  adminLogin?: (email: string, password: string) => Promise<boolean>;
+  deposit?: (amount: number) => void;
+  updateBalance?: (amount: number) => void;
 };
 
 // Create the context
@@ -34,7 +41,10 @@ const adminUser: User = {
   isAdmin: true,
   balance: 1000,
   currency: 'EUR',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin'
+  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
+  name: 'Admin User',
+  vipLevel: 5,
+  isVerified: true
 };
 
 // Sample regular user for development
@@ -45,7 +55,10 @@ const regularUser: User = {
   isAdmin: false,
   balance: 500,
   currency: 'EUR',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player'
+  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player',
+  name: 'Player One',
+  vipLevel: 2,
+  isVerified: false
 };
 
 // Provider component
@@ -90,6 +103,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Aliases for updateUserBalance for compatibility with different components
+  const updateBalance = updateUserBalance;
+  const deposit = (amount: number) => updateUserBalance(amount);
+
   // Login function
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true);
@@ -110,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (email) {
           userData.email = email;
           userData.username = email.split('@')[0];
+          userData.name = email.split('@')[0];
           userData.avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
         }
       }
@@ -129,6 +147,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Admin Login - same as login but specifically for admin panel
+  const adminLogin = login;
+
   // Register function
   const register = async (username: string, email: string, password: string): Promise<boolean> => {
     setLoading(true);
@@ -143,8 +164,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `user_${Date.now()}`, // Generate a fake ID
         username,
         email,
+        name: username,
         balance: 1000, // Start with 1000 in balance
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
+        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+        vipLevel: 1,
+        isVerified: false
       };
       
       setUser(newUser);
@@ -170,16 +194,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success(`You have been logged out`);
   };
 
+  // Compute isAdmin for easy access
+  const isAdmin = user?.isAdmin || false;
+
   // Provide the context
   return (
     <AuthContext.Provider value={{
       isAuthenticated,
       user,
       loading,
+      isAdmin,
       login,
       register,
       logout,
-      updateUserBalance
+      updateUserBalance,
+      adminLogin,
+      deposit,
+      updateBalance
     }}>
       {children}
     </AuthContext.Provider>
