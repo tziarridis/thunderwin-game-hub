@@ -5,7 +5,6 @@ import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface LaunchGameProps {
   game: Game;
@@ -26,36 +25,17 @@ const LaunchGame = ({
 }: LaunchGameProps) => {
   const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
-  const { isAuthenticated, user } = useAuth();
   
   const handleLaunch = async () => {
-    // For real money mode, check if user is authenticated and has sufficient balance
-    if (mode === 'real') {
-      if (!isAuthenticated) {
-        toast.error("Please log in to play with real money");
-        return;
-      }
-      
-      // Check if user has sufficient balance (assuming minimum bet is 1)
-      if (user && user.balance < 1) {
-        toast.error("Insufficient balance. Please deposit funds to continue.");
-        return;
-      }
-    }
-    
     try {
       setIsLaunching(true);
       const gameUrl = await launchGame(game, { 
         mode, 
-        providerId,
-        playerId: isAuthenticated ? user?.id || 'guest' : 'guest'
+        providerId 
       });
       
-      // Open the game in a new window
-      if (gameUrl) {
-        window.open(gameUrl, '_blank');
-        toast.success(`Game launched: ${game.title}`);
-      }
+      // Handle successful launch
+      toast.success(`Game launched: ${game.title}`);
       
     } catch (error: any) {
       console.error('Error launching game:', error);
