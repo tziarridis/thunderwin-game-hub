@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { query, transaction, mockQuery } from './databaseService';
@@ -29,7 +28,6 @@ export const gamesApi = {
     }
   },
 
-  // Get a single game by ID
   getGame: async (id: number | string): Promise<Game> => {
     try {
       const response = await axios.get(`${API_URL}/games/${id}`, {
@@ -48,7 +46,6 @@ export const gamesApi = {
     }
   },
 
-  // Get all game providers
   getProviders: async (): Promise<GameProvider[]> => {
     try {
       const response = await axios.get(`${API_URL}/providers`, {
@@ -150,7 +147,7 @@ export const gamesApi = {
   }
 };
 
-// Database service for direct DB access (if API is not available)
+// Database service for direct DB access
 export const gamesDbService = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     let sql = `

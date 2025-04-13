@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -139,6 +140,13 @@ const AdminGames = () => {
     } catch (error) {
       console.error("Failed to update game:", error);
     }
+  };
+
+  // Helper function to get provider name
+  const getProviderName = (provider: string | { name?: string } | undefined): string => {
+    if (!provider) return 'Unknown';
+    if (typeof provider === 'string') return provider;
+    return provider.name || 'Unknown';
   };
 
   // Calculate pagination
@@ -296,7 +304,7 @@ const AdminGames = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {typeof game.provider === 'string' ? game.provider : (game.provider?.name || 'Unknown')}
+                      {getProviderName(game.provider)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">{game.category}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp}%</td>

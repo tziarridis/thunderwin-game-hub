@@ -6,19 +6,27 @@ import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
  * Converts a Game from the API format to the UI format
  */
 export function adaptGameForUI(game: GameFromAPI): UIGame {
+  // Create provider object or string based on what's available
+  let provider: UIGameProvider | string;
+  
+  if (typeof game.provider === 'object' && game.provider) {
+    provider = {
+      id: game.provider.id.toString(),
+      name: game.provider.name,
+      logo: game.provider.logo || '',
+      gamesCount: 0,
+      isPopular: false,
+      description: game.provider.description || '',
+      featured: false
+    };
+  } else {
+    provider = game.distribution || '';
+  }
+
   return {
     id: game.id ? game.id.toString() : '',
     title: game.game_name,
-    provider: typeof game.provider === 'object' && game.provider 
-      ? {
-          id: game.provider.id.toString(),
-          name: game.provider.name,
-          logo: game.provider.logo || '',
-          gamesCount: 0,
-          isPopular: false,
-          description: game.provider.description || ''
-        } 
-      : game.distribution || '',
+    provider: provider,
     category: game.game_type || 'slots',
     image: game.cover || '',
     rtp: game.rtp || 96,
@@ -46,11 +54,11 @@ export function adaptGamesForUI(games: GameFromAPI[]): UIGame[] {
  * Converts a Game from the UI format to the API format
  */
 export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
-  const providerId = typeof game.provider === 'object' && game.provider 
+  const providerId = typeof game.provider === 'object' && game.provider && game.provider.id
     ? parseInt(game.provider.id) 
     : 1;
     
-  const providerName = typeof game.provider === 'object' && game.provider 
+  const providerName = typeof game.provider === 'object' && game.provider && game.provider.name
     ? game.provider.name 
     : (typeof game.provider === 'string' ? game.provider : '');
     

@@ -113,7 +113,7 @@ export const mockGamesService = {
         has_tables: game.category === 'table',
         only_demo: false,
         rtp: game.rtp,
-        distribution: game.provider,
+        distribution: game.provider || '',
         views: Math.floor(Math.random() * 1000),
         is_featured: game.isPopular,
         show_home: game.isNew,
@@ -166,7 +166,7 @@ export const mockGamesService = {
       const game = await this.getGame(id);
       if (feature === 'is_featured') {
         game.is_featured = value;
-      } else {
+      } else if (feature === 'show_home') {
         game.show_home = value;
       }
       return game;
