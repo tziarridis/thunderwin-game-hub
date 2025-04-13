@@ -7,9 +7,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GameGrid from "@/components/casino/GameGrid";
 import { useGames } from "@/hooks/useGames";
 import { motion } from "framer-motion";
-import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
+
+// Mock data for configurable banners
+const banners = [
+  {
+    id: 1,
+    title: "Slot Tournament",
+    description: "Win up to $10,000 in our weekly slots tournament",
+    imageUrl: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81",
+    ctaText: "Join Now",
+    ctaUrl: "/promotions",
+    backgroundColor: "from-purple-900 to-blue-900",
+    textColor: "text-white"
+  },
+  {
+    id: 2,
+    title: "New Slots Released",
+    description: "Try our newest slot games with exciting bonus features",
+    imageUrl: "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b",
+    ctaText: "Play Now",
+    ctaUrl: "/casino/new-games",
+    backgroundColor: "from-green-800 to-blue-900",
+    textColor: "text-white"
+  }
+];
 
 const SlotsPage = () => {
   const { games, loading, error } = useGames();
@@ -48,9 +71,49 @@ const SlotsPage = () => {
 
   return (
     <div className="bg-casino-thunder-darker min-h-screen pb-16 relative overflow-hidden">
-      <WinningSlideshow />
-      
       <div className="pt-20 container mx-auto px-4">
+        {/* Configurable Banners Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Featured Slots</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {banners.map(banner => (
+              <motion.div
+                key={banner.id}
+                whileHover={{ scale: 1.02 }}
+                className={`rounded-lg overflow-hidden relative h-60 bg-gradient-to-r ${banner.backgroundColor}`}
+              >
+                <div className="absolute inset-0 opacity-60 bg-black">
+                  <img 
+                    src={banner.imageUrl} 
+                    alt={banner.title} 
+                    className="w-full h-full object-cover mix-blend-overlay"
+                  />
+                </div>
+                <div className="absolute inset-0 flex flex-col justify-center p-8 z-10">
+                  <h3 className={`text-2xl font-bold mb-2 ${banner.textColor}`}>
+                    {banner.title}
+                  </h3>
+                  <p className={`${banner.textColor} mb-4 opacity-80 max-w-md`}>
+                    {banner.description}
+                  </p>
+                  <div>
+                    <Button 
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                      onClick={() => navigate(banner.ctaUrl)}
+                    >
+                      {banner.ctaText}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+        
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
