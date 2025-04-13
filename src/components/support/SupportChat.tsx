@@ -8,7 +8,8 @@ import {
   Loader2,
   ThumbsUp,
   TicketCheck,
-  Tag
+  Tag,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { AutoResponse, SupportTicket, SupportMessage } from "@/types/support";
 import { v4 as uuidv4 } from "uuid";
 import { toast } from "@/components/ui/use-toast";
+import { Link, useNavigate } from "react-router-dom";
 
 const SupportChat = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,6 +33,7 @@ const SupportChat = () => {
   const [category, setCategory] = useState<SupportTicket['category']>("account");
   const [showTicketForm, setShowTicketForm] = useState(false);
   const [ticketDetails, setTicketDetails] = useState<SupportTicket | null>(null);
+  const navigate = useNavigate();
   
   useEffect(() => {
     // Load auto-responses from localStorage if available
@@ -46,7 +49,7 @@ const SupportChat = () => {
       senderId: "system",
       senderName: "Support Bot",
       senderType: "system",
-      message: "Hello! How can I help you today?",
+      message: "Hello! How can I help you today? For faster assistance, you can check our Help Center to find answers to common questions.",
       createdAt: new Date().toISOString(),
       isRead: true
     };
@@ -118,15 +121,47 @@ const SupportChat = () => {
         
         setMessages(prev => [...prev, botMessage]);
       } else {
-        // Generic response prompting ticket creation if no ticket yet
-        if (!ticketCreated && !showTicketForm) {
+        // Check if message contains help-related keywords
+        const helpKeywords = ['help', 'assistance', 'support', 'guide', 'faq', 'question', 'how to'];
+        const containsHelpKeyword = helpKeywords.some(keyword => userMessageLower.includes(keyword));
+        
+        if (containsHelpKeyword) {
+          // Suggest help center for help-related queries
+          const helpCenterMessage: SupportMessage = {
+            id: uuidv4(),
+            ticketId: "",
+            senderId: "system",
+            senderName: "Support Bot",
+            senderType: "system",
+            message: "It looks like you have a question. Our Help Center has detailed guides and FAQs that might answer your question faster. Would you like to check our Help Center?",
+            createdAt: new Date().toISOString(),
+            isRead: true
+          };
+          
+          setMessages(prev => [...prev, helpCenterMessage]);
+          
+          // Add help center button message
+          const helpButtonMessage: SupportMessage = {
+            id: uuidv4(),
+            ticketId: "",
+            senderId: "system",
+            senderName: "Support Bot",
+            senderType: "system",
+            message: "HELP_CENTER_BUTTON", // Special message type to render a button
+            createdAt: new Date().toISOString(),
+            isRead: true
+          };
+          
+          setMessages(prev => [...prev, helpButtonMessage]);
+        } else if (!ticketCreated && !showTicketForm) {
+          // Generic response prompting ticket creation if no ticket yet
           const botMessage: SupportMessage = {
             id: uuidv4(),
             ticketId: "",
             senderId: "system",
             senderName: "Support Bot",
             senderType: "system",
-            message: "I'll need more information to help you. Would you like to create a support ticket?",
+            message: "I'll need more information to help you. Would you like to create a support ticket? You can also check our Help Center for faster assistance.",
             createdAt: new Date().toISOString(),
             isRead: true
           };
@@ -213,6 +248,12 @@ const SupportChat = () => {
     }, 1500);
   };
   
+  const handleGoToHelpCenter = () => {
+    setIsOpen(false);
+    navigate('/support/help');
+    window.scrollTo(0, 0);
+  };
+  
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -240,6 +281,29 @@ const SupportChat = () => {
       default:
         return <Badge variant="outline">{category}</Badge>;
     }
+  };
+
+  // Special message renderer for different message types
+  const renderMessage = (msg: SupportMessage) => {
+    if (msg.message === "HELP_CENTER_BUTTON") {
+      return (
+        <div className="p-2 bg-casino-thunder-green/20 rounded-lg">
+          <Button 
+            onClick={handleGoToHelpCenter}
+            className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+          >
+            Visit Help Center <ExternalLink className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      );
+    }
+    
+    return (
+      <>
+        <div className="text-xs opacity-75 mb-1">{formatTime(msg.createdAt)}</div>
+        <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+      </>
+    );
   };
 
   return (
@@ -306,12 +370,11 @@ const SupportChat = () => {
                       msg.senderType === 'user' 
                         ? 'bg-casino-thunder-green text-black' 
                         : msg.senderType === 'system'
-                          ? 'bg-gray-700 text-white'
+                          ? msg.message === "HELP_CENTER_BUTTON" ? 'bg-transparent p-0' : 'bg-gray-700 text-white'
                           : 'bg-white/10 text-white'
                     }`}
                   >
-                    <div className="text-xs opacity-75 mb-1">{formatTime(msg.createdAt)}</div>
-                    <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+                    {renderMessage(msg)}
                   </div>
                   
                   {msg.senderType === 'user' && (
@@ -332,6 +395,20 @@ const SupportChat = () => {
                   <div className="bg-gray-700 rounded-lg px-4 py-2 flex items-center">
                     <Loader2 className="h-4 w-4 animate-spin text-white" />
                   </div>
+                </div>
+              )}
+              
+              {/* Help Center Suggestion */}
+              {!ticketCreated && !isLoading && (
+                <div className="flex justify-center my-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs text-casino-thunder-green border-casino-thunder-green/30"
+                    onClick={handleGoToHelpCenter}
+                  >
+                    Visit Help Center <ExternalLink className="ml-1 h-3 w-3" />
+                  </Button>
                 </div>
               )}
               

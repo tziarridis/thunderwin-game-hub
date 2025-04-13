@@ -1,10 +1,17 @@
 
-import React from "react";
-import { Outlet } from "react-router-dom";
+import React, { useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import Footer from "./Footer";
 
 const AppLayout = () => {
+  const location = useLocation();
+
+  // Effect to scroll to top when location changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <div className="flex flex-col min-h-screen bg-casino-thunder-darker text-white relative">
       {/* Background pattern overlay */}

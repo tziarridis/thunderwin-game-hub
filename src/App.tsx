@@ -1,5 +1,7 @@
+
 import { Route, Routes } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
+import ScrollToTop from "./components/layout/ScrollToTop";
 import Index from "./pages/Index";
 import CasinoMain from "./pages/casino/CasinoMain";
 import SlotGames from "./pages/casino/Slots";
@@ -54,6 +56,9 @@ import "./App.css";
 function App() {
   return (
     <>
+      {/* Add ScrollToTop component to ensure all page changes start at the top */}
+      <ScrollToTop />
+      
       <Routes>
         {/* Main Routes */}
         <Route path="/" element={<AppLayout />}>

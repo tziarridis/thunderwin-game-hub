@@ -111,6 +111,7 @@ const FooterLink = ({ text, to }: { text: string; to: string }) => (
     <Link 
       to={to} 
       className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm"
+      onClick={() => window.scrollTo(0, 0)}
     >
       {text}
     </Link>
