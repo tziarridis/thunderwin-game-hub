@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -18,7 +19,6 @@ import { Game } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import GameForm from "@/components/admin/GameForm";
-import { v4 as uuidv4 } from 'uuid';
 import { useGames } from "@/hooks/useGames";
 
 const AdminGames = () => {
@@ -49,7 +49,9 @@ const AdminGames = () => {
       const query = searchQuery.toLowerCase();
       const results = games.filter(game => 
         game.title.toLowerCase().includes(query) || 
-        (typeof game.provider === 'string' ? game.provider.toLowerCase().includes(query) : game.provider.name.toLowerCase().includes(query)) ||
+        (typeof game.provider === 'string' ? 
+          game.provider.toLowerCase().includes(query) : 
+          (game.provider?.name || '').toLowerCase().includes(query)) ||
         game.id.includes(query)
       );
       setFilteredGames(results);
@@ -87,7 +89,9 @@ const AdminGames = () => {
     if (query) {
       const results = games.filter(game => 
         game.title.toLowerCase().includes(query) || 
-        (typeof game.provider === 'string' ? game.provider.toLowerCase().includes(query) : game.provider.name.toLowerCase().includes(query)) ||
+        (typeof game.provider === 'string' ? 
+          game.provider.toLowerCase().includes(query) : 
+          (game.provider?.name || '').toLowerCase().includes(query)) ||
         game.id.includes(query)
       );
       setFilteredGames(results);
@@ -118,18 +122,26 @@ const AdminGames = () => {
     }
   };
   
-  const handleAddGame = async (gameData: Omit<Game, 'id'>) => {
+  const handleAddGame = async (gameData: Game | Omit<Game, 'id'>) => {
     try {
-      await addGame(gameData);
+      if ('id' in gameData) {
+        await updateGame(gameData as Game);
+      } else {
+        await addGame(gameData);
+      }
       setIsAddDialogOpen(false);
     } catch (error) {
       console.error("Failed to add game:", error);
     }
   };
   
-  const handleUpdateGame = async (gameData: Game) => {
+  const handleUpdateGame = async (gameData: Game | Omit<Game, 'id'>) => {
     try {
-      await updateGame(gameData);
+      if ('id' in gameData) {
+        await updateGame(gameData as Game);
+      } else {
+        await addGame(gameData);
+      }
       setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Failed to update game:", error);
@@ -285,7 +297,7 @@ const AdminGames = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {typeof game.provider === 'string' ? game.provider : game.provider.name}
+                      {typeof game.provider === 'string' ? game.provider : (game.provider?.name || 'Unknown')}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">{game.category}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp}%</td>
@@ -423,22 +435,6 @@ const AdminGames = () => {
           </div>
         </div>
       </div>
-      
-      {/* Add Game Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogTrigger asChild>
-          <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Game
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Game</DialogTitle>
-          </DialogHeader>
-          <GameForm onSubmit={handleAddGame} />
-        </DialogContent>
-      </Dialog>
       
       {/* Edit Game Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -162,13 +162,18 @@ export const mockGamesService = {
   
   toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
     console.log(`Mock toggling ${feature} to ${value} for game ${id}`);
-    const game = await this.getGame(id);
-    if (feature === 'is_featured') {
-      game.is_featured = value;
-    } else {
-      game.show_home = value;
+    try {
+      const game = await this.getGame(id);
+      if (feature === 'is_featured') {
+        game.is_featured = value;
+      } else {
+        game.show_home = value;
+      }
+      return game;
+    } catch (error) {
+      console.error(`Error toggling feature for game ${id}:`, error);
+      throw error;
     }
-    return game;
   },
   
   importGamesFromProvider: async (providerId: number): Promise<Game[]> => {

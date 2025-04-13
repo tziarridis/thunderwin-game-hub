@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Game, GameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { clientGamesApi } from "@/services/mockGamesService";
+import { adaptProvidersForUI } from "@/utils/gameAdapter";
 
 export interface GameFormProps {
   onSubmit: (gameData: Game | Omit<Game, "id">) => void;
@@ -44,7 +45,9 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
       try {
         setLoadingProviders(true);
         const data = await clientGamesApi.getProviders();
-        setProviders(data);
+        // Convert API providers to UI providers
+        const uiProviders = adaptProvidersForUI(data);
+        setProviders(uiProviders);
       } catch (err) {
         console.error("Error fetching providers:", err);
         toast({

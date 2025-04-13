@@ -384,7 +384,7 @@ export const mockGamesService = {
       provider_id: 1,
       game_id: game.id,
       game_name: game.title,
-      game_code: game.id.replace(/\D/g, ''),
+      game_code: game.id.replace(/\D/g, '') || '',
       game_type: game.category,
       description: game.description || '',
       cover: game.image || '',
@@ -396,7 +396,7 @@ export const mockGamesService = {
       has_tables: game.category === 'table',
       only_demo: false,
       rtp: game.rtp,
-      distribution: game.provider,
+      distribution: game.provider || '',
       views: Math.floor(Math.random() * 1000),
       is_featured: game.isPopular,
       show_home: game.isNew,
@@ -414,5 +414,87 @@ export const mockGamesService = {
       { id: 4, name: 'Microgaming', logo: '/providers/microgaming.png', status: 'active' },
       { id: 5, name: 'Play\'n GO', logo: '/providers/playngo.png', status: 'active' }
     ]);
+  }
+};
+
+// Export a simplified API interface that doesn't use Node.js dependencies
+export const clientGamesApi = {
+  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
+    try {
+      const response = await mockGamesService.getGames(params);
+      return response;
+    } catch (error) {
+      console.error('Error fetching games:', error);
+      throw error;
+    }
+  },
+
+  getGame: async (id: number | string): Promise<Game> => {
+    try {
+      const game = await mockGamesService.getGame(id);
+      return game;
+    } catch (error) {
+      console.error(`Error fetching game with id ${id}:`, error);
+      throw error;
+    }
+  },
+
+  getProviders: async (): Promise<GameProvider[]> => {
+    try {
+      const providers = await mockGamesService.getProviders();
+      return providers;
+    } catch (error) {
+      console.error('Error fetching game providers:', error);
+      throw error;
+    }
+  },
+
+  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
+    try {
+      const newGame = await mockGamesService.addGame(game);
+      return newGame;
+    } catch (error) {
+      console.error('Error adding game:', error);
+      throw error;
+    }
+  },
+
+  updateGame: async (game: Game): Promise<Game> => {
+    try {
+      const updatedGame = await mockGamesService.updateGame(game);
+      return updatedGame;
+    } catch (error) {
+      console.error(`Error updating game with id ${game.id}:`, error);
+      throw error;
+    }
+  },
+
+  deleteGame: async (id: number | string): Promise<void> => {
+    try {
+      await mockGamesService.deleteGame(id);
+    } catch (error) {
+      console.error(`Error deleting game with id ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
+    try {
+      const game = await mockGamesService.toggleGameFeature(id, feature, value);
+      return game;
+    } catch (error) {
+      console.error(`Error toggling feature for game ${id}:`, error);
+      throw error;
+    }
+  },
+  
+  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+    try {
+      const games = await mockGamesService.importGamesFromProvider(providerId);
+      return games;
+    } catch (error) {
+      console.error(`Error importing games from provider ${providerId}:`, error);
+      throw error;
+    }
   }
 };

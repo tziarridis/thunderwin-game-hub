@@ -1,5 +1,5 @@
 
-import { Game as GameFromAPI } from '@/types/game';
+import { Game as GameFromAPI, GameProvider as GameProviderFromAPI } from '@/types/game';
 import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
 
 /**
@@ -7,9 +7,16 @@ import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
  */
 export function adaptGameForUI(game: GameFromAPI): UIGame {
   return {
-    id: game.id?.toString() || '',
+    id: game.id ? game.id.toString() : '',
     title: game.game_name,
-    provider: typeof game.provider === 'object' ? game.provider.name : game.distribution || '',
+    provider: typeof game.provider === 'object' && game.provider ? {
+      id: game.provider.id.toString(),
+      name: game.provider.name,
+      logo: game.provider.logo || '',
+      gamesCount: 0,
+      isPopular: false,
+      description: ''
+    } : game.distribution || '',
     category: game.game_type || 'slots',
     image: game.cover || '',
     rtp: game.rtp || 96,
@@ -38,7 +45,7 @@ export function adaptGamesForUI(games: GameFromAPI[]): UIGame[] {
  */
 export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
   return {
-    provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider.id.toString()), // Default to 1 if string
+    provider_id: typeof game.provider === 'string' ? 1 : (game.provider && parseInt(game.provider.id.toString()) || 1),
     game_id: game.id,
     game_name: game.title,
     game_code: game.id.replace(/\D/g, ''),
@@ -53,7 +60,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
     has_tables: game.category === 'table',
     only_demo: false,
     rtp: game.rtp,
-    distribution: typeof game.provider === 'string' ? game.provider : game.provider.name,
+    distribution: typeof game.provider === 'string' ? game.provider : (game.provider && game.provider.name || ''),
     views: 0,
     is_featured: game.isPopular,
     show_home: game.isNew,
@@ -63,7 +70,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
 /**
  * Converts a provider from API format to UI format
  */
-export function adaptProviderForUI(provider: any): UIGameProvider {
+export function adaptProviderForUI(provider: GameProviderFromAPI): UIGameProvider {
   return {
     id: provider.id.toString(),
     name: provider.name,
@@ -78,6 +85,6 @@ export function adaptProviderForUI(provider: any): UIGameProvider {
 /**
  * Converts an array of providers from API format to UI format
  */
-export function adaptProvidersForUI(providers: any[]): UIGameProvider[] {
+export function adaptProvidersForUI(providers: GameProviderFromAPI[]): UIGameProvider[] {
   return providers.map(adaptProviderForUI);
 }
