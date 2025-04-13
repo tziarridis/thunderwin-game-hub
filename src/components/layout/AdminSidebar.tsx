@@ -177,6 +177,13 @@ const AdminSidebar = () => {
                 expanded={expanded}
                 isActive={isActive("/admin/cms/site-data")}
               />
+              <SidebarLink 
+                to="/admin/cms/games" 
+                icon={<BarChart2 size={16} />} 
+                label="Games Management" 
+                expanded={expanded}
+                isActive={isActive("/admin/cms/games")}
+              />
             </div>
           )}
           

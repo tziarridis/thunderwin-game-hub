@@ -6,7 +6,8 @@ import {
   Gamepad2,  
   Grid3x3, 
   Award as SportIcon,  // Replace Football with Award
-  Globe 
+  Globe,
+  BarChart2 
 } from 'lucide-react';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import CMSCard from '@/components/admin/cms/CMSCard';
@@ -79,6 +80,13 @@ const CMSOverview = () => {
           description="Manage logos, SEO metadata, footer links and legal content." 
           icon={<Globe size={24} />} 
           path="/admin/cms/site-data" 
+        />
+        
+        <CMSModule 
+          title="Games Management" 
+          description="Add, edit and manage casino games and their providers." 
+          icon={<BarChart2 size={24} />} 
+          path="/admin/cms/games" 
         />
       </div>
     </div>
