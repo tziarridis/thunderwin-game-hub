@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { RecentWin } from "@/types/recent-wins";
-import { fetchRecentWins, filterWinsByCategory } from "@/services/recentWinsService";
+import { fetchRecentWins } from "@/services/recentWinsService";
 
 interface UseRecentWinsResult {
   wins: RecentWin[];
@@ -40,7 +40,28 @@ export const useRecentWins = (): UseRecentWinsResult => {
       if (activeCategory === "all") {
         setFilteredWins(wins);
       } else {
-        const filtered = filterWinsByCategory(wins, activeCategory);
+        const filtered = wins.filter(win => {
+          switch (activeCategory) {
+            case "slots":
+              return win.game_name.includes("Bonanza") || 
+                     win.game_name.includes("Party") || 
+                     win.game_name.includes("Book") ||
+                     win.game_name.includes("King") ||
+                     win.game_name.includes("Gold");
+            case "live":
+              return win.game_name.includes("Roulette") || 
+                     win.game_name.includes("Blackjack") || 
+                     win.game_name.includes("Poker") ||
+                     win.game_name.includes("Table");
+            case "originals":
+              return win.game_name.includes("Aviator") || 
+                     win.game_name.includes("Crash") ||
+                     win.game_name.includes("BC") ||
+                     win.game_name.includes("Original");
+            default:
+              return true;
+          }
+        });
         setFilteredWins(filtered);
       }
     }

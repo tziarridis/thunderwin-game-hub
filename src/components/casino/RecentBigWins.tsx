@@ -1,144 +1,17 @@
 
 import React, { useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Gamepad2, 
-  Dices, 
-  Table2, 
-  Video,
-  Trophy,
-  CircleDollarSign
-} from "lucide-react";
-
-// Mock data structure based on your suggested schema
-interface RecentWin {
-  id: number;
-  user_display_name: string;
-  game_name: string;
-  game_image_url: string;
-  win_amount: number;
-  currency: string;
-  created_at: string;
-}
-
-const mockRecentWins: RecentWin[] = [
-  {
-    id: 1,
-    user_display_name: "Mupfpj...",
-    game_name: "Sweet Bonanza",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 227.93,
-    currency: "USDT",
-    created_at: "2023-04-10T10:23:45Z"
-  },
-  {
-    id: 2,
-    user_display_name: "Hidden***",
-    game_name: "Aviator",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 156.42,
-    currency: "BCD",
-    created_at: "2023-04-10T10:20:15Z"
-  },
-  {
-    id: 3,
-    user_display_name: "Jackp...",
-    game_name: "Gates of Olympus",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 893.51,
-    currency: "USDT",
-    created_at: "2023-04-10T10:15:33Z"
-  },
-  {
-    id: 4,
-    user_display_name: "Kron***",
-    game_name: "Fruit Party",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 543.21,
-    currency: "USDT",
-    created_at: "2023-04-10T10:10:45Z"
-  },
-  {
-    id: 5,
-    user_display_name: "TheLu...",
-    game_name: "Book of Dead",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 1250.75,
-    currency: "BCD",
-    created_at: "2023-04-10T10:05:22Z"
-  },
-  {
-    id: 6,
-    user_display_name: "Casino***",
-    game_name: "Wolf Gold",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 647.32,
-    currency: "USDT",
-    created_at: "2023-04-10T10:00:11Z"
-  },
-  {
-    id: 7,
-    user_display_name: "BetMa...",
-    game_name: "Buffalo King",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 3421.90,
-    currency: "USDT",
-    created_at: "2023-04-10T09:55:33Z"
-  },
-  {
-    id: 8,
-    user_display_name: "Lucky***",
-    game_name: "Reactoonz",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 1987.65,
-    currency: "BCD",
-    created_at: "2023-04-10T09:50:21Z"
-  },
-  {
-    id: 9,
-    user_display_name: "Thund...",
-    game_name: "Gonzo's Quest",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 754.18,
-    currency: "USDT",
-    created_at: "2023-04-10T09:45:12Z"
-  },
-  {
-    id: 10,
-    user_display_name: "Rich***",
-    game_name: "Starburst",
-    game_image_url: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    win_amount: 503.25,
-    currency: "USDT",
-    created_at: "2023-04-10T09:40:05Z"
-  },
-];
-
-// Helper function to format currency amounts
-const formatAmount = (amount: number): string => {
-  if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(2)}M`;
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(2)}K`;
-  } else {
-    return amount.toFixed(2);
-  }
-};
+import { Trophy, CircleDollarSign } from "lucide-react";
+import { useRecentWins } from "@/hooks/useRecentWins";
+import { formatAmount } from "@/services/recentWinsService";
 
 const RecentBigWins: React.FC = () => {
-  const [wins, setWins] = useState<RecentWin[]>([]);
-  const [activeTab, setActiveTab] = useState("all");
+  const { filteredWins, loading, error } = useRecentWins();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
+  
   useEffect(() => {
-    // In a real implementation, this would fetch from your API
-    setWins(mockRecentWins);
-    
     // This effect sets up the continuous scrolling animation
     const scrollContainer = scrollContainerRef.current;
-    if (!scrollContainer) return;
+    if (!scrollContainer || loading || error || filteredWins.length === 0) return;
     
     // Clone the wins to create a seamless loop
     const scrollContent = scrollContainer.querySelector(".scroll-content");
@@ -155,26 +28,18 @@ const RecentBigWins: React.FC = () => {
       const scrollInterval = setInterval(scroll, 30);
       return () => clearInterval(scrollInterval);
     }
-  }, []);
+  }, [filteredWins, loading, error]);
 
-  // Filter wins based on selected tab
-  const getFilteredWins = () => {
-    switch (activeTab) {
-      case "slots":
-        return wins.filter(win => win.game_name.includes("Bonanza") || win.game_name.includes("Party") || win.game_name.includes("Book"));
-      case "live":
-        return wins.filter(win => win.game_name.includes("Table") || win.game_name.includes("Roulette") || win.game_name.includes("Blackjack"));
-      case "originals":
-        return wins.filter(win => win.game_name.includes("Aviator") || win.game_name.includes("Crash"));
-      default:
-        return wins;
-    }
-  };
-
-  const filteredWins = getFilteredWins();
-  
   // Duplicate the wins array to create a continuous loop effect
   const displayWins = [...filteredWins, ...filteredWins, ...filteredWins];
+
+  if (loading) {
+    return <div className="w-full bg-casino-thunder-dark/90 p-4 rounded-lg text-center">Loading recent wins...</div>;
+  }
+
+  if (error) {
+    return <div className="w-full bg-casino-thunder-dark/90 p-4 rounded-lg text-center">Error loading recent wins</div>;
+  }
 
   return (
     <div className="w-full bg-casino-thunder-dark/90 backdrop-blur-md rounded-lg border border-casino-thunder-green/30 overflow-hidden shadow-lg">
@@ -190,28 +55,7 @@ const RecentBigWins: React.FC = () => {
       </div>
       
       <div className="p-4">
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full mb-4">
-          <TabsList className="w-full flex overflow-x-auto py-2 justify-start">
-            <TabsTrigger value="all" className="flex items-center gap-1">
-              <Trophy className="h-4 w-4" />
-              <span>All</span>
-            </TabsTrigger>
-            <TabsTrigger value="originals" className="flex items-center gap-1">
-              <Gamepad2 className="h-4 w-4" />
-              <span>BC Originals</span>
-            </TabsTrigger>
-            <TabsTrigger value="slots" className="flex items-center gap-1">
-              <Dices className="h-4 w-4" />
-              <span>Slots</span>
-            </TabsTrigger>
-            <TabsTrigger value="live" className="flex items-center gap-1">
-              <Video className="h-4 w-4" />
-              <span>Live Casino</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        
-        <div className="relative max-h-[250px] overflow-hidden rounded-lg border border-white/10 bg-[#1A1F2C]">
+        <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#1A1F2C]">
           <div 
             ref={scrollContainerRef}
             className="flex overflow-x-auto py-4 px-2 hide-scrollbar"
@@ -257,7 +101,7 @@ const RecentBigWins: React.FC = () => {
         </div>
       </div>
       
-      <style jsx>{`
+      <style>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }

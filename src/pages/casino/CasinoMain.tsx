@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -87,19 +86,18 @@ const CasinoMain = () => {
           </p>
         </div>
         
-        {/* Game Categories and Recent Big Wins in two columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-          <div className="lg:col-span-2">
-            <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-            <GameCategories onCategoryClick={(category) => {
-              navigate(`/casino/${category}`);
-              scrollToTop();
-            }} />
-          </div>
-          
-          <div>
-            <RecentBigWins />
-          </div>
+        {/* Recent Big Wins - Full Width */}
+        <div className="mb-8">
+          <RecentBigWins />
+        </div>
+        
+        {/* Game Categories */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+          <GameCategories onCategoryClick={(category) => {
+            navigate(`/casino/${category}`);
+            scrollToTop();
+          }} />
         </div>
         
         <div className="mb-6">
