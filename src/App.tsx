@@ -13,10 +13,10 @@ import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
 
 // Pages
-import { Index as Home } from "./pages/Index";
-import { Login } from "./pages/auth/Login";
-import { Register } from "./pages/auth/Register";
-import { Profile } from "./pages/user/Profile";
+import Index from "./pages/Index";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import Profile from "./pages/user/Profile";
 import NotFound from "./pages/NotFound";
 import CasinoMain from "./pages/casino/CasinoMain";
 import GameDetails from "./pages/casino/GameDetails";
@@ -51,7 +51,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Home />} />
+            <Route index element={<Index />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="profile" element={<Profile />} />
