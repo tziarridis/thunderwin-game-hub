@@ -36,7 +36,7 @@ const NavigationMenuDemo = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.isAdmin;
 
   const handleNavigation = (path: string) => {
     navigate(path);

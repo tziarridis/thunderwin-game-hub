@@ -8,12 +8,12 @@ import { User, LogOut, LogIn, Menu, X } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { useMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AppHeader = () => {
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
-  const isMobile = useMobile();
+  const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
   const handleLogin = () => {
@@ -66,7 +66,7 @@ const AppHeader = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8 border border-casino-thunder-green">
-                      <AvatarImage src={user?.avatar || ""} alt={user?.username} />
+                      <AvatarImage src={user?.avatarUrl || ""} alt={user?.username} />
                       <AvatarFallback className="bg-casino-thunder-green text-black">
                         {user?.username?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
@@ -200,7 +200,7 @@ const AppHeader = () => {
                             setIsMenuOpen(false);
                           }}
                         />
-                        {user?.role === "admin" && (
+                        {user?.isAdmin && (
                           <MobileNavLink 
                             title="Admin Dashboard" 
                             icon={<span className="text-casino-thunder-green">⚙️</span>}
