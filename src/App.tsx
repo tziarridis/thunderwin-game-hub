@@ -22,6 +22,30 @@ import CasinoMain from "./pages/casino/CasinoMain";
 import GameDetails from "./pages/casino/GameDetails";
 import Seamless from "./pages/casino/Seamless";
 import Slots from "./pages/casino/Slots";
+import Sports from "./pages/sports/Sports";
+import TableGames from "./pages/casino/TableGames";
+
+// Sports pages
+import Football from "./pages/sports/Football";
+import Basketball from "./pages/sports/Basketball";
+import Tennis from "./pages/sports/Tennis";
+import Hockey from "./pages/sports/Hockey";
+import Esports from "./pages/sports/Esports";
+
+// Support pages
+import Help from "./pages/support/Help";
+import Faq from "./pages/support/Faq";
+import Contact from "./pages/support/Contact";
+import ResponsibleGaming from "./pages/support/ResponsibleGaming";
+
+// Legal pages
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
+
+// Promotions & VIP
+import Promotions from "./pages/promotions/Promotions";
+import BonusHub from "./pages/bonuses/BonusHub";
+import VIP from "./pages/vip/VIP";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -32,7 +56,7 @@ import Support from "./pages/admin/Support";
 import Users from "./pages/admin/Users";
 import Transactions from "./pages/admin/Transactions";
 import Affiliates from "./pages/admin/Affiliates";
-import Promotions from "./pages/admin/Promotions";
+import AdminPromotions from "./pages/admin/Promotions";
 import KycManagement from "./pages/admin/KycManagement";
 import Logs from "./pages/admin/Logs";
 import Security from "./pages/admin/Security";
@@ -55,10 +79,41 @@ function App() {
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
             <Route path="profile" element={<Profile />} />
+            
+            {/* Casino Routes */}
             <Route path="casino" element={<CasinoMain />} />
             <Route path="casino/game/:id" element={<GameDetails />} />
             <Route path="casino/seamless" element={<Seamless />} />
             <Route path="casino/slots" element={<Slots />} />
+            <Route path="casino/table-games" element={<TableGames />} />
+            <Route path="casino/live-casino" element={<TableGames />} /> 
+            <Route path="casino/jackpots" element={<Slots />} />
+            <Route path="casino/providers" element={<Slots />} /> 
+            
+            {/* Sports Routes */}
+            <Route path="sports" element={<Sports />} />
+            <Route path="sports/football" element={<Football />} />
+            <Route path="sports/basketball" element={<Basketball />} />
+            <Route path="sports/tennis" element={<Tennis />} />
+            <Route path="sports/hockey" element={<Hockey />} />
+            <Route path="sports/esports" element={<Esports />} />
+            
+            {/* Promotions & Bonuses Routes */}
+            <Route path="promotions" element={<Promotions />} />
+            <Route path="bonuses" element={<BonusHub />} />
+            <Route path="vip" element={<VIP />} />
+            
+            {/* Support Routes */}
+            <Route path="support/help" element={<Help />} />
+            <Route path="support/faq" element={<Faq />} />
+            <Route path="support/contact" element={<Contact />} />
+            <Route path="support/responsible-gaming" element={<ResponsibleGaming />} />
+            
+            {/* Legal Routes */}
+            <Route path="legal/terms" element={<Terms />} />
+            <Route path="legal/privacy" element={<Privacy />} />
+            
+            {/* Fallback Route */}
             <Route path="*" element={<NotFound />} />
           </Route>
           
@@ -75,7 +130,7 @@ function App() {
             <Route path="users" element={<Users />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="affiliates" element={<Affiliates />} />
-            <Route path="promotions" element={<Promotions />} />
+            <Route path="promotions" element={<AdminPromotions />} />
             <Route path="kyc" element={<KycManagement />} />
             <Route path="logs" element={<Logs />} />
             <Route path="security" element={<Security />} />
