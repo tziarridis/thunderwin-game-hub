@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -22,7 +21,7 @@ import {
   Users,
   Activity,
   CreditCard,
-  Football
+  Dribbble  // Replace Football with Dribbble or another appropriate icon
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -54,13 +53,13 @@ const NavigationMenuDemo = () => {
   ];
 
   const sportsLinks: MenuLink[] = [
-    { title: "All Sports", path: "/sports", icon: <Football className="h-4 w-4 mr-2" /> },
-    { title: "Football", path: "/sports/football", icon: <Football className="h-4 w-4 mr-2" /> },
-    { title: "Basketball", path: "/sports/basketball", icon: <Activity className="h-4 w-4 mr-2" /> },
-    { title: "Tennis", path: "/sports/tennis", icon: <Activity className="h-4 w-4 mr-2" /> },
-    { title: "Hockey", path: "/sports/hockey", icon: <Activity className="h-4 w-4 mr-2" /> },
-    { title: "Esports", path: "/sports/esports", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
-  ];
+  { title: "All Sports", path: "/sports", icon: <Dribbble className="h-4 w-4 mr-2" /> },
+  { title: "Football", path: "/sports/football", icon: <Dribbble className="h-4 w-4 mr-2" /> },
+  { title: "Basketball", path: "/sports/basketball", icon: <Activity className="h-4 w-4 mr-2" /> },
+  { title: "Tennis", path: "/sports/tennis", icon: <Activity className="h-4 w-4 mr-2" /> },
+  { title: "Hockey", path: "/sports/hockey", icon: <Activity className="h-4 w-4 mr-2" /> },
+  { title: "Esports", path: "/sports/esports", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
+];
 
   const vipLinks: MenuLink[] = [
     { title: "VIP Program", path: "/vip", icon: <Crown className="h-4 w-4 mr-2" />, highlight: true },
