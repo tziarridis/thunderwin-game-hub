@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   DollarSign, 
@@ -490,45 +490,6 @@ const Dashboard = () => {
               <SelectItem value="This Year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-[200px] justify-start text-left font-normal",
-                  !date && "text-muted-foreground"
-                )}
-                onClick={() => setIsCalendarOpen(true)}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                  date.to ? (
-                    `${format(date.from, "MMM dd, yyyy")} - ${format(date.to, "MMM dd, yyyy")}`
-                  ) : (
-                    format(date.from, "MMM dd, yyyy")
-                  )
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={(newDate) => {
-                  setDate(newDate);
-                  if (newDate?.from && newDate?.to) {
-                    setIsCalendarOpen(false);
-                  }
-                }}
-                numberOfMonths={2}
-                pagedNavigation
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
         </div>
       </div>
 
