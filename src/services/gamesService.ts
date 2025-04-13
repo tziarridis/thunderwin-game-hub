@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { query, transaction, mockQuery } from './databaseService';
@@ -241,8 +242,8 @@ export const gamesDbService = {
       ...game,
       provider: {
         id: game.provider_id,
-        name: game.provider_name,
-        logo: game.provider_logo,
+        name: game.provider_name || '',
+        logo: game.provider_logo || '',
         status: 'active'
       }
     };
@@ -297,7 +298,7 @@ export const gamesDbService = {
   }
 };
 
-// Mock service for development and testing
+// Export a simplified API interface for client-side use
 export const mockGamesService = {
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     // Import mock data dynamically

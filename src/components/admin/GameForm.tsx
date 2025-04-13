@@ -24,7 +24,8 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
   const getProviderValue = (provider: any): string => {
     if (!provider) return "";
     if (typeof provider === 'string') return provider;
-    return provider.name || "";
+    if (typeof provider === 'object' && provider.name) return provider.name;
+    return "";
   };
   
   // Form state
