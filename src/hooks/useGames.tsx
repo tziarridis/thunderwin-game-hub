@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
