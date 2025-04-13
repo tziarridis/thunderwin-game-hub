@@ -1,8 +1,10 @@
+
 import axios from 'axios';
 import { toast } from 'sonner';
 import MD5 from 'crypto-js/md5';
+import { useAuth } from '@/contexts/AuthContext';
 
-// PP API Constants
+// PP API Constants - Using the provided credentials
 export const PP_API_BASE = 'https://apipg.slotgamesapi.com';
 export const PP_AGENT_ID = 'captaingambleEUR';
 export const PP_API_TOKEN = '275c535c8c014b59bedb2a2d6fe7d37b';
@@ -30,8 +32,6 @@ export interface PPWalletCallback {
   gameref?: string;
   gameid?: string;
   metadata?: string;
-  // Note: currency is not actually in the interface
-  // We'll hardcode EUR where needed
 }
 
 // Interface for API response
@@ -100,10 +100,12 @@ export const pragmaticPlayService = {
     } = options;
 
     try {
+      console.log('Launching game with options:', options);
+      
       // For demo mode, use the direct demo URL
       if (mode === 'demo') {
-        // Demo URL format
-        const demoUrl = `${PP_API_BASE}/v1/game/demo/${gameCode}?lang=${language}&platform=${platform}&lobbyUrl=${encodeURIComponent(returnUrl)}`;
+        // Demo URL format according to PP documentation
+        const demoUrl = `${PP_API_BASE}/game/demo/${gameCode}?lang=${language}&platform=${platform}&lobbyUrl=${encodeURIComponent(returnUrl)}`;
         console.log('Launching PP demo game:', demoUrl);
         return demoUrl;
       }
@@ -116,6 +118,7 @@ export const pragmaticPlayService = {
         currency: PP_CURRENCY,
         gamecode: gameCode,
         platform,
+        returnurl: encodeURIComponent(returnUrl),
         callbackurl: `${window.location.origin}/casino/seamless`
       };
       
@@ -123,7 +126,7 @@ export const pragmaticPlayService = {
       const signature = pragmaticPlayService.generateSignature(requestData);
       
       // Make API call with signature
-      const response = await axios.post<PPApiResponse>(`${PP_API_BASE}/v1/launchgame`, {
+      const response = await axios.post<PPApiResponse>(`${PP_API_BASE}/LaunchGame`, {
         ...requestData,
         signature
       }, {
@@ -181,40 +184,46 @@ export const pragmaticPlayService = {
       
       // 2. Verify signature (in a real implementation, would be checked from headers)
       // const signature = request.headers['x-signature'];
-      // const calculatedSignature = generateSignature(callback);
+      // const calculatedSignature = pragmaticPlayService.generateSignature(callback);
       // if (signature !== calculatedSignature) {
       //   return { errorcode: "1", balance: 0 };
       // }
       
-      // 3. Handle different transaction types
-      let playerBalance = 100.00; // In a real implementation, get this from your database
+      // Get the current user's balance
+      // In a real implementation, this would be fetched from your database
+      // For this demo, we'll create a mock implementation
+      let playerBalance = 1000; // Default starting balance
       
+      // In localStorage, we might have the user data
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          playerBalance = userData.balance || playerBalance;
+        } catch (error) {
+          console.error('Failed to parse stored user:', error);
+        }
+      }
+      
+      // 3. Handle different transaction types
       switch (callback.type) {
         case 'debit': // Handle bet
           console.log(`Processing bet of ${callback.amount} for player ${callback.playerid} in round ${callback.roundid}`);
-          // In a real implementation: 
-          // - Deduct amount from player balance
-          // - Record the transaction
-          // - Update game session state
+          // Deduct amount from player balance
           playerBalance -= callback.amount;
           break;
           
         case 'credit': // Handle win
           console.log(`Processing win of ${callback.amount} for player ${callback.playerid} in round ${callback.roundid}`);
-          // In a real implementation: 
-          // - Add amount to player balance
-          // - Record the transaction
-          // - Update game session state
+          // Add amount to player balance
           playerBalance += callback.amount;
           break;
           
         case 'rollback': // Handle rollback
           console.log(`Processing rollback for transaction ${callback.trxid} in round ${callback.roundid}`);
-          // In a real implementation: 
-          // - Find the referenced transaction
-          // - Reverse its effect on player balance
-          // - Mark the original transaction as rolled back
-          // For this demo, we'll just use a fixed balance
+          // For this demo, we'll just use a fixed adjustment
+          // In a real implementation, you would look up the original transaction and reverse it
+          playerBalance += 0; // No change for demo
           break;
           
         default:
@@ -222,8 +231,18 @@ export const pragmaticPlayService = {
           return { errorcode: "2", balance: 0 };
       }
       
+      // Update the user's balance in localStorage
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          userData.balance = playerBalance;
+          localStorage.setItem('user', JSON.stringify(userData));
+        } catch (error) {
+          console.error('Failed to update user balance:', error);
+        }
+      }
+      
       // Return success with the updated balance
-      // In a real implementation, this would be the actual player balance after the transaction
       return {
         errorcode: "0",  // 0 means success
         balance: playerBalance
@@ -255,7 +274,7 @@ export const pragmaticPlayService = {
       const signature = pragmaticPlayService.generateSignature(requestData);
       
       // Make API call to get the game list
-      const response = await axios.post<PPApiResponse>(`${PP_API_BASE}/v1/gamelist`, {
+      const response = await axios.post<PPApiResponse>(`${PP_API_BASE}/GameList`, {
         ...requestData,
         signature
       }, {
@@ -298,6 +317,58 @@ export const pragmaticPlayService = {
   },
   
   /**
+   * Fetch and store games from PP API
+   * @returns Promise with success status and count of games
+   */
+  syncGames: async (): Promise<{success: boolean, count: number}> => {
+    try {
+      // Get games from API
+      const games = await pragmaticPlayService.getGamesFromAPI();
+      
+      // Prepare games for storage in DB format
+      const formattedGames = games.map(game => ({
+        provider_id: 1, // Pragmatic Play provider ID in our database
+        game_id: game.game_id,
+        game_name: game.game_name,
+        game_code: game.game_id,
+        game_type: game.game_type,
+        description: `${game.game_name} by Pragmatic Play`,
+        cover: `https://dnk.pragmaticplay.net/game/dn/nt/mobile/portrait/images/games/${game.game_id}.jpg`,
+        status: 'active',
+        technology: 'HTML5',
+        has_lobby: false,
+        is_mobile: game.platform.includes('mobile'),
+        has_freespins: game.features.includes('freespin'),
+        has_tables: game.game_type === 'table',
+        only_demo: false,
+        rtp: Math.round(game.rtp),
+        distribution: 'Pragmatic Play',
+        views: 0,
+        is_featured: false,
+        show_home: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+      
+      // In a real implementation, we would save these to a database
+      // For demo, we'll save to localStorage
+      localStorage.setItem('pp_games', JSON.stringify(formattedGames));
+      
+      console.log(`Synced ${formattedGames.length} games from Pragmatic Play`);
+      return {
+        success: true,
+        count: formattedGames.length
+      };
+    } catch (error) {
+      console.error('Error syncing games:', error);
+      return {
+        success: false,
+        count: 0
+      };
+    }
+  },
+  
+  /**
    * Get available PP games (static list for backup)
    * @returns Array of game codes and names
    */
@@ -310,8 +381,33 @@ export const pragmaticPlayService = {
       { code: 'vs20sbxmas', name: 'Sweet Bonanza Xmas' },
       { code: 'vs10wolfgold', name: 'Wolf Gold' },
       { code: 'vs25pyramid', name: 'Pyramid Bonanza' },
-      { code: 'vs20fparty2', name: 'Fruit Party 2' }
+      { code: 'vs20fparty2', name: 'Fruit Party 2' },
+      { code: 'vs20godiva', name: 'Wild Wild Riches' },
+      { code: 'vs243lions', name: '5 Lions' },
+      { code: 'vs1024dtiger', name: 'Golden Dragon Tiger' },
+      { code: 'vs243vampwolf', name: 'Vampire vs Wolves' },
+      { code: 'vs25jokerking', name: 'Joker King' }
     ];
+  },
+  
+  /**
+   * Get player balance for a specific player
+   * @param playerId Player ID
+   * @returns Player balance
+   */
+  getPlayerBalance: (playerId: string): number => {
+    // In a real implementation, this would be fetched from your database
+    // For demo, we'll use localStorage
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        return userData.balance || 1000;
+      } catch (error) {
+        console.error('Failed to parse stored user:', error);
+      }
+    }
+    return 1000; // Default balance
   }
 };
 

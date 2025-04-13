@@ -1,183 +1,77 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Game } from '@/types';
 import { toast } from 'sonner';
-import { gameAggregatorService } from '@/services/gameAggregatorService';
-import { convertAPIGamesForAdmin, adminAddGame, adminUpdateGame, adminDeleteGame } from '@/utils/gamesManagementHelper';
+import { pragmaticPlayService } from '@/services/pragmaticPlayService';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const useGames = () => {
-  const [games, setGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [totalGames, setTotalGames] = useState(0);
+interface LaunchGameOptions {
+  providerId?: string;
+  mode?: 'real' | 'demo';
+  language?: string;
+  returnUrl?: string;
+}
+
+export function useGames() {
   const [launchingGame, setLaunchingGame] = useState(false);
-  
-  // Fetch games on component mount
-  const fetchGames = useCallback(async () => {
-    try {
-      setLoading(true);
-      // Mock data for demonstration (replace with actual API call in production)
-      const mockGames = Array.from({ length: 30 }, (_, i) => ({
-        id: `game_${i + 1}`,
-        title: `Game ${i + 1}`,
-        description: 'A fun game to play',
-        provider: ['Pragmatic Play', 'NetEnt', 'Evolution', 'Play\'n GO', 'Microgaming'][i % 5],
-        category: ['slots', 'table', 'live', 'crash', 'fishing'][i % 5],
-        image: `/games/game${i + 1}.jpg`,
-        rtp: 95 + (i % 5),
-        volatility: ['low', 'medium', 'high'][i % 3],
-        minBet: 0.1 + (i % 10) * 0.1,
-        maxBet: 100 + (i % 5) * 100,
-        isPopular: i % 7 === 0,
-        isNew: i % 11 === 0,
-        isFavorite: false,
-        jackpot: i % 13 === 0,
-        releaseDate: new Date(Date.now() - (i * 86400000 * 30)).toISOString(),
-        tags: []
-      }));
-      
-      setGames(mockGames);
-      setTotalGames(mockGames.length);
-      setLoading(false);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to fetch games'));
-      setLoading(false);
-      toast.error('Failed to load games');
-    }
-  }, []);
-  
-  useEffect(() => {
-    fetchGames();
-  }, [fetchGames]);
-  
-  // Add a new game
-  const addGame = async (gameData: Omit<Game, 'id'>) => {
-    try {
-      const newId = `game_${Date.now()}`;
-      const newGame = { id: newId, ...gameData };
-      setGames(prev => [newGame, ...prev]);
-      setTotalGames(prev => prev + 1);
-      toast.success('Game added successfully');
-      return newGame;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to add game');
-      setError(error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
-  
-  // Update an existing game
-  const updateGame = async (gameData: Game) => {
-    try {
-      setGames(prev => 
-        prev.map(game => game.id === gameData.id ? gameData : game)
-      );
-      toast.success('Game updated successfully');
-      return gameData;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to update game');
-      setError(error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
-  
-  // Delete a game
-  const deleteGame = async (id: string) => {
-    try {
-      setGames(prev => prev.filter(game => game.id !== id));
-      setTotalGames(prev => prev - 1);
-      toast.success('Game deleted successfully');
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to delete game');
-      setError(error);
-      toast.error(error.message);
-      throw error;
-    }
-  };
-  
-  // Launch a game
-  const launchGame = async (game: Game, options: { mode?: 'real' | 'demo', providerId?: string } = {}) => {
+  const { isAuthenticated, user } = useAuth();
+
+  const launchGame = useCallback(async (game: Game, options: LaunchGameOptions = {}) => {
     try {
       setLaunchingGame(true);
-      const { mode = 'demo', providerId = 'ppeur' } = options;
       
-      // In a real implementation, this would call your game launch service
-      // For now, just simulate a game launch
-      toast.info(`Launching ${game.title} in ${mode} mode`);
+      const { 
+        providerId = 'ppeur', 
+        mode = 'demo',
+        language = 'en',
+        returnUrl = window.location.origin + '/casino' 
+      } = options;
+
+      // Handle the case where a player tries to play in real mode without being logged in
+      if (mode === 'real' && !isAuthenticated) {
+        toast.warning('Please log in to play with real money');
+        return pragmaticPlayService.launchGame({
+          playerId: 'guest',
+          gameCode: game.game_code,
+          mode: 'demo',
+          language,
+          returnUrl
+        });
+      }
+
+      // Extract game code
+      let gameCode = game.game_code;
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create a mock game URL - in a real implementation, this would come from your game provider
-      const gameUrl = `/casino/play/${game.id}?mode=${mode}&provider=${providerId}`;
-      
-      // Open the game in a new window or redirect
+      // Handle game code format - some providers might add a prefix
+      if (providerId.startsWith('pp') && !gameCode.includes('vs')) {
+        // If this is a Pragmatic Play game but doesn't have the correct format
+        gameCode = gameCode.replace('pp_', '');
+      }
+
+      // Launch the game
+      const gameUrl = await pragmaticPlayService.launchGame({
+        playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
+        gameCode,
+        mode,
+        language,
+        returnUrl
+      });
+
+      // Open game in new window
       window.open(gameUrl, '_blank');
       
       return gameUrl;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to launch game');
-      setError(error);
-      toast.error(error.message);
+    } catch (error: any) {
+      console.error('Error launching game:', error);
+      toast.error(`Unable to launch game: ${error.message || 'Unknown error'}`);
       throw error;
     } finally {
       setLaunchingGame(false);
     }
-  };
-  
-  // Import games from aggregator to game management
-  const importGamesFromAggregator = async () => {
-    try {
-      setLoading(true);
-      toast.info("Importing games from aggregator...");
-      
-      // In a real implementation, this would fetch the games from the aggregator service
-      // and convert them to the format needed by the game management system
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Get games from the aggregator service (mocked for now)
-      const response = await gameAggregatorService.syncAllProviders();
-      
-      if (response.success) {
-        const providerResults = Object.values(response.results);
-        const totalAdded = providerResults.reduce((sum, result) => sum + (result.gamesAdded || 0), 0);
-        const totalUpdated = providerResults.reduce((sum, result) => sum + (result.gamesUpdated || 0), 0);
-        
-        // Update local state with new game count
-        setTotalGames(prev => prev + totalAdded);
-        
-        // Refresh the games list
-        await fetchGames();
-        
-        toast.success(`Successfully imported ${totalAdded} new games and updated ${totalUpdated} existing games`);
-      } else {
-        throw new Error("Failed to import games from aggregator");
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to import games');
-      setError(error);
-      toast.error(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  }, [isAuthenticated, user]);
+
   return {
-    games,
-    loading,
-    error,
-    totalGames,
-    addGame,
-    updateGame,
-    deleteGame,
-    importGamesFromAggregator,
-    refreshGames: fetchGames,
     launchGame,
     launchingGame
   };
-};
+}

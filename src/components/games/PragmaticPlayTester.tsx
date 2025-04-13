@@ -29,6 +29,7 @@ const PragmaticPlayTester = () => {
   const [gameList, setGameList] = useState<PPGame[]>([]);
   const [activeTab, setActiveTab] = useState("launch");
   const { isAuthenticated, user } = useAuth();
+  const [testMode, setTestMode] = useState<'demo' | 'real'>('demo');
   
   // Fetch games on component mount
   useEffect(() => {
@@ -71,10 +72,16 @@ const PragmaticPlayTester = () => {
     
     setIsLoading(true);
     try {
+      // Check if user is logged in for real money mode
+      if (testMode === 'real' && !isAuthenticated) {
+        toast.warning("You must be logged in to play in real money mode");
+        setTestMode('demo');
+      }
+      
       const gameUrl = await pragmaticPlayService.launchGame({
         playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
         gameCode: gameCode,
-        mode: 'demo',
+        mode: isAuthenticated ? testMode : 'demo',
         returnUrl: window.location.href
       });
       
@@ -128,6 +135,32 @@ const PragmaticPlayTester = () => {
             </div>
             
             <div className="space-y-2">
+              <Label>Game Mode</Label>
+              <div className="flex gap-2">
+                <Button 
+                  variant={testMode === 'demo' ? 'default' : 'outline'} 
+                  onClick={() => setTestMode('demo')}
+                  className={testMode === 'demo' ? "bg-casino-thunder-green text-black" : ""}
+                >
+                  Demo Mode
+                </Button>
+                <Button 
+                  variant={testMode === 'real' ? 'default' : 'outline'} 
+                  onClick={() => setTestMode('real')}
+                  className={testMode === 'real' ? "bg-casino-thunder-green text-black" : ""}
+                  disabled={!isAuthenticated}
+                >
+                  Real Money
+                </Button>
+              </div>
+              {!isAuthenticated && testMode === 'demo' && (
+                <p className="text-xs text-amber-400">
+                  Log in to enable real money mode
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
               <Label>Quick Select</Label>
               <div className="flex flex-wrap gap-2">
                 {popularGames.map(game => (
@@ -170,7 +203,7 @@ const PragmaticPlayTester = () => {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Launching...
                 </>
-              ) : "Launch Game"}
+              ) : `Launch Game (${testMode.toUpperCase()})`}
             </Button>
           </TabsContent>
           
@@ -266,6 +299,10 @@ const PragmaticPlayTester = () => {
                         <td className="font-semibold pr-4 py-1">API Base URL:</td>
                         <td className="font-mono">{PP_API_BASE}</td>
                       </tr>
+                      <tr>
+                        <td className="font-semibold pr-4 py-1">Callback URL:</td>
+                        <td className="font-mono">{window.location.origin}/casino/seamless</td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -277,21 +314,44 @@ const PragmaticPlayTester = () => {
                   <div className="space-y-2">
                     <div>
                       <div className="font-medium">Launch Game (Real Money)</div>
-                      <div className="font-mono text-xs">{PP_API_BASE}/v1/launchgame</div>
+                      <div className="font-mono text-xs">{PP_API_BASE}/LaunchGame</div>
                     </div>
                     <div>
                       <div className="font-medium">Launch Game (Demo)</div>
-                      <div className="font-mono text-xs">{PP_API_BASE}/v1/game/demo/{'{gamecode}'}</div>
+                      <div className="font-mono text-xs">{PP_API_BASE}/game/demo/{'{gamecode}'}</div>
                     </div>
                     <div>
                       <div className="font-medium">Get Game List</div>
-                      <div className="font-mono text-xs">{PP_API_BASE}/v1/gamelist</div>
+                      <div className="font-mono text-xs">{PP_API_BASE}/GameList</div>
                     </div>
                     <div>
                       <div className="font-medium">Seamless Wallet Callback</div>
                       <div className="font-mono text-xs">{window.location.origin}/casino/seamless</div>
                     </div>
                   </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-1">Test Connection</h3>
+                <div className="bg-slate-950 p-4 rounded-md border border-slate-800 flex flex-col items-center">
+                  <Button 
+                    onClick={fetchGames}
+                    disabled={isLoadingGames}
+                    className="mb-3"
+                  >
+                    {isLoadingGames ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      "Test API Connection"
+                    )}
+                  </Button>
+                  <p className="text-xs text-center mt-2">
+                    This will attempt to fetch the game list from the Pragmatic Play API
+                  </p>
                 </div>
               </div>
             </div>

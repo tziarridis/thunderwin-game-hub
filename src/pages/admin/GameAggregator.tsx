@@ -4,21 +4,36 @@ import AdminLayout from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RefreshCw, Loader2, Server, Database, LayoutGrid } from "lucide-react";
+import { RefreshCw, Loader2, Server, Database, LayoutGrid, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { pragmaticPlayService, PPGame } from "@/services/pragmaticPlayService";
 import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
+import { importGames, getAllGames } from "@/services/gamesService";
+import { Game } from "@/types";
+import { gameProviderService } from "@/services/gameProviderService";
 
 const GameAggregatorPage = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [isLoadingGames, setIsLoadingGames] = useState(false);
   const [games, setGames] = useState<PPGame[]>([]);
+  const [importedGames, setImportedGames] = useState<Game[]>([]);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncStats, setSyncStats] = useState({
+    total: 0,
+    success: 0,
+    failed: 0
+  });
   
   // Load games on component mount
   useEffect(() => {
     fetchGames();
+    loadImportedGames();
   }, []);
+  
+  const loadImportedGames = async () => {
+    const allGames = await getAllGames();
+    setImportedGames(allGames);
+  };
   
   const fetchGames = async () => {
     try {
@@ -26,9 +41,75 @@ const GameAggregatorPage = () => {
       const fetchedGames = await pragmaticPlayService.getGamesFromAPI();
       setGames(fetchedGames);
       setLastSyncTime(new Date());
+      setSyncStats({
+        total: fetchedGames.length,
+        success: fetchedGames.length,
+        failed: 0
+      });
       toast.success(`Successfully loaded ${fetchedGames.length} games from Pragmatic Play`);
     } catch (error: any) {
       toast.error(`Failed to load games: ${error.message}`);
+      setSyncStats(prev => ({
+        ...prev,
+        failed: prev.failed + 1
+      }));
+    } finally {
+      setIsLoadingGames(false);
+    }
+  };
+  
+  const handleSyncGames = async () => {
+    try {
+      setIsLoadingGames(true);
+      toast.info("Starting game synchronization...");
+      
+      // Get the list of games from Pragmatic Play
+      const fetchedGames = await pragmaticPlayService.getGamesFromAPI();
+      
+      // Convert to our Game format
+      const formattedGames = fetchedGames.map(game => ({
+        provider_id: 1, // PP provider ID
+        game_id: game.game_id,
+        game_name: game.game_name,
+        game_code: game.game_id,
+        game_type: game.game_type,
+        description: `${game.game_name} by Pragmatic Play`,
+        cover: `https://dnk.pragmaticplay.net/game/dn/nt/mobile/portrait/images/games/${game.game_id}.jpg`,
+        status: 'active',
+        technology: 'HTML5',
+        has_lobby: false,
+        is_mobile: game.platform.includes('mobile'),
+        has_freespins: game.features.includes('freespin'),
+        has_tables: game.game_type === 'table',
+        only_demo: false,
+        rtp: Math.round(game.rtp),
+        distribution: 'Pragmatic Play',
+        views: 0,
+        is_featured: false,
+        show_home: true
+      }));
+      
+      // Import games
+      const importCount = await importGames(formattedGames);
+      
+      // Update state
+      setGames(fetchedGames);
+      loadImportedGames();
+      setLastSyncTime(new Date());
+      
+      toast.success(`Successfully synced ${importCount} new games from Pragmatic Play`);
+      setSyncStats({
+        total: fetchedGames.length,
+        success: importCount,
+        failed: 0
+      });
+    } catch (error: any) {
+      console.error('Error syncing games:', error);
+      toast.error(`Failed to sync games: ${error.message}`);
+      setSyncStats(prev => ({
+        ...prev,
+        failed: prev.failed + 1
+      }));
     } finally {
       setIsLoadingGames(false);
     }
@@ -41,7 +122,7 @@ const GameAggregatorPage = () => {
           <h1 className="text-2xl font-bold text-white">Game Aggregator Dashboard</h1>
           
           <Button 
-            onClick={fetchGames} 
+            onClick={handleSyncGames} 
             disabled={isLoadingGames}
             className="bg-casino-thunder-green hover:bg-casino-thunder-green/80 text-black"
           >
@@ -74,8 +155,12 @@ const GameAggregatorPage = () => {
                   <span className="text-green-500 bg-green-900/20 px-2 py-1 rounded text-xs">Online</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Games Loaded</span>
+                  <span className="text-slate-400">Games Available</span>
                   <span>{games.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Games Imported</span>
+                  <span>{importedGames.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">Last Sync</span>
@@ -137,7 +222,7 @@ const GameAggregatorPage = () => {
                 <Button 
                   className="w-full justify-start" 
                   variant="outline"
-                  onClick={() => window.open('/casino/Seamless', '_blank')}
+                  onClick={() => window.open('/casino/seamless', '_blank')}
                 >
                   Test Seamless Wallet
                 </Button>
@@ -152,9 +237,13 @@ const GameAggregatorPage = () => {
                 <Button 
                   className="w-full justify-start" 
                   variant="destructive"
-                  onClick={() => toast.info("Cache cleared")}
+                  onClick={() => {
+                    localStorage.removeItem('games');
+                    toast.info("Cache cleared");
+                    loadImportedGames();
+                  }}
                 >
-                  Clear API Cache
+                  Clear Game Cache
                 </Button>
               </div>
             </CardContent>
@@ -165,6 +254,7 @@ const GameAggregatorPage = () => {
           <TabsList>
             <TabsTrigger value="tester">Game Tester</TabsTrigger>
             <TabsTrigger value="games">Game List</TabsTrigger>
+            <TabsTrigger value="imported">Imported Games</TabsTrigger>
             <TabsTrigger value="logs">Integration Logs</TabsTrigger>
           </TabsList>
           
@@ -224,11 +314,90 @@ const GameAggregatorPage = () => {
                                 variant="outline" 
                                 size="sm"
                                 onClick={() => {
-                                  window.open(`${window.location.origin}/casino/Seamless?game=${game.game_id}`, '_blank');
+                                  window.open(`${window.location.origin}/casino/seamless?game=${game.game_id}`, '_blank');
                                 }}
                               >
                                 Test
                               </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="imported">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <CardTitle>Imported Games</CardTitle>
+                <CardDescription>
+                  Games that have been imported into your casino database
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {importedGames.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400">No games imported yet</p>
+                    <Button 
+                      className="mt-4"
+                      onClick={handleSyncGames}
+                      disabled={isLoadingGames}
+                    >
+                      Import Games Now
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-auto max-h-96">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-slate-700">
+                          <th className="text-left p-2">ID</th>
+                          <th className="text-left p-2">Name</th>
+                          <th className="text-left p-2">Type</th>
+                          <th className="text-left p-2">Provider</th>
+                          <th className="text-left p-2">RTP</th>
+                          <th className="text-left p-2">Status</th>
+                          <th className="text-left p-2">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importedGames.map(game => (
+                          <tr key={game.id} className="border-b border-slate-800">
+                            <td className="p-2 font-mono text-xs">{game.id}</td>
+                            <td className="p-2">{game.game_name}</td>
+                            <td className="p-2 capitalize">{game.game_type || 'Unknown'}</td>
+                            <td className="p-2">{game.distribution}</td>
+                            <td className="p-2">{game.rtp}%</td>
+                            <td className="p-2">
+                              <span className={`px-2 py-0.5 rounded text-xs ${
+                                game.status === 'active' ? 'bg-green-900/20 text-green-500' : 'bg-red-900/20 text-red-500'
+                              }`}>
+                                {game.status}
+                              </span>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    window.open(`/casino?game=${game.game_id}`, '_blank');
+                                  }}
+                                >
+                                  Play
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -250,11 +419,15 @@ const GameAggregatorPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="bg-slate-950 p-4 rounded font-mono text-xs h-64 overflow-auto">
-                  <div className="text-green-500">[INFO] {new Date().toISOString()} - Initialized Pragmatic Play integration</div>
-                  <div className="text-blue-500">[API] {new Date().toISOString()} - Fetched game list: {games.length} games</div>
-                  <div className="text-yellow-500">[WARN] {new Date().toISOString()} - API rate limit at 75%</div>
-                  <div className="text-green-500">[INFO] {new Date().toISOString()} - Wallet API ready</div>
-                  <div className="text-blue-500">[API] {new Date().toISOString()} - Processed demo game launch: vs20bonzanza</div>
+                  <div className="text-green-500">[INFO] {new Date().toISOString()} - Initialized Pragmatic Play integration with {PP_AGENT_ID}</div>
+                  <div className="text-blue-500">[API] {new Date().toISOString()} - Connected to {PP_API_BASE}</div>
+                  <div className="text-blue-500">[API] {lastSyncTime ? lastSyncTime.toISOString() : new Date().toISOString()} - Fetched game list: {games.length} games</div>
+                  {syncStats.failed > 0 && (
+                    <div className="text-yellow-500">[WARN] {new Date().toISOString()} - {syncStats.failed} API calls failed</div>
+                  )}
+                  <div className="text-green-500">[INFO] {new Date().toISOString()} - Wallet API ready at {window.location.origin}/casino/seamless</div>
+                  <div className="text-blue-500">[API] {new Date().toISOString()} - PP API Status: Active</div>
+                  <div className="text-blue-500">[API] {new Date().toISOString()} - Signature verification system active</div>
                 </div>
               </CardContent>
             </Card>

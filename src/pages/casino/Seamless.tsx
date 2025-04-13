@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { pragmaticPlayService, PPWalletCallback } from '@/services/pragmaticPlayService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 /**
  * Seamless Wallet Integration Component
@@ -12,6 +13,7 @@ const Seamless = () => {
   const [lastCallback, setLastCallback] = useState<PPWalletCallback | null>(null);
   const [loading, setLoading] = useState(true);
   const [response, setResponse] = useState<{errorcode: string, balance: number} | null>(null);
+  const { updateUserBalance } = useAuth();
 
   useEffect(() => {
     // In a real implementation, this would be a server-side endpoint
@@ -41,10 +43,16 @@ const Seamless = () => {
           const result = await pragmaticPlayService.processWalletCallback(callback);
           setResponse(result);
           
-          // In a real implementation, this would return JSON directly
-          // For demo purposes, we'll display it on the page
+          // Update the user's balance in our Auth context
+          if (callback.type === 'credit') {
+            // Player won money
+            updateUserBalance(callback.amount);
+          } else if (callback.type === 'debit') {
+            // Player bet money (negative amount)
+            updateUserBalance(-callback.amount);
+          }
           
-          toast.success(`Processed ${callback.type} transaction: ${callback.amount} units`);
+          toast.success(`Processed ${callback.type} transaction: ${callback.amount} EUR`);
         } else {
           toast.info('No wallet callback parameters found in URL');
         }
@@ -57,7 +65,7 @@ const Seamless = () => {
     };
     
     parseCallbackFromUrl();
-  }, []);
+  }, [updateUserBalance]);
 
   return (
     <div className="container mx-auto p-6">
@@ -95,8 +103,8 @@ const Seamless = () => {
               <div className="bg-green-900/20 border border-green-800 p-4 rounded-md">
                 <h3 className="text-lg font-medium mb-2">Wallet Transaction Processed</h3>
                 <p>
-                  {lastCallback.type === 'debit' && `Bet of ${lastCallback.amount} processed.`}
-                  {lastCallback.type === 'credit' && `Win of ${lastCallback.amount} processed.`}
+                  {lastCallback.type === 'debit' && `Bet of ${lastCallback.amount} EUR processed.`}
+                  {lastCallback.type === 'credit' && `Win of ${lastCallback.amount} EUR processed.`}
                   {lastCallback.type === 'rollback' && `Rollback of transaction ${lastCallback.trxid} processed.`}
                 </p>
                 <p className="mt-2">
