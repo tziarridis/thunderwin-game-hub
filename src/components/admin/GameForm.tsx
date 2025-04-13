@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Game, GameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
-import { clientGamesApi } from "@/services/mockGamesService";
+import { clientGamesApi } from "@/services/gamesService";
 import { adaptProvidersForUI } from "@/utils/gameAdapter";
 import { convertUIGameToAPIGame, convertAPIGameToUIGame } from "@/utils/gameTypeAdapter";
 

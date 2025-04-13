@@ -1,5 +1,6 @@
 
 import { Game } from '@/types/game'; 
+import { clientGamesApi } from '@/services/gamesService';
 
 // This function fixes the undefined errors and safely converts a game ID
 export const safelyParseGameId = (gameId: string | number | undefined): string => {
@@ -13,3 +14,6 @@ export const safelyParseGameId = (gameId: string | number | undefined): string =
 export const safelyParseGameCategory = (category: string | undefined): string => {
   return category || 'slots';
 };
+
+// Export clientGamesApi from mockGamesService to fix import errors
+export { clientGamesApi };

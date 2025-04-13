@@ -3,7 +3,7 @@ import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
-import { clientGamesApi } from "@/services/mockGamesService";
+import { clientGamesApi } from "@/services/gamesService";
 import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
 import { availableProviders } from "@/config/gameProviders";
 
@@ -162,7 +162,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     }
   };
 
-  // New function to launch a game with a provider
+  // Fix the mode type issue in launchGame
   const launchGame = async (game: UIGame, options: Partial<GameLaunchOptions> = {}) => {
     try {
       setLaunchingGame(true);
@@ -184,16 +184,17 @@ export const useGames = (initialParams: GameListParams = {}) => {
       const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
       
       // Launch the game in appropriate way
-      if (options.mode === "embedded") {
-        // For embedded mode, return URL to be used in iframe
-        return gameUrl;
-      } else {
+      if (options.mode === "real" || options.mode === "demo") {
         // For standalone mode, open in new window/tab
         window.open(gameUrl, "_blank");
         toast({
           title: "Game Launched",
           description: `${game.title} is opening in a new window`,
         });
+        return gameUrl;
+      } else {
+        // For any other mode, return URL to be used as needed
+        return gameUrl;
       }
     } catch (err: any) {
       console.error("Error launching game:", err);
