@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -51,7 +50,7 @@ const AdminGames = () => {
         game.title.toLowerCase().includes(query) || 
         (typeof game.provider === 'string' ? 
           game.provider.toLowerCase().includes(query) : 
-          (game.provider?.name || '').toLowerCase().includes(query)) ||
+          (game.provider?.name?.toLowerCase() || '').includes(query)) ||
         game.id.includes(query)
       );
       setFilteredGames(results);
@@ -60,11 +59,25 @@ const AdminGames = () => {
     }
   }, [games, searchQuery]);
   
-  // Calculate pagination
-  const indexOfLastGame = currentPage * gamesPerPage;
-  const indexOfFirstGame = indexOfLastGame - gamesPerPage;
-  const currentGames = filteredGames.slice(indexOfFirstGame, indexOfLastGame);
-  const totalPages = Math.ceil(filteredGames.length / gamesPerPage);
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value.toLowerCase();
+    setSearchQuery(query);
+    
+    if (query) {
+      const results = games.filter(game => 
+        game.title.toLowerCase().includes(query) || 
+        (typeof game.provider === 'string' ? 
+          game.provider.toLowerCase().includes(query) : 
+          (game.provider?.name?.toLowerCase() || '').includes(query)) ||
+        game.id.includes(query)
+      );
+      setFilteredGames(results);
+    } else {
+      setFilteredGames(games);
+    }
+    
+    setCurrentPage(1); // Reset to first page on new search
+  };
   
   const handleSelectRow = (gameId: string) => {
     if (selectedRows.includes(gameId)) {
@@ -80,26 +93,6 @@ const AdminGames = () => {
     } else {
       setSelectedRows(currentGames.map(game => game.id));
     }
-  };
-  
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    
-    if (query) {
-      const results = games.filter(game => 
-        game.title.toLowerCase().includes(query) || 
-        (typeof game.provider === 'string' ? 
-          game.provider.toLowerCase().includes(query) : 
-          (game.provider?.name || '').toLowerCase().includes(query)) ||
-        game.id.includes(query)
-      );
-      setFilteredGames(results);
-    } else {
-      setFilteredGames(games);
-    }
-    
-    setCurrentPage(1); // Reset to first page on new search
   };
   
   const handleViewGame = (gameId: string) => {
@@ -147,6 +140,12 @@ const AdminGames = () => {
       console.error("Failed to update game:", error);
     }
   };
+
+  // Calculate pagination
+  const indexOfLastGame = currentPage * gamesPerPage;
+  const indexOfFirstGame = indexOfLastGame - gamesPerPage;
+  const currentGames = filteredGames.slice(indexOfFirstGame, indexOfLastGame);
+  const totalPages = Math.ceil(filteredGames.length / gamesPerPage);
 
   return (
     <div className="py-8 px-4">

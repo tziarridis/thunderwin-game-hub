@@ -9,14 +9,16 @@ export function adaptGameForUI(game: GameFromAPI): UIGame {
   return {
     id: game.id ? game.id.toString() : '',
     title: game.game_name,
-    provider: typeof game.provider === 'object' && game.provider ? {
-      id: game.provider.id.toString(),
-      name: game.provider.name,
-      logo: game.provider.logo || '',
-      gamesCount: 0,
-      isPopular: false,
-      description: ''
-    } : game.distribution || '',
+    provider: typeof game.provider === 'object' && game.provider 
+      ? {
+          id: game.provider.id.toString(),
+          name: game.provider.name,
+          logo: game.provider.logo || '',
+          gamesCount: 0,
+          isPopular: false,
+          description: game.provider.description || ''
+        } 
+      : game.distribution || '',
     category: game.game_type || 'slots',
     image: game.cover || '',
     rtp: game.rtp || 96,
@@ -44,8 +46,16 @@ export function adaptGamesForUI(games: GameFromAPI[]): UIGame[] {
  * Converts a Game from the UI format to the API format
  */
 export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
+  const providerId = typeof game.provider === 'object' && game.provider 
+    ? parseInt(game.provider.id) 
+    : 1;
+    
+  const providerName = typeof game.provider === 'object' && game.provider 
+    ? game.provider.name 
+    : (typeof game.provider === 'string' ? game.provider : '');
+    
   return {
-    provider_id: typeof game.provider === 'string' ? 1 : (game.provider && parseInt(game.provider.id.toString()) || 1),
+    provider_id: providerId,
     game_id: game.id,
     game_name: game.title,
     game_code: game.id.replace(/\D/g, ''),
@@ -60,7 +70,7 @@ export function adaptGameForAPI(game: UIGame): Omit<GameFromAPI, 'id'> {
     has_tables: game.category === 'table',
     only_demo: false,
     rtp: game.rtp,
-    distribution: typeof game.provider === 'string' ? game.provider : (game.provider && game.provider.name || ''),
+    distribution: providerName,
     views: 0,
     is_featured: game.isPopular,
     show_home: game.isNew,

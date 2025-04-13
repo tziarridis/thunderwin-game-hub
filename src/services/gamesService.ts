@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { query, transaction, mockQuery } from './databaseService';
@@ -209,10 +210,10 @@ export const gamesDbService = {
     // Format the results to match the Game type
     const formattedGames = games.map(game => ({
       ...game,
-      provider: {
+      provider: game.provider_id && {
         id: game.provider_id,
-        name: game.provider_name,
-        logo: game.provider_logo,
+        name: game.provider_name || '',
+        logo: game.provider_logo || '',
         status: 'active'
       }
     }));
