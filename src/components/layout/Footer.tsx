@@ -96,20 +96,20 @@ const Footer = () => {
             <h4 className="text-white font-semibold mb-4">Support</h4>
             <ul className="space-y-2">
               <li>
-                <span 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer"
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
                   onClick={() => handleNavigate("/support/help")}
                 >
                   Help Center
-                </span>
+                </button>
               </li>
               <li>
-                <span 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer"
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
                   onClick={() => handleNavigate("/support/faq")}
                 >
                   FAQ
-                </span>
+                </button>
               </li>
               <FooterLink text="Responsible Gaming" to="/support/responsible-gaming" />
               <FooterLink text="Terms & Conditions" to="/legal/terms" />
