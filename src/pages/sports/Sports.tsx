@@ -1,9 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Search, Calendar, Clock, Users, Zap, Star, Flag, Timer, TrendingUp, Medal, BadgePercent } from "lucide-react";
+import { Gamepad } from "lucide-react"; // Changed from Gamepad2 to Gamepad
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge"; // Added import for the Badge component
 import { useNavigate } from "react-router-dom";
 import GlowButton from "@/components/casino/GlowButton";
 import { toast } from "sonner";
@@ -305,7 +306,7 @@ const Sports = () => {
                 Hockey
               </TabsTrigger>
               <TabsTrigger value="esports" className="flex items-center">
-                <Gamepad2 className="h-4 w-4 mr-1.5" />
+                <Gamepad className="h-4 w-4 mr-1.5" />
                 Esports
               </TabsTrigger>
               <TabsTrigger value="live" className="flex items-center">
@@ -427,6 +428,7 @@ const Sports = () => {
               </div>
             </TabsContent>
             
+            {/* Featured tab content */}
             <TabsContent value="featured" className="pt-6">
               <h2 className="text-2xl font-bold mb-6 flex items-center">
                 <Star className="mr-2 h-6 w-6 text-yellow-400" />
