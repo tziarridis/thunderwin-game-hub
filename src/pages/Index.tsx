@@ -11,7 +11,7 @@ import PromoBanner from "@/components/casino/PromoBanner";
 import PopularProviders from "@/components/casino/PopularProviders";
 import RecentWinners from "@/components/casino/RecentWinners";
 import GameCard from "@/components/games/GameCard";
-import WinningSlideshow from "@/components/casino/WinningSlideshow";
+import RecentBigWins from "@/components/casino/RecentBigWins";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
 
@@ -182,7 +182,7 @@ const Index = () => {
           </div>
           
           <div>
-            <WinningSlideshow />
+            <RecentBigWins />
           </div>
         </div>
         

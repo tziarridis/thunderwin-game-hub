@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
 import GameCard from "@/components/games/GameCard";
-import WinningSlideshow from "@/components/casino/WinningSlideshow";
+import RecentBigWins from "@/components/casino/RecentBigWins";
 import GameCategories from "@/components/casino/GameCategories";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
@@ -87,7 +87,7 @@ const CasinoMain = () => {
           </p>
         </div>
         
-        {/* Game Categories and Live Winnings Feed in two columns */}
+        {/* Game Categories and Recent Big Wins in two columns */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
           <div className="lg:col-span-2">
             <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
@@ -98,7 +98,7 @@ const CasinoMain = () => {
           </div>
           
           <div>
-            <WinningSlideshow />
+            <RecentBigWins />
           </div>
         </div>
         
