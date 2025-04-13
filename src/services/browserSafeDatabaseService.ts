@@ -1,4 +1,3 @@
-
 // This is a browser-safe version of the database service
 // It provides mock implementations that are safe to use in browser environments
 
@@ -15,7 +14,12 @@ export const mockTransaction = (queries: { sql: string; params?: any[] }[]) => {
 
 // Export these mock functions to be used in place of the real database functions
 export const browserDb = {
-  query: mockQuery,
+  query: (sql: string, params: any[] = []) => {
+    console.log('Mock browser DB query:', sql, params);
+    
+    // Return empty results wrapped in a Promise
+    return Promise.resolve([]);
+  },
   transaction: mockTransaction,
   getConnection: () => Promise.resolve({
     query: () => Promise.resolve([[]]),
