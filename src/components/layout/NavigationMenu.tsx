@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -11,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
-import { Gamepad2, Trophy, Gift, HelpCircle, Zap } from "lucide-react";
+import { Gamepad2, Trophy, Gift, HelpCircle, Zap, Flame } from "lucide-react";
 
 const NavigationMenuDemo = () => {
   const navigate = useNavigate();
