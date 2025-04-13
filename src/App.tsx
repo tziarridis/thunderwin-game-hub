@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router-dom";
-import Layout from "./components/layout/Layout";
+import AppLayout from "./components/layout/AppLayout";
 import Index from "./pages/Index";
 import CasinoMain from "./pages/casino/CasinoMain";
 import SlotGames from "./pages/casino/Slots";
@@ -56,7 +56,7 @@ function App() {
     <>
       <Routes>
         {/* Main Routes */}
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={<AppLayout />}>
           <Route index element={<Index />} />
           
           {/* Casino Routes */}

@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FilterX } from "lucide-react";
+import { Search, FilterX, Crown, Trophy, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
@@ -85,7 +86,99 @@ const CasinoMain = () => {
           </p>
         </div>
         
-        {/* Add GameCategories component */}
+        {/* Add VIP Tiers Section */}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">VIP Program</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Gold VIP */}
+            <div className="bg-gradient-to-b from-yellow-700/40 to-yellow-900/30 rounded-xl p-6 border border-yellow-600/30 hover:border-yellow-500/50 transition-all shadow-lg hover:shadow-yellow-600/20 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Gold VIP</h3>
+                <Crown className="h-8 w-8 text-yellow-500" />
+              </div>
+              <p className="text-white/70 mb-4">Begin your premium journey with enhanced rewards and special access.</p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-2"></div>
+                  <span>5% Weekly Cashback</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-2"></div>
+                  <span>Dedicated Account Manager</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-2"></div>
+                  <span>Faster Withdrawals</span>
+                </li>
+              </ul>
+              <Button className="w-full bg-transparent border border-yellow-500 text-yellow-500 hover:bg-yellow-500/10" onClick={() => navigate('/vip')}>
+                Learn More
+              </Button>
+            </div>
+            
+            {/* Platinum VIP */}
+            <div className="bg-gradient-to-b from-slate-500/40 to-slate-700/30 rounded-xl p-6 border border-slate-400/30 hover:border-slate-300/50 transition-all shadow-lg hover:shadow-slate-400/20 backdrop-blur-sm transform scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Platinum VIP</h3>
+                <Trophy className="h-8 w-8 text-slate-300" />
+              </div>
+              <p className="text-white/70 mb-4">Elevate your experience with premium rewards and exclusive events.</p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-2"></div>
+                  <span>10% Weekly Cashback</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-2"></div>
+                  <span>Premium Account Manager</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-2"></div>
+                  <span>Exclusive Tournaments</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-slate-300 rounded-full mr-2"></div>
+                  <span>Luxury Gifts</span>
+                </li>
+              </ul>
+              <Button className="w-full bg-gradient-to-r from-slate-400 to-slate-300 text-black hover:from-slate-300 hover:to-slate-400" onClick={() => navigate('/vip')}>
+                Join Platinum VIP
+              </Button>
+            </div>
+            
+            {/* Diamond VIP */}
+            <div className="bg-gradient-to-b from-blue-700/40 to-blue-900/30 rounded-xl p-6 border border-blue-400/30 hover:border-blue-300/50 transition-all shadow-lg hover:shadow-blue-400/20 backdrop-blur-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white">Diamond VIP</h3>
+                <Sparkles className="h-8 w-8 text-blue-300" />
+              </div>
+              <p className="text-white/70 mb-4">The ultimate VIP experience with unmatched perks and rewards.</p>
+              <ul className="space-y-2 mb-6">
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-blue-300 rounded-full mr-2"></div>
+                  <span>15% Weekly Cashback</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-blue-300 rounded-full mr-2"></div>
+                  <span>VIP Host Available 24/7</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-blue-300 rounded-full mr-2"></div>
+                  <span>Invitation to VIP Events</span>
+                </li>
+                <li className="flex items-center text-white/80">
+                  <div className="w-1.5 h-1.5 bg-blue-300 rounded-full mr-2"></div>
+                  <span>Luxury Travel Packages</span>
+                </li>
+              </ul>
+              <Button className="w-full bg-transparent border border-blue-300 text-blue-300 hover:bg-blue-500/10" onClick={() => navigate('/vip')}>
+                Learn More
+              </Button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Game Categories */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
           <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
