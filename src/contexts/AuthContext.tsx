@@ -16,21 +16,25 @@ export interface User {
 export interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin?: boolean; // Added isAdmin property
   login: (username: string, password: string) => Promise<User>;
   register: (username: string, email: string, password: string) => Promise<User>;
   logout: () => void;
   adminLogin: (username: string, password: string) => Promise<User>;
   deposit: (amount: number) => Promise<number>;
+  updateBalance: (newBalance: number) => void; // Added updateBalance method
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
+  isAdmin: false, // Default value for isAdmin
   login: async () => { throw new Error('Not implemented'); },
   register: async () => { throw new Error('Not implemented'); },
   logout: () => {},
   adminLogin: async () => { throw new Error('Not implemented'); },
-  deposit: async () => { throw new Error('Not implemented'); }
+  deposit: async () => { throw new Error('Not implemented'); },
+  updateBalance: () => {} // Default implementation for updateBalance
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -57,6 +61,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
     }
   }, []);
+
+  // Added new updateBalance method
+  const updateBalance = (newBalance: number) => {
+    if (user) {
+      const updatedUser = { ...user, balance: newBalance };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
 
   const login = async (username: string, password: string): Promise<User> => {
     // Simulate API call delay
@@ -177,11 +190,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value = {
     user,
     isAuthenticated,
+    isAdmin: user?.isAdmin || false, // Add isAdmin property to context value
     login,
     register,
     logout,
     adminLogin,
-    deposit
+    deposit,
+    updateBalance // Add updateBalance to context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
