@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
@@ -65,7 +66,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     });
   }, [fetchGames]);
   
-  const addGame = async (gameData: Omit<UIGame, 'id'> | Partial<UIGame>) => {
+  const addGame = async (gameData: Omit<UIGame, 'id'>) => {
     try {
       // Convert UI game to API game format
       const apiGame = adaptGameForAPI(gameData as UIGame);
