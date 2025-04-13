@@ -1,4 +1,3 @@
-
 // Check if we're running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
@@ -452,7 +451,7 @@ export const generateMockGames = async (count = 20) => {
 
 // Create a mock clientGamesApi implementation for browser environment
 export const clientGamesApi = {
-  getGames: async (params = {}) => {
+  getGames: async (params: any = {}) => {
     try {
       const games = await getAllGames(params);
       return {
@@ -468,14 +467,14 @@ export const clientGamesApi = {
   },
   
   getProviders: async () => {
-    // Return mock providers
+    // Return mock providers with status field to match GameProvider interface
     return [
-      { id: 'pragmatic', name: 'Pragmatic Play', games_count: 250 },
-      { id: 'netent', name: 'NetEnt', games_count: 200 },
-      { id: 'playtech', name: 'Playtech', games_count: 180 },
-      { id: 'microgaming', name: 'Microgaming', games_count: 300 },
-      { id: 'evolution', name: 'Evolution Gaming', games_count: 120 },
-      { id: 'bgaming', name: 'BGaming', games_count: 80 }
+      { id: 'pragmatic', name: 'Pragmatic Play', games_count: 250, status: 'active' },
+      { id: 'netent', name: 'NetEnt', games_count: 200, status: 'active' },
+      { id: 'playtech', name: 'Playtech', games_count: 180, status: 'active' },
+      { id: 'microgaming', name: 'Microgaming', games_count: 300, status: 'active' },
+      { id: 'evolution', name: 'Evolution Gaming', games_count: 120, status: 'active' },
+      { id: 'bgaming', name: 'BGaming', games_count: 80, status: 'active' }
     ];
   },
   
@@ -522,11 +521,10 @@ export const clientGamesApi = {
   }
 };
 
-// Fix the safeQuery function to match the expected signature (function parameters)
-browserDb.query = (sql, params = []) => {
+// Fix the browserDb.query function to return a Promise
+browserDb.query = (sql: string, params: any[] = []) => {
   console.log('Mock browser DB query:', sql, params);
   
-  // Return empty results for now
-  return [];
+  // Return empty results wrapped in a Promise
+  return Promise.resolve([]);
 };
-

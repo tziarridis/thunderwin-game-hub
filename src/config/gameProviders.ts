@@ -33,7 +33,71 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       apiEndpoint: "apipg.slotgamesapi.com"
     }
   },
-  // Add other providers as needed
+  // Pragmatic Play - BRL currency
+  "ppbrl": {
+    code: "PP",
+    name: "Pragmatic Play",
+    currency: "BRL",
+    credentials: {
+      agentId: "captaingambleBRL",
+      apiToken: "6a72d79e7aab47d38b3d5cce9e0f33a0",
+      secretKey: "51b22bb24f1a4d598324c76d9cf5e7b5",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "apipg.slotgamesapi.com"
+    }
+  },
+  // PlayGo - EUR currency
+  "pgeur": {
+    code: "PG",
+    name: "Play'n GO",
+    currency: "EUR",
+    credentials: {
+      agentId: "captaingambleEUR",
+      apiToken: "2e16cbc82b394b9ca2a1e0a54d5e5b11",
+      secretKey: "ad7c45f04ce14bf783efcc20e22b6ca0",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "apigg.slotgamesapi.com"
+    }
+  },
+  // PlayGo - BRL currency
+  "pgbrl": {
+    code: "PG",
+    name: "Play'n GO",
+    currency: "BRL",
+    credentials: {
+      agentId: "captaingambleBRL",
+      apiToken: "3babff0022ca4f6296c81487d14c0fdb",
+      secretKey: "4efb3a12e7f54d31a5c2dd7f1c6c5f80",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "apigg.slotgamesapi.com"
+    }
+  },
+  // Amatic - EUR currency
+  "ameur": {
+    code: "AM",
+    name: "Amatic",
+    currency: "EUR",
+    credentials: {
+      agentId: "captaingambleEUR",
+      apiToken: "77a06f2a86d94d5aa6b6654a7f3e1fbb",
+      secretKey: "3c90d42fabb547dda2e5db6a0e17bc1e",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "api.amaticgame.net"
+    }
+  },
+  // Amatic - BRL currency
+  "ambrl": {
+    code: "AM",
+    name: "Amatic",
+    currency: "BRL",
+    credentials: {
+      agentId: "captaingambleBRL",
+      apiToken: "fbdb7c85cc9245f89fcb50f2ca2efc1c",
+      secretKey: "1de0c876a67d4c37a90adf2ffecbbf0e",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "api.amaticgame.net"
+    }
+  }
 };
 
 // This is a public list of available providers without sensitive credentials
