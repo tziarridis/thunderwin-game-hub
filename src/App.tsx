@@ -70,6 +70,7 @@ import Security from "./pages/admin/Security";
 import VipBonusManagement from "./pages/admin/VipBonusManagement";
 import GameAggregatorPage from "./pages/admin/GameAggregator";
 import AggregatorSettings from "./pages/admin/AggregatorSettings";
+import PPIntegrationTester from "./pages/admin/PPIntegrationTester";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -91,6 +92,7 @@ function App() {
             <Route path="casino" element={<CasinoMain />} />
             <Route path="casino/game/:id" element={<GameDetails />} />
             <Route path="casino/seamless" element={<Seamless />} />
+            <Route path="casino/gitslotpark-seamless" element={<GitSlotParkSeamless />} />
             <Route path="casino/slots" element={<Slots />} />
             <Route path="casino/table-games" element={<TableGames />} />
             <Route path="casino/live-casino" element={<LiveCasino />} />
@@ -136,6 +138,7 @@ function App() {
             <Route path="games" element={<Games />} />
             <Route path="game-aggregator" element={<GameAggregatorPage />} />
             <Route path="aggregator-settings" element={<AggregatorSettings />} />
+            <Route path="pp-integration-tester" element={<PPIntegrationTester />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
             <Route path="support" element={<Support />} />

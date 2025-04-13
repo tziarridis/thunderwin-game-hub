@@ -1,121 +1,220 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { Transaction } from "@/types";
 
-interface OxaPayWallet {
-  id: string;
+export interface Transaction {
+  transactionId: string;
+  userId: string;
+  receiverId: string;
+  type: string;
+  amount: number;
   currency: string;
-  address: string;
   status: string;
-  balance: number;
+  provider: string;
+  gameId?: string;
+  roundId?: string;
+  referenceId?: string;
+  timestamp: string;
 }
 
-// Function to create a new transaction
+interface TransactionQuery {
+  userId?: string;
+  provider?: string;
+  type?: string;
+  status?: string;
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+// This would be a database in a real application
+// For this demo, we'll use localStorage with some mock data
+const getStoredTransactions = (): Transaction[] => {
+  try {
+    const storedData = localStorage.getItem('transactions');
+    if (storedData) {
+      return JSON.parse(storedData);
+    }
+    return generateMockTransactions();
+  } catch (error) {
+    console.error('Error retrieving transactions:', error);
+    return generateMockTransactions();
+  }
+};
+
+const saveTransactions = (transactions: Transaction[]) => {
+  try {
+    localStorage.setItem('transactions', JSON.stringify(transactions));
+  } catch (error) {
+    console.error('Error saving transactions:', error);
+  }
+};
+
+// Generate mock transactions if none exist
+const generateMockTransactions = (): Transaction[] => {
+  const providers = ['Pragmatic Play', 'GitSlotPark'];
+  const userIds = ['player1', 'admin', 'demouser', 'newuser'];
+  const gameIds = ['vs20bonzanza', 'vs20doghouse', 'vs10wolfgold', '2001', '2002', '2003'];
+  const types = ['bet', 'win', 'rollback'];
+  const statuses = ['completed', 'failed', 'pending'];
+  
+  const mockTransactions: Transaction[] = [];
+  
+  // Generate random transactions for the past 30 days
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  
+  for (let i = 0; i < 100; i++) {
+    const type = types[Math.floor(Math.random() * types.length)];
+    const provider = providers[Math.floor(Math.random() * providers.length)];
+    const userId = userIds[Math.floor(Math.random() * userIds.length)];
+    const gameId = gameIds[Math.floor(Math.random() * gameIds.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    // Generate a random date between now and 30 days ago
+    const timestamp = new Date(
+      thirtyDaysAgo.getTime() + Math.random() * (now.getTime() - thirtyDaysAgo.getTime())
+    ).toISOString();
+    
+    mockTransactions.push({
+      transactionId: uuidv4().replace(/-/g, ''),
+      userId,
+      receiverId: userId,
+      type,
+      amount: Math.round(Math.random() * 100 * 100) / 100,
+      currency: 'EUR',
+      status,
+      provider,
+      gameId,
+      roundId: uuidv4().replace(/-/g, ''),
+      timestamp
+    });
+  }
+  
+  // Sort by timestamp, newest first
+  mockTransactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
+  // Save to localStorage
+  saveTransactions(mockTransactions);
+  
+  return mockTransactions;
+};
+
+// Create a new transaction
 export const createTransaction = async (
   userId: string,
-  userName: string,
-  type: "deposit" | "withdraw" | "bet" | "win" | "bonus",
+  receiverId: string,
+  type: string,
   amount: number,
   currency: string,
-  status: "pending" | "completed" | "failed",
-  method: string,
-  gameId?: string
+  status: string,
+  provider: string,
+  gameId?: string,
+  roundId?: string,
+  referenceId?: string
 ): Promise<Transaction> => {
-  const transaction: Transaction = {
-    id: uuidv4(),
-    userId: userId,
-    userName: userName,
-    type: type,
-    amount: amount,
-    currency: currency,
-    status: status,
-    method: method,
-    date: new Date().toISOString(),
-    gameId: gameId,
-  };
-
-  // Save the transaction to the database (or localStorage)
-  saveTransaction(transaction);
-
-  return transaction;
-};
-
-// Function to save a transaction to localStorage
-const saveTransaction = (transaction: Transaction): void => {
-  let transactions = JSON.parse(localStorage.getItem("transactions") || "[]") as Transaction[];
-  transactions.push(transaction);
-  localStorage.setItem("transactions", JSON.stringify(transactions));
-};
-
-// Function to get all transactions from localStorage
-export const getTransactions = (): Transaction[] => {
-  return JSON.parse(localStorage.getItem("transactions") || "[]");
-};
-
-// Function to get a single transaction by ID from localStorage
-export const getTransactionById = (id: string): Transaction | undefined => {
-  const transactions = getTransactions();
-  return transactions.find((transaction) => transaction.id === id);
-};
-
-// Function to get all transactions for a user from localStorage
-export const getTransactionsByUserId = (userId: string): Transaction[] => {
-  const transactions = getTransactions();
-  return transactions.filter((transaction) => transaction.userId === userId);
-};
-
-// Function to update a transaction in localStorage
-export const updateTransaction = (id: string, updates: Partial<Transaction>): Transaction | undefined => {
-  let transactions = getTransactions();
-  const transactionIndex = transactions.findIndex((transaction) => transaction.id === id);
-
-  if (transactionIndex === -1) {
-    return undefined;
-  }
-
-  transactions[transactionIndex] = { ...transactions[transactionIndex], ...updates };
-  localStorage.setItem("transactions", JSON.stringify(transactions));
-  return transactions[transactionIndex];
-};
-
-// Function to delete a transaction from localStorage
-export const deleteTransaction = (id: string): void => {
-  let transactions = getTransactions();
-  transactions = transactions.filter((transaction) => transaction.id !== id);
-  localStorage.setItem("transactions", JSON.stringify(transactions));
-};
-
-// Simulate OxaPay wallet operations
-export const createWallet = async (currency: string, address: string): Promise<OxaPayWallet> => {
-  const wallet: OxaPayWallet = {
-    id: `wallet-${Date.now()}`, 
-    currency: currency,
-    address: address,
-    status: "active",
-    balance: 0
+  const transactions = getStoredTransactions();
+  
+  const newTransaction: Transaction = {
+    transactionId: uuidv4().replace(/-/g, ''),
+    userId,
+    receiverId,
+    type,
+    amount,
+    currency,
+    status,
+    provider,
+    gameId,
+    roundId,
+    referenceId,
+    timestamp: new Date().toISOString()
   };
   
-  let wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
-  wallets.push(wallet);
-  localStorage.setItem("wallets", JSON.stringify(wallets));
-
-  return wallet;
+  transactions.unshift(newTransaction);
+  saveTransactions(transactions);
+  
+  return newTransaction;
 };
 
-export const getWalletByCurrency = async (currency: string): Promise<OxaPayWallet | undefined> => {
-    const wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
-    return wallets.find((wallet: OxaPayWallet) => wallet.currency === currency);
+// Get transactions with filtering options
+export const getTransactions = async (query: TransactionQuery = {}): Promise<Transaction[]> => {
+  const transactions = getStoredTransactions();
+  
+  let filtered = [...transactions];
+  
+  // Apply filters
+  if (query.userId) {
+    filtered = filtered.filter(tx => tx.userId === query.userId);
+  }
+  
+  if (query.provider) {
+    filtered = filtered.filter(tx => tx.provider === query.provider);
+  }
+  
+  if (query.type) {
+    filtered = filtered.filter(tx => tx.type === query.type);
+  }
+  
+  if (query.status) {
+    filtered = filtered.filter(tx => tx.status === query.status);
+  }
+  
+  if (query.startDate) {
+    filtered = filtered.filter(tx => new Date(tx.timestamp) >= query.startDate!);
+  }
+  
+  if (query.endDate) {
+    filtered = filtered.filter(tx => new Date(tx.timestamp) <= query.endDate!);
+  }
+  
+  // Apply pagination
+  if (query.limit) {
+    const offset = query.offset || 0;
+    filtered = filtered.slice(offset, offset + query.limit);
+  }
+  
+  return filtered;
 };
 
-export const updateWalletBalance = async (currency: string, amount: number): Promise<OxaPayWallet | undefined> => {
-    let wallets = JSON.parse(localStorage.getItem("wallets") || "[]") as OxaPayWallet[];
-    const walletIndex = wallets.findIndex((wallet: OxaPayWallet) => wallet.currency === currency);
+// Get a transaction by ID
+export const getTransactionById = async (id: string): Promise<Transaction | null> => {
+  const transactions = getStoredTransactions();
+  return transactions.find(tx => tx.transactionId === id) || null;
+};
 
-    if (walletIndex === -1) {
-        return undefined;
-    }
+// Update a transaction
+export const updateTransaction = async (
+  id: string,
+  updates: Partial<Transaction>
+): Promise<Transaction | null> => {
+  const transactions = getStoredTransactions();
+  const index = transactions.findIndex(tx => tx.transactionId === id);
+  
+  if (index === -1) {
+    return null;
+  }
+  
+  const updatedTransaction = {
+    ...transactions[index],
+    ...updates
+  };
+  
+  transactions[index] = updatedTransaction;
+  saveTransactions(transactions);
+  
+  return updatedTransaction;
+};
 
-    wallets[walletIndex].balance += amount;
-    localStorage.setItem("wallets", JSON.stringify(wallets));
-    return wallets[walletIndex];
+// Check if a transaction exists
+export const transactionExists = async (id: string): Promise<boolean> => {
+  const transactions = getStoredTransactions();
+  return transactions.some(tx => tx.transactionId === id);
+};
+
+export default {
+  createTransaction,
+  getTransactions,
+  getTransactionById,
+  updateTransaction,
+  transactionExists
 };
