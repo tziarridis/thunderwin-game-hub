@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   LayoutDashboard,
@@ -15,7 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Gamepad2,
-  CircleDot
+  CircleDot,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -105,8 +107,13 @@ const MenuGroup: React.FC<MenuGroupProps> = ({
 const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const pathname = location.pathname;
+  
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
   
   return (
     <aside className={cn(
@@ -281,16 +288,27 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
         {/* User Profile */}
         <div className="mt-auto border-t border-white/10 p-4">
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-white/10">
-                {/* You can add user avatar here */}
-              </div>
-              {!collapsed && (
-                <div>
-                  <div className="text-sm font-medium text-white">{user.name}</div>
-                  <div className="text-xs text-white/60">{user.email}</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-white/10">
+                  {/* You can add user avatar here */}
                 </div>
-              )}
+                {!collapsed && (
+                  <div>
+                    <div className="text-sm font-medium text-white">{user.name}</div>
+                    <div className="text-xs text-white/60">{user.email}</div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Logout Button */}
+              <button 
+                onClick={handleLogout} 
+                className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                {!collapsed && <span>Logout</span>}
+              </button>
             </div>
           ) : (
             <div className="text-center text-white/60">Not authenticated</div>

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import NavigationMenu from "./NavigationMenu";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, LogOut, LogIn, Menu, X, HelpCircle } from "lucide-react";
+import { User, LogOut, LogIn, Menu, X, HelpCircle, Heart } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -41,6 +41,11 @@ const AppHeader = () => {
   
   const handleHelpCenter = () => {
     navigate("/support/help");
+    scrollToTop();
+  };
+  
+  const handleFavorites = () => {
+    navigate("/casino/favorites");
     scrollToTop();
   };
   
@@ -89,6 +94,10 @@ const AppHeader = () => {
                   <DropdownMenuItem onClick={handleProfile}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleFavorites}>
+                    <Heart className="mr-2 h-4 w-4" />
+                    <span>Favorites</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleHelpCenter}>
                     <HelpCircle className="mr-2 h-4 w-4" />
