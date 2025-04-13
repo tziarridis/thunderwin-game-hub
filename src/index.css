@@ -44,7 +44,7 @@
   }
   
   .thunder-card:hover {
-    @apply bg-white/10 border-casino-thunder-green/30 shadow-neon;
+    @apply bg-white/8 border-casino-thunder-green/30 shadow-neon;
   }
   
   .glass-card {
