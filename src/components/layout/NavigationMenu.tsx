@@ -11,7 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
-import { Gamepad2, Trophy, Gift, HelpCircle, Zap, Heart, Flame, Dice5 } from "lucide-react";
+import { Gamepad2, Trophy, Gift, HelpCircle, Zap } from "lucide-react";
 
 const NavigationMenuDemo = () => {
   const navigate = useNavigate();
@@ -102,50 +102,6 @@ const NavigationMenuDemo = () => {
               <Zap className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Live Casino
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Crash Games - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/casino/crash'
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/casino/crash')}
-            >
-              <Dice5 className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Crash Games
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Favorites - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/casino/favorites'
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/casino/favorites')}
-            >
-              <Heart className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Favorites
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
             </a>

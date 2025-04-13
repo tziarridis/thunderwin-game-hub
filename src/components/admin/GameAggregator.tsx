@@ -3,12 +3,14 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, RefreshCw, Database } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, RefreshCw, Database, BarChart2, Tag, Zap } from "lucide-react";
 import WinningRoller from "@/components/casino/WinningRoller";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { availableProviders } from "@/config/gameProviders";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const GameAggregator: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState({
@@ -19,7 +21,9 @@ const GameAggregator: React.FC = () => {
   });
   
   const [syncResults, setSyncResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("games");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [currentProvider, setCurrentProvider] = useState('');
   
   // Fetch initial sync status
   useEffect(() => {
@@ -49,6 +53,23 @@ const GameAggregator: React.FC = () => {
       setSyncStatus(prev => ({ ...prev, isRunning: true, status: 'syncing' }));
       toast.info("Game sync started");
       
+      // Show progress for demo
+      setSyncProgress(0);
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setSyncProgress(prev => {
+          if (prev >= 95) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + Math.floor(Math.random() * 10);
+        });
+        
+        // Simulate provider changes
+        setCurrentProvider(availableProviders[Math.floor(Math.random() * availableProviders.length)].name);
+      }, 800);
+      
       const results = await gameAggregatorService.triggerSync();
       setSyncResults(results);
       
@@ -56,18 +77,27 @@ const GameAggregator: React.FC = () => {
       const newStatus = await gameAggregatorService.getSyncStatus();
       setSyncStatus(newStatus);
       
-      toast.success("Game sync completed");
+      clearInterval(progressInterval);
+      setSyncProgress(100);
+      
+      setTimeout(() => {
+        toast.success("Game sync completed successfully");
+      }, 500);
     } catch (error) {
       console.error("Error during sync:", error);
       toast.error("Game sync failed");
       setSyncStatus(prev => ({ ...prev, isRunning: false, status: 'error' }));
+      setSyncProgress(0);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Game Aggregator</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Game Aggregator</h1>
+          <p className="text-white/60">Manage game integrations across multiple providers</p>
+        </div>
         <Button 
           onClick={handleSyncNow} 
           disabled={syncStatus.isRunning}
@@ -87,199 +117,315 @@ const GameAggregator: React.FC = () => {
         </Button>
       </div>
       
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-xl">Sync Status</CardTitle>
-          <CardDescription>
-            Current status of the game aggregator synchronization
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Status</div>
-              <div className="font-semibold flex items-center">
-                {syncStatus.status === 'idle' && (
-                  <Badge variant="outline" className="bg-blue-500/20 text-blue-400">Idle</Badge>
-                )}
-                {syncStatus.status === 'syncing' && (
-                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Syncing</Badge>
-                )}
-                {syncStatus.status === 'error' && (
-                  <Badge variant="outline" className="bg-red-500/20 text-red-400">Error</Badge>
-                )}
+      {syncStatus.isRunning && (
+        <Card className="border-casino-thunder-green/50 bg-casino-thunder-green/5">
+          <CardContent className="p-6">
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <h3 className="text-lg font-medium">Sync in Progress</h3>
+                <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Active</Badge>
               </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Last Sync</div>
-              <div className="font-semibold">
-                {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Never'}
-              </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Next Scheduled Sync</div>
-              <div className="font-semibold">
-                {syncStatus.nextScheduledSync ? new Date(syncStatus.nextScheduledSync).toLocaleString() : 'Not scheduled'}
-              </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Configured Providers</div>
-              <div className="font-semibold">{availableProviders.length}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {syncResults && (
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-xl">Latest Sync Results</CardTitle>
-            <CardDescription>
-              Results from the most recent game synchronization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Object.entries(syncResults.results).map(([providerId, result]: [string, any]) => (
-                <div key={providerId} className="bg-slate-800 p-4 rounded-md">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center">
-                      <h3 className="font-semibold">{availableProviders.find(p => p.id === providerId)?.name || providerId}</h3>
-                      <Badge className="ml-2" variant={result.success ? "default" : "destructive"}>
-                        {result.success ? "Success" : "Failed"}
-                      </Badge>
-                    </div>
-                    {result.success ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                  
-                  {result.success ? (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-white/70">Games Added:</span> {result.gamesAdded}
-                      </div>
-                      <div>
-                        <span className="text-white/70">Games Updated:</span> {result.gamesUpdated}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-red-400 text-sm">{result.error}</div>
-                  )}
-                </div>
-              ))}
               
-              <div className="text-sm text-white/70">
-                Sync completed at {new Date(syncResults.timestamp).toLocaleString()}
+              <Progress value={syncProgress} className="h-2" />
+              
+              <div className="flex justify-between text-sm">
+                <span>Processing provider: {currentProvider}</span>
+                <span>{syncProgress}% complete</span>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
       
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-xl">Latest Game Winners</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <WinningRoller />
-        </CardContent>
-      </Card>
-      
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-4">
+          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="games">Games</TabsTrigger>
           <TabsTrigger value="providers">Providers</TabsTrigger>
           <TabsTrigger value="stats">Statistics</TabsTrigger>
         </TabsList>
         
+        <TabsContent value="dashboard">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Sync Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-slate-800 p-3 rounded-md">
+                    <div className="text-white/70 text-sm mb-1">Status</div>
+                    <div className="font-semibold flex items-center">
+                      {syncStatus.status === 'idle' && (
+                        <Badge variant="outline" className="bg-blue-500/20 text-blue-400">Idle</Badge>
+                      )}
+                      {syncStatus.status === 'syncing' && (
+                        <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Syncing</Badge>
+                      )}
+                      {syncStatus.status === 'error' && (
+                        <Badge variant="outline" className="bg-red-500/20 text-red-400">Error</Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-800 p-3 rounded-md">
+                    <div className="text-white/70 text-sm mb-1">Last Sync</div>
+                    <div className="font-semibold">
+                      {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Never'}
+                    </div>
+                  </div>
+                  
+                  <div className="bg-slate-800 p-3 rounded-md">
+                    <div className="text-white/70 text-sm mb-1">Next Scheduled Sync</div>
+                    <div className="font-semibold">
+                      {syncStatus.nextScheduledSync ? new Date(syncStatus.nextScheduledSync).toLocaleString() : 'Not scheduled'}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Game Statistics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between bg-slate-800 p-3 rounded-md">
+                    <div>
+                      <div className="text-white/70 text-sm">Total Games</div>
+                      <div className="text-xl font-bold">4,372</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <Zap className="h-5 w-5 text-blue-500" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-slate-800 p-3 rounded-md">
+                    <div>
+                      <div className="text-white/70 text-sm">Active Games</div>
+                      <div className="text-xl font-bold">3,891</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-slate-800 p-3 rounded-md">
+                    <div>
+                      <div className="text-white/70 text-sm">Providers</div>
+                      <div className="text-xl font-bold">{availableProviders.length}</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                      <Tag className="h-5 w-5 text-purple-500" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Popular Categories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Slots</span>
+                      <span className="text-sm text-white/70">61%</span>
+                    </div>
+                    <Progress value={61} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Live Casino</span>
+                      <span className="text-sm text-white/70">22%</span>
+                    </div>
+                    <Progress value={22} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Table Games</span>
+                      <span className="text-sm text-white/70">12%</span>
+                    </div>
+                    <Progress value={12} className="h-2" />
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Jackpots</span>
+                      <span className="text-sm text-white/70">5%</span>
+                    </div>
+                    <Progress value={5} className="h-2" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {syncResults && (
+            <Card className="bg-slate-900 border-slate-800 mt-6">
+              <CardHeader>
+                <CardTitle className="text-xl">Latest Sync Results</CardTitle>
+                <CardDescription>
+                  Results from the most recent game synchronization
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(syncResults.results).map(([providerId, result]: [string, any]) => (
+                    <div key={providerId} className="bg-slate-800 p-4 rounded-md">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center">
+                          <h3 className="font-semibold">
+                            {availableProviders.find(p => p.id === providerId)?.name || providerId}
+                          </h3>
+                          <Badge className="ml-2" variant={result.success ? "default" : "destructive"}>
+                            {result.success ? "Success" : "Failed"}
+                          </Badge>
+                        </div>
+                        {result.success ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <XCircle className="h-5 w-5 text-red-500" />
+                        )}
+                      </div>
+                      
+                      {result.success ? (
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-white/70">Games Added:</span> {result.gamesAdded}
+                          </div>
+                          <div>
+                            <span className="text-white/70">Games Updated:</span> {result.gamesUpdated}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-red-400 text-sm">{result.error}</div>
+                      )}
+                    </div>
+                  ))}
+                  
+                  <div className="text-sm text-white/70">
+                    Sync completed at {new Date(syncResults.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          <Card className="w-full mt-6">
+            <CardHeader>
+              <CardTitle className="text-xl">Latest Game Winners</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <WinningRoller />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="games">
-          <GamesList />
+          <Card className="bg-slate-800">
+            <CardHeader>
+              <CardTitle>All Games</CardTitle>
+              <CardDescription>
+                List of all games from connected providers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Game ID</TableHead>
+                    <TableHead>Game Name</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Last Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from({length: 5}).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell>game_{1000 + i}</TableCell>
+                      <TableCell>{["Fortune Tiger", "Sweet Bonanza", "Starburst", "Book of Dead", "Mega Moolah"][i]}</TableCell>
+                      <TableCell>{["Pragmatic Play", "NetEnt", "Play'n GO", "Microgaming", "Evolution"][i]}</TableCell>
+                      <TableCell>{["Slots", "Slots", "Slots", "Jackpot", "Live Casino"][i]}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-500/20 text-green-400">Active</Badge>
+                      </TableCell>
+                      <TableCell>{new Date().toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="text-center pt-4">
+                <Button variant="outline">
+                  View All Games
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="providers">
-          <ProvidersList />
+          <Card className="bg-slate-800">
+            <CardHeader>
+              <CardTitle>Game Providers</CardTitle>
+              <CardDescription>
+                Connected game providers and their status
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {availableProviders.map((provider, index) => (
+                  <div key={provider.id} className="bg-slate-700 p-4 rounded-md">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-semibold">{provider.name}</h3>
+                      <Badge variant="outline" className={index % 5 === 0 ? "bg-yellow-500/20 text-yellow-400" : "bg-green-500/20 text-green-400"}>
+                        {index % 5 === 0 ? "Syncing" : "Connected"}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-white/70 space-y-1">
+                      <div>Provider ID: {provider.id}</div>
+                      <div>Currency: {provider.currency}</div>
+                      <div>Code: {provider.code}</div>
+                      <div>Games: {100 + (index * 23) % 900}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="stats">
-          <GamesStatistics />
+          <Card className="bg-slate-800">
+            <CardHeader>
+              <CardTitle>Game Statistics</CardTitle>
+              <CardDescription>
+                Player engagement and statistics across providers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <BarChart2 className="h-16 w-16 text-casino-thunder-green/50 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">Enhanced Statistics View Coming Soon</h3>
+                  <p className="text-white/70 max-w-md">
+                    Detailed game statistics will be available after syncing games and collecting usage data.
+                    Check back after running a complete sync.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
-  );
-};
-
-const GamesList: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>All Games</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-slate-800 p-6 rounded-md text-center">
-          <Database className="h-12 w-12 text-casino-thunder-green mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Game Database Ready</h3>
-          <p className="text-white/70 mb-4">
-            The game database is ready to be populated. Click the "Sync Games Now" button 
-            at the top of the page to fetch games from all configured providers.
-          </p>
-          <p className="text-sm text-white/50">
-            After syncing, you can manage individual games in the Games Management section.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const ProvidersList: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game Providers</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableProviders.map(provider => (
-            <div key={provider.id} className="bg-slate-800 p-4 rounded-md">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">{provider.name}</h3>
-                <Badge>{provider.currency}</Badge>
-              </div>
-              <div className="text-sm text-white/70">
-                Provider ID: {provider.id}
-              </div>
-              <div className="text-sm text-white/70">
-                Code: {provider.code}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const GamesStatistics: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game Statistics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-slate-800 p-6 rounded-md text-center">
-          <h3 className="text-lg font-semibold mb-2">Statistics Coming Soon</h3>
-          <p className="text-white/70">
-            Detailed game statistics will be available after syncing games and collecting usage data.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 

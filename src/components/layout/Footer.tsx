@@ -82,8 +82,6 @@ const Footer = () => {
               <FooterLink text="Live Casino" to="/casino/live-casino" />
               <FooterLink text="Table Games" to="/casino/table-games" />
               <FooterLink text="Jackpots" to="/casino/jackpots" />
-              <FooterLink text="Crash Games" to="/casino/crash" />
-              <FooterLink text="Favorites" to="/casino/favorites" />
             </ul>
           </div>
 
