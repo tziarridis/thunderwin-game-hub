@@ -9,11 +9,11 @@ import {
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/layout/Layout";
-import { Home } from "./pages/Index";
-import { Casino } from "./pages/casino/CasinoMain";
-import { Sportsbook } from "./pages/sports/Sports";
-import { Promotions } from "./pages/promotions/Promotions";
-import { Profile } from "./pages/user/Profile";
+import Home from "./pages/Index";
+import Casino from "./pages/casino/CasinoMain";
+import Sportsbook from "./pages/sports/Sports";
+import Promotions from "./pages/promotions/Promotions";
+import Profile from "./pages/user/Profile";
 import Login from "./pages/auth/Login";
 import Registration from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -26,7 +26,7 @@ import GameAggregatorPage from "./pages/admin/GameAggregator";
 import Seamless from "./pages/casino/Seamless";
 
 // Protected route component
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
