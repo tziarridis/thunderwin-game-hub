@@ -5,7 +5,6 @@ import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI } from "@/utils/gameAdapter";
 import { clientGamesApi } from "@/services/mockGamesService";
-import { convertAPIGameToUIGame, convertUIGameToAPIGame, createGameHandlerAdapter } from "@/utils/gameTypeAdapter";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -67,21 +66,19 @@ export const useGames = (initialParams: GameListParams = {}) => {
     });
   }, [fetchGames]);
   
-  // Use the adapter pattern to handle type conversions
-  const gameHandlers = createGameHandlerAdapter(
-    clientGamesApi.addGame,
-    clientGamesApi.updateGame
-  );
-  
-  const addGame = async (game: Omit<UIGame, 'id'> | Partial<UIGame>) => {
+  const addGame = async (gameData: Omit<UIGame, 'id'> | Partial<UIGame>) => {
     try {
-      const adaptedGame = await gameHandlers.handleAddOrUpdateGame(game as UIGame);
-      setGames(prev => [adaptedGame, ...prev]);
+      // Convert UI game to API game format
+      const apiGame = adaptGameForAPI(gameData as UIGame);
+      const result = await clientGamesApi.addGame(apiGame);
+      // Convert the result back to UI format
+      const uiGame = adaptGameForUI(result);
+      setGames(prev => [uiGame, ...prev]);
       toast({
         title: "Success",
         description: "Game added successfully",
       });
-      return adaptedGame;
+      return uiGame;
     } catch (err) {
       console.error("Error adding game:", err);
       toast({
@@ -95,13 +92,21 @@ export const useGames = (initialParams: GameListParams = {}) => {
   
   const updateGame = async (game: UIGame) => {
     try {
-      const adaptedGame = await gameHandlers.handleAddOrUpdateGame(game);
-      setGames(prev => prev.map(g => g.id === game.id ? adaptedGame : g));
+      // Convert UI game to API game format
+      const apiGame = {
+        id: parseInt(game.id),
+        ...adaptGameForAPI(game)
+      };
+      
+      const result = await clientGamesApi.updateGame(apiGame);
+      // Convert the result back to UI format
+      const uiGame = adaptGameForUI(result);
+      setGames(prev => prev.map(g => g.id === game.id ? uiGame : g));
       toast({
         title: "Success",
         description: "Game updated successfully",
       });
-      return adaptedGame;
+      return uiGame;
     } catch (err) {
       console.error("Error updating game:", err);
       toast({
@@ -136,7 +141,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       const numericId = typeof id === 'string' ? parseInt(id) : id;
       const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
-      const adaptedGame = convertAPIGameToUIGame(updatedGame);
+      const adaptedGame = adaptGameForUI(updatedGame);
       
       setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
       toast({

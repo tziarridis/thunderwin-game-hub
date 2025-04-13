@@ -1,3 +1,4 @@
+
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { adaptGamesForUI, adaptProvidersForUI } from '@/utils/gameAdapter';
 
