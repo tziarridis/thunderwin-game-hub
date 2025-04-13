@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 
@@ -488,6 +487,10 @@ export const mockGamesService = {
     console.log(`Mock toggling ${feature} to ${value} for game ${id}`);
     try {
       const game = await this.getGame(id);
+      if (!game) {
+        throw new Error(`Game with id ${id} not found`);
+      }
+      
       if (feature === 'is_featured') {
         game.is_featured = value;
       } else if (feature === 'show_home') {
