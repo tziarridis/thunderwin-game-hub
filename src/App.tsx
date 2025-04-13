@@ -1,3 +1,4 @@
+
 // Import React and necessary hooks
 import { useState } from "react";
 import { Routes, Route } from "react-router-dom";
@@ -9,16 +10,18 @@ import { AuthProvider } from "./contexts/AuthContext";
 
 // Layout components
 import Layout from "./components/layout/Layout";
+import AdminLayout from "./components/layout/AdminLayout";
 
 // Pages
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Profile from "./pages/Profile";
+import { Index as Home } from "./pages/Index";
+import { Login } from "./pages/auth/Login";
+import { Register } from "./pages/auth/Register";
+import { Profile } from "./pages/user/Profile";
 import NotFound from "./pages/NotFound";
 import CasinoMain from "./pages/casino/CasinoMain";
 import GameDetails from "./pages/casino/GameDetails";
 import Seamless from "./pages/casino/Seamless";
+import Slots from "./pages/casino/Slots";
 
 // Admin pages
 import Dashboard from "./pages/admin/Dashboard";
@@ -41,6 +44,8 @@ import AggregatorSettings from "./pages/admin/AggregatorSettings";
 const queryClient = new QueryClient();
 
 function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -53,26 +58,29 @@ function App() {
             <Route path="casino" element={<CasinoMain />} />
             <Route path="casino/game/:id" element={<GameDetails />} />
             <Route path="casino/seamless" element={<Seamless />} />
+            <Route path="casino/slots" element={<Slots />} />
             <Route path="*" element={<NotFound />} />
           </Route>
           
           {/* Admin Routes */}
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/dashboard" element={<Dashboard />} />
-          <Route path="/admin/games" element={<Games />} />
-          <Route path="/admin/game-aggregator" element={<GameAggregatorPage />} />
-          <Route path="/admin/aggregator-settings" element={<AggregatorSettings />} />
-          <Route path="/admin/reports" element={<Reports />} />
-          <Route path="/admin/settings" element={<Settings />} />
-          <Route path="/admin/support" element={<Support />} />
-          <Route path="/admin/users" element={<Users />} />
-          <Route path="/admin/transactions" element={<Transactions />} />
-          <Route path="/admin/affiliates" element={<Affiliates />} />
-          <Route path="/admin/promotions" element={<Promotions />} />
-          <Route path="/admin/kyc" element={<KycManagement />} />
-          <Route path="/admin/logs" element={<Logs />} />
-          <Route path="/admin/security" element={<Security />} />
-          <Route path="/admin/vip-bonus" element={<VipBonusManagement />} />
+          <Route path="/admin" element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="games" element={<Games />} />
+            <Route path="game-aggregator" element={<GameAggregatorPage />} />
+            <Route path="aggregator-settings" element={<AggregatorSettings />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="support" element={<Support />} />
+            <Route path="users" element={<Users />} />
+            <Route path="transactions" element={<Transactions />} />
+            <Route path="affiliates" element={<Affiliates />} />
+            <Route path="promotions" element={<Promotions />} />
+            <Route path="kyc" element={<KycManagement />} />
+            <Route path="logs" element={<Logs />} />
+            <Route path="security" element={<Security />} />
+            <Route path="vip-bonus" element={<VipBonusManagement />} />
+          </Route>
         </Routes>
       </AuthProvider>
       <Toaster />
