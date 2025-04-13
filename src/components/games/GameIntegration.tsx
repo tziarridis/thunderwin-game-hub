@@ -3,7 +3,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, GamepadIcon } from "lucide-react";
+import { pragmaticPlayService } from "@/services/pragmaticPlayService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface GameIntegrationProps {
   gameId: string;
@@ -14,34 +17,47 @@ interface GameIntegrationProps {
 
 const GameIntegration = ({ 
   gameId, 
-  providerName = "Default Provider",
+  providerName = "Pragmatic Play",
   onGameLoad,
   onError
 }: GameIntegrationProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGameLoaded, setIsGameLoaded] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(gameId);
+  const [gameMode, setGameMode] = useState<'demo' | 'real'>('demo');
   const { isAuthenticated, user } = useAuth();
+  
+  // Get available PP games
+  const availableGames = pragmaticPlayService.getAvailableGames();
 
-  // Simulated function to load a game from an aggregator
+  // Function to launch a Pragmatic Play game
   const loadGame = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to play this game");
+    if (gameMode === 'real' && !isAuthenticated) {
+      toast.error("Please log in to play with real money");
       return;
     }
 
     setIsLoading(true);
     try {
-      // Simulate API call to game aggregator
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Get game URL from Pragmatic Play service
+      const gameUrl = await pragmaticPlayService.launchGame({
+        playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
+        gameCode: selectedGame,
+        mode: gameMode,
+        returnUrl: window.location.href
+      });
+      
+      // Open game in new window or iframe
+      window.open(gameUrl, '_blank');
       
       setIsGameLoaded(true);
-      toast.success("Game loaded successfully");
+      toast.success(`${providerName} game launched successfully`);
       
       if (onGameLoad) {
         onGameLoad();
       }
-    } catch (error) {
-      const errorMessage = "Failed to load game";
+    } catch (error: any) {
+      const errorMessage = error.message || "Failed to load game";
       toast.error(errorMessage);
       
       if (onError) {
@@ -54,49 +70,58 @@ const GameIntegration = ({
 
   return (
     <div className="w-full">
-      {!isGameLoaded ? (
-        <div className="flex flex-col items-center justify-center p-8 bg-casino-thunder-dark rounded-lg border border-white/10">
-          <h3 className="text-lg font-semibold mb-4">Load "{gameId}" from {providerName}</h3>
-          <p className="text-white/60 mb-6 text-center">
-            This game is provided by our game aggregator service.
-            Click below to load the game.
-          </p>
-          <Button 
-            onClick={loadGame} 
-            disabled={isLoading}
-            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading Game...
-              </>
-            ) : "Launch Game"}
-          </Button>
+      <div className="flex flex-col items-center justify-center p-8 bg-casino-thunder-dark rounded-lg border border-white/10">
+        <GamepadIcon className="h-12 w-12 text-casino-thunder-green mb-4" />
+        <h3 className="text-lg font-semibold mb-4">Play {providerName} Games</h3>
+        
+        <div className="w-full max-w-sm space-y-4 mb-6">
+          <div className="space-y-2">
+            <Label htmlFor="game-select">Select Game</Label>
+            <Select value={selectedGame} onValueChange={setSelectedGame}>
+              <SelectTrigger id="game-select">
+                <SelectValue placeholder="Select a game" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableGames.map(game => (
+                  <SelectItem key={game.code} value={game.code}>
+                    {game.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           
-          <div className="mt-4 text-xs text-white/50">
-            Game ID: {gameId} | Provider: {providerName}
+          <div className="space-y-2">
+            <Label htmlFor="mode-select">Game Mode</Label>
+            <Select value={gameMode} onValueChange={(value) => setGameMode(value as 'demo' | 'real')}>
+              <SelectTrigger id="mode-select">
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="demo">Demo Mode</SelectItem>
+                <SelectItem value="real">Real Money</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      ) : (
-        <div className="relative w-full pt-[56.25%] bg-black rounded-lg overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center bg-casino-thunder-dark/80">
-            <div className="text-center">
-              <h3 className="text-xl font-bold mb-2">Game Loaded!</h3>
-              <p className="text-white/60 mb-4">
-                In a real implementation, the game iframe would be loaded here
-                from the aggregator's API.
-              </p>
-              <Button 
-                onClick={() => setIsGameLoaded(false)} 
-                variant="outline"
-              >
-                Close Game
-              </Button>
-            </div>
-          </div>
+        
+        <Button 
+          onClick={loadGame} 
+          disabled={isLoading}
+          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Loading Game...
+            </>
+          ) : "Launch Game"}
+        </Button>
+        
+        <div className="mt-4 text-xs text-white/50">
+          Provider: {providerName} | Selected Game: {selectedGame}
         </div>
-      )}
+      </div>
     </div>
   );
 };
