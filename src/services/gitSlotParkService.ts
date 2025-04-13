@@ -269,9 +269,11 @@ export const gitSlotParkService = {
       
       // Process based on transaction type
       if (type === 'bet' || type === 'debit') {
-        result = await this.processBet(playerId, amount, gameId, roundId);
+        // Fix: Add null check for gameId and roundId
+        result = await this.processBet(playerId, amount, gameId || '', roundId || '');
       } else if (type === 'win' || type === 'credit') {
-        result = await this.processWin(playerId, amount, gameId, roundId);
+        // Fix: Add null check for gameId and roundId
+        result = await this.processWin(playerId, amount, gameId || '', roundId || '');
       } else {
         return {
           status: 'ERROR',
@@ -319,11 +321,13 @@ export const gitSlotParkService = {
       // to create a session and get a token
       
       // For demo purposes, construct a URL with query parameters
+      // Fix: Add null check for balance.balance 
+      const balanceValue = balance?.balance || 0;
       const gameUrl = `https://gspgames.slotparkapi.com/game/${gameCode}?` + 
         `playerId=${encodeURIComponent(playerId)}` +
         `&sessionId=${sessionId}` +
         `&currency=EUR` +
-        `&balance=${balance.balance}` +
+        `&balance=${balanceValue}` +
         `&lang=${language}` +
         `&returnUrl=${encodeURIComponent(returnUrl)}`;
       
