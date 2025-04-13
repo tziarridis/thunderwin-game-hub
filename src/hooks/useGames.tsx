@@ -5,6 +5,7 @@ import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI } from "@/utils/gameAdapter";
 import { clientGamesApi } from "@/services/mockGamesService";
+import { convertAPIGameToUIGame, convertUIGameToAPIGame, createGameHandlerAdapter } from "@/utils/gameTypeAdapter";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -66,14 +67,15 @@ export const useGames = (initialParams: GameListParams = {}) => {
     });
   }, [fetchGames]);
   
+  // Use the adapter pattern to handle type conversions
+  const gameHandlers = createGameHandlerAdapter(
+    clientGamesApi.addGame,
+    clientGamesApi.updateGame
+  );
+  
   const addGame = async (game: Omit<UIGame, 'id'> | Partial<UIGame>) => {
     try {
-      // Convert UI game to API game format before adding
-      const apiGame = adaptGameForAPI(game as UIGame);
-      
-      const newGame = await clientGamesApi.addGame(apiGame);
-      const adaptedGame = adaptGamesForUI([newGame])[0];
-      
+      const adaptedGame = await gameHandlers.handleAddOrUpdateGame(game as UIGame);
       setGames(prev => [adaptedGame, ...prev]);
       toast({
         title: "Success",
@@ -93,15 +95,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   
   const updateGame = async (game: UIGame) => {
     try {
-      // Convert UI game to API game format before updating
-      const apiGame = {
-        id: typeof game.id === 'string' ? parseInt(game.id) : game.id,
-        ...adaptGameForAPI(game)
-      };
-      
-      const updatedGame = await clientGamesApi.updateGame(apiGame);
-      const adaptedGame = adaptGamesForUI([updatedGame])[0];
-      
+      const adaptedGame = await gameHandlers.handleAddOrUpdateGame(game);
       setGames(prev => prev.map(g => g.id === game.id ? adaptedGame : g));
       toast({
         title: "Success",
@@ -142,7 +136,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       const numericId = typeof id === 'string' ? parseInt(id) : id;
       const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
-      const adaptedGame = adaptGamesForUI([updatedGame])[0];
+      const adaptedGame = convertAPIGameToUIGame(updatedGame);
       
       setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
       toast({
