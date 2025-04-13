@@ -7,9 +7,7 @@ const GameAggregatorPage = () => {
   const [collapsed, setCollapsed] = useState(false);
   
   return (
-    <div>
-      <GameAggregator />
-    </div>
+    <GameAggregator />
   );
 };
 
