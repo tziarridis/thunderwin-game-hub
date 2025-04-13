@@ -28,16 +28,16 @@ const EsportsPage = () => {
     { id: 4, name: "Valorant Champions", game: "Valorant", teams: 16, prizePool: "$1 million", startDate: "05 Aug 2025" },
   ];
 
-  // Mock data for popular games
+  // Mock data for popular games - Fixed the syntax errors by using string values instead of the "+" operator
   const popularGames = [
-    { id: 1, name: "Counter-Strike: Global Offensive", activeEvents: 28, markets: 150+ },
-    { id: 2, name: "League of Legends", activeEvents: 32, markets: 120+ },
-    { id: 3, name: "Dota 2", activeEvents: 24, markets: 140+ },
-    { id: 4, name: "Valorant", activeEvents: 22, markets: 90+ },
-    { id: 5, name: "Overwatch", activeEvents: 18, markets: 75+ },
-    { id: 6, name: "Rainbow Six Siege", activeEvents: 16, markets: 60+ },
-    { id: 7, name: "Rocket League", activeEvents: 12, markets: 50+ },
-    { id: 8, name: "FIFA", activeEvents: 20, markets: 85+ },
+    { id: 1, name: "Counter-Strike: Global Offensive", activeEvents: 28, markets: "150+" },
+    { id: 2, name: "League of Legends", activeEvents: 32, markets: "120+" },
+    { id: 3, name: "Dota 2", activeEvents: 24, markets: "140+" },
+    { id: 4, name: "Valorant", activeEvents: 22, markets: "90+" },
+    { id: 5, name: "Overwatch", activeEvents: 18, markets: "75+" },
+    { id: 6, name: "Rainbow Six Siege", activeEvents: 16, markets: "60+" },
+    { id: 7, name: "Rocket League", activeEvents: 12, markets: "50+" },
+    { id: 8, name: "FIFA", activeEvents: 20, markets: "85+" },
   ];
 
   return (
