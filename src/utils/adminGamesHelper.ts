@@ -69,3 +69,8 @@ export const toggleGameFeatureHelper = async (
     throw err;
   }
 };
+
+// Convert an array of games for admin display
+export const convertGamesForAdmin = (apiGames: APIGame[]): UIGame[] => {
+  return apiGames.map(game => adaptGameForUI(game));
+};

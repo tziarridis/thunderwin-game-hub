@@ -185,7 +185,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
       
       // Launch the game in appropriate way
       if (options.mode === "real" || options.mode === "demo") {
-        // For standalone mode, open in new window/tab
+        // For real money or demo mode, open in new window/tab
         window.open(gameUrl, "_blank");
         toast({
           title: "Game Launched",

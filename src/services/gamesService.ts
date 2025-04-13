@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 
@@ -427,9 +428,9 @@ export const mockGamesService = {
       id: parseInt(game.id),
       provider_id: 1,
       game_id: game.id,
-      game_name: game.title,
+      game_name: game.title || '',
       game_code: (game.id && game.id.replace(/\D/g, '')) || '',
-      game_type: game.category,
+      game_type: game.category || '',
       description: game.description || '',
       cover: game.image || '',
       status: 'active',
@@ -439,11 +440,11 @@ export const mockGamesService = {
       has_freespins: game.category === 'slots',
       has_tables: game.category === 'table',
       only_demo: false,
-      rtp: game.rtp,
+      rtp: game.rtp || 96,
       distribution: typeof game.provider === 'string' ? game.provider : '',
       views: Math.floor(Math.random() * 1000),
-      is_featured: game.isPopular,
-      show_home: game.isNew,
+      is_featured: game.isPopular || false,
+      show_home: game.isNew || false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

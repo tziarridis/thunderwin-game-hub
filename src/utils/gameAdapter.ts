@@ -4,7 +4,7 @@ import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
 
 export const adaptGameForUI = (apiGame: APIGame): UIGame => {
   return {
-    id: apiGame.id.toString(),
+    id: apiGame.id?.toString() || '',
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
@@ -55,10 +55,11 @@ export const adaptGamesForUI = (apiGames: APIGame[]): UIGame[] => {
 
 export const adaptProviderForUI = (apiProvider: APIGameProvider): UIGameProvider => {
   return {
-    id: apiProvider.id.toString(),
+    id: apiProvider.id?.toString() || '',
     name: apiProvider.name || '',
     logo: apiProvider.logo || '',
-    gamesCount: 0
+    gamesCount: 0,
+    isPopular: false // Adding the required property
   };
 };
 
