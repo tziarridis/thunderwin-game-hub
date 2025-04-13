@@ -1,500 +1,451 @@
 
-import axios from 'axios';
-import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
-
 // Check if we're running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
-// Import mock games data for browser environment
-const getMockGames = async () => {
+// Only try to import modules if we're in a Node.js environment
+let mysql = null;
+let fs = null;
+
+if (!isBrowser) {
+  try {
+    // Dynamic imports for server environment
+    mysql = require('mysql2/promise');
+    fs = require('fs');
+  } catch (error) {
+    console.error('Error importing Node.js modules:', error);
+  }
+}
+
+// Import browser-safe mock database service
+import { browserDb } from './browserSafeDatabaseService';
+
+// Game data structure
+const gameTableStructure = `
+CREATE TABLE IF NOT EXISTS games (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  provider_id VARCHAR(255) NOT NULL,
+  game_id VARCHAR(255) NOT NULL,
+  game_name VARCHAR(255) NOT NULL,
+  game_code VARCHAR(255),
+  type VARCHAR(255),
+  theme VARCHAR(255),
+  is_mobile BOOLEAN DEFAULT TRUE,
+  is_desktop BOOLEAN DEFAULT TRUE,
+  thumbnail VARCHAR(255),
+  background VARCHAR(255),
+  is_featured BOOLEAN DEFAULT FALSE,
+  show_home BOOLEAN DEFAULT TRUE,
+  popularity INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+`;
+
+// Function to safely execute database queries that works in both environments
+const safeQuery = async (sql, params = []) => {
   if (isBrowser) {
-    return import('@/data/mock-games').then(module => module.default);
+    console.log('Browser environment detected, using mock database');
+    return browserDb.query(sql, params);
   }
-  return [];
-};
 
-// API service for production use
-export const gamesApi = {
-  // Get all games with filtering and pagination
-  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    try {
-      const response = await axios.get(`${process.env.API_URL || 'https://api.casino.example.com'}/games`, { 
-        params,
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching games:', error);
-      // Fallback to local database if API fails
-      if (process.env.NODE_ENV === 'development') {
-        return gamesDbService.getGames(params);
-      }
-      throw error;
-    }
-  },
-
-  getGame: async (id: number | string): Promise<Game> => {
-    try {
-      const response = await axios.get(`${process.env.API_URL || 'https://api.casino.example.com'}/games/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching game with id ${id}:`, error);
-      if (process.env.NODE_ENV === 'development') {
-        return gamesDbService.getGame(id);
-      }
-      throw error;
-    }
-  },
-
-  getProviders: async (): Promise<GameProvider[]> => {
-    try {
-      const response = await axios.get(`${process.env.API_URL || 'https://api.casino.example.com'}/providers`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching game providers:', error);
-      if (process.env.NODE_ENV === 'development') {
-        return gamesDbService.getProviders();
-      }
-      throw error;
-    }
-  },
-
-  // Add a new game
-  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    try {
-      const response = await axios.post(`${process.env.API_URL || 'https://api.casino.example.com'}/games`, game, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error adding game:', error);
-      throw error;
-    }
-  },
-
-  // Update an existing game
-  updateGame: async (game: Game): Promise<Game> => {
-    try {
-      const response = await axios.put(`${process.env.API_URL || 'https://api.casino.example.com'}/games/${game.id}`, game, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating game with id ${game.id}:`, error);
-      throw error;
-    }
-  },
-
-  // Delete a game
-  deleteGame: async (id: number | string): Promise<void> => {
-    try {
-      await axios.delete(`${process.env.API_URL || 'https://api.casino.example.com'}/games/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-    } catch (error) {
-      console.error(`Error deleting game with id ${id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Import games from provider
-  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
-    try {
-      const response = await axios.post(`${process.env.API_URL || 'https://api.casino.example.com'}/providers/${providerId}/import`, {}, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error importing games from provider ${providerId}:`, error);
-      throw error;
-    }
-  },
-  
-  // Toggle game feature status
-  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
-    try {
-      const response = await axios.patch(`${process.env.API_URL || 'https://api.casino.example.com'}/games/${id}/feature`, {
-        feature,
-        value
-      }, {
-        headers: {
-          'Authorization': `Bearer ${process.env.API_KEY || 'your-api-key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error toggling feature for game ${id}:`, error);
-      throw error;
-    }
-  }
-};
-
-// Database service for direct DB access (in browser environment, this uses mock data)
-export const gamesDbService = {
-  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    if (isBrowser) {
-      return mockGamesService.getGames(params);
-    }
+  try {
+    // Server-side database connection logic
+    const connection = await mysql.createConnection({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      database: process.env.DB_NAME || 'casino'
+    });
     
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    return {
-      data: [],
-      total: 0,
-      page: 1,
-      limit: 10
-    };
-  },
-
-  getGame: async (id: number | string): Promise<Game> => {
-    if (isBrowser) {
-      return mockGamesService.getGame(id);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    throw new Error(`Game with id ${id} not found`);
-  },
-
-  getProviders: async (): Promise<GameProvider[]> => {
-    if (isBrowser) {
-      return mockGamesService.getProviders();
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    return [];
-  },
-
-  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    if (isBrowser) {
-      return mockGamesService.addGame(game);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    return {} as Game;
-  },
-
-  updateGame: async (game: Game): Promise<Game> => {
-    if (isBrowser) {
-      return mockGamesService.updateGame(game);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    return game;
-  },
-
-  deleteGame: async (id: number | string): Promise<void> => {
-    if (isBrowser) {
-      return mockGamesService.deleteGame(id);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-  },
-  
-  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
-    if (isBrowser) {
-      return mockGamesService.toggleGameFeature(id, feature, value);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
-    return {} as Game;
-  },
-  
-  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
-    if (isBrowser) {
-      return mockGamesService.importGamesFromProvider(providerId);
-    }
-    
-    // When in Node.js environment, this would use actual DB queries
-    // But in browser, this code is never reached
-    console.log('This DB code is only executed in Node.js environment');
+    const [results] = await connection.query(sql, params);
+    await connection.end();
+    return results;
+  } catch (error) {
+    console.error('Database query error:', error);
     return [];
   }
 };
 
-// Export a simplified API interface for client-side use
-export const mockGamesService = {
-  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    // Import mock data dynamically
-    const mockData = await getMockGames();
-    
-    let filteredGames = [...mockData]
-      .map(game => ({
-        id: parseInt(game.id),
-        provider_id: 1,
-        game_id: game.id,
-        game_name: game.title || '',
-        game_code: (game.id && game.id.replace(/\D/g, '')) || '',
-        game_type: game.category || 'slots',
-        description: game.description || '',
-        cover: game.image || '',
-        status: 'active',
-        technology: 'HTML5',
-        has_lobby: false,
-        is_mobile: true,
-        has_freespins: game.category === 'slots',
-        has_tables: game.category === 'table',
-        only_demo: false,
-        rtp: game.rtp || 96,
-        distribution: typeof game.provider === 'string' ? game.provider : '',
-        views: Math.floor(Math.random() * 1000),
-        is_featured: game.isPopular || false,
-        show_home: game.isNew || false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      } as Game));
-    
-    // Apply filters
-    if (params.provider_id) {
-      filteredGames = filteredGames.filter(game => game.provider_id === params.provider_id);
-    }
-    
-    if (params.game_type) {
-      filteredGames = filteredGames.filter(game => game.game_type === params.game_type);
-    }
-    
-    if (params.is_featured !== undefined) {
-      filteredGames = filteredGames.filter(game => game.is_featured === params.is_featured);
-    }
-    
-    if (params.show_home !== undefined) {
-      filteredGames = filteredGames.filter(game => game.show_home === params.show_home);
-    }
-    
-    if (params.search) {
-      const searchTerm = params.search.toLowerCase();
-      filteredGames = filteredGames.filter(game => 
-        game.game_name.toLowerCase().includes(searchTerm) || 
-        game.game_code.toLowerCase().includes(searchTerm) ||
-        (game.description && game.description.toLowerCase().includes(searchTerm))
-      );
-    }
-    
-    const total = filteredGames.length;
-    const page = params.page || 1;
-    const limit = params.limit || 10;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    
-    return {
-      data: filteredGames.slice(startIndex, endIndex),
-      total,
-      page,
-      limit
-    };
-  },
+// Make sure tables exist
+export const ensureGameTables = async () => {
+  if (isBrowser) {
+    console.log('Browser environment, skipping DB table creation');
+    return true;
+  }
+  
+  try {
+    await safeQuery(gameTableStructure);
+    console.log('Game tables verified/created');
+    return true;
+  } catch (error) {
+    console.error('Error creating game tables:', error);
+    return false;
+  }
+};
 
-  getGame: async (id: number | string): Promise<Game> => {
-    const mockData = await getMockGames();
-    const game = mockData.find(g => g.id === id.toString() || parseInt(g.id) === id);
+// Get all games with optional filtering
+export const getAllGames = async (filters = {}) => {
+  try {
+    let query = 'SELECT * FROM games';
+    const queryParams = [];
     
-    if (!game) {
-      throw new Error(`Game with id ${id} not found`);
-    }
-    
-    return {
-      id: parseInt(game.id),
-      provider_id: 1,
-      game_id: game.id,
-      game_name: game.title || '',
-      game_code: (game.id && game.id.replace(/\D/g, '')) || '',
-      game_type: game.category || '',
-      description: game.description || '',
-      cover: game.image || '',
-      status: 'active',
-      technology: 'HTML5',
-      has_lobby: false,
-      is_mobile: true,
-      has_freespins: game.category === 'slots',
-      has_tables: game.category === 'table',
-      only_demo: false,
-      rtp: game.rtp || 96,
-      distribution: typeof game.provider === 'string' ? game.provider : '',
-      views: Math.floor(Math.random() * 1000),
-      is_featured: game.isPopular || false,
-      show_home: game.isNew || false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  },
-
-  getProviders: async (): Promise<GameProvider[]> => {
-    // Generate mock providers
-    return [
-      { id: 1, name: 'Pragmatic Play', logo: '/providers/pragmatic.png', status: 'active' },
-      { id: 2, name: 'Evolution Gaming', logo: '/providers/evolution.png', status: 'active' },
-      { id: 3, name: 'NetEnt', logo: '/providers/netent.png', status: 'active' },
-      { id: 4, name: 'Microgaming', logo: '/providers/microgaming.png', status: 'active' },
-      { id: 5, name: 'Play\'n GO', logo: '/providers/playngo.png', status: 'active' }
-    ];
-  },
-  
-  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    console.log("Mock adding game:", game);
-    return {
-      ...game,
-      id: Math.floor(Math.random() * 10000),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    } as Game;
-  },
-  
-  updateGame: async (game: Game): Promise<Game> => {
-    console.log("Mock updating game:", game);
-    return {
-      ...game,
-      updated_at: new Date().toISOString()
-    };
-  },
-  
-  deleteGame: async (id: number | string): Promise<void> => {
-    console.log("Mock deleting game:", id);
-    return Promise.resolve();
-  },
-  
-  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
-    console.log(`Mock toggling ${feature} to ${value} for game ${id}`);
-    try {
-      const game = await this.getGame(id);
+    // Add filters if provided
+    if (Object.keys(filters).length > 0) {
+      const filterClauses = [];
       
-      if (!game) {
-        throw new Error(`Game with id ${id} not found`);
-      }
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          filterClauses.push(`${key} = ?`);
+          queryParams.push(value);
+        }
+      });
       
-      if (feature === 'is_featured') {
-        game.is_featured = value;
-      } else if (feature === 'show_home') {
-        game.show_home = value;
+      if (filterClauses.length > 0) {
+        query += ' WHERE ' + filterClauses.join(' AND ');
       }
-      return game;
-    } catch (error) {
-      console.error(`Error toggling feature for game ${id}:`, error);
-      throw error;
     }
-  },
-  
-  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
-    console.log(`Mock import games from provider ${providerId}`);
+    
+    query += ' ORDER BY popularity DESC';
+    
+    const results = await safeQuery(query, queryParams);
+    return results;
+  } catch (error) {
+    console.error('Error getting games:', error);
     return [];
   }
 };
 
-// Export a simplified API interface for client-side use
-export const clientGamesApi = {
-  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    try {
-      const response = await mockGamesService.getGames(params);
-      return response;
-    } catch (error) {
-      console.error('Error fetching games:', error);
-      throw error;
-    }
-  },
+// Get featured games
+export const getFeaturedGames = async (limit = 10) => {
+  try {
+    const query = 'SELECT * FROM games WHERE is_featured = TRUE ORDER BY popularity DESC LIMIT ?';
+    const results = await safeQuery(query, [limit]);
+    return results;
+  } catch (error) {
+    console.error('Error getting featured games:', error);
+    return [];
+  }
+};
 
-  getGame: async (id: number | string): Promise<Game> => {
-    try {
-      const game = await mockGamesService.getGame(id);
-      return game;
-    } catch (error) {
-      console.error(`Error fetching game with id ${id}:`, error);
-      throw error;
-    }
-  },
+// Get games for home page
+export const getHomeGames = async (limit = 12) => {
+  try {
+    const query = 'SELECT * FROM games WHERE show_home = TRUE ORDER BY popularity DESC LIMIT ?';
+    const results = await safeQuery(query, [limit]);
+    return results;
+  } catch (error) {
+    console.error('Error getting home games:', error);
+    return [];
+  }
+};
 
-  getProviders: async (): Promise<GameProvider[]> => {
-    try {
-      const providers = await mockGamesService.getProviders();
-      return providers;
-    } catch (error) {
-      console.error('Error fetching game providers:', error);
-      throw error;
-    }
-  },
+// Get games by provider
+export const getGamesByProvider = async (providerId) => {
+  try {
+    const query = 'SELECT * FROM games WHERE provider_id = ? ORDER BY popularity DESC';
+    const results = await safeQuery(query, [providerId]);
+    return results;
+  } catch (error) {
+    console.error('Error getting games by provider:', error);
+    return [];
+  }
+};
 
-  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    try {
-      const newGame = await mockGamesService.addGame(game);
-      return newGame;
-    } catch (error) {
-      console.error('Error adding game:', error);
-      throw error;
-    }
-  },
+// Get games by type
+export const getGamesByType = async (type, limit = 50) => {
+  try {
+    const query = 'SELECT * FROM games WHERE type = ? ORDER BY popularity DESC LIMIT ?';
+    const results = await safeQuery(query, [type, limit]);
+    return results;
+  } catch (error) {
+    console.error('Error getting games by type:', error);
+    return [];
+  }
+};
 
-  updateGame: async (game: Game): Promise<Game> => {
-    try {
-      const updatedGame = await mockGamesService.updateGame(game);
-      return updatedGame;
-    } catch (error) {
-      console.error(`Error updating game with id ${game.id}:`, error);
-      throw error;
-    }
-  },
+// Get games by theme
+export const getGamesByTheme = async (theme, limit = 50) => {
+  try {
+    const query = 'SELECT * FROM games WHERE theme = ? ORDER BY popularity DESC LIMIT ?';
+    const results = await safeQuery(query, [theme, limit]);
+    return results;
+  } catch (error) {
+    console.error('Error getting games by theme:', error);
+    return [];
+  }
+};
 
-  deleteGame: async (id: number | string): Promise<void> => {
-    try {
-      await mockGamesService.deleteGame(id);
-    } catch (error) {
-      console.error(`Error deleting game with id ${id}:`, error);
-      throw error;
+// Get a single game by ID
+export const getGameById = async (id) => {
+  try {
+    const query = 'SELECT * FROM games WHERE id = ? LIMIT 1';
+    const results = await safeQuery(query, [id]);
+    
+    if (results && results.length > 0) {
+      return results[0];
     }
-  },
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting game by ID:', error);
+    return null;
+  }
+};
+
+// Get a single game by game_id (provider's game ID)
+export const getGameByGameId = async (gameId) => {
+  try {
+    const query = 'SELECT * FROM games WHERE game_id = ? LIMIT 1';
+    const results = await safeQuery(query, [gameId]);
+    
+    if (results && results.length > 0) {
+      return results[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting game by game_id:', error);
+    return null;
+  }
+};
+
+// Create a new game
+export const createGame = async (gameData) => {
+  try {
+    const fields = Object.keys(gameData).join(', ');
+    const placeholders = Object.keys(gameData).map(() => '?').join(', ');
+    const values = Object.values(gameData);
+    
+    const query = `INSERT INTO games (${fields}) VALUES (${placeholders})`;
+    const result = await safeQuery(query, values);
+    
+    if (result && result.insertId) {
+      return { id: result.insertId, ...gameData };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error creating game:', error);
+    return null;
+  }
+};
+
+// Update an existing game
+export const updateGame = async (id, gameData) => {
+  try {
+    const updates = Object.entries(gameData)
+      .map(([key, _]) => `${key} = ?`)
+      .join(', ');
+    
+    const values = [...Object.values(gameData), id];
+    
+    const query = `UPDATE games SET ${updates} WHERE id = ?`;
+    const result = await safeQuery(query, values);
+    
+    if (result && result.affectedRows > 0) {
+      return { id, ...gameData };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error updating game:', error);
+    return null;
+  }
+};
+
+// Delete a game
+export const deleteGame = async (id) => {
+  try {
+    const query = 'DELETE FROM games WHERE id = ?';
+    const result = await safeQuery(query, [id]);
+    
+    if (result && result.affectedRows > 0) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error deleting game:', error);
+    return false;
+  }
+};
+
+// Search games
+export const searchGames = async (searchTerm, limit = 50) => {
+  try {
+    const query = `
+      SELECT * FROM games 
+      WHERE 
+        game_name LIKE ? OR 
+        game_id LIKE ? OR 
+        type LIKE ? OR 
+        theme LIKE ?
+      ORDER BY popularity DESC
+      LIMIT ?
+    `;
+    
+    const searchPattern = `%${searchTerm}%`;
+    const params = [searchPattern, searchPattern, searchPattern, searchPattern, limit];
+    
+    const results = await safeQuery(query, params);
+    return results;
+  } catch (error) {
+    console.error('Error searching games:', error);
+    return [];
+  }
+};
+
+// Update game popularity
+export const updateGamePopularity = async (id, increment = 1) => {
+  try {
+    const getQuery = 'SELECT popularity FROM games WHERE id = ?';
+    const currentPopularity = await safeQuery(getQuery, [id]);
+    
+    if (!currentPopularity || currentPopularity.length === 0) {
+      return false;
+    }
+    
+    const newPopularity = (currentPopularity[0].popularity || 0) + increment;
+    
+    const updateQuery = 'UPDATE games SET popularity = ? WHERE id = ?';
+    const result = await safeQuery(updateQuery, [newPopularity, id]);
+    
+    if (result && result.affectedRows > 0) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error updating game popularity:', error);
+    return false;
+  }
+};
+
+// Get popular game types
+export const getPopularGameTypes = async (limit = 10) => {
+  try {
+    const query = `
+      SELECT type, COUNT(*) as count 
+      FROM games 
+      GROUP BY type 
+      ORDER BY count DESC 
+      LIMIT ?
+    `;
+    
+    const results = await safeQuery(query, [limit]);
+    return results;
+  } catch (error) {
+    console.error('Error getting popular game types:', error);
+    return [];
+  }
+};
+
+// Import games from JSON file (server-side only)
+export const importGamesFromJson = async (filePath) => {
+  if (isBrowser || !fs) {
+    console.error('Cannot import games in browser environment');
+    return { success: false, message: 'Import only available in server environment' };
+  }
   
-  toggleGameFeature: async (id: number, feature: 'is_featured' | 'show_home', value: boolean): Promise<Game> => {
-    try {
-      const game = await mockGamesService.toggleGameFeature(id, feature, value);
-      return game;
-    } catch (error) {
-      console.error(`Error toggling feature for game ${id}:`, error);
-      throw error;
+  try {
+    const data = fs.readFileSync(filePath, 'utf8');
+    const games = JSON.parse(data);
+    
+    if (!Array.isArray(games)) {
+      return { success: false, message: 'Invalid JSON format, expected array' };
     }
-  },
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    for (const game of games) {
+      try {
+        await createGame(game);
+        successCount++;
+      } catch (error) {
+        console.error('Error importing game:', error);
+        errorCount++;
+      }
+    }
+    
+    return {
+      success: true,
+      message: `Import complete. ${successCount} games imported, ${errorCount} errors.`
+    };
+  } catch (error) {
+    console.error('Error importing games from JSON:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+// Export all games to JSON (server-side only)
+export const exportGamesToJson = async (filePath) => {
+  if (isBrowser || !fs) {
+    console.error('Cannot export games in browser environment');
+    return { success: false, message: 'Export only available in server environment' };
+  }
   
-  importGamesFromProvider: async (providerId: number): Promise<Game[]> => {
+  try {
+    const games = await getAllGames();
+    const jsonData = JSON.stringify(games, null, 2);
+    
+    fs.writeFileSync(filePath, jsonData, 'utf8');
+    
+    return {
+      success: true,
+      message: `Export complete. ${games.length} games exported.`
+    };
+  } catch (error) {
+    console.error('Error exporting games to JSON:', error);
+    return { success: false, message: error.message };
+  }
+};
+
+// Mock data generation for development
+export const generateMockGames = async (count = 20) => {
+  const gameTypes = ['slots', 'table', 'live', 'jackpot', 'crash'];
+  const gameThemes = ['classic', 'adventure', 'fantasy', 'fruit', 'egypt', 'animal', 'space'];
+  const providers = ['egt', 'netent', 'pragmatic', 'playtech', 'redtiger', 'playngo'];
+  
+  const mockGames = [];
+  
+  for (let i = 0; i < count; i++) {
+    const provider = providers[Math.floor(Math.random() * providers.length)];
+    const type = gameTypes[Math.floor(Math.random() * gameTypes.length)];
+    const theme = gameThemes[Math.floor(Math.random() * gameThemes.length)];
+    
+    const game = {
+      provider_id: provider,
+      game_id: `game_${provider}_${i}`,
+      game_name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} Game ${i}`,
+      game_code: `${provider}_${type}_${i}`,
+      type,
+      theme,
+      is_mobile: Math.random() > 0.1, // 90% mobile compatible
+      is_desktop: true,
+      thumbnail: `/games/${provider}/${type}_${i}.jpg`,
+      background: `/games/bg/${provider}_${i}.jpg`,
+      is_featured: Math.random() > 0.8, // 20% featured
+      show_home: Math.random() > 0.3, // 70% show on home
+      popularity: Math.floor(Math.random() * 1000)
+    };
+    
+    mockGames.push(game);
+  }
+  
+  let successCount = 0;
+  
+  for (const game of mockGames) {
     try {
-      const games = await mockGamesService.importGamesFromProvider(providerId);
-      return games;
+      await createGame(game);
+      successCount++;
     } catch (error) {
-      console.error(`Error importing games from provider ${providerId}:`, error);
-      throw error;
+      console.error('Error creating mock game:', error);
     }
   }
+  
+  return {
+    success: true,
+    message: `Generated ${successCount} mock games.`
+  };
 };

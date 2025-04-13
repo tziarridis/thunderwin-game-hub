@@ -9,15 +9,21 @@ import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import CMSCard from '@/components/admin/cms/CMSCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 const CMSSportsbook = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const handleSave = () => {
     toast({
       title: "Changes saved",
       description: "Your sportsbook content has been updated."
     });
+  };
+
+  const handleViewSport = (sport: string) => {
+    navigate(`/sports/${sport.toLowerCase()}`);
   };
 
   return (
@@ -149,7 +155,14 @@ const CMSSportsbook = () => {
                   Champions League
                 </div>
               </TableCell>
-              <TableCell>Football</TableCell>
+              <TableCell>
+                <button 
+                  className="text-blue-400 hover:underline focus:outline-none"
+                  onClick={() => handleViewSport('football')}
+                >
+                  Football
+                </button>
+              </TableCell>
               <TableCell><Switch defaultChecked /></TableCell>
               <TableCell>1</TableCell>
               <TableCell className="text-right">
@@ -166,7 +179,14 @@ const CMSSportsbook = () => {
                   NBA
                 </div>
               </TableCell>
-              <TableCell>Basketball</TableCell>
+              <TableCell>
+                <button 
+                  className="text-blue-400 hover:underline focus:outline-none"
+                  onClick={() => handleViewSport('basketball')}
+                >
+                  Basketball
+                </button>
+              </TableCell>
               <TableCell><Switch defaultChecked /></TableCell>
               <TableCell>2</TableCell>
               <TableCell className="text-right">
@@ -183,7 +203,14 @@ const CMSSportsbook = () => {
                   Premier League
                 </div>
               </TableCell>
-              <TableCell>Football</TableCell>
+              <TableCell>
+                <button 
+                  className="text-blue-400 hover:underline focus:outline-none"
+                  onClick={() => handleViewSport('football')}
+                >
+                  Football
+                </button>
+              </TableCell>
               <TableCell><Switch defaultChecked /></TableCell>
               <TableCell>3</TableCell>
               <TableCell className="text-right">
@@ -200,7 +227,14 @@ const CMSSportsbook = () => {
                   Wimbledon
                 </div>
               </TableCell>
-              <TableCell>Tennis</TableCell>
+              <TableCell>
+                <button 
+                  className="text-blue-400 hover:underline focus:outline-none"
+                  onClick={() => handleViewSport('tennis')}
+                >
+                  Tennis
+                </button>
+              </TableCell>
               <TableCell><Switch defaultChecked /></TableCell>
               <TableCell>4</TableCell>
               <TableCell className="text-right">
