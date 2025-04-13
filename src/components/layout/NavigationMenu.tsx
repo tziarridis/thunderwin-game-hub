@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { motion } from "framer-motion";
 import { scrollToTop } from "@/utils/scrollUtils";
 
 const NavigationMenuDemo = () => {
@@ -22,11 +21,6 @@ const NavigationMenuDemo = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
     scrollToTop();
-  };
-
-  const menuItemVariants = {
-    hidden: { opacity: 0, y: -10 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
   };
 
   return (
@@ -74,28 +68,7 @@ const NavigationMenuDemo = () => {
           </NavigationMenuLink>
         </NavigationMenuItem>
 
-        {/* VIP - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2",
-                location.pathname === '/vip' 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/vip')}
-            >
-              <span className="relative overflow-hidden group">
-                VIP
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Help Center - Direct link instead of dropdown */}
+        {/* Help Center - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
             <a

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Coins, Zap } from "lucide-react";
+import { Trophy, Coins, Zap, ArrowRight } from "lucide-react";
 
 interface Winner {
   id: number;
@@ -34,17 +34,17 @@ const WinningSlideshow = () => {
   const currentWinner = winners[currentWinnerIndex];
 
   return (
-    <div className="fixed top-20 z-50 w-full pointer-events-none overflow-hidden">
+    <div className="fixed top-20 right-0 z-50 pointer-events-none">
       <AnimatePresence mode="wait">
         <motion.div 
           key={currentWinner.id}
-          initial={{ x: "-100%" }}  // Changed from 100% to -100%
+          initial={{ x: "100%" }}
           animate={{ x: 0 }}
-          exit={{ x: "100%" }}  // Changed from -100% to 100%
+          exit={{ x: "-100%" }}
           transition={{ 
             x: { duration: 1, ease: "easeInOut" },
           }}
-          className="glass-card p-3 inline-flex items-center gap-3 shadow-lg neo-glow absolute left-0"  // Changed from right-0 to left-0
+          className="glass-card p-3 inline-flex items-center gap-3 shadow-lg neo-glow"
         >
           <div className="bg-casino-thunder-green/20 rounded-full p-2 animate-pulse-glow">
             {currentWinner.amount > 2000 ? (
@@ -54,21 +54,26 @@ const WinningSlideshow = () => {
             )}
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white text-sm">{currentWinner.username}</span>
-            <span className="text-white/70 text-xs">won on</span>
-            <span className="text-white/90 text-sm font-medium">{currentWinner.game}</span>
-            <Zap className="h-3.5 w-3.5 text-casino-thunder-green" />
-            <span className="font-bold text-casino-thunder-green">
-              <motion.span
-                key={currentWinner.id + "-amount"}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                ${currentWinner.amount.toFixed(2)}
-              </motion.span>
-            </span>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-bold text-white text-sm">{currentWinner.username}</span>
+              <ArrowRight className="h-3 w-3 text-casino-thunder-green" />
+              <span className="text-white/90 text-sm font-medium">{currentWinner.game}</span>
+            </div>
+            <div className="flex items-center">
+              <Zap className="h-3.5 w-3.5 text-casino-thunder-green mr-1" />
+              <span className="font-bold text-casino-thunder-green">
+                <motion.span
+                  key={currentWinner.id + "-amount"}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  ${currentWinner.amount.toFixed(2)}
+                </motion.span>
+              </span>
+              <span className="ml-2 text-xs text-white/50">{currentWinner.time}</span>
+            </div>
           </div>
         </motion.div>
       </AnimatePresence>
@@ -77,4 +82,3 @@ const WinningSlideshow = () => {
 };
 
 export default WinningSlideshow;
-

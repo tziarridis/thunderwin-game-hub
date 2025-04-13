@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Coins, Zap } from "lucide-react";
+import { Trophy, Coins, Zap, ArrowRight } from "lucide-react";
 
 interface Winner {
   id: number;
@@ -77,7 +77,7 @@ const WinningRoller = () => {
                 <div>
                   <span className="font-bold text-white">{winner.username}</span>
                   <div className="flex items-center gap-1 text-sm">
-                    <span className="text-white/70">won on</span>
+                    <ArrowRight className="h-3 w-3 text-casino-thunder-green mr-1" />
                     <span className="text-white/90 font-medium">{winner.game}</span>
                   </div>
                 </div>
