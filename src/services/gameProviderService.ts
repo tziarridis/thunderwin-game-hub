@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
+import { gitSlotParkService } from './gitSlotParkService';
 
 // Interface for game launch options
 export interface GameLaunchOptions {
@@ -51,6 +52,16 @@ export const gameProviderService = {
         
         case 'AM':
           return await getAmaticLaunchUrl(providerConfig, gameId, playerId, mode, language, options.returnUrl);
+          
+        case 'GSP':
+          // Use the GitSlotPark service for this provider
+          return await gitSlotParkService.launchGame({
+            playerId,
+            gameId,
+            language,
+            mode,
+            returnUrl: options.returnUrl
+          });
         
         default:
           throw new Error(`Provider integration not implemented: ${providerConfig.name}`);
@@ -62,7 +73,7 @@ export const gameProviderService = {
   },
   
   /**
-   * Process a wallet transaction callback from a game provider
+   * Process a wallet callback from a game provider
    * @param providerId The provider ID
    * @param data The callback data
    * @returns Promise with the response to send back to the provider
@@ -90,6 +101,10 @@ export const gameProviderService = {
             errorcode: "0",  // 0 means success
             balance: 100.00  // Mock balance
           };
+          
+        case 'GSP':
+          // Process GitSlotPark wallet callback
+          return await gitSlotParkService.processWalletCallback(data);
           
         default:
           throw new Error(`Wallet integration not implemented for provider: ${providerConfig.name}`);

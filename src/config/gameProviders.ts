@@ -97,6 +97,32 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       callbackUrl: "https://captaingamble/casino/seamless",
       apiEndpoint: "api.amaticgame.net"
     }
+  },
+  // GitSlotPark - EUR currency
+  "gspeur": {
+    code: "GSP",
+    name: "GitSlotPark",
+    currency: "EUR",
+    credentials: {
+      agentId: "Partner01",
+      apiToken: "e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce",
+      secretKey: "1234567890",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "apiv2.gitslotpark.com"
+    }
+  },
+  // GitSlotPark - BRL currency
+  "gspbrl": {
+    code: "GSP",
+    name: "GitSlotPark",
+    currency: "BRL",
+    credentials: {
+      agentId: "Partner01BRL",
+      apiToken: "e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce",
+      secretKey: "1234567890",
+      callbackUrl: "https://captaingamble/casino/seamless",
+      apiEndpoint: "apiv2.gitslotpark.com"
+    }
   }
 };
 
