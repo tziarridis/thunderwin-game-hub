@@ -191,7 +191,7 @@ export const gitSlotParkService = {
         success: true,
         transaction
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing GitSlotPark bet:', error);
       return { success: false, message: 'Failed to process bet' };
     }
@@ -237,7 +237,20 @@ export const gitSlotParkService = {
     try {
       console.log('Processing GitSlotPark callback:', callbackData);
       
-      const { playerId, amount, type, gameId, roundId, transactionId } = callbackData;
+      // Ensure required properties are present
+      if (!callbackData || !callbackData.playerId) {
+        return {
+          status: 'ERROR',
+          balance: 0
+        };
+      }
+      
+      const playerId = callbackData.playerId;
+      const amount = callbackData.amount || 0;
+      const type = callbackData.type || '';
+      const gameId = callbackData.gameId || '';
+      const roundId = callbackData.roundId || '';
+      const transactionId = callbackData.transactionId || '';
       
       // Check if transaction already exists (idempotency check)
       if (transactionId) {

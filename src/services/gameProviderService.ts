@@ -57,10 +57,10 @@ export const gameProviderService = {
           // Use the GitSlotPark service for this provider
           return await gitSlotParkService.launchGame({
             playerId,
-            gameId,
-            language,
+            gameCode: gameId, // Fixed: using gameCode instead of gameId
             mode,
-            returnUrl: options.returnUrl
+            returnUrl: options.returnUrl,
+            language
           });
         
         default:
@@ -104,7 +104,7 @@ export const gameProviderService = {
           
         case 'GSP':
           // Process GitSlotPark wallet callback
-          return await gitSlotParkService.processWalletCallback(data);
+          return await gitSlotParkService.processCallback(data);
           
         default:
           throw new Error(`Wallet integration not implemented for provider: ${providerConfig.name}`);
