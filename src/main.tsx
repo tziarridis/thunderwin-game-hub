@@ -9,10 +9,11 @@ import './App.css';
 // Import only frontend data
 import './data/mock-games';
 
-// Create a root
+// Create a root and ensure we're targeting the correct element
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
 
+// Render with StrictMode removed to avoid double rendering
 createRoot(rootElement).render(
   <Router>
     <App />
