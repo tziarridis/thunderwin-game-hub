@@ -1,4 +1,3 @@
-
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { 
@@ -20,10 +19,10 @@ import {
   Shield,
   LogIn,
   Paintbrush,
-  ImageIcon,
-  Casino,
+  Image,  // Replace ImageIcon
+  Gamepad2,  // Replace Casino
   Grid3x3,
-  FootballIcon,
+  Football,  // Replace FootballIcon
   Globe,
   Layers
 } from "lucide-react";
@@ -144,14 +143,14 @@ const AdminSidebar = () => {
             <div className="pl-8 mt-1 space-y-1">
               <SidebarLink 
                 to="/admin/cms/banners" 
-                icon={<ImageIcon size={16} />} 
+                icon={<Image size={16} />} 
                 label="Banners" 
                 expanded={expanded}
                 isActive={isActive("/admin/cms/banners")}
               />
               <SidebarLink 
                 to="/admin/cms/casino" 
-                icon={<Casino size={16} />} 
+                icon={<Gamepad2 size={16} />} 
                 label="Casino" 
                 expanded={expanded}
                 isActive={isActive("/admin/cms/casino")}
@@ -165,7 +164,7 @@ const AdminSidebar = () => {
               />
               <SidebarLink 
                 to="/admin/cms/sportsbook" 
-                icon={<FootballIcon size={16} />} 
+                icon={<Football size={16} />} 
                 label="Sportsbook" 
                 expanded={expanded}
                 isActive={isActive("/admin/cms/sportsbook")}
