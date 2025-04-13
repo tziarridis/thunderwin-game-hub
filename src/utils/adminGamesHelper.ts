@@ -25,10 +25,10 @@ export const addGameHelper = async (gameData: Omit<UIGame, 'id'>): Promise<UIGam
 
 export const updateGameHelper = async (game: UIGame): Promise<UIGame> => {
   try {
-    // Convert UI game to API game format
+    // Convert UI game to API game format with numeric ID
     const apiGame = {
-      id: game.id,
-      ...adaptGameForAPI(game)
+      ...adaptGameForAPI(game),
+      id: parseInt(game.id)
     };
     
     const result = await clientGamesApi.updateGame(apiGame);

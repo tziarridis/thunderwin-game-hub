@@ -30,10 +30,10 @@ export const adminAddGame = async (gameData: Omit<UIGame, 'id'>): Promise<UIGame
 
 // Update an existing game via the admin interface
 export const adminUpdateGame = async (gameData: UIGame): Promise<UIGame> => {
-  // Convert UI game to API game format
+  // Convert UI game to API game format with numeric ID
   const apiGame = {
-    id: gameData.id,
-    ...adaptGameForAPI(gameData)
+    ...adaptGameForAPI(gameData),
+    id: parseInt(gameData.id)
   };
   
   const result = await clientGamesApi.updateGame(apiGame);

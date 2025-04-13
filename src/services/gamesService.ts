@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { Game as APIGame, GameListParams, GameResponse } from '@/types/game';
+import { Game as APIGame, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { getProviderConfig } from '@/config/gameProviders';
 
 // Game API client for admin operations
@@ -11,7 +11,7 @@ export const clientGamesApi = {
       // For now, we return a mock response
       return [
         {
-          id: '1',
+          id: 1,
           provider_id: 1,
           game_id: 'vs20fruitsw',
           game_name: 'Sweet Bonanza',
@@ -43,7 +43,7 @@ export const clientGamesApi = {
     try {
       // Mock response
       return {
-        id,
+        id: parseInt(id),
         provider_id: 1,
         game_id: 'vs20fruitsw',
         game_name: 'Sweet Bonanza',
@@ -76,7 +76,7 @@ export const clientGamesApi = {
       // For now, we return a mock response
       return {
         ...game,
-        id: Math.floor(Math.random() * 10000).toString(),
+        id: Math.floor(Math.random() * 10000),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -134,6 +134,24 @@ export const clientGamesApi = {
     }
   },
 
+  // Get providers
+  getProviders: async (): Promise<GameProvider[]> => {
+    try {
+      // This would be an API call to fetch providers
+      // For now, we return a mock response
+      return [
+        { id: 1, name: 'Pragmatic Play', logo: '', description: 'Popular game provider', status: 'active' },
+        { id: 2, name: 'Evolution Gaming', logo: '', description: 'Live casino provider', status: 'active' },
+        { id: 3, name: 'NetEnt', logo: '', description: 'Quality slots provider', status: 'active' },
+        { id: 4, name: 'Microgaming', logo: '', description: 'Classic slots provider', status: 'active' },
+        { id: 5, name: 'Playtech', logo: '', description: 'Diverse game provider', status: 'active' },
+      ];
+    } catch (error) {
+      console.error('Error fetching providers:', error);
+      throw error;
+    }
+  },
+
   // Fetch games from a provider API
   fetchGamesFromProvider: async (providerId: string): Promise<APIGame[]> => {
     try {
@@ -146,7 +164,7 @@ export const clientGamesApi = {
       // For now, we return a mock response
       return [
         {
-          id: '1001',
+          id: 1001,
           provider_id: parseInt(providerId),
           game_id: 'vs20fruitsw',
           game_name: 'Sweet Bonanza',
@@ -169,6 +187,18 @@ export const clientGamesApi = {
       ];
     } catch (error) {
       console.error(`Error fetching games from provider ${providerId}:`, error);
+      throw error;
+    }
+  },
+
+  // Import games from provider to database
+  importGames: async (providerId: string): Promise<number> => {
+    try {
+      // This would normally be an API call to import games
+      // For now, we return a mock number of imported games
+      return 25;
+    } catch (error) {
+      console.error(`Error importing games from provider ${providerId}:`, error);
       throw error;
     }
   }

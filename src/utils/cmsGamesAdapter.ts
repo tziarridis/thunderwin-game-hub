@@ -27,10 +27,10 @@ export const addGameAdapter = async (uiGame: Omit<UIGame, 'id'>): Promise<UIGame
 // Update an existing game
 export const updateGameAdapter = async (uiGame: UIGame): Promise<UIGame> => {
   try {
-    // Convert UI game to API game format
+    // Convert UI game to API game format with numeric ID
     const apiGame = {
-      id: uiGame.id,
-      ...adaptGameForAPI(uiGame)
+      ...adaptGameForAPI(uiGame),
+      id: parseInt(uiGame.id)
     };
     
     // Send to API

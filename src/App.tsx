@@ -27,7 +27,7 @@ import AggregatorSettings from "./pages/admin/AggregatorSettings";
 import GameAggregatorPage from "./pages/admin/GameAggregator";
 import Seamless from "./pages/casino/Seamless";
 import ScrollToTop from "./components/layout/ScrollToTop";
-import { PlaceholderPage } from "./components/PlaceholderPage";
+import PlaceholderPage from "./components/PlaceholderPage";
 import Bonuses from "./pages/bonuses/BonusHub";
 import VIP from "./pages/vip/VIP";
 

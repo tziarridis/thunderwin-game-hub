@@ -1,6 +1,6 @@
 
-import { Game as UIGame } from '@/types';
-import { Game as APIGame } from '@/types/game';
+import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
+import { Game as APIGame, GameProvider as APIGameProvider } from '@/types/game';
 import { availableProviders, getProviderById } from '@/config/gameProviders';
 
 /**
@@ -60,4 +60,16 @@ export const adaptGameForAPI = (uiGame: UIGame): Omit<APIGame, 'id'> => {
     created_at: uiGame.releaseDate,
     updated_at: new Date().toISOString()
   };
+};
+
+/**
+ * Adapt API providers to UI providers format
+ */
+export const adaptProvidersForUI = (apiProviders: APIGameProvider[]): UIGameProvider[] => {
+  return apiProviders.map(provider => ({
+    id: provider.id.toString(),
+    name: provider.name,
+    code: provider.id.toString(),
+    currency: 'EUR'
+  }));
 };
