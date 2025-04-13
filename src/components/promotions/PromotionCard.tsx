@@ -1,20 +1,22 @@
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar, Edit, Trash, Power, UserPlus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Promotion } from "@/types";
 
 interface PromotionCardProps {
-  title: string;
-  description: string;
-  image: string;
+  title?: string;
+  description?: string;
+  image?: string;
   endDate?: string;
   className?: string;
   onClick?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onToggleActive?: () => void;
   isAdmin?: boolean;
+  promotion?: Promotion;
 }
 
 const PromotionCard = ({ 
@@ -26,10 +28,19 @@ const PromotionCard = ({
   onClick,
   onEdit,
   onDelete,
-  isAdmin = false
+  onToggleActive,
+  isAdmin = false,
+  promotion
 }: PromotionCardProps) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // If a promotion object is provided, use its properties
+  // Otherwise use the individual props
+  const displayTitle = promotion?.title || title || '';
+  const displayDescription = promotion?.description || description || '';
+  const displayImage = promotion?.image || image || '';
+  const displayEndDate = promotion?.endDate || endDate;
 
   const handleActionClick = () => {
     if (!isAuthenticated) {
@@ -46,23 +57,23 @@ const PromotionCard = ({
     <div className={cn("thunder-card overflow-hidden", className)}>
       <div className="h-48 overflow-hidden">
         <img 
-          src={image} 
-          alt={title}
+          src={displayImage} 
+          alt={displayTitle}
           className="w-full h-full object-cover"
         />
       </div>
       
       <div className="p-4">
-        <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
+        <h3 className="text-lg font-semibold text-white mb-2">{displayTitle}</h3>
         
-        {endDate && (
+        {displayEndDate && (
           <div className="flex items-center text-white/60 text-sm mb-3">
             <Calendar className="h-4 w-4 mr-2" />
-            <span>Ends: {endDate}</span>
+            <span>Ends: {displayEndDate}</span>
           </div>
         )}
         
-        <p className="text-white/70 text-sm mb-4">{description}</p>
+        <p className="text-white/70 text-sm mb-4">{displayDescription}</p>
         
         <div className="flex justify-between items-center">
           {isAdmin ? (
@@ -81,7 +92,7 @@ const PromotionCard = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={onClick}
+                  onClick={onToggleActive}
                 >
                   <Power className="h-4 w-4 mr-2" />
                   Toggle
