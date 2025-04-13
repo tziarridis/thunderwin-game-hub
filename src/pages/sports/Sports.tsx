@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Search, Calendar, Clock, Users, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import GlowButton from "@/components/casino/GlowButton";
 
 // Mock data for configurable banners from backend
 const banners = [
@@ -67,6 +69,13 @@ const Sports = () => {
     event.league.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleTabClick = (value: string) => {
+    // Navigate to appropriate sports page based on tab value
+    if (value !== "all" && value !== "live" && value !== "upcoming") {
+      navigate(`/sports/${value}`);
+    }
+  };
+
   return (
     <div className="bg-casino-thunder-darker min-h-screen pb-16">
       <div className="pt-20 container mx-auto px-4">
@@ -77,7 +86,7 @@ const Sports = () => {
           </p>
         </div>
         
-        {/* Configurable Banners Section - Added at top replacing recent wins */}
+        {/* Configurable Banners Section */}
         <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {banners.map(banner => (
@@ -100,12 +109,13 @@ const Sports = () => {
                     {banner.description}
                   </p>
                   <div>
-                    <Button 
+                    <GlowButton 
                       className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
                       onClick={() => navigate(banner.ctaUrl)}
+                      glowColor="green"
                     >
                       {banner.ctaText}
-                    </Button>
+                    </GlowButton>
                   </div>
                 </div>
               </div>
@@ -129,11 +139,11 @@ const Sports = () => {
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="w-full flex overflow-x-auto py-2 justify-start bg-white/5 backdrop-blur-md">
               <TabsTrigger value="all">All Sports</TabsTrigger>
-              <TabsTrigger value="football">Football</TabsTrigger>
-              <TabsTrigger value="basketball">Basketball</TabsTrigger>
-              <TabsTrigger value="tennis">Tennis</TabsTrigger>
-              <TabsTrigger value="hockey">Hockey</TabsTrigger>
-              <TabsTrigger value="esports">Esports</TabsTrigger>
+              <TabsTrigger value="football" onClick={() => handleTabClick('football')}>Football</TabsTrigger>
+              <TabsTrigger value="basketball" onClick={() => handleTabClick('basketball')}>Basketball</TabsTrigger>
+              <TabsTrigger value="tennis" onClick={() => handleTabClick('tennis')}>Tennis</TabsTrigger>
+              <TabsTrigger value="hockey" onClick={() => handleTabClick('hockey')}>Hockey</TabsTrigger>
+              <TabsTrigger value="esports" onClick={() => handleTabClick('esports')}>Esports</TabsTrigger>
               <TabsTrigger value="live">Live Now</TabsTrigger>
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             </TabsList>
@@ -199,6 +209,7 @@ const Sports = () => {
                               variant="outline"
                               size="sm"
                               className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
+                              onClick={() => console.log(`Bet on ${event.team1}`)}
                             >
                               {event.odds.team1}
                             </Button>
@@ -209,6 +220,7 @@ const Sports = () => {
                                 variant="outline"
                                 size="sm"
                                 className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
+                                onClick={() => console.log(`Bet on draw`)}
                               >
                                 {event.odds.draw}
                               </Button>
@@ -219,8 +231,9 @@ const Sports = () => {
                               variant="outline"
                               size="sm"
                               className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
+                              onClick={() => console.log(`Bet on ${event.team2}`)}
                             >
-                              {event.odds.team2 || event.odds.team2}
+                              {event.odds.team2}
                             </Button>
                           </td>
                         </tr>
@@ -243,7 +256,11 @@ const Sports = () => {
               <p className="text-white/70 mb-4">Popular football matches from around the world.</p>
               
               {/* Football specific content would go here */}
-              <Button onClick={() => navigate('/sports/football')} variant="outline" className="bg-white/5 border-white/10">
+              <Button 
+                onClick={() => navigate('/sports/football')} 
+                variant="outline" 
+                className="bg-white/5 border-white/10"
+              >
                 View All Football Events
               </Button>
             </TabsContent>
