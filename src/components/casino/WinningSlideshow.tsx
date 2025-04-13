@@ -38,13 +38,13 @@ const WinningSlideshow = () => {
       <AnimatePresence mode="wait">
         <motion.div 
           key={currentWinner.id}
-          initial={{ x: "100%" }}
+          initial={{ x: "-100%" }}  // Changed from 100% to -100%
           animate={{ x: 0 }}
-          exit={{ x: "-100%" }}
+          exit={{ x: "100%" }}  // Changed from -100% to 100%
           transition={{ 
             x: { duration: 1, ease: "easeInOut" },
           }}
-          className="glass-card p-3 inline-flex items-center gap-3 shadow-lg neo-glow absolute right-0"
+          className="glass-card p-3 inline-flex items-center gap-3 shadow-lg neo-glow absolute left-0"  // Changed from right-0 to left-0
         >
           <div className="bg-casino-thunder-green/20 rounded-full p-2 animate-pulse-glow">
             {currentWinner.amount > 2000 ? (
@@ -77,3 +77,4 @@ const WinningSlideshow = () => {
 };
 
 export default WinningSlideshow;
+
