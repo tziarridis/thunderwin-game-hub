@@ -4,7 +4,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import Footer from "./Footer";
 
-export const AppLayout = () => {
+const AppLayout = () => {
   const location = useLocation();
 
   // Effect to scroll to top when location changes
