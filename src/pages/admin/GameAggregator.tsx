@@ -7,9 +7,9 @@ const GameAggregatorPage = () => {
   const [collapsed, setCollapsed] = useState(false);
   
   return (
-    <div>
+    <AdminLayout collapsed={collapsed} setCollapsed={setCollapsed}>
       <GameAggregator />
-    </div>
+    </AdminLayout>
   );
 };
 

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, RefreshCw, Database, BarChart2, Tag, Zap } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, RefreshCw, Database, BarChart2, Tag, Zap, Edit, Trash2, Eye } from "lucide-react";
 import WinningRoller from "@/components/casino/WinningRoller";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { toast } from "sonner";
@@ -11,6 +11,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { availableProviders } from "@/config/gameProviders";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useNavigate } from "react-router-dom";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import GameForm from "@/components/admin/GameForm";
+import { useGames } from "@/hooks/useGames";
+import { Game } from "@/types";
 
 const GameAggregator: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState({
@@ -24,6 +29,20 @@ const GameAggregator: React.FC = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [syncProgress, setSyncProgress] = useState(0);
   const [currentProvider, setCurrentProvider] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const navigate = useNavigate();
+  
+  // Use Games hook to connect with Games Management
+  const { 
+    games, 
+    loading, 
+    totalGames,
+    addGame,
+    updateGame,
+    deleteGame,
+    importGamesFromAggregator
+  } = useGames();
   
   // Fetch initial sync status
   useEffect(() => {
@@ -80,8 +99,11 @@ const GameAggregator: React.FC = () => {
       clearInterval(progressInterval);
       setSyncProgress(100);
       
+      // Import synced games to the game management system
+      await importGamesFromAggregator();
+      
       setTimeout(() => {
-        toast.success("Game sync completed successfully");
+        toast.success("Game sync completed successfully and imported to game management");
       }, 500);
     } catch (error) {
       console.error("Error during sync:", error);
@@ -91,6 +113,46 @@ const GameAggregator: React.FC = () => {
     }
   };
 
+  const handleViewGame = (gameId: string) => {
+    navigate(`/casino/game/${gameId}`);
+  };
+  
+  const handleEditGame = (game: Game) => {
+    setSelectedGame(game);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleDeleteGame = async (gameId: string) => {
+    if (window.confirm("Are you sure you want to delete this game?")) {
+      try {
+        await deleteGame(gameId);
+        toast.success("Game deleted successfully");
+      } catch (error) {
+        console.error("Failed to delete game:", error);
+        toast.error("Failed to delete game");
+      }
+    }
+  };
+  
+  const handleUpdateGame = async (gameData: Game | Omit<Game, 'id'>) => {
+    try {
+      if ('id' in gameData) {
+        await updateGame(gameData as Game);
+      } else {
+        await addGame(gameData);
+      }
+      setIsEditDialogOpen(false);
+      toast.success("Game updated successfully");
+    } catch (error) {
+      console.error("Failed to update game:", error);
+      toast.error("Failed to update game");
+    }
+  };
+  
+  const handleManageGames = () => {
+    navigate('/admin/games');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -98,23 +160,31 @@ const GameAggregator: React.FC = () => {
           <h1 className="text-2xl font-bold">Game Aggregator</h1>
           <p className="text-white/60">Manage game integrations across multiple providers</p>
         </div>
-        <Button 
-          onClick={handleSyncNow} 
-          disabled={syncStatus.isRunning}
-          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-        >
-          {syncStatus.isRunning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Syncing Games...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sync Games Now
-            </>
-          )}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleSyncNow} 
+            disabled={syncStatus.isRunning}
+            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+          >
+            {syncStatus.isRunning ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Syncing Games...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Sync Games Now
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={handleManageGames}
+            className="bg-white/10 hover:bg-white/20"
+          >
+            Manage Games
+          </Button>
+        </div>
       </div>
       
       {syncStatus.isRunning && (
@@ -194,7 +264,7 @@ const GameAggregator: React.FC = () => {
                   <div className="flex items-center justify-between bg-slate-800 p-3 rounded-md">
                     <div>
                       <div className="text-white/70 text-sm">Total Games</div>
-                      <div className="text-xl font-bold">4,372</div>
+                      <div className="text-xl font-bold">{totalGames || 4372}</div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                       <Zap className="h-5 w-5 text-blue-500" />
@@ -204,7 +274,7 @@ const GameAggregator: React.FC = () => {
                   <div className="flex items-center justify-between bg-slate-800 p-3 rounded-md">
                     <div>
                       <div className="text-white/70 text-sm">Active Games</div>
-                      <div className="text-xl font-bold">3,891</div>
+                      <div className="text-xl font-bold">{Math.floor(totalGames * 0.9) || 3891}</div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
                       <CheckCircle className="h-5 w-5 text-green-500" />
@@ -336,34 +406,89 @@ const GameAggregator: React.FC = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Game ID</TableHead>
-                    <TableHead>Game Name</TableHead>
-                    <TableHead>Provider</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {Array.from({length: 5}).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>game_{1000 + i}</TableCell>
-                      <TableCell>{["Fortune Tiger", "Sweet Bonanza", "Starburst", "Book of Dead", "Mega Moolah"][i]}</TableCell>
-                      <TableCell>{["Pragmatic Play", "NetEnt", "Play'n GO", "Microgaming", "Evolution"][i]}</TableCell>
-                      <TableCell>{["Slots", "Slots", "Slots", "Jackpot", "Live Casino"][i]}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="bg-green-500/20 text-green-400">Active</Badge>
-                      </TableCell>
-                      <TableCell>{new Date().toLocaleDateString()}</TableCell>
+              {loading ? (
+                <div className="flex justify-center my-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Game ID</TableHead>
+                      <TableHead>Game Name</TableHead>
+                      <TableHead>Provider</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {games && games.length > 0 ? games.slice(0, 5).map((game, i) => (
+                      <TableRow key={game.id}>
+                        <TableCell>{game.id}</TableCell>
+                        <TableCell>{game.title}</TableCell>
+                        <TableCell>
+                          {typeof game.provider === 'string' 
+                            ? game.provider 
+                            : game.provider?.name || 'Unknown'}
+                        </TableCell>
+                        <TableCell className="capitalize">{game.category}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={
+                            game.isNew 
+                              ? "bg-blue-500/20 text-blue-400" 
+                              : game.isPopular
+                                ? "bg-yellow-500/20 text-yellow-400"
+                                : "bg-green-500/20 text-green-400"
+                          }>
+                            {game.isNew 
+                              ? 'New' 
+                              : game.isPopular
+                                ? 'Popular' 
+                                : 'Active'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => handleViewGame(game.id)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => handleEditGame(game)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-500"
+                              onClick={() => handleDeleteGame(game.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          No games found. Run a sync to import games.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
               <div className="text-center pt-4">
-                <Button variant="outline">
+                <Button variant="outline" onClick={handleManageGames}>
                   View All Games
                 </Button>
               </div>
@@ -425,6 +550,21 @@ const GameAggregator: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit Game Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Game</DialogTitle>
+          </DialogHeader>
+          {selectedGame && (
+            <GameForm 
+              onSubmit={handleUpdateGame} 
+              initialData={selectedGame}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

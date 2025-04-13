@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   LayoutDashboard,
@@ -15,11 +16,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Gamepad2,
-  CircleDot
+  CircleDot,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface AdminSidebarProps {
   collapsed: boolean;
@@ -105,8 +108,14 @@ const MenuGroup: React.FC<MenuGroupProps> = ({
 const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const pathname = location.pathname;
+  
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    toast("You have been logged out successfully");
+  };
   
   return (
     <aside className={cn(
@@ -275,6 +284,15 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
             collapsed={collapsed}
             active={pathname === "/admin/settings"}
             onClick={() => navigate("/admin/settings")}
+          />
+          
+          {/* Logout - Added new logout menu item */}
+          <MenuItem
+            icon={<LogOut className="h-5 w-5 text-red-400" />}
+            title="Logout"
+            collapsed={collapsed}
+            active={false}
+            onClick={handleLogout}
           />
         </nav>
         

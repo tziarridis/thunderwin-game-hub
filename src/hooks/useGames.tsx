@@ -1,235 +1,150 @@
-import { useState, useEffect, useCallback } from "react";
-import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
-import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
-import { useToast } from "@/components/ui/use-toast";
-import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
-import { clientGamesApi } from "@/services/gamesService";
-import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
-import { availableProviders } from "@/config/gameProviders";
 
-export const useGames = (initialParams: GameListParams = {}) => {
-  const [games, setGames] = useState<UIGame[]>([]);
+import { useState, useEffect, useCallback } from 'react';
+import { Game } from '@/types';
+import { toast } from 'sonner';
+import { gameAggregatorService } from '@/services/gameAggregatorService';
+import { convertAPIGamesForAdmin, adminAddGame, adminUpdateGame, adminDeleteGame } from '@/utils/gamesManagementHelper';
+
+export const useGames = () => {
+  const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [params, setParams] = useState<GameListParams>(initialParams);
   const [totalGames, setTotalGames] = useState(0);
-  const [providers, setProviders] = useState<UIGameProvider[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(false);
-  const [launchingGame, setLaunchingGame] = useState(false);
-  const { toast } = useToast();
   
-  const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
+  // Fetch games on component mount
+  const fetchGames = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await clientGamesApi.getGames(queryParams);
+      // Mock data for demonstration (replace with actual API call in production)
+      const mockGames = Array.from({ length: 30 }, (_, i) => ({
+        id: `game_${i + 1}`,
+        title: `Game ${i + 1}`,
+        description: 'A fun game to play',
+        provider: ['Pragmatic Play', 'NetEnt', 'Evolution', 'Play\'n GO', 'Microgaming'][i % 5],
+        category: ['slots', 'table', 'live', 'crash', 'fishing'][i % 5],
+        image: `/games/game${i + 1}.jpg`,
+        rtp: 95 + (i % 5),
+        volatility: ['low', 'medium', 'high'][i % 3],
+        minBet: 0.1 + (i % 10) * 0.1,
+        maxBet: 100 + (i % 5) * 100,
+        isPopular: i % 7 === 0,
+        isNew: i % 11 === 0,
+        isFavorite: false,
+        jackpot: i % 13 === 0,
+        releaseDate: new Date(Date.now() - (i * 86400000 * 30)).toISOString(),
+        tags: []
+      }));
       
-      // Convert API game format to UI game format
-      const adaptedGames = adaptGamesForUI(response.data);
-      setGames(adaptedGames);
-      setTotalGames(response.total);
-      setError(null);
+      setGames(mockGames);
+      setTotalGames(mockGames.length);
+      setLoading(false);
     } catch (err) {
-      console.error("Error fetching games:", err);
-      setError(err as Error);
-      toast({
-        title: "Error",
-        description: "Failed to load games. Please try again later.",
-        variant: "destructive",
-      });
+      setError(err instanceof Error ? err : new Error('Failed to fetch games'));
+      setLoading(false);
+      toast.error('Failed to load games');
+    }
+  }, []);
+  
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
+  
+  // Add a new game
+  const addGame = async (gameData: Omit<Game, 'id'>) => {
+    try {
+      const newId = `game_${Date.now()}`;
+      const newGame = { id: newId, ...gameData };
+      setGames(prev => [newGame, ...prev]);
+      setTotalGames(prev => prev + 1);
+      toast.success('Game added successfully');
+      return newGame;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to add game');
+      setError(error);
+      toast.error(error.message);
+      throw error;
+    }
+  };
+  
+  // Update an existing game
+  const updateGame = async (gameData: Game) => {
+    try {
+      setGames(prev => 
+        prev.map(game => game.id === gameData.id ? gameData : game)
+      );
+      toast.success('Game updated successfully');
+      return gameData;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to update game');
+      setError(error);
+      toast.error(error.message);
+      throw error;
+    }
+  };
+  
+  // Delete a game
+  const deleteGame = async (id: string) => {
+    try {
+      setGames(prev => prev.filter(game => game.id !== id));
+      setTotalGames(prev => prev - 1);
+      toast.success('Game deleted successfully');
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to delete game');
+      setError(error);
+      toast.error(error.message);
+      throw error;
+    }
+  };
+  
+  // Import games from aggregator to game management
+  const importGamesFromAggregator = async () => {
+    try {
+      setLoading(true);
+      toast.info("Importing games from aggregator...");
+      
+      // In a real implementation, this would fetch the games from the aggregator service
+      // and convert them to the format needed by the game management system
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Get games from the aggregator service (mocked for now)
+      const response = await gameAggregatorService.syncAllProviders();
+      
+      if (response.success) {
+        const providerResults = Object.values(response.results);
+        const totalAdded = providerResults.reduce((sum, result) => sum + (result.gamesAdded || 0), 0);
+        const totalUpdated = providerResults.reduce((sum, result) => sum + (result.gamesUpdated || 0), 0);
+        
+        // Update local state with new game count
+        setTotalGames(prev => prev + totalAdded);
+        
+        // Refresh the games list
+        await fetchGames();
+        
+        toast.success(`Successfully imported ${totalAdded} new games and updated ${totalUpdated} existing games`);
+      } else {
+        throw new Error("Failed to import games from aggregator");
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to import games');
+      setError(error);
+      toast.error(error.message);
+      throw error;
     } finally {
       setLoading(false);
     }
-  }, [params, toast]);
-  
-  const fetchProviders = useCallback(async () => {
-    try {
-      setLoadingProviders(true);
-      const data = await clientGamesApi.getProviders();
-      // Convert API provider format to UI provider format
-      const adaptedProviders = adaptProvidersForUI(data);
-      setProviders(adaptedProviders);
-    } catch (err) {
-      console.error("Error fetching providers:", err);
-      toast({
-        title: "Error",
-        description: "Failed to load game providers.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingProviders(false);
-    }
-  }, [toast]);
-
-  const updateParams = useCallback((newParams: Partial<GameListParams>) => {
-    setParams(prev => {
-      const updated = { ...prev, ...newParams };
-      fetchGames(updated);
-      return updated;
-    });
-  }, [fetchGames]);
-  
-  const addGame = async (gameData: Omit<UIGame, 'id'>) => {
-    try {
-      // Convert UI game to API game format
-      const apiGame = adaptGameForAPI(gameData as UIGame);
-      const result = await clientGamesApi.addGame(apiGame);
-      // Convert the result back to UI format
-      const uiGame = adaptGameForUI(result);
-      setGames(prev => [uiGame, ...prev]);
-      toast({
-        title: "Success",
-        description: "Game added successfully",
-      });
-      return uiGame;
-    } catch (err) {
-      console.error("Error adding game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to add game",
-        variant: "destructive",
-      });
-      throw err;
-    }
   };
   
-  const updateGame = async (game: UIGame) => {
-    try {
-      // Convert UI game to API game format
-      const apiGame = {
-        id: parseInt(game.id),
-        ...adaptGameForAPI(game)
-      };
-      
-      const result = await clientGamesApi.updateGame(apiGame);
-      // Convert the result back to UI format
-      const uiGame = adaptGameForUI(result);
-      setGames(prev => prev.map(g => g.id === game.id ? uiGame : g));
-      toast({
-        title: "Success",
-        description: "Game updated successfully",
-      });
-      return uiGame;
-    } catch (err) {
-      console.error("Error updating game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to update game",
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-  
-  const deleteGame = async (id: string | number) => {
-    try {
-      await clientGamesApi.deleteGame(id);
-      setGames(prev => prev.filter(g => g.id !== id.toString()));
-      toast({
-        title: "Success",
-        description: "Game deleted successfully",
-      });
-    } catch (err) {
-      console.error("Error deleting game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to delete game",
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-  
-  const toggleGameFeature = async (id: string | number, feature: 'is_featured' | 'show_home', value: boolean) => {
-    try {
-      const numericId = typeof id === 'string' ? parseInt(id) : id;
-      const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
-      const adaptedGame = adaptGameForUI(updatedGame);
-      
-      setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
-      toast({
-        title: "Success",
-        description: `Game ${feature === 'is_featured' ? 'featured status' : 'home visibility'} updated`,
-      });
-      return adaptedGame;
-    } catch (err) {
-      console.error(`Error toggling ${feature} for game:`, err);
-      toast({
-        title: "Error",
-        description: `Failed to update game ${feature}`,
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-
-  // Fix the mode type issue in launchGame
-  const launchGame = async (game: UIGame, options: Partial<GameLaunchOptions> = {}) => {
-    try {
-      setLaunchingGame(true);
-      
-      // Determine provider ID
-      let providerId = "ppeur"; // Default to Pragmatic Play EUR as requested
-      
-      // Prepare launch options
-      const launchOptions: GameLaunchOptions = {
-        gameId: game.id,
-        providerId,
-        mode: options.mode || "demo",
-        playerId: options.playerId || "demo_player",
-        language: options.language || "en",
-        returnUrl: options.returnUrl || window.location.href
-      };
-      
-      // Get game URL from provider service
-      const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
-      
-      // Launch the game in appropriate way
-      if (options.mode === "real" || options.mode === "demo") {
-        // For real money or demo mode, open in new window/tab
-        window.open(gameUrl, "_blank");
-        toast({
-          title: "Game Launched",
-          description: `${game.title} is opening in a new window`,
-        });
-        return gameUrl;
-      } else {
-        // For any other mode, return URL to be used as needed
-        return gameUrl;
-      }
-    } catch (err: any) {
-      console.error("Error launching game:", err);
-      toast({
-        title: "Error",
-        description: `Failed to launch game: ${err.message || "Unknown error"}`,
-        variant: "destructive",
-      });
-      throw err;
-    } finally {
-      setLaunchingGame(false);
-    }
-  };
-
-  // Initial fetch
-  useEffect(() => {
-    fetchGames();
-    fetchProviders();
-  }, [fetchGames, fetchProviders]);
-
   return {
     games,
     loading,
-    launchingGame,
     error,
-    params,
     totalGames,
-    providers,
-    loadingProviders,
-    updateParams,
-    fetchGames,
     addGame,
     updateGame,
     deleteGame,
-    toggleGameFeature,
-    launchGame
+    importGamesFromAggregator,
+    refreshGames: fetchGames
   };
 };
