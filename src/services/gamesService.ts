@@ -449,7 +449,7 @@ export const generateMockGames = async (count = 20) => {
   };
 };
 
-// Create a mock clientGamesApi implementation for browser environment
+// Create a clientGamesApi implementation for browser environment
 export const clientGamesApi = {
   getGames: async (params: any = {}) => {
     try {
