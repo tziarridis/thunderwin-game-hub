@@ -269,11 +269,15 @@ export const gitSlotParkService = {
       
       // Process based on transaction type
       if (type === 'bet' || type === 'debit') {
-        // Fix: Add null check for gameId and roundId
-        result = await this.processBet(playerId, amount, gameId || '', roundId || '');
+        // Use nullish coalescing to ensure gameId and roundId are strings
+        const safeGameId = gameId || '';
+        const safeRoundId = roundId || '';
+        result = await gitSlotParkService.processBet(playerId, amount, safeGameId, safeRoundId);
       } else if (type === 'win' || type === 'credit') {
-        // Fix: Add null check for gameId and roundId
-        result = await this.processWin(playerId, amount, gameId || '', roundId || '');
+        // Use nullish coalescing to ensure gameId and roundId are strings
+        const safeGameId = gameId || '';
+        const safeRoundId = roundId || '';
+        result = await gitSlotParkService.processWin(playerId, amount, safeGameId, safeRoundId);
       } else {
         return {
           status: 'ERROR',
@@ -315,19 +319,20 @@ export const gitSlotParkService = {
       
       // For real money mode, we need to create a session
       const sessionId = uuidv4();
-      const balance = await this.getBalance(playerId);
+      const balance = await gitSlotParkService.getBalance(playerId);
       
       // In a real implementation, this would call the GitSlotPark API
       // to create a session and get a token
       
       // For demo purposes, construct a URL with query parameters
-      // Fix: Add null check for balance.balance 
-      const balanceValue = balance?.balance || 0;
+      // Make sure balance exists before accessing its properties
+      const balanceAmount = balance && typeof balance.balance === 'number' ? balance.balance : 0;
+      
       const gameUrl = `https://gspgames.slotparkapi.com/game/${gameCode}?` + 
         `playerId=${encodeURIComponent(playerId)}` +
         `&sessionId=${sessionId}` +
         `&currency=EUR` +
-        `&balance=${balanceValue}` +
+        `&balance=${balanceAmount}` +
         `&lang=${language}` +
         `&returnUrl=${encodeURIComponent(returnUrl)}`;
       
