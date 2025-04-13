@@ -21,7 +21,8 @@ import {
   Table,
   Users,
   Activity,
-  CreditCard
+  CreditCard,
+  Football
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -52,11 +53,27 @@ const NavigationMenuDemo = () => {
     { title: "Favorites", path: "/casino/favorites", icon: <Trophy className="h-4 w-4 mr-2" /> },
   ];
 
+  const sportsLinks: MenuLink[] = [
+    { title: "All Sports", path: "/sports", icon: <Football className="h-4 w-4 mr-2" /> },
+    { title: "Football", path: "/sports/football", icon: <Football className="h-4 w-4 mr-2" /> },
+    { title: "Basketball", path: "/sports/basketball", icon: <Activity className="h-4 w-4 mr-2" /> },
+    { title: "Tennis", path: "/sports/tennis", icon: <Activity className="h-4 w-4 mr-2" /> },
+    { title: "Hockey", path: "/sports/hockey", icon: <Activity className="h-4 w-4 mr-2" /> },
+    { title: "Esports", path: "/sports/esports", icon: <Gamepad2 className="h-4 w-4 mr-2" /> },
+  ];
+
   const vipLinks: MenuLink[] = [
     { title: "VIP Program", path: "/vip", icon: <Crown className="h-4 w-4 mr-2" />, highlight: true },
     { title: "Gold Benefits", path: "/vip#gold", icon: <Trophy className="h-4 w-4 mr-2" /> },
     { title: "Platinum Benefits", path: "/vip#platinum", icon: <Trophy className="h-4 w-4 mr-2" /> },
     { title: "Diamond Benefits", path: "/vip#diamond", icon: <Trophy className="h-4 w-4 mr-2" /> },
+  ];
+
+  const bonusLinks: MenuLink[] = [
+    { title: "All Bonuses", path: "/bonuses", icon: <Zap className="h-4 w-4 mr-2" /> },
+    { title: "Welcome Bonus", path: "/bonuses#welcome", icon: <Gift className="h-4 w-4 mr-2" /> },
+    { title: "Reload Bonus", path: "/bonuses#reload", icon: <Gift className="h-4 w-4 mr-2" /> },
+    { title: "Daily Bonus", path: "/bonuses#daily", icon: <Gift className="h-4 w-4 mr-2" /> },
   ];
 
   const adminLinks: MenuLink[] = [
@@ -108,6 +125,36 @@ const NavigationMenuDemo = () => {
           <NavigationMenuTrigger 
             className={cn(
               "bg-transparent hover:bg-white/10",
+              location.pathname === '/sports' || location.pathname.startsWith('/sports/') ? "text-casino-thunder-green" : ""
+            )}
+          >
+            Sports
+          </NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+              {sportsLinks.map((link) => (
+                <li key={link.path}>
+                  <NavigationMenuLink asChild>
+                    <a
+                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer"
+                      onClick={() => handleNavigation(link.path)}
+                    >
+                      <div className="flex items-center mb-2">
+                        {link.icon}
+                        <span className="text-sm font-medium">{link.title}</span>
+                      </div>
+                    </a>
+                  </NavigationMenuLink>
+                </li>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+
+        <NavigationMenuItem>
+          <NavigationMenuTrigger 
+            className={cn(
+              "bg-transparent hover:bg-white/10",
               location.pathname === '/vip' ? "text-casino-thunder-green" : ""
             )}
           >
@@ -123,6 +170,36 @@ const NavigationMenuDemo = () => {
                         "flex h-full w-full select-none flex-col justify-between rounded-md p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer",
                         link.highlight ? "bg-gradient-to-r from-casino-thunder-green/20 to-transparent" : "bg-white/5"
                       )}
+                      onClick={() => handleNavigation(link.path)}
+                    >
+                      <div className="flex items-center mb-2">
+                        {link.icon}
+                        <span className="text-sm font-medium">{link.title}</span>
+                      </div>
+                    </a>
+                  </NavigationMenuLink>
+                </li>
+              ))}
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+
+        <NavigationMenuItem>
+          <NavigationMenuTrigger 
+            className={cn(
+              "bg-transparent hover:bg-white/10",
+              location.pathname === '/bonuses' ? "text-casino-thunder-green" : ""
+            )}
+          >
+            Bonuses
+          </NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px]">
+              {bonusLinks.map((link) => (
+                <li key={link.path}>
+                  <NavigationMenuLink asChild>
+                    <a
+                      className="flex h-full w-full select-none flex-col justify-between rounded-md bg-white/5 p-4 hover:bg-white/10 no-underline outline-none focus:shadow-md transition-colors cursor-pointer"
                       onClick={() => handleNavigation(link.path)}
                     >
                       <div className="flex items-center mb-2">
