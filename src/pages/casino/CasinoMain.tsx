@@ -79,9 +79,6 @@ const CasinoMain = () => {
 
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
-      {/* Display WinningSlideshow component */}
-      <WinningSlideshow />
-      
       <div className="container mx-auto px-4 py-8 pt-20">
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">Casino Games</h1>
@@ -90,13 +87,19 @@ const CasinoMain = () => {
           </p>
         </div>
         
-        {/* Game Categories */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-          <GameCategories onCategoryClick={(category) => {
-            navigate(`/casino/${category}`);
-            scrollToTop();
-          }} />
+        {/* Game Categories and Live Winnings Feed in two columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+            <GameCategories onCategoryClick={(category) => {
+              navigate(`/casino/${category}`);
+              scrollToTop();
+            }} />
+          </div>
+          
+          <div>
+            <WinningSlideshow />
+          </div>
         </div>
         
         <div className="mb-6">

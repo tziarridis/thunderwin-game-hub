@@ -11,7 +11,7 @@ import PromoBanner from "@/components/casino/PromoBanner";
 import PopularProviders from "@/components/casino/PopularProviders";
 import RecentWinners from "@/components/casino/RecentWinners";
 import GameCard from "@/components/games/GameCard";
-import WinningRoller from "@/components/casino/WinningRoller";
+import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
 
@@ -48,9 +48,6 @@ const Index = () => {
   
   return (
     <div className="relative min-h-screen bg-casino-thunder-darker overflow-hidden">
-      {/* Add WinningRoller near the top of the page */}
-      <WinningRoller />
-      
       <div className="container mx-auto px-4 py-8 pt-20">
         {/* Hero Banner */}
         <div className="relative rounded-xl overflow-hidden mb-8">
@@ -177,10 +174,16 @@ const Index = () => {
           </Button>
         </div>
         
-        {/* Featured Games Carousel */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Featured Games</h2>
-          <FeaturedGames games={popularGames.slice(0, 5)} />
+        {/* Live Winnings and Featured Games in two columns */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          <div className="lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-6 thunder-glow">Featured Games</h2>
+            <FeaturedGames games={popularGames.slice(0, 5)} />
+          </div>
+          
+          <div>
+            <WinningSlideshow />
+          </div>
         </div>
         
         {/* Game Categories */}
