@@ -19,6 +19,7 @@ const Footer = () => {
   const navigate = useNavigate();
   
   const handleNavigate = (path: string) => {
+    console.log(`Footer navigating to: ${path}`);
     navigate(path);
     scrollToTop();
   };

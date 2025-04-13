@@ -36,7 +36,10 @@ const Sports = () => {
   const navigate = useNavigate();
   const [showSportsSection, setShowSportsSection] = useState(true);
   
+  // Log when the Sports component mounts
   useEffect(() => {
+    console.log("Sports component mounted");
+    
     // Check if sports section should be hidden from localStorage
     const interfaceSettings = localStorage.getItem("backoffice_interface_settings");
     if (interfaceSettings) {
@@ -44,6 +47,7 @@ const Sports = () => {
         const settings = JSON.parse(interfaceSettings);
         if (settings.showSportsSection === false) {
           // Redirect to casino if sports section is disabled
+          console.log("Sports section is disabled, redirecting to casino");
           navigate('/casino');
         }
       } catch (error) {
@@ -70,6 +74,7 @@ const Sports = () => {
   );
 
   const handleTabClick = (value: string) => {
+    console.log(`Tab clicked: ${value}`);
     // Navigate to appropriate sports page based on tab value
     if (value !== "all" && value !== "live" && value !== "upcoming") {
       navigate(`/sports/${value}`);

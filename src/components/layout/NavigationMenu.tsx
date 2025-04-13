@@ -34,6 +34,7 @@ const NavigationMenuDemo = () => {
   }, []);
 
   const handleNavigation = (path: string) => {
+    console.log(`Navigating to: ${path}`);
     navigate(path);
     scrollToTop();
   };
