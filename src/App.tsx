@@ -11,11 +11,13 @@ import { AuthProvider } from "./contexts/AuthContext";
 // Layout components
 import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
+import AppLayout from "./components/layout/AppLayout";
 
 // Pages
 import IndexPage from "./pages/Index";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import AdminLogin from "./pages/auth/AdminLogin";
 import Profile from "./pages/user/Profile";
 import NotFound from "./pages/NotFound";
 import CasinoMain from "./pages/casino/CasinoMain";
@@ -24,6 +26,10 @@ import Seamless from "./pages/casino/Seamless";
 import Slots from "./pages/casino/Slots";
 import Sports from "./pages/sports/Sports";
 import TableGames from "./pages/casino/TableGames";
+import Favorites from "./pages/casino/Favorites";
+import Crash from "./pages/casino/Crash";
+import LiveCasino from "./pages/casino/LiveCasino";
+import Jackpots from "./pages/casino/Jackpots";
 
 // Sports pages
 import Football from "./pages/sports/Football";
@@ -74,7 +80,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={<AppLayout />}>
             <Route index element={<IndexPage />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
@@ -86,9 +92,11 @@ function App() {
             <Route path="casino/seamless" element={<Seamless />} />
             <Route path="casino/slots" element={<Slots />} />
             <Route path="casino/table-games" element={<TableGames />} />
-            <Route path="casino/live-casino" element={<TableGames />} /> 
-            <Route path="casino/jackpots" element={<Slots />} />
+            <Route path="casino/live-casino" element={<LiveCasino />} />
+            <Route path="casino/jackpots" element={<Jackpots />} />
             <Route path="casino/providers" element={<Slots />} /> 
+            <Route path="casino/favorites" element={<Favorites />} />
+            <Route path="casino/crash" element={<Crash />} />
             
             {/* Sports Routes */}
             <Route path="sports" element={<Sports />} />
@@ -116,6 +124,9 @@ function App() {
             {/* Fallback Route */}
             <Route path="*" element={<NotFound />} />
           </Route>
+          
+          {/* Admin Login Route - Added here */}
+          <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}>

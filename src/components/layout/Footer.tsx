@@ -14,6 +14,7 @@ import {
 import { scrollToTop } from "../../utils/scrollUtils";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "../../utils/navigationUtils";
+import { toast } from "sonner";
 
 const Footer = () => {
   const navigate = useNavigate();
@@ -22,6 +23,10 @@ const Footer = () => {
     console.log(`Footer navigating to: ${path}`);
     navigate(path);
     scrollToTop();
+  };
+  
+  const handleSocialClick = (platform: string) => {
+    toast.success(`Following ${platform}!`);
   };
   
   const handleTextNavigation = (text: string) => {
@@ -62,10 +67,10 @@ const Footer = () => {
               reliable payments, and generous bonuses.
             </p>
             <div className="flex space-x-4">
-              <SocialIcon icon={<Facebook size={18} />} />
-              <SocialIcon icon={<Twitter size={18} />} />
-              <SocialIcon icon={<Instagram size={18} />} />
-              <SocialIcon icon={<Youtube size={18} />} />
+              <SocialIcon icon={<Facebook size={18} />} onClick={() => handleSocialClick("Facebook")} />
+              <SocialIcon icon={<Twitter size={18} />} onClick={() => handleSocialClick("Twitter")} />
+              <SocialIcon icon={<Instagram size={18} />} onClick={() => handleSocialClick("Instagram")} />
+              <SocialIcon icon={<Youtube size={18} />} onClick={() => handleSocialClick("YouTube")} />
             </div>
           </div>
 
@@ -77,7 +82,8 @@ const Footer = () => {
               <FooterLink text="Live Casino" to="/casino/live-casino" />
               <FooterLink text="Table Games" to="/casino/table-games" />
               <FooterLink text="Jackpots" to="/casino/jackpots" />
-              <FooterLink text="Providers" to="/casino/providers" />
+              <FooterLink text="Crash Games" to="/casino/crash" />
+              <FooterLink text="Favorites" to="/casino/favorites" />
             </ul>
           </div>
 
@@ -116,6 +122,15 @@ const Footer = () => {
               <FooterLink text="Terms & Conditions" to="/legal/terms" />
               <FooterLink text="Privacy Policy" to="/legal/privacy" />
               <FooterLink text="Contact Us" to="/support/contact" />
+              
+              <li className="pt-4 mt-2 border-t border-white/10">
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleNavigate("/admin/login")}
+                >
+                  Admin Login
+                </button>
+              </li>
             </ul>
           </div>
         </div>
@@ -150,17 +165,17 @@ const FooterLink = ({ text, to }: { text: string; to: string }) => (
   </li>
 );
 
-const SocialIcon = ({ icon }: { icon: React.ReactNode }) => (
-  <a 
-    href="#" 
+const SocialIcon = ({ icon, onClick }: { icon: React.ReactNode; onClick: () => void }) => (
+  <button 
     className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center hover:bg-casino-thunder-green hover:text-black transition-colors"
+    onClick={onClick}
   >
     {icon}
-  </a>
+  </button>
 );
 
 const PaymentMethodCard = ({ icon, name }: { icon: React.ReactNode; name: string }) => (
-  <div className="bg-white/5 rounded-md py-3 px-4 flex flex-col items-center justify-center">
+  <div className="bg-white/5 rounded-md py-3 px-4 flex flex-col items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
     {icon}
     <span className="text-xs text-white/70 mt-1">{name}</span>
   </div>

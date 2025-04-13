@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import GlowButton from "@/components/casino/GlowButton";
+import { toast } from "sonner";
 
 // Mock data for configurable banners from backend
 const banners = [
@@ -35,8 +36,8 @@ const Sports = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
   const [showSportsSection, setShowSportsSection] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Log when the Sports component mounts
   useEffect(() => {
     console.log("Sports component mounted");
     
@@ -46,14 +47,21 @@ const Sports = () => {
       try {
         const settings = JSON.parse(interfaceSettings);
         if (settings.showSportsSection === false) {
-          // Redirect to casino if sports section is disabled
-          console.log("Sports section is disabled, redirecting to casino");
-          navigate('/casino');
+          // Instead of redirecting, we'll just show a message
+          setShowSportsSection(false);
+          toast.error("Sports section is temporarily unavailable");
         }
       } catch (error) {
         console.error("Error parsing interface settings:", error);
       }
     }
+    
+    // Simulate loading state
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800);
+    
+    return () => clearTimeout(timer);
   }, [navigate]);
 
   // Placeholder data for popular events
@@ -80,6 +88,38 @@ const Sports = () => {
       navigate(`/sports/${value}`);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="bg-casino-thunder-darker min-h-screen pb-16 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-12 w-40 bg-white/10 rounded-md mb-4"></div>
+          <div className="h-4 w-64 bg-white/10 rounded-md"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!showSportsSection) {
+    return (
+      <div className="bg-casino-thunder-darker min-h-screen pt-20 pb-16 flex items-center justify-center">
+        <div className="text-center max-w-lg mx-auto p-8 bg-white/5 rounded-lg border border-white/10">
+          <Trophy className="h-16 w-16 text-white/30 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-4">Sports Section Unavailable</h2>
+          <p className="text-white/70 mb-6">
+            Our sports betting section is temporarily unavailable. 
+            Please check back later or explore our casino games in the meantime.
+          </p>
+          <Button 
+            onClick={() => navigate('/casino')} 
+            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+          >
+            Explore Casino Games
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-casino-thunder-darker min-h-screen pb-16">
@@ -159,7 +199,7 @@ const Sports = () => {
                 Popular Events
               </h2>
               
-              <div className="bg-casino-thunder-dark/90 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden">
+              <div className="bg-casino-thunder-dark/90 backdrop-blur-md rounded-lg border border-white/10 overflow-hidden shadow-lg">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
@@ -192,7 +232,7 @@ const Sports = () => {
                     </thead>
                     <tbody>
                       {filteredEvents.map((event) => (
-                        <tr key={event.id} className="border-t border-white/5 hover:bg-white/5">
+                        <tr key={event.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
                           <td className="py-4 px-4">
                             <div className="flex items-center">
                               <span className="text-sm font-medium">{event.league}</span>
@@ -213,8 +253,10 @@ const Sports = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
-                              onClick={() => console.log(`Bet on ${event.team1}`)}
+                              className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black transition-colors"
+                              onClick={() => {
+                                toast.success(`Bet placed on ${event.team1}`);
+                              }}
                             >
                               {event.odds.team1}
                             </Button>
@@ -224,8 +266,10 @@ const Sports = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
-                                onClick={() => console.log(`Bet on draw`)}
+                                className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black transition-colors"
+                                onClick={() => {
+                                  toast.success(`Bet placed on draw`);
+                                }}
                               >
                                 {event.odds.draw}
                               </Button>
@@ -235,8 +279,10 @@ const Sports = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black"
-                              onClick={() => console.log(`Bet on ${event.team2}`)}
+                              className="w-20 bg-white/5 border-white/10 hover:bg-casino-thunder-green hover:text-black transition-colors"
+                              onClick={() => {
+                                toast.success(`Bet placed on ${event.team2}`);
+                              }}
                             >
                               {event.odds.team2}
                             </Button>
@@ -260,11 +306,9 @@ const Sports = () => {
               <h2 className="text-2xl font-bold mb-6">Football</h2>
               <p className="text-white/70 mb-4">Popular football matches from around the world.</p>
               
-              {/* Football specific content would go here */}
               <Button 
                 onClick={() => navigate('/sports/football')} 
-                variant="outline" 
-                className="bg-white/5 border-white/10"
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
               >
                 View All Football Events
               </Button>
