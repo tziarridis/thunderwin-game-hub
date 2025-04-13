@@ -24,12 +24,12 @@ const GameAggregator: React.FC = () => {
     status: 'idle',
   });
   
-  const [syncResults, setSyncResults = useState<any>(null);
-  const [activeTab, setActiveTab = useState("dashboard");
-  const [syncProgress, setSyncProgress = useState(0);
-  const [currentProvider, setCurrentProvider = useState('');
-  const [isEditDialogOpen, setIsEditDialogOpen = useState(false);
-  const [selectedGame, setSelectedGame = useState<Game | null>(null);
+  const [syncResults, setSyncResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [currentProvider, setCurrentProvider] = useState('');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const navigate = useNavigate();
   
   // Use Games hook to connect with Games Management
