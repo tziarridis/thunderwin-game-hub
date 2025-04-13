@@ -28,10 +28,10 @@ export const getAllGames = async (): Promise<Game[]> => {
  * @param id Game ID
  * @returns Promise with game or null
  */
-export const getGameById = async (id: number): Promise<Game | null> => {
+export const getGameById = async (id: number | string): Promise<Game | null> => {
   try {
     const games = await getAllGames();
-    return games.find(game => game.id === id) || null;
+    return games.find(game => game.id.toString() === id.toString()) || null;
   } catch (error) {
     console.error('Error getting game:', error);
     return null;
@@ -46,7 +46,7 @@ export const getGameById = async (id: number): Promise<Game | null> => {
 export const getGameByGameId = async (gameId: string): Promise<Game | null> => {
   try {
     const games = await getAllGames();
-    return games.find(game => game.game_id === gameId) || null;
+    return games.find(game => game.id === gameId) || null;
   } catch (error) {
     console.error('Error getting game by game ID:', error);
     return null;
@@ -62,14 +62,19 @@ export const createGame = async (game: Omit<Game, 'id'>): Promise<Game> => {
   try {
     const games = await getAllGames();
     const newGame = {
-      id: games.length > 0 ? Math.max(...games.map(g => g.id || 0)) + 1 : 1,
+      id: games.length > 0 ? Math.max(...games.map(g => typeof g.id === 'string' ? parseInt(g.id) : 0)) + 1 : 1,
       ...game
     };
     
-    games.push(newGame);
+    const gameWithStringId = {
+      ...newGame,
+      id: newGame.id.toString()
+    };
+    
+    games.push(gameWithStringId);
     localStorage.setItem('games', JSON.stringify(games));
     
-    return newGame;
+    return gameWithStringId;
   } catch (error) {
     console.error('Error creating game:', error);
     throw error;
@@ -82,10 +87,10 @@ export const createGame = async (game: Omit<Game, 'id'>): Promise<Game> => {
  * @param game Updated game data
  * @returns Promise with updated game
  */
-export const updateGame = async (id: number, game: Partial<Game>): Promise<Game> => {
+export const updateGame = async (id: number | string, game: Partial<Game>): Promise<Game> => {
   try {
     const games = await getAllGames();
-    const index = games.findIndex(g => g.id === id);
+    const index = games.findIndex(g => g.id.toString() === id.toString());
     
     if (index === -1) {
       throw new Error(`Game with ID ${id} not found`);
@@ -106,10 +111,10 @@ export const updateGame = async (id: number, game: Partial<Game>): Promise<Game>
  * @param id Game ID
  * @returns Promise with success status
  */
-export const deleteGame = async (id: number): Promise<boolean> => {
+export const deleteGame = async (id: number | string): Promise<boolean> => {
   try {
     const games = await getAllGames();
-    const filteredGames = games.filter(g => g.id !== id);
+    const filteredGames = games.filter(g => g.id.toString() !== id.toString());
     
     if (filteredGames.length === games.length) {
       throw new Error(`Game with ID ${id} not found`);
@@ -134,12 +139,12 @@ export const importGames = async (games: Omit<Game, 'id'>[]): Promise<number> =>
     let importedCount = 0;
     
     for (const game of games) {
-      // Check if game already exists
-      const existingGame = existingGames.find(g => g.game_id === game.game_id);
+      // Check if game already exists by a unique identifier (using title as example)
+      const existingGame = existingGames.find(g => g.title === game.title);
       
       if (existingGame) {
         // Update existing game
-        await updateGame(existingGame.id!, game);
+        await updateGame(existingGame.id, game);
       } else {
         // Create new game
         await createGame(game);
@@ -156,6 +161,28 @@ export const importGames = async (games: Omit<Game, 'id'>[]): Promise<number> =>
   }
 };
 
+// Create a clientGamesApi object that wraps the functions
+export const clientGamesApi = {
+  getGames: getAllGames,
+  getGameById,
+  getGameByGameId,
+  addGame: createGame,
+  updateGame: (game: Game) => updateGame(game.id, game),
+  deleteGame,
+  toggleGameFeature: async (id: number | string, feature: string, value: boolean) => {
+    return updateGame(id, { [feature]: value });
+  },
+  getProviders: async () => {
+    // Mock function to return providers
+    return [
+      { id: 1, name: 'Pragmatic Play', logo: '', status: 'active' },
+      { id: 2, name: 'Evolution Gaming', logo: '', status: 'active' },
+      { id: 3, name: 'NetEnt', logo: '', status: 'active' },
+      { id: 4, name: 'Microgaming', logo: '', status: 'active' }
+    ];
+  }
+};
+
 export default {
   getAllGames,
   getGameById,
@@ -163,5 +190,6 @@ export default {
   createGame,
   updateGame,
   deleteGame,
-  importGames
+  importGames,
+  clientGamesApi
 };

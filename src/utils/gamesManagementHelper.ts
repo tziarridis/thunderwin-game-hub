@@ -32,7 +32,7 @@ export const adminAddGame = async (gameData: Omit<UIGame, 'id'>): Promise<UIGame
 export const adminUpdateGame = async (gameData: UIGame): Promise<UIGame> => {
   // Convert UI game to API game format
   const apiGame = {
-    id: parseInt(gameData.id),
+    id: gameData.id,
     ...adaptGameForAPI(gameData)
   };
   
@@ -49,9 +49,8 @@ export const adminToggleGameFeature = async (
 ): Promise<UIGame> => {
   // Map UI feature names to API feature names
   const apiFeature = feature === 'isPopular' ? 'is_featured' : 'show_home';
-  const numericId = parseInt(id);
   
-  const updatedGame = await clientGamesApi.toggleGameFeature(numericId, apiFeature, value);
+  const updatedGame = await clientGamesApi.toggleGameFeature(id, apiFeature, value);
   return convertAPIGameToAdminFormat(updatedGame);
 };
 

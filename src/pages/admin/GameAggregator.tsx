@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import AdminLayout from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,8 @@ import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
 import { importGames, getAllGames } from "@/services/gamesService";
 import { Game } from "@/types";
 import { gameProviderService } from "@/services/gameProviderService";
+import { PP_AGENT_ID, PP_API_BASE } from "@/services/gameAggregatorService";
+import { availableProviders } from "@/config/gameProviders";
 
 const GameAggregatorPage = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -66,27 +67,23 @@ const GameAggregatorPage = () => {
       // Get the list of games from Pragmatic Play
       const fetchedGames = await pragmaticPlayService.getGamesFromAPI();
       
-      // Convert to our Game format
+      // Convert to UI Game format for importing
       const formattedGames = fetchedGames.map(game => ({
-        provider_id: 1, // PP provider ID
-        game_id: game.game_id,
-        game_name: game.game_name,
-        game_code: game.game_id,
-        game_type: game.game_type,
+        title: game.game_name,
+        provider: 'Pragmatic Play',
+        category: game.game_type || 'slots',
         description: `${game.game_name} by Pragmatic Play`,
-        cover: `https://dnk.pragmaticplay.net/game/dn/nt/mobile/portrait/images/games/${game.game_id}.jpg`,
-        status: 'active',
-        technology: 'HTML5',
-        has_lobby: false,
-        is_mobile: game.platform.includes('mobile'),
-        has_freespins: game.features.includes('freespin'),
-        has_tables: game.game_type === 'table',
-        only_demo: false,
+        image: `https://dnk.pragmaticplay.net/game/dn/nt/mobile/portrait/images/games/${game.game_id}.jpg`,
         rtp: Math.round(game.rtp),
-        distribution: 'Pragmatic Play',
-        views: 0,
-        is_featured: false,
-        show_home: true
+        volatility: 'medium',
+        minBet: 0.1,
+        maxBet: 100,
+        isPopular: false,
+        isNew: true,
+        isFavorite: false,
+        jackpot: game.features?.includes('jackpot') || false,
+        releaseDate: new Date().toISOString(),
+        tags: game.features || []
       }));
       
       // Import games
@@ -368,15 +365,15 @@ const GameAggregatorPage = () => {
                         {importedGames.map(game => (
                           <tr key={game.id} className="border-b border-slate-800">
                             <td className="p-2 font-mono text-xs">{game.id}</td>
-                            <td className="p-2">{game.game_name}</td>
-                            <td className="p-2 capitalize">{game.game_type || 'Unknown'}</td>
-                            <td className="p-2">{game.distribution}</td>
+                            <td className="p-2">{game.title}</td>
+                            <td className="p-2 capitalize">{game.category || 'Unknown'}</td>
+                            <td className="p-2">{game.provider}</td>
                             <td className="p-2">{game.rtp}%</td>
                             <td className="p-2">
                               <span className={`px-2 py-0.5 rounded text-xs ${
-                                game.status === 'active' ? 'bg-green-900/20 text-green-500' : 'bg-red-900/20 text-red-500'
+                                game.isNew ? 'bg-green-900/20 text-green-500' : 'bg-blue-900/20 text-blue-500'
                               }`}>
-                                {game.status}
+                                {game.isNew ? 'New' : 'Active'}
                               </span>
                             </td>
                             <td className="p-2">
@@ -385,7 +382,7 @@ const GameAggregatorPage = () => {
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => {
-                                    window.open(`/casino?game=${game.game_id}`, '_blank');
+                                    window.open(`/casino?game=${game.id}`, '_blank');
                                   }}
                                 >
                                   Play
