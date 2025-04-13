@@ -5,8 +5,9 @@ import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
 
-// Initialize the database with mock data
-import './utils/dbInitializer';
+// No need to initialize database directly in the browser
+// Import only frontend data
+import './data/mock-games';
 
 // Create a root
 const rootElement = document.getElementById("root");

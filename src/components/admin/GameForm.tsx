@@ -1,401 +1,283 @@
 
-import React, { useState, useEffect } from 'react';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Game, GameProvider } from '@/types';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Game, GameProvider } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
+import { clientGamesApi } from "@/services/mockGamesService";
 
-// Define schema for game form
-const gameSchema = z.object({
-  title: z.string().min(3, { message: 'Game title must be at least 3 characters' }),
-  provider: z.string().min(1, { message: 'Provider is required' }),
-  category: z.string().min(1, { message: 'Category is required' }),
-  image: z.string().url({ message: 'Please enter a valid URL' }).optional(),
-  description: z.string().optional(),
-  rtp: z.coerce.number().min(80).max(100),
-  volatility: z.string(),
-  minBet: z.coerce.number().min(0.01),
-  maxBet: z.coerce.number().min(1),
-  isPopular: z.boolean().default(false),
-  isNew: z.boolean().default(false),
-  jackpot: z.boolean().default(false),
-});
-
-type GameFormValues = z.infer<typeof gameSchema>;
-
-interface GameFormProps {
-  onSubmit: (gameData: Game | Omit<Game, 'id'>) => void;
+export interface GameFormProps {
+  onSubmit: (gameData: Game | Omit<Game, "id">) => void;
   initialData?: Game;
-  providers?: GameProvider[];
 }
 
-const GameForm = ({ onSubmit, initialData, providers = [] }: GameFormProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
+  const [providers, setProviders] = useState<GameProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+  const { toast } = useToast();
   
-  // Setup form with default values
-  const form = useForm<GameFormValues>({
-    resolver: zodResolver(gameSchema),
-    defaultValues: {
-      title: initialData?.title || '',
-      provider: initialData?.provider && typeof initialData.provider === 'object' 
-        ? initialData.provider.id : typeof initialData?.provider === 'string' 
-        ? initialData.provider : '',
-      category: initialData?.category || 'slots',
-      image: initialData?.image || '',
-      description: initialData?.description || '',
-      rtp: initialData?.rtp || 96,
-      volatility: initialData?.volatility || 'medium',
-      minBet: initialData?.minBet || 0.1,
-      maxBet: initialData?.maxBet || 100,
-      isPopular: initialData?.isPopular || false,
-      isNew: initialData?.isNew || false,
-      jackpot: initialData?.jackpot || false,
-    },
+  // Form state
+  const [formData, setFormData] = useState({
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    provider: typeof initialData?.provider === 'string' 
+      ? initialData?.provider 
+      : initialData?.provider?.name || "",
+    category: initialData?.category || "slots",
+    image: initialData?.image || "",
+    rtp: initialData?.rtp || 96,
+    volatility: initialData?.volatility || "medium",
+    minBet: initialData?.minBet || 0.1,
+    maxBet: initialData?.maxBet || 100,
+    isPopular: initialData?.isPopular || false,
+    isNew: initialData?.isNew || false,
+    jackpot: initialData?.jackpot || false,
   });
   
-  // Update form values when initialData changes
+  // Fetch providers on component mount
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        title: initialData.title || '',
-        provider: initialData.provider && typeof initialData.provider === 'object' 
-          ? initialData.provider.id : typeof initialData.provider === 'string' 
-          ? initialData.provider : '',
-        category: initialData.category || 'slots',
-        image: initialData.image || '',
-        description: initialData.description || '',
-        rtp: initialData.rtp || 96,
-        volatility: initialData.volatility || 'medium',
-        minBet: initialData.minBet || 0.1,
-        maxBet: initialData.maxBet || 100,
-        isPopular: initialData.isPopular || false,
-        isNew: initialData.isNew || false,
-        jackpot: initialData.jackpot || false,
-      });
-    }
-  }, [initialData, form]);
-  
-  const handleSubmit = async (values: GameFormValues) => {
-    setIsSubmitting(true);
-    try {
-      const gameData: Omit<Game, 'id'> = {
-        ...values,
-        isFavorite: false,
-        releaseDate: new Date().toISOString(),
-        tags: []
-      };
-      
-      if (initialData?.id) {
-        onSubmit({
-          ...gameData,
-          id: initialData.id,
+    const fetchProviders = async () => {
+      try {
+        setLoadingProviders(true);
+        const data = await clientGamesApi.getProviders();
+        setProviders(data);
+      } catch (err) {
+        console.error("Error fetching providers:", err);
+        toast({
+          title: "Error",
+          description: "Failed to load game providers.",
+          variant: "destructive",
         });
-      } else {
-        onSubmit(gameData);
+      } finally {
+        setLoadingProviders(false);
       }
-    } finally {
-      setIsSubmitting(false);
-    }
+    };
+    
+    fetchProviders();
+  }, [toast]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
   
-  const categories = [
-    { id: 'slots', name: 'Slots' },
-    { id: 'table', name: 'Table Games' },
-    { id: 'live', name: 'Live Casino' },
-    { id: 'crash', name: 'Crash Games' },
-    { id: 'poker', name: 'Poker' },
-    { id: 'scratch', name: 'Scratch Cards' },
-  ];
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: parseFloat(value) });
+  };
   
-  const volatilityOptions = [
-    { id: 'low', name: 'Low' },
-    { id: 'medium', name: 'Medium' },
-    { id: 'high', name: 'High' },
-  ];
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData({ ...formData, [name]: value });
+  };
   
-  // Default providers if none are provided
-  const defaultProviders = [
-    { id: '1', name: 'Pragmatic Play' },
-    { id: '2', name: 'Evolution Gaming' },
-    { id: '3', name: 'NetEnt' },
-    { id: '4', name: 'Microgaming' },
-    { id: '5', name: 'Play\'n GO' },
-  ];
+  const handleSwitchChange = (name: string, checked: boolean) => {
+    setFormData({ ...formData, [name]: checked });
+  };
   
-  const availableProviders = providers.length > 0 
-    ? providers 
-    : defaultProviders;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Create game object from form data
+    const gameData: Omit<Game, "id"> = {
+      title: formData.title,
+      description: formData.description,
+      provider: formData.provider,
+      category: formData.category,
+      image: formData.image,
+      rtp: formData.rtp,
+      volatility: formData.volatility,
+      minBet: formData.minBet,
+      maxBet: formData.maxBet,
+      isPopular: formData.isPopular,
+      isNew: formData.isNew,
+      jackpot: formData.jackpot,
+      isFavorite: false,
+      releaseDate: new Date().toISOString(),
+      tags: [],
+    };
+    
+    if (initialData) {
+      onSubmit({ ...gameData, id: initialData.id });
+    } else {
+      onSubmit(gameData);
+    }
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Game Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter game title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="provider"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Provider</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value?.toString()}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableProviders.map((provider) => (
-                      <SelectItem 
-                        key={provider.id} 
-                        value={provider.id.toString()}
-                      >
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="title">Game Title</Label>
+          <Input 
+            id="title" 
+            name="title" 
+            value={formData.title} 
+            onChange={handleChange} 
+            placeholder="Enter game title" 
+            required 
           />
         </div>
         
-        <FormField
-          control={form.control}
-          name="image"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter image URL" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Enter game description" 
-                  className="min-h-[100px]" 
-                  {...field} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="rtp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>RTP (%)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="96" 
-                    min="80" 
-                    max="100" 
-                    step="0.01" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="minBet"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Min Bet</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="0.10" 
-                    min="0.01" 
-                    step="0.01" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="maxBet"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Max Bet</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="100" 
-                    min="1" 
-                    step="1" 
-                    {...field} 
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <FormField
-          control={form.control}
-          name="volatility"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Volatility</FormLabel>
-              <Select 
-                onValueChange={field.onChange} 
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select volatility" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {volatilityOptions.map((option) => (
-                    <SelectItem key={option.id} value={option.id}>
-                      {option.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="isPopular"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <FormLabel className="cursor-pointer">Popular Game</FormLabel>
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="isNew"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <FormLabel className="cursor-pointer">New Game</FormLabel>
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="jackpot"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <FormLabel className="cursor-pointer">Has Jackpot</FormLabel>
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button 
-            type="submit" 
-            className="bg-casino-thunder-green text-black" 
-            disabled={isSubmitting}
+        <div className="space-y-2">
+          <Label htmlFor="provider">Provider</Label>
+          <Select 
+            name="provider" 
+            value={formData.provider} 
+            onValueChange={(value) => handleSelectChange("provider", value)}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {initialData ? 'Update Game' : 'Add Game'}
-          </Button>
+            <SelectTrigger>
+              <SelectValue placeholder="Select provider" />
+            </SelectTrigger>
+            <SelectContent>
+              {providers.map((provider) => (
+                <SelectItem key={provider.id} value={provider.name}>
+                  {provider.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </form>
-    </Form>
+        
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <Select 
+            name="category" 
+            value={formData.category} 
+            onValueChange={(value) => handleSelectChange("category", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="slots">Slots</SelectItem>
+              <SelectItem value="table">Table Games</SelectItem>
+              <SelectItem value="live">Live Casino</SelectItem>
+              <SelectItem value="crash">Crash Games</SelectItem>
+              <SelectItem value="fishing">Fishing Games</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="image">Image URL</Label>
+          <Input 
+            id="image" 
+            name="image" 
+            value={formData.image} 
+            onChange={handleChange} 
+            placeholder="Enter image URL" 
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="rtp">RTP (%)</Label>
+          <Input 
+            id="rtp" 
+            name="rtp" 
+            type="number" 
+            min="1" 
+            max="100" 
+            step="0.01" 
+            value={formData.rtp} 
+            onChange={handleNumberChange} 
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="volatility">Volatility</Label>
+          <Select 
+            name="volatility" 
+            value={formData.volatility} 
+            onValueChange={(value) => handleSelectChange("volatility", value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select volatility" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="minBet">Minimum Bet</Label>
+          <Input 
+            id="minBet" 
+            name="minBet" 
+            type="number" 
+            min="0.1" 
+            step="0.1" 
+            value={formData.minBet} 
+            onChange={handleNumberChange} 
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="maxBet">Maximum Bet</Label>
+          <Input 
+            id="maxBet" 
+            name="maxBet" 
+            type="number" 
+            min="1" 
+            value={formData.maxBet} 
+            onChange={handleNumberChange} 
+          />
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea 
+          id="description" 
+          name="description" 
+          value={formData.description} 
+          onChange={handleChange} 
+          placeholder="Enter game description" 
+          rows={4} 
+        />
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id="isPopular" 
+            checked={formData.isPopular} 
+            onCheckedChange={(checked) => handleSwitchChange("isPopular", checked)} 
+          />
+          <Label htmlFor="isPopular">Popular Game</Label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id="isNew" 
+            checked={formData.isNew} 
+            onCheckedChange={(checked) => handleSwitchChange("isNew", checked)} 
+          />
+          <Label htmlFor="isNew">New Game</Label>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id="jackpot" 
+            checked={formData.jackpot} 
+            onCheckedChange={(checked) => handleSwitchChange("jackpot", checked)} 
+          />
+          <Label htmlFor="jackpot">Jackpot Game</Label>
+        </div>
+      </div>
+      
+      <div className="flex justify-end">
+        <Button type="submit">
+          {initialData ? "Update Game" : "Add Game"}
+        </Button>
+      </div>
+    </form>
   );
 };
 

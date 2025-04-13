@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -16,18 +15,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Game } from "@/types";
-import { getGames, gamesApi } from "@/services/apiService";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
 import GameForm from "@/components/admin/GameForm";
 import { v4 as uuidv4 } from 'uuid';
+import { useGames } from "@/hooks/useGames";
 
 const AdminGames = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -36,38 +33,30 @@ const AdminGames = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  // Fetch games on component mount
+  // Use our custom hook
+  const { 
+    games, 
+    loading, 
+    totalGames,
+    addGame,
+    updateGame,
+    deleteGame
+  } = useGames();
+  
+  // Update filtered games when games change
   useEffect(() => {
-    const fetchGames = async () => {
-      setLoading(true);
-      try {
-        const data = await gamesApi.getGames();
-        setGames(data);
-        setFilteredGames(data);
-        toast({
-          title: "Success",
-          description: "Games loaded successfully",
-          variant: "default"
-        });
-      } catch (error) {
-        console.error("Failed to fetch games:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load games. Using fallback data.",
-          variant: "destructive"
-        });
-        // Fallback to mock data if API fails
-        import('@/data/mock-games').then(module => {
-          setGames(module.default);
-          setFilteredGames(module.default);
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchGames();
-  }, [toast]);
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const results = games.filter(game => 
+        game.title.toLowerCase().includes(query) || 
+        (typeof game.provider === 'string' ? game.provider.toLowerCase().includes(query) : game.provider.name.toLowerCase().includes(query)) ||
+        game.id.includes(query)
+      );
+      setFilteredGames(results);
+    } else {
+      setFilteredGames(games);
+    }
+  }, [games, searchQuery]);
   
   // Calculate pagination
   const indexOfLastGame = currentPage * gamesPerPage;
@@ -95,13 +84,17 @@ const AdminGames = () => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
     
-    const results = games.filter(game => 
-      game.title.toLowerCase().includes(query) || 
-      game.provider.toLowerCase().includes(query) ||
-      game.id.includes(query)
-    );
+    if (query) {
+      const results = games.filter(game => 
+        game.title.toLowerCase().includes(query) || 
+        (typeof game.provider === 'string' ? game.provider.toLowerCase().includes(query) : game.provider.name.toLowerCase().includes(query)) ||
+        game.id.includes(query)
+      );
+      setFilteredGames(results);
+    } else {
+      setFilteredGames(games);
+    }
     
-    setFilteredGames(results);
     setCurrentPage(1); // Reset to first page on new search
   };
   
@@ -117,103 +110,29 @@ const AdminGames = () => {
   const handleDeleteGame = async (gameId: string) => {
     if (window.confirm("Are you sure you want to delete this game?")) {
       try {
-        await gamesApi.deleteGame(gameId);
-        toast({
-          title: "Success",
-          description: "Game deleted successfully",
-          variant: "default"
-        });
-        // Refresh the game list
-        const updatedGames = await gamesApi.getGames();
-        setGames(updatedGames);
-        setFilteredGames(updatedGames);
+        await deleteGame(gameId);
         setSelectedRows(selectedRows.filter(id => id !== gameId));
       } catch (error) {
         console.error("Failed to delete game:", error);
-        toast({
-          title: "Error",
-          description: "Failed to delete game",
-          variant: "destructive"
-        });
-        // Fallback: Remove from local state only
-        const updatedGames = games.filter(game => game.id !== gameId);
-        setGames(updatedGames);
-        setFilteredGames(updatedGames);
-        setSelectedRows(selectedRows.filter(id => id !== gameId));
       }
     }
   };
   
   const handleAddGame = async (gameData: Omit<Game, 'id'>) => {
     try {
-      // Create a complete game object with a new UUID
-      const newGame: Game = {
-        ...gameData,
-        id: uuidv4(),
-      };
-      
-      await gamesApi.addGame(newGame);
+      await addGame(gameData);
       setIsAddDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Game added successfully",
-        variant: "default"
-      });
-      
-      // Refresh the game list
-      const updatedGames = await gamesApi.getGames();
-      setGames(updatedGames);
-      setFilteredGames(updatedGames);
     } catch (error) {
       console.error("Failed to add game:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add game",
-        variant: "destructive"
-      });
-      
-      // Fallback: Add to local state only
-      const newGame: Game = {
-        ...gameData,
-        id: uuidv4(),
-      };
-      
-      const updatedGames = [...games, newGame];
-      setGames(updatedGames);
-      setFilteredGames(updatedGames);
-      setIsAddDialogOpen(false);
     }
   };
   
   const handleUpdateGame = async (gameData: Game) => {
     try {
-      await gamesApi.updateGame(gameData);
+      await updateGame(gameData);
       setIsEditDialogOpen(false);
-      toast({
-        title: "Success",
-        description: "Game updated successfully",
-        variant: "default"
-      });
-      
-      // Refresh the game list
-      const updatedGames = await gamesApi.getGames();
-      setGames(updatedGames);
-      setFilteredGames(updatedGames);
     } catch (error) {
       console.error("Failed to update game:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update game",
-        variant: "destructive"
-      });
-      
-      // Fallback: Update in local state only
-      const updatedGames = games.map(game => 
-        game.id === gameData.id ? gameData : game
-      );
-      setGames(updatedGames);
-      setFilteredGames(updatedGames);
-      setIsEditDialogOpen(false);
     }
   };
 
@@ -365,7 +284,9 @@ const AdminGames = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{game.provider}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      {typeof game.provider === 'string' ? game.provider : game.provider.name}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">{game.category}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp}%</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -503,6 +424,22 @@ const AdminGames = () => {
         </div>
       </div>
       
+      {/* Add Game Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogTrigger asChild>
+          <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Game
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Game</DialogTitle>
+          </DialogHeader>
+          <GameForm onSubmit={handleAddGame} />
+        </DialogContent>
+      </Dialog>
+      
       {/* Edit Game Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
@@ -512,7 +449,7 @@ const AdminGames = () => {
           {selectedGame && (
             <GameForm 
               onSubmit={handleUpdateGame} 
-              initialValues={selectedGame}
+              initialData={selectedGame}
             />
           )}
         </DialogContent>

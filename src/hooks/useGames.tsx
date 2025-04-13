@@ -2,9 +2,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame } from "@/types";
-import { gamesApi } from "@/services/gamesService";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI } from "@/utils/gameAdapter";
+import { clientGamesApi } from "@/services/mockGamesService";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -19,7 +19,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
     try {
       setLoading(true);
-      const response = await gamesApi.getGames(queryParams);
+      const response = await clientGamesApi.getGames(queryParams);
       
       // Convert API game format to UI game format
       const adaptedGames = adaptGamesForUI(response.data);
@@ -42,7 +42,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   const fetchProviders = useCallback(async () => {
     try {
       setLoadingProviders(true);
-      const data = await gamesApi.getProviders();
+      const data = await clientGamesApi.getProviders();
       setProviders(data);
     } catch (err) {
       console.error("Error fetching providers:", err);
@@ -68,7 +68,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       // Convert UI game to API game format before adding
       const apiGame = {
-        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider.id.toString()),
+        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider?.id?.toString() || '1'),
         game_id: Date.now().toString(),
         game_name: game.title || '',
         game_code: Date.now().toString(),
@@ -83,13 +83,13 @@ export const useGames = (initialParams: GameListParams = {}) => {
         has_tables: game.category === 'table',
         only_demo: false,
         rtp: game.rtp || 96,
-        distribution: typeof game.provider === 'string' ? game.provider : game.provider.name,
+        distribution: typeof game.provider === 'string' ? game.provider : game.provider?.name || '',
         views: 0,
         is_featured: game.isPopular || false,
         show_home: game.isNew || false,
       };
       
-      const newGame = await gamesApi.addGame(apiGame);
+      const newGame = await clientGamesApi.addGame(apiGame);
       const adaptedGame = adaptGamesForUI([newGame])[0];
       
       setGames(prev => [adaptedGame, ...prev]);
@@ -114,7 +114,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
       // Convert UI game to API game format before updating
       const apiGame = {
         id: typeof game.id === 'string' ? parseInt(game.id) : game.id,
-        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider.id.toString()),
+        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider?.id?.toString() || '1'),
         game_id: game.id.toString(),
         game_name: game.title,
         game_code: game.id.toString().replace(/\D/g, ''),
@@ -129,13 +129,13 @@ export const useGames = (initialParams: GameListParams = {}) => {
         has_tables: game.category === 'table',
         only_demo: false,
         rtp: game.rtp,
-        distribution: typeof game.provider === 'string' ? game.provider : game.provider.name,
+        distribution: typeof game.provider === 'string' ? game.provider : game.provider?.name || '',
         views: 0,
         is_featured: game.isPopular,
         show_home: game.isNew,
       };
       
-      const updatedGame = await gamesApi.updateGame(apiGame);
+      const updatedGame = await clientGamesApi.updateGame(apiGame);
       const adaptedGame = adaptGamesForUI([updatedGame])[0];
       
       setGames(prev => prev.map(g => g.id === game.id ? adaptedGame : g));
@@ -157,7 +157,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   
   const deleteGame = async (id: string | number) => {
     try {
-      await gamesApi.deleteGame(id);
+      await clientGamesApi.deleteGame(id);
       setGames(prev => prev.filter(g => g.id !== id.toString()));
       toast({
         title: "Success",
@@ -177,7 +177,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   const toggleGameFeature = async (id: string | number, feature: 'is_featured' | 'show_home', value: boolean) => {
     try {
       const numericId = typeof id === 'string' ? parseInt(id) : id;
-      const updatedGame = await gamesApi.toggleGameFeature(numericId, feature, value);
+      const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
       const adaptedGame = adaptGamesForUI([updatedGame])[0];
       
       setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
