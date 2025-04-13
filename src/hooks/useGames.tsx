@@ -1,11 +1,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
+import { Game as UIGame } from "@/types";
 import { gamesApi } from "@/services/gamesService";
 import { useToast } from "@/components/ui/use-toast";
+import { adaptGamesForUI, adaptProvidersForUI } from "@/utils/gameAdapter";
 
 export const useGames = (initialParams: GameListParams = {}) => {
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<UIGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [params, setParams] = useState<GameListParams>(initialParams);
@@ -18,7 +20,10 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       setLoading(true);
       const response = await gamesApi.getGames(queryParams);
-      setGames(response.data);
+      
+      // Convert API game format to UI game format
+      const adaptedGames = adaptGamesForUI(response.data);
+      setGames(adaptedGames);
       setTotalGames(response.total);
       setError(null);
     } catch (err) {
@@ -59,15 +64,40 @@ export const useGames = (initialParams: GameListParams = {}) => {
     });
   }, [fetchGames]);
   
-  const addGame = async (game: Omit<Game, 'id'>) => {
+  const addGame = async (game: Omit<UIGame, 'id'> | Partial<UIGame>) => {
     try {
-      const newGame = await gamesApi.addGame(game);
-      setGames(prev => [newGame, ...prev]);
+      // Convert UI game to API game format before adding
+      const apiGame = {
+        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider.id.toString()),
+        game_id: Date.now().toString(),
+        game_name: game.title || '',
+        game_code: Date.now().toString(),
+        game_type: game.category || 'slots',
+        description: game.description || '',
+        cover: game.image || '',
+        status: 'active',
+        technology: 'HTML5',
+        has_lobby: false,
+        is_mobile: true,
+        has_freespins: game.category === 'slots',
+        has_tables: game.category === 'table',
+        only_demo: false,
+        rtp: game.rtp || 96,
+        distribution: typeof game.provider === 'string' ? game.provider : game.provider.name,
+        views: 0,
+        is_featured: game.isPopular || false,
+        show_home: game.isNew || false,
+      };
+      
+      const newGame = await gamesApi.addGame(apiGame);
+      const adaptedGame = adaptGamesForUI([newGame])[0];
+      
+      setGames(prev => [adaptedGame, ...prev]);
       toast({
         title: "Success",
         description: "Game added successfully",
       });
-      return newGame;
+      return adaptedGame;
     } catch (err) {
       console.error("Error adding game:", err);
       toast({
@@ -79,15 +109,41 @@ export const useGames = (initialParams: GameListParams = {}) => {
     }
   };
   
-  const updateGame = async (game: Game) => {
+  const updateGame = async (game: UIGame) => {
     try {
-      const updatedGame = await gamesApi.updateGame(game);
-      setGames(prev => prev.map(g => g.id === game.id ? updatedGame : g));
+      // Convert UI game to API game format before updating
+      const apiGame = {
+        id: typeof game.id === 'string' ? parseInt(game.id) : game.id,
+        provider_id: typeof game.provider === 'string' ? 1 : parseInt(game.provider.id.toString()),
+        game_id: game.id.toString(),
+        game_name: game.title,
+        game_code: game.id.toString().replace(/\D/g, ''),
+        game_type: game.category,
+        description: game.description || '',
+        cover: game.image || '',
+        status: 'active',
+        technology: 'HTML5',
+        has_lobby: false,
+        is_mobile: true,
+        has_freespins: game.category === 'slots',
+        has_tables: game.category === 'table',
+        only_demo: false,
+        rtp: game.rtp,
+        distribution: typeof game.provider === 'string' ? game.provider : game.provider.name,
+        views: 0,
+        is_featured: game.isPopular,
+        show_home: game.isNew,
+      };
+      
+      const updatedGame = await gamesApi.updateGame(apiGame);
+      const adaptedGame = adaptGamesForUI([updatedGame])[0];
+      
+      setGames(prev => prev.map(g => g.id === game.id ? adaptedGame : g));
       toast({
         title: "Success",
         description: "Game updated successfully",
       });
-      return updatedGame;
+      return adaptedGame;
     } catch (err) {
       console.error("Error updating game:", err);
       toast({
@@ -99,10 +155,10 @@ export const useGames = (initialParams: GameListParams = {}) => {
     }
   };
   
-  const deleteGame = async (id: number) => {
+  const deleteGame = async (id: string | number) => {
     try {
       await gamesApi.deleteGame(id);
-      setGames(prev => prev.filter(g => g.id !== id));
+      setGames(prev => prev.filter(g => g.id !== id.toString()));
       toast({
         title: "Success",
         description: "Game deleted successfully",
@@ -118,15 +174,18 @@ export const useGames = (initialParams: GameListParams = {}) => {
     }
   };
   
-  const toggleGameFeature = async (id: number, feature: 'is_featured' | 'show_home', value: boolean) => {
+  const toggleGameFeature = async (id: string | number, feature: 'is_featured' | 'show_home', value: boolean) => {
     try {
-      const updatedGame = await gamesApi.toggleGameFeature(id, feature, value);
-      setGames(prev => prev.map(g => g.id === id ? updatedGame : g));
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
+      const updatedGame = await gamesApi.toggleGameFeature(numericId, feature, value);
+      const adaptedGame = adaptGamesForUI([updatedGame])[0];
+      
+      setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
       toast({
         title: "Success",
         description: `Game ${feature === 'is_featured' ? 'featured status' : 'home visibility'} updated`,
       });
-      return updatedGame;
+      return adaptedGame;
     } catch (err) {
       console.error(`Error toggling ${feature} for game:`, err);
       toast({

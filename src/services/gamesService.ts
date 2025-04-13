@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { Game, GameListParams, GameResponse, GameProvider } from '@/types/game';
 import { query, transaction, mockQuery } from './databaseService';
@@ -195,7 +194,7 @@ export const gamesDbService = {
     // Count total records for pagination
     const countSql = sql.replace('SELECT g.*, p.name as provider_name, p.logo as provider_logo', 'SELECT COUNT(*) as total');
     const countResult = await query(countSql, sqlParams) as any[];
-    const total = countResult[0]?.total || 0;
+    const total = countResult && countResult.length > 0 ? countResult[0]?.total || 0 : 0;
 
     // Pagination
     const page = params.page || 1;

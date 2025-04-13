@@ -1,335 +1,401 @@
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Game, GameProvider } from "@/types/game";
+import React, { useState, useEffect } from 'react';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Game, GameProvider } from '@/types';
+import { Loader2 } from 'lucide-react';
+
+// Define schema for game form
+const gameSchema = z.object({
+  title: z.string().min(3, { message: 'Game title must be at least 3 characters' }),
+  provider: z.string().min(1, { message: 'Provider is required' }),
+  category: z.string().min(1, { message: 'Category is required' }),
+  image: z.string().url({ message: 'Please enter a valid URL' }).optional(),
+  description: z.string().optional(),
+  rtp: z.coerce.number().min(80).max(100),
+  volatility: z.string(),
+  minBet: z.coerce.number().min(0.01),
+  maxBet: z.coerce.number().min(1),
+  isPopular: z.boolean().default(false),
+  isNew: z.boolean().default(false),
+  jackpot: z.boolean().default(false),
+});
+
+type GameFormValues = z.infer<typeof gameSchema>;
 
 interface GameFormProps {
   onSubmit: (gameData: Game | Omit<Game, 'id'>) => void;
-  initialValues?: Game;
+  initialData?: Game;
   providers?: GameProvider[];
 }
 
-const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers = [] }) => {
-  const [formData, setFormData] = useState({
-    id: initialValues?.id,
-    provider_id: initialValues?.provider_id || providers[0]?.id || 1,
-    game_server_url: initialValues?.game_server_url || "",
-    game_id: initialValues?.game_id || "",
-    game_name: initialValues?.game_name || "",
-    game_code: initialValues?.game_code || "",
-    game_type: initialValues?.game_type || "slots",
-    description: initialValues?.description || "",
-    cover: initialValues?.cover || "",
-    status: initialValues?.status || "active",
-    technology: initialValues?.technology || "HTML5",
-    has_lobby: initialValues?.has_lobby || false,
-    is_mobile: initialValues?.is_mobile || true,
-    has_freespins: initialValues?.has_freespins || false,
-    has_tables: initialValues?.has_tables || false,
-    only_demo: initialValues?.only_demo || false,
-    rtp: initialValues?.rtp || 96,
-    distribution: initialValues?.distribution || (providers[0]?.name || ""),
-    views: initialValues?.views || 0,
-    is_featured: initialValues?.is_featured || false,
-    show_home: initialValues?.show_home || false
+const GameForm = ({ onSubmit, initialData, providers = [] }: GameFormProps) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Setup form with default values
+  const form = useForm<GameFormValues>({
+    resolver: zodResolver(gameSchema),
+    defaultValues: {
+      title: initialData?.title || '',
+      provider: initialData?.provider && typeof initialData.provider === 'object' 
+        ? initialData.provider.id : typeof initialData?.provider === 'string' 
+        ? initialData.provider : '',
+      category: initialData?.category || 'slots',
+      image: initialData?.image || '',
+      description: initialData?.description || '',
+      rtp: initialData?.rtp || 96,
+      volatility: initialData?.volatility || 'medium',
+      minBet: initialData?.minBet || 0.1,
+      maxBet: initialData?.maxBet || 100,
+      isPopular: initialData?.isPopular || false,
+      isNew: initialData?.isNew || false,
+      jackpot: initialData?.jackpot || false,
+    },
   });
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target;
-    
-    if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: parseFloat(value)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
+  
+  // Update form values when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        title: initialData.title || '',
+        provider: initialData.provider && typeof initialData.provider === 'object' 
+          ? initialData.provider.id : typeof initialData.provider === 'string' 
+          ? initialData.provider : '',
+        category: initialData.category || 'slots',
+        image: initialData.image || '',
+        description: initialData.description || '',
+        rtp: initialData.rtp || 96,
+        volatility: initialData.volatility || 'medium',
+        minBet: initialData.minBet || 0.1,
+        maxBet: initialData.maxBet || 100,
+        isPopular: initialData.isPopular || false,
+        isNew: initialData.isNew || false,
+        jackpot: initialData.jackpot || false,
       });
     }
-  };
-
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData({
-      ...formData,
-      [name]: checked
-    });
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData({
-      ...formData,
-      [name]: name === 'provider_id' ? parseInt(value) : value
-    });
-    
-    // If provider changes, update distribution too
-    if (name === 'provider_id') {
-      const provider = providers.find(p => p.id === parseInt(value));
-      if (provider) {
-        setFormData(prev => ({
-          ...prev,
-          provider_id: parseInt(value),
-          distribution: provider.name
-        }));
+  }, [initialData, form]);
+  
+  const handleSubmit = async (values: GameFormValues) => {
+    setIsSubmitting(true);
+    try {
+      const gameData: Omit<Game, 'id'> = {
+        ...values,
+        isFavorite: false,
+        releaseDate: new Date().toISOString(),
+        tags: []
+      };
+      
+      if (initialData?.id) {
+        onSubmit({
+          ...gameData,
+          id: initialData.id,
+        });
+      } else {
+        onSubmit(gameData);
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+  
+  const categories = [
+    { id: 'slots', name: 'Slots' },
+    { id: 'table', name: 'Table Games' },
+    { id: 'live', name: 'Live Casino' },
+    { id: 'crash', name: 'Crash Games' },
+    { id: 'poker', name: 'Poker' },
+    { id: 'scratch', name: 'Scratch Cards' },
+  ];
+  
+  const volatilityOptions = [
+    { id: 'low', name: 'Low' },
+    { id: 'medium', name: 'Medium' },
+    { id: 'high', name: 'High' },
+  ];
+  
+  // Default providers if none are provided
+  const defaultProviders = [
+    { id: '1', name: 'Pragmatic Play' },
+    { id: '2', name: 'Evolution Gaming' },
+    { id: '3', name: 'NetEnt' },
+    { id: '4', name: 'Microgaming' },
+    { id: '5', name: 'Play\'n GO' },
+  ];
+  
+  const availableProviders = providers.length > 0 
+    ? providers 
+    : defaultProviders;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="game_name">Game Name</Label>
-          <Input
-            id="game_name"
-            name="game_name"
-            value={formData.game_name}
-            onChange={handleChange}
-            className="thunder-input"
-            required
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Game Title</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter game title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="provider"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Provider</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableProviders.map((provider) => (
+                      <SelectItem 
+                        key={provider.id} 
+                        value={provider.id.toString()}
+                      >
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="category"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Category</FormLabel>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
         
-        <div>
-          <Label htmlFor="provider_id">Provider</Label>
-          <Select
-            value={formData.provider_id.toString()}
-            onValueChange={(value) => handleSelectChange("provider_id", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              {providers.map((provider) => (
-                <SelectItem key={provider.id} value={provider.id.toString()}>
-                  {provider.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <FormField
+          control={form.control}
+          name="image"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Image URL</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter image URL" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-        <div>
-          <Label htmlFor="game_id">Game ID</Label>
-          <Input
-            id="game_id"
-            name="game_id"
-            value={formData.game_id}
-            onChange={handleChange}
-            className="thunder-input"
-            required
-          />
-        </div>
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Enter game description" 
+                  className="min-h-[100px]" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-        <div>
-          <Label htmlFor="game_code">Game Code</Label>
-          <Input
-            id="game_code"
-            name="game_code"
-            value={formData.game_code}
-            onChange={handleChange}
-            className="thunder-input"
-            required
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="game_type">Game Type</Label>
-          <Select
-            value={formData.game_type}
-            onValueChange={(value) => handleSelectChange("game_type", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select game type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="slots">Slots</SelectItem>
-              <SelectItem value="table">Table Games</SelectItem>
-              <SelectItem value="live">Live Casino</SelectItem>
-              <SelectItem value="jackpot">Jackpot</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label htmlFor="rtp">RTP (%)</Label>
-          <Input
-            id="rtp"
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
             name="rtp"
-            type="number"
-            value={formData.rtp}
-            onChange={handleChange}
-            className="thunder-input"
-            min="1"
-            max="100"
-            step="0.01"
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>RTP (%)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    placeholder="96" 
+                    min="80" 
+                    max="100" 
+                    step="0.01" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="minBet"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Min Bet</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    placeholder="0.10" 
+                    min="0.01" 
+                    step="0.01" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="maxBet"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Max Bet</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    placeholder="100" 
+                    min="1" 
+                    step="1" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
         
-        <div>
-          <Label htmlFor="technology">Technology</Label>
-          <Select
-            value={formData.technology}
-            onValueChange={(value) => handleSelectChange("technology", value)}
+        <FormField
+          control={form.control}
+          name="volatility"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Volatility</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select volatility" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {volatilityOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="isPopular"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="cursor-pointer">Popular Game</FormLabel>
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="isNew"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="cursor-pointer">New Game</FormLabel>
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="jackpot"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel className="cursor-pointer">Has Jackpot</FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button 
+            type="submit" 
+            className="bg-casino-thunder-green text-black" 
+            disabled={isSubmitting}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Select technology" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="HTML5">HTML5</SelectItem>
-              <SelectItem value="Flash">Flash</SelectItem>
-              <SelectItem value="Native">Native</SelectItem>
-              <SelectItem value="Other">Other</SelectItem>
-            </SelectContent>
-          </Select>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {initialData ? 'Update Game' : 'Add Game'}
+          </Button>
         </div>
-        
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Select
-            value={formData.status}
-            onValueChange={(value) => handleSelectChange("status", value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label htmlFor="cover">Cover Image URL</Label>
-          <Input
-            id="cover"
-            name="cover"
-            value={formData.cover}
-            onChange={handleChange}
-            className="thunder-input"
-          />
-        </div>
-        
-        <div>
-          <Label htmlFor="game_server_url">Game Server URL</Label>
-          <Input
-            id="game_server_url"
-            name="game_server_url"
-            value={formData.game_server_url}
-            onChange={handleChange}
-            className="thunder-input"
-          />
-        </div>
-        
-        <div className="md:col-span-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            className="thunder-input min-h-[100px]"
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="has_lobby"
-            checked={formData.has_lobby}
-            onCheckedChange={(checked) => handleSwitchChange("has_lobby", checked)}
-          />
-          <Label htmlFor="has_lobby">Has Lobby</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="is_mobile"
-            checked={formData.is_mobile}
-            onCheckedChange={(checked) => handleSwitchChange("is_mobile", checked)}
-          />
-          <Label htmlFor="is_mobile">Mobile Compatible</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="has_freespins"
-            checked={formData.has_freespins}
-            onCheckedChange={(checked) => handleSwitchChange("has_freespins", checked)}
-          />
-          <Label htmlFor="has_freespins">Has Free Spins</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="has_tables"
-            checked={formData.has_tables}
-            onCheckedChange={(checked) => handleSwitchChange("has_tables", checked)}
-          />
-          <Label htmlFor="has_tables">Has Tables</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="only_demo"
-            checked={formData.only_demo}
-            onCheckedChange={(checked) => handleSwitchChange("only_demo", checked)}
-          />
-          <Label htmlFor="only_demo">Demo Only</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="is_featured"
-            checked={formData.is_featured}
-            onCheckedChange={(checked) => handleSwitchChange("is_featured", checked)}
-          />
-          <Label htmlFor="is_featured">Featured Game</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="show_home"
-            checked={formData.show_home}
-            onCheckedChange={(checked) => handleSwitchChange("show_home", checked)}
-          />
-          <Label htmlFor="show_home">Show on Home</Label>
-        </div>
-      </div>
-      
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-white"
-        >
-          {initialValues ? "Update Game" : "Add Game"}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 };
 
