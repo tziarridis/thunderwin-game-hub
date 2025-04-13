@@ -32,9 +32,17 @@
   * {
     @apply border-border;
   }
+  
+  html, body {
+    @apply bg-casino-thunder-dark text-foreground min-h-screen;
+  }
+  
   body {
-    @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  #root {
+    @apply min-h-screen bg-casino-thunder-darker;
   }
 }
 
