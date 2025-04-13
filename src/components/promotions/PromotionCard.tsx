@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar, Edit, Trash, Power, UserPlus } from "lucide-react";
@@ -51,21 +50,7 @@ const PromotionCard = ({
     }
     
     // Call the original onClick handler if user is authenticated
-    if (onClick) {
-      onClick();
-    } else {
-      // Default to navigating to promotions page if no onClick provided
-      navigate('/bonuses');
-    }
-  };
-
-  const handleViewDetails = () => {
-    if (onClick) {
-      onClick();
-    } else {
-      // Default to navigating to promotions page if no onClick provided
-      navigate('/promotions');
-    }
+    if (onClick) onClick();
   };
 
   return (
@@ -144,7 +129,7 @@ const PromotionCard = ({
                 variant="link" 
                 className="text-white/70 hover:text-casino-thunder-green"
                 size="sm"
-                onClick={handleViewDetails}
+                onClick={onClick}
               >
                 View Details
               </Button>

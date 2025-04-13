@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PromotionCard from "./PromotionCard";
 import { Promotion } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -37,13 +38,7 @@ const PromotionSlider = () => {
       return;
     }
     
-    // Make sure this route exists in App.tsx
     navigate('/bonuses');
-  };
-
-  const handleTermsClick = () => {
-    // Make sure this route exists in App.tsx
-    navigate('/legal/terms');
   };
 
   if (promotions.length === 0) {
@@ -85,10 +80,7 @@ const PromotionSlider = () => {
                           "Claim Now"
                         )}
                       </Button>
-                      <Button 
-                        variant="outline"
-                        onClick={handleTermsClick}
-                      >
+                      <Button variant="outline">
                         Terms & Conditions
                       </Button>
                     </div>

@@ -1,136 +1,193 @@
 
-import { useEffect, useState } from 'react';
-import { pragmaticPlayService, PPWalletCallback } from '@/services/pragmaticPlayService';
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { pragmaticPlayService } from "@/services/pragmaticPlayService";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
- * Seamless Wallet Integration Component
- * This component handles incoming wallet callback requests from game providers
+ * This component demonstrates how a seamless wallet integration works with Pragmatic Play.
+ * In a real implementation, this would be a server-side endpoint.
  */
 const Seamless = () => {
-  const [lastCallback, setLastCallback] = useState<PPWalletCallback | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [response, setResponse] = useState<{errorcode: string, balance: number} | null>(null);
-  const { updateUserBalance } = useAuth();
-
+  const [logs, setLogs] = useState<string[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("logs");
+  
   useEffect(() => {
-    // In a real implementation, this would be a server-side endpoint
-    // For demo purposes, we'll parse the query params
-    const parseCallbackFromUrl = async () => {
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // Check if this is a wallet callback
-        if (urlParams.has('agentid') && urlParams.has('playerid') && urlParams.has('type')) {
-          // Parse the callback parameters
-          const callback: PPWalletCallback = {
-            agentid: urlParams.get('agentid') || '',
-            playerid: urlParams.get('playerid') || '',
-            amount: parseFloat(urlParams.get('amount') || '0'),
-            type: (urlParams.get('type') as 'debit' | 'credit' | 'rollback') || 'debit',
-            trxid: urlParams.get('trxid') || '',
-            roundid: urlParams.get('roundid') || '',
-            gameref: urlParams.get('gameref') || undefined,
-            gameid: urlParams.get('gameid') || undefined,
-            metadata: urlParams.get('metadata') || undefined
-          };
-          
-          setLastCallback(callback);
-          
-          // Process the callback
-          const result = await pragmaticPlayService.processWalletCallback(callback);
-          setResponse(result);
-          
-          // Update the user's balance in our Auth context
-          if (callback.type === 'credit') {
-            // Player won money
-            updateUserBalance(callback.amount);
-          } else if (callback.type === 'debit') {
-            // Player bet money (negative amount)
-            updateUserBalance(-callback.amount);
-          }
-          
-          toast.success(`Processed ${callback.type} transaction: ${callback.amount} EUR`);
-        } else {
-          toast.info('No wallet callback parameters found in URL');
-        }
-      } catch (error) {
-        console.error('Error processing callback:', error);
-        toast.error('Failed to process callback');
-      } finally {
-        setLoading(false);
-      }
-    };
+    // This is purely for demonstration purposes
+    setLogs([
+      "Seamless wallet integration endpoint for Pragmatic Play",
+      "In a real implementation, this would be a server-side API endpoint",
+      "PP will send POST requests to this endpoint to debit/credit player wallets",
+      "",
+      "Example request from PP:",
+      JSON.stringify({
+        agentid: "captaingambleEUR",
+        playerid: "player123",
+        amount: 5.00,
+        type: "debit",
+        trxid: "trx_123456",
+        roundid: "round_789012"
+      }, null, 2),
+      "",
+      "Example response:",
+      JSON.stringify({
+        errorcode: "0",
+        balance: 95.00
+      }, null, 2)
+    ]);
     
-    parseCallbackFromUrl();
-  }, [updateUserBalance]);
+    // Mock transactions for demonstration
+    setTransactions([
+      {
+        id: "trx_123456",
+        playerId: "player123",
+        type: "debit",
+        amount: 5.00,
+        gameId: "vs20bonzanza",
+        roundId: "round_789012",
+        status: "completed",
+        timestamp: new Date().toISOString()
+      },
+      {
+        id: "trx_123457",
+        playerId: "player123",
+        type: "credit",
+        amount: 10.50,
+        gameId: "vs20doghouse",
+        roundId: "round_789013",
+        status: "completed",
+        timestamp: new Date(Date.now() - 300000).toISOString()
+      },
+      {
+        id: "trx_123458",
+        playerId: "player456",
+        type: "debit",
+        amount: 25.00,
+        gameId: "vs10wolfgold",
+        roundId: "round_789014",
+        status: "completed",
+        timestamp: new Date(Date.now() - 600000).toISOString()
+      }
+    ]);
+  }, []);
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto px-4 py-12 pt-24">
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
-          <CardTitle>Seamless Wallet Integration</CardTitle>
+          <CardTitle>Pragmatic Play Seamless Wallet Integration</CardTitle>
           <CardDescription>
-            This page handles wallet callbacks from game providers
+            This page demonstrates how the seamless wallet integration with Pragmatic Play works.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin h-8 w-8 border-4 border-casino-thunder-green border-t-transparent rounded-full mx-auto"></div>
-              <p className="mt-4">Processing callback...</p>
-            </div>
-          ) : lastCallback ? (
-            <>
-              <div className="bg-slate-800 p-4 rounded-md">
-                <h3 className="text-lg font-medium mb-2">Callback Request</h3>
-                <pre className="text-xs overflow-auto p-2 bg-slate-950 rounded">
-                  {JSON.stringify(lastCallback, null, 2)}
+        <CardContent>
+          <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              <TabsTrigger value="logs">API Logs</TabsTrigger>
+              <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="docs">Documentation</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="logs">
+              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
+                <h3 className="font-mono text-sm text-white mb-2">API Logs</h3>
+                <pre className="text-white font-mono text-xs whitespace-pre-wrap overflow-auto max-h-80">
+                  {logs.join('\n')}
                 </pre>
               </div>
-              
-              {response && (
-                <div className="bg-slate-800 p-4 rounded-md">
-                  <h3 className="text-lg font-medium mb-2">Response</h3>
-                  <pre className="text-xs overflow-auto p-2 bg-slate-950 rounded">
-                    {JSON.stringify(response, null, 2)}
-                  </pre>
+            </TabsContent>
+            
+            <TabsContent value="transactions">
+              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
+                <h3 className="font-mono text-sm text-white mb-2">Recent Transactions</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800">
+                        <th className="text-left p-2">Transaction ID</th>
+                        <th className="text-left p-2">Player</th>
+                        <th className="text-left p-2">Type</th>
+                        <th className="text-left p-2">Amount</th>
+                        <th className="text-left p-2">Game</th>
+                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Timestamp</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.map(transaction => (
+                        <tr key={transaction.id} className="border-b border-slate-800">
+                          <td className="p-2 font-mono text-xs">{transaction.id}</td>
+                          <td className="p-2">{transaction.playerId}</td>
+                          <td className="p-2">
+                            <Badge className={transaction.type === 'debit' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}>
+                              {transaction.type}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{transaction.amount.toFixed(2)} EUR</td>
+                          <td className="p-2">{transaction.gameId}</td>
+                          <td className="p-2">
+                            <Badge className="bg-blue-500/20 text-blue-400">
+                              {transaction.status}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{new Date(transaction.timestamp).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-              
-              <div className="bg-green-900/20 border border-green-800 p-4 rounded-md">
-                <h3 className="text-lg font-medium mb-2">Wallet Transaction Processed</h3>
-                <p>
-                  {lastCallback.type === 'debit' && `Bet of ${lastCallback.amount} EUR processed.`}
-                  {lastCallback.type === 'credit' && `Win of ${lastCallback.amount} EUR processed.`}
-                  {lastCallback.type === 'rollback' && `Rollback of transaction ${lastCallback.trxid} processed.`}
-                </p>
-                <p className="mt-2">
-                  New Balance: {response?.balance || 0} EUR
-                </p>
               </div>
-            </>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-400">No callback data received</p>
-              <p className="text-sm mt-2 text-gray-500">
-                This page is meant to be called by the game provider API
-              </p>
-            </div>
-          )}
-          
-          <div className="mt-8 p-4 bg-slate-800 rounded-md">
-            <h3 className="text-lg font-medium mb-2">How Seamless Integration Works</h3>
-            <ol className="list-decimal list-inside space-y-2 text-sm">
-              <li>Game provider sends wallet requests to this endpoint</li>
-              <li>We validate the request signature and parameters</li>
-              <li>We process the transaction (bet, win, or rollback)</li>
-              <li>We respond with the new balance and success status</li>
-              <li>The game continues with the updated balance</li>
-            </ol>
-          </div>
+            </TabsContent>
+            
+            <TabsContent value="docs">
+              <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
+                <h3 className="font-mono text-sm text-white mb-2">Integration Documentation</h3>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h4 className="font-semibold mb-1">Endpoint</h4>
+                    <p className="font-mono bg-slate-900 p-2 rounded">https://yoursite.com/casino/seamless</p>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-1">Request Format</h4>
+                    <pre className="bg-slate-900 p-2 rounded font-mono text-xs">
+{`{
+  "agentid": "captaingambleEUR",
+  "playerid": "string",
+  "amount": number,
+  "type": "debit" | "credit",
+  "trxid": "string",
+  "roundid": "string",
+  "gameref": "string"
+}`}
+                    </pre>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-1">Response Format</h4>
+                    <pre className="bg-slate-900 p-2 rounded font-mono text-xs">
+{`{
+  "errorcode": "0" | "1" | "2" | "3",
+  "balance": number
+}`}
+                    </pre>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold mb-1">Error Codes</h4>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li><span className="font-mono">0</span> - Success</li>
+                      <li><span className="font-mono">1</span> - General Error</li>
+                      <li><span className="font-mono">2</span> - Invalid Transaction</li>
+                      <li><span className="font-mono">3</span> - Insufficient Balance</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

@@ -1,253 +1,266 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { toast } from "@/components/ui/use-toast";
 
-// Define types
-type User = {
+interface User {
   id: string;
   username: string;
   email: string;
   isAdmin: boolean;
-  balance: number;
-  currency: string;
-  avatarUrl?: string;
   name?: string;
-  vipLevel?: number;
-  isVerified?: boolean;
-};
+  avatarUrl?: string;
+  balance: number;
+  vipLevel: number;
+  isVerified: boolean;
+}
 
-type AuthContextType = {
-  isAuthenticated: boolean;
+interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  isAdmin?: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (username: string, email: string, password: string) => Promise<boolean>;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  adminLogin: (username: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => void;
-  updateUserBalance: (amount: number) => void;
-  adminLogin: (username: string, password: string) => Promise<boolean>;
-  deposit?: (amount: number) => void;
-  updateBalance?: (amount: number) => void;
-};
+  deposit: (amount: number) => Promise<void>;
+  updateBalance: (newBalance: number) => void;
+}
 
-// Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Sample admin user for development
-const adminUser: User = {
-  id: '1',
-  username: 'admin',
-  email: 'admin@example.com',
-  isAdmin: true,
-  balance: 1000,
-  currency: 'EUR',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=admin',
-  name: 'Admin User',
-  vipLevel: 5,
-  isVerified: true
-};
-
-// Sample regular user for development
-const regularUser: User = {
-  id: '2',
-  username: 'player1',
-  email: 'player@example.com',
-  isAdmin: false,
-  balance: 500,
-  currency: 'EUR',
-  avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=player',
-  name: 'Player One',
-  vipLevel: 2,
-  isVerified: false
-};
-
-// Provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  // Check if user is already logged in (from localStorage)
+  
   useEffect(() => {
-    const checkAuth = () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error('Failed to parse stored user:', error);
-          localStorage.removeItem('user');
-        }
-      }
-      setLoading(false);
-    };
-
-    checkAuth();
+    // Check for existing session on load
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
-  // Update user balance (for gameplay)
-  const updateUserBalance = (amount: number) => {
-    if (user) {
-      const newBalance = user.balance + amount;
-      const updatedUser = { ...user, balance: newBalance };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      if (amount > 0) {
-        toast.success(`+${amount} ${user.currency} added to your balance`);
-      } else if (amount < 0) {
-        toast.info(`${amount} ${user.currency} deducted from your balance`);
-      }
-    }
-  };
-
-  // Aliases for updateUserBalance for compatibility with different components
-  const updateBalance = updateUserBalance;
-  const deposit = (amount: number) => updateUserBalance(amount);
-
-  // Login function
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call with a 1 second delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simple logic for demo: if email contains "admin", login as admin
-      let userData: User;
-      
-      if (email.includes('admin')) {
-        userData = { ...adminUser };
-      } else {
-        userData = { ...regularUser };
-        
-        // Set the username based on email (for demo)
-        if (email) {
-          userData.email = email;
-          userData.username = email.split('@')[0];
-          userData.name = email.split('@')[0];
-          userData.avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
-        }
-      }
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      toast.success(`Welcome back, ${userData.username}!`);
-      setLoading(false);
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error('Login failed. Please check your credentials.');
-      setLoading(false);
-      return false;
-    }
-  };
-
-  // Specific Admin Login function
-  const adminLogin = async (username: string, password: string): Promise<boolean> => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call with a 1 second delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, only accept admin/admin credentials
-      if (username === 'admin' && password === 'admin') {
-        const userData = { ...adminUser };
-        setUser(userData);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(userData));
-        
-        toast.success(`Welcome back, Administrator!`);
-        setLoading(false);
-        return true;
-      } else {
-        throw new Error('Invalid admin credentials');
-      }
-    } catch (error) {
-      console.error('Admin login error:', error);
-      toast.error('Admin login failed. Please check your credentials.');
-      setLoading(false);
-      return false;
-    }
-  };
-
-  // Register function
-  const register = async (username: string, email: string, password: string): Promise<boolean> => {
-    setLoading(true);
-    
-    try {
-      // Simulate API call with a 1 second delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Create a new user based on regularUser
-      const newUser: User = {
-        ...regularUser,
-        id: `user_${Date.now()}`, // Generate a fake ID
-        username,
-        email,
-        name: username,
-        balance: 1000, // Start with 1000 in balance
-        avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-        vipLevel: 1,
-        isVerified: false
+  const login = async (email: string, password: string) => {
+    // Demo user login
+    if (email === "demo@example.com" && password === "password123") {
+      const userData: User = {
+        id: "demo1",
+        username: "demouser",
+        name: "Demo User",
+        email: email,
+        isAdmin: false,
+        avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: 1000,
+        vipLevel: 3,
+        isVerified: true
       };
       
-      setUser(newUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
+    
+    // Check for users in localStorage
+    const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
+    const foundUser = mockUsers.find((u: any) => 
+      u.email === email && u.password === password
+    );
+    
+    if (foundUser) {
+      const userData: User = {
+        id: foundUser.id,
+        username: foundUser.username,
+        name: foundUser.name || foundUser.username,
+        email: foundUser.email,
+        isAdmin: foundUser.isAdmin || foundUser.role === 'admin',
+        avatarUrl: foundUser.avatar || "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: foundUser.balance,
+        vipLevel: foundUser.vipLevel || 0,
+        isVerified: foundUser.isVerified || false
+      };
       
-      toast.success(`Account created successfully! Welcome, ${username}!`);
-      setLoading(false);
-      return true;
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast.error('Registration failed. Please try again.');
-      setLoading(false);
-      return false;
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      return;
+    }
+    
+    // Original hardcoded login
+    if (email === "user@example.com" && password === "password") {
+      const userData: User = {
+        id: "user1",
+        username: "user1",
+        name: "Regular User",
+        email: email,
+        isAdmin: false,
+        avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: 500,
+        vipLevel: 2,
+        isVerified: true
+      };
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+    } else {
+      throw new Error("Invalid credentials");
     }
   };
-
-  // Logout function
+  
+  const adminLogin = async (username: string, password: string) => {
+    // Check if there are admin accounts stored in localStorage from the Security page
+    const storedAdminAccounts = localStorage.getItem("adminAccounts");
+    if (storedAdminAccounts) {
+      const adminAccounts = JSON.parse(storedAdminAccounts);
+      const foundAdmin = adminAccounts.find((admin: any) => 
+        admin.username === username && admin.password === password
+      );
+      
+      if (foundAdmin) {
+        const adminUser: User = {
+          id: `admin-${Date.now()}`,
+          username: foundAdmin.username,
+          name: foundAdmin.username,
+          email: foundAdmin.email,
+          isAdmin: true,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 5,
+          isVerified: true
+        };
+        
+        // Update last login timestamp
+        const updatedAdmins = adminAccounts.map((admin: any) => 
+          admin.username === username 
+            ? { ...admin, lastLogin: new Date().toISOString() } 
+            : admin
+        );
+        localStorage.setItem("adminAccounts", JSON.stringify(updatedAdmins));
+        
+        localStorage.setItem("user", JSON.stringify(adminUser));
+        setUser(adminUser);
+        return;
+      }
+    }
+    
+    // Fallback to default admin for demo purposes
+    if (username === "admin" && password === "admin") {
+      const adminUser: User = {
+        id: "admin1",
+        username: username,
+        name: "Admin User",
+        email: "admin@example.com",
+        isAdmin: true,
+        avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+        balance: 1000,
+        vipLevel: 5,
+        isVerified: true
+      };
+      
+      localStorage.setItem("user", JSON.stringify(adminUser));
+      setUser(adminUser);
+      
+      // If no admin accounts exist yet in localStorage, create the default one
+      if (!storedAdminAccounts) {
+        const defaultAdmins = [
+          {
+            username: "admin",
+            email: "admin@example.com",
+            password: "admin",
+            role: "Super Admin",
+            lastLogin: new Date().toISOString(),
+            twoFactorEnabled: false
+          }
+        ];
+        localStorage.setItem("adminAccounts", JSON.stringify(defaultAdmins));
+      }
+    } else {
+      throw new Error("Invalid admin credentials");
+    }
+  };
+  
+  const register = async (email: string, username: string, password: string) => {
+    // This would be an API call in a real app
+    const newUser: User = {
+      id: `user-${Date.now()}`,
+      username,
+      name: username,
+      email,
+      isAdmin: false,
+      avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+      balance: 100, // Starting bonus
+      vipLevel: 1,
+      isVerified: false
+    };
+    
+    // Store in local storage (would be a database in real app)
+    localStorage.setItem("user", JSON.stringify(newUser));
+    setUser(newUser);
+    
+    toast({
+      title: "Registration Successful",
+      description: "Your account has been created with a $100 welcome bonus!",
+    });
+  };
+  
+  const deposit = async (amount: number) => {
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      balance: user.balance + amount
+    };
+    
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    
+    toast({
+      title: "Deposit Successful",
+      description: `$${amount.toFixed(2)} has been added to your account.`,
+    });
+  };
+  
+  const updateBalance = (newBalance: number) => {
+    if (!user) return;
+    
+    const updatedUser = {
+      ...user,
+      balance: newBalance
+    };
+    
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+  
   const logout = () => {
+    localStorage.removeItem("user");
     setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('user');
-    toast.success(`You have been logged out`);
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out",
+    });
   };
 
-  // Compute isAdmin for easy access
-  const isAdmin = user?.isAdmin || false;
-
-  // Provide the context
   return (
-    <AuthContext.Provider value={{
-      isAuthenticated,
-      user,
-      loading,
-      isAdmin,
-      login,
-      register,
-      logout,
-      updateUserBalance,
-      adminLogin,
-      deposit,
-      updateBalance
-    }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        isAuthenticated: !!user, 
+        isAdmin: !!user?.isAdmin,
+        login, 
+        adminLogin,
+        register,
+        logout,
+        deposit,
+        updateBalance
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Hook for using the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

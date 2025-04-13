@@ -27,10 +27,10 @@ export const addGameAdapter = async (uiGame: Omit<UIGame, 'id'>): Promise<UIGame
 // Update an existing game
 export const updateGameAdapter = async (uiGame: UIGame): Promise<UIGame> => {
   try {
-    // Convert UI game to API game format with numeric ID
+    // Convert UI game to API game format
     const apiGame = {
-      ...adaptGameForAPI(uiGame),
-      id: parseInt(uiGame.id)
+      id: parseInt(uiGame.id),
+      ...adaptGameForAPI(uiGame)
     };
     
     // Send to API
@@ -62,9 +62,10 @@ export const toggleGameFeatureAdapter = async (
   try {
     // Map UI feature names to API feature names
     const apiFeature = feature === 'isPopular' ? 'is_featured' : 'show_home';
+    const numericId = parseInt(id);
     
     // Send to API
-    const resultApiGame = await clientGamesApi.toggleGameFeature(id, apiFeature, value);
+    const resultApiGame = await clientGamesApi.toggleGameFeature(numericId, apiFeature, value);
     // Convert back to UI format
     return adaptGameForUI(resultApiGame);
   } catch (err) {

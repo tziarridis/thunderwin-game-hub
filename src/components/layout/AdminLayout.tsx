@@ -1,16 +1,13 @@
 
-import { ReactNode, useState } from "react";
 import { Outlet, Navigate } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminLayoutProps {
-  children?: ReactNode;
-  collapsed: boolean;
-  setCollapsed: (collapsed: boolean) => void;
+  children?: React.ReactNode;
 }
 
-const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) => {
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const { isAuthenticated, isAdmin } = useAuth();
   
   // Redirect to admin login if not authenticated or not an admin
@@ -19,9 +16,9 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
   }
   
   return (
-    <div className={`flex min-h-screen bg-slate-900 ${collapsed ? 'pl-16' : 'pl-64'}`}>
-      <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-      <div className="flex-1 w-full">
+    <div className="flex min-h-screen bg-slate-900">
+      <AdminSidebar />
+      <div className="flex-1 pl-16 md:pl-64">
         <div className="p-4 bg-slate-800 border-b border-gray-800">
           <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
         </div>

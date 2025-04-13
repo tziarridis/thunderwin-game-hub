@@ -64,7 +64,7 @@ const AppHeader = () => {
             <img 
               src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
               alt="ThunderWin Casino" 
-              className="h-14 md:h-16"
+              className="h-14 md:h-16" // Increased logo size
             />
           </div>
           

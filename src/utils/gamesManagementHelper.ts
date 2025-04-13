@@ -30,10 +30,10 @@ export const adminAddGame = async (gameData: Omit<UIGame, 'id'>): Promise<UIGame
 
 // Update an existing game via the admin interface
 export const adminUpdateGame = async (gameData: UIGame): Promise<UIGame> => {
-  // Convert UI game to API game format with numeric ID
+  // Convert UI game to API game format
   const apiGame = {
-    ...adaptGameForAPI(gameData),
-    id: parseInt(gameData.id)
+    id: parseInt(gameData.id),
+    ...adaptGameForAPI(gameData)
   };
   
   const result = await clientGamesApi.updateGame(apiGame);
@@ -49,8 +49,9 @@ export const adminToggleGameFeature = async (
 ): Promise<UIGame> => {
   // Map UI feature names to API feature names
   const apiFeature = feature === 'isPopular' ? 'is_featured' : 'show_home';
+  const numericId = parseInt(id);
   
-  const updatedGame = await clientGamesApi.toggleGameFeature(id, apiFeature, value);
+  const updatedGame = await clientGamesApi.toggleGameFeature(numericId, apiFeature, value);
   return convertAPIGameToAdminFormat(updatedGame);
 };
 

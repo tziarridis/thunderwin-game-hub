@@ -14,19 +14,13 @@ import {
 import { scrollToTop } from "../../utils/scrollUtils";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "../../utils/navigationUtils";
-import { toast } from "sonner";
 
 const Footer = () => {
   const navigate = useNavigate();
   
   const handleNavigate = (path: string) => {
-    console.log(`Footer navigating to: ${path}`);
     navigate(path);
     scrollToTop();
-  };
-  
-  const handleSocialClick = (platform: string) => {
-    toast.success(`Following ${platform}!`);
   };
   
   const handleTextNavigation = (text: string) => {
@@ -67,110 +61,34 @@ const Footer = () => {
               reliable payments, and generous bonuses.
             </p>
             <div className="flex space-x-4">
-              <SocialIcon icon={<Facebook size={18} />} onClick={() => handleSocialClick("Facebook")} />
-              <SocialIcon icon={<Twitter size={18} />} onClick={() => handleSocialClick("Twitter")} />
-              <SocialIcon icon={<Instagram size={18} />} onClick={() => handleSocialClick("Instagram")} />
-              <SocialIcon icon={<Youtube size={18} />} onClick={() => handleSocialClick("YouTube")} />
+              <SocialIcon icon={<Facebook size={18} />} />
+              <SocialIcon icon={<Twitter size={18} />} />
+              <SocialIcon icon={<Instagram size={18} />} />
+              <SocialIcon icon={<Youtube size={18} />} />
             </div>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-4">Casino</h4>
             <ul className="space-y-2">
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("All Casino Games")}
-                >
-                  All Casino Games
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Slots")}
-                >
-                  Slots
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Live Casino")}
-                >
-                  Live Casino
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Table Games")}
-                >
-                  Table Games
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Jackpots")}
-                >
-                  Jackpots
-                </button>
-              </li>
+              <FooterLink text="All Casino Games" to="/casino" />
+              <FooterLink text="Slots" to="/casino/slots" />
+              <FooterLink text="Live Casino" to="/casino/live-casino" />
+              <FooterLink text="Table Games" to="/casino/table-games" />
+              <FooterLink text="Jackpots" to="/casino/jackpots" />
+              <FooterLink text="Providers" to="/casino/providers" />
             </ul>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-4">Sports</h4>
             <ul className="space-y-2">
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("All Sports")}
-                >
-                  All Sports
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Football")}
-                >
-                  Football
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Basketball")}
-                >
-                  Basketball
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Tennis")}
-                >
-                  Tennis
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Hockey")}
-                >
-                  Hockey
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("eSports")}
-                >
-                  eSports
-                </button>
-              </li>
+              <FooterLink text="All Sports" to="/sports" />
+              <FooterLink text="Football" to="/sports/football" />
+              <FooterLink text="Basketball" to="/sports/basketball" />
+              <FooterLink text="Tennis" to="/sports/tennis" />
+              <FooterLink text="Hockey" to="/sports/hockey" />
+              <FooterLink text="eSports" to="/sports/esports" />
             </ul>
           </div>
 
@@ -180,7 +98,7 @@ const Footer = () => {
               <li>
                 <button 
                   className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Help Center")}
+                  onClick={() => handleNavigate("/support/help")}
                 >
                   Help Center
                 </button>
@@ -188,52 +106,15 @@ const Footer = () => {
               <li>
                 <button 
                   className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("FAQ")}
+                  onClick={() => handleNavigate("/support/faq")}
                 >
                   FAQ
                 </button>
               </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Responsible Gaming")}
-                >
-                  Responsible Gaming
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Terms & Conditions")}
-                >
-                  Terms & Conditions
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Privacy Policy")}
-                >
-                  Privacy Policy
-                </button>
-              </li>
-              <li>
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Contact Us")}
-                >
-                  Contact Us
-                </button>
-              </li>
-              
-              <li className="pt-4 mt-2 border-t border-white/10">
-                <button 
-                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleTextNavigation("Admin Login")}
-                >
-                  Admin Login
-                </button>
-              </li>
+              <FooterLink text="Responsible Gaming" to="/support/responsible-gaming" />
+              <FooterLink text="Terms & Conditions" to="/legal/terms" />
+              <FooterLink text="Privacy Policy" to="/legal/privacy" />
+              <FooterLink text="Contact Us" to="/support/contact" />
             </ul>
           </div>
         </div>
@@ -268,17 +149,17 @@ const FooterLink = ({ text, to }: { text: string; to: string }) => (
   </li>
 );
 
-const SocialIcon = ({ icon, onClick }: { icon: React.ReactNode; onClick: () => void }) => (
-  <button 
+const SocialIcon = ({ icon }: { icon: React.ReactNode }) => (
+  <a 
+    href="#" 
     className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center hover:bg-casino-thunder-green hover:text-black transition-colors"
-    onClick={onClick}
   >
     {icon}
-  </button>
+  </a>
 );
 
 const PaymentMethodCard = ({ icon, name }: { icon: React.ReactNode; name: string }) => (
-  <div className="bg-white/5 rounded-md py-3 px-4 flex flex-col items-center justify-center hover:bg-white/10 transition-colors cursor-pointer">
+  <div className="bg-white/5 rounded-md py-3 px-4 flex flex-col items-center justify-center">
     {icon}
     <span className="text-xs text-white/70 mt-1">{name}</span>
   </div>

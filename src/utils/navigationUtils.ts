@@ -1,5 +1,4 @@
 import { NavigateFunction } from "react-router-dom";
-import { toast } from "sonner";
 
 /**
  * Navigate to the appropriate page based on the button name or content
@@ -7,13 +6,7 @@ import { toast } from "sonner";
  * @param navigate React Router navigate function
  */
 export const navigateByButtonName = (buttonName: string, navigate: NavigateFunction): void => {
-  if (!buttonName) {
-    console.error("Button name is empty or undefined");
-    return;
-  }
-  
   const name = buttonName.toLowerCase().trim();
-  console.log(`Attempting to navigate based on button name: "${name}"`);
   
   // Map of keywords to routes
   const routeMap: Record<string, string> = {
@@ -28,13 +21,10 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'jackpots': '/casino/jackpots',
     'casino': '/casino',
     'casino games': '/casino',
-    'all casino games': '/casino',
-    'all games': '/casino',
     
     // Sports routes
     'sport': '/sports',
     'sports': '/sports',
-    'all sports': '/sports',
     'football': '/sports/football',
     'soccer': '/sports/football',
     'tennis': '/sports/tennis',
@@ -48,9 +38,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'claim bonus': '/bonuses',
     'promotions': '/promotions',
     'promo': '/promotions',
-    'all promotions': '/promotions',
     'vip': '/vip',
-    'vip program': '/vip',
     
     // Authentication
     'login': '/login',
@@ -60,7 +48,6 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     
     // User account
     'profile': '/profile',
-    'my profile': '/profile',
     'account': '/profile',
     'deposit': '/transactions',
     'withdraw': '/transactions',
@@ -90,6 +77,8 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'play now': '/casino',
     'view all': '/casino',
     'claim now': '/bonuses',
+    'all casino games': '/casino',
+    'all sports': '/sports',
     
     // Specific sports
     'bet on football': '/sports/football',
@@ -112,32 +101,29 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'crash': '/casino/crash',
     'settings': '/settings',
     'admin': '/admin',
-    'admin login': '/admin/login',
     'admin dashboard': '/admin',
   };
   
   // Find the matching route or try partial matches
-  // First try exact match
-  if (routeMap[name]) {
-    console.log(`Exact match: Navigating to ${routeMap[name]} based on button name: ${name}`);
-    navigate(routeMap[name]);
-    return;
+  for (const [key, route] of Object.entries(routeMap)) {
+    if (name === key) {
+      console.log(`Exact match: Navigating to ${route} based on button name: ${name}`);
+      navigate(route);
+      return;
+    }
   }
   
-  // Try partial matching (button text contains a keyword)
-  const matchedKey = Object.keys(routeMap).find(key => 
-    name.includes(key) && key.length > 2  // Avoid matching on very short strings
-  );
-  
-  if (matchedKey) {
-    console.log(`Partial match: Navigating to ${routeMap[matchedKey]} based on button name: ${name} (matched '${matchedKey}')`);
-    navigate(routeMap[matchedKey]);
-    return;
+  // Try partial matching
+  for (const [key, route] of Object.entries(routeMap)) {
+    if (name.includes(key)) {
+      console.log(`Partial match: Navigating to ${route} based on button name: ${name}`);
+      navigate(route);
+      return;
+    }
   }
   
-  // If no match is found, show a toast and log it
+  // Default to home if no match
   console.log(`No route match found for button name: ${name}. Defaulting to home.`);
-  toast.error(`Navigation not found for "${buttonName}"`);
   navigate('/');
 };
 

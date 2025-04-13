@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { Game, GameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { clientGamesApi } from "@/services/gamesService";
 import { adaptProvidersForUI } from "@/utils/gameAdapter";
+import { convertUIGameToAPIGame, convertAPIGameToUIGame } from "@/utils/gameTypeAdapter";
 
 export interface GameFormProps {
   onSubmit: (gameData: Game | Omit<Game, "id">) => void;
@@ -68,7 +70,6 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
     fetchProviders();
   }, [toast]);
 
-  
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
@@ -116,7 +117,6 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
     }
   };
 
-  
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

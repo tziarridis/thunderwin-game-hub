@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Home, Shield, User, LockKeyhole } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 
 const adminLoginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -41,16 +41,19 @@ const AdminLogin = () => {
   const onSubmit = async (values: AdminLoginValues) => {
     setIsSubmitting(true);
     try {
-      const success = await adminLogin(values.username, values.password);
-      if (success) {
-        toast.success("Login successful. Welcome to the admin dashboard");
-        navigate("/admin"); // Redirect to admin dashboard on success
-      } else {
-        toast.error("Login failed. Invalid username or password");
-      }
+      await adminLogin(values.username, values.password);
+      toast({
+        title: "Login successful",
+        description: "Welcome to the admin dashboard",
+      });
+      navigate("/admin");
     } catch (error) {
       console.error("Admin login failed:", error);
-      toast.error("Login failed. Please check your credentials and try again");
+      toast({
+        title: "Login failed",
+        description: "Invalid username or password",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -66,7 +69,7 @@ const AdminLogin = () => {
               <div className="border-l border-slate-600 h-10 mx-1"></div>
               <Link to="/">
                 <img 
-                  src="/file.svg" 
+                  src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
                   alt="ThunderWin" 
                   className="h-8 thunder-glow"
                 />

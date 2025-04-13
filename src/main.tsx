@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router } from "react-router-dom";
 import App from './App.tsx';
 import './index.css';
+import { AuthProvider } from './contexts/AuthContext';
 
 // No need to initialize database directly in the browser
 // Import only frontend data
@@ -14,6 +15,8 @@ if (!rootElement) throw new Error("Failed to find the root element");
 
 createRoot(rootElement).render(
   <Router>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </Router>
 );
