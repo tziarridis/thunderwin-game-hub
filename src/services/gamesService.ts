@@ -449,3 +449,84 @@ export const generateMockGames = async (count = 20) => {
     message: `Generated ${successCount} mock games.`
   };
 };
+
+// Create a mock clientGamesApi implementation for browser environment
+export const clientGamesApi = {
+  getGames: async (params = {}) => {
+    try {
+      const games = await getAllGames(params);
+      return {
+        data: games || [],
+        total: (games || []).length,
+        page: params.page || 1,
+        limit: params.limit || 10
+      };
+    } catch (error) {
+      console.error('Error in clientGamesApi.getGames:', error);
+      return { data: [], total: 0, page: 1, limit: 10 };
+    }
+  },
+  
+  getProviders: async () => {
+    // Return mock providers
+    return [
+      { id: 'pragmatic', name: 'Pragmatic Play', games_count: 250 },
+      { id: 'netent', name: 'NetEnt', games_count: 200 },
+      { id: 'playtech', name: 'Playtech', games_count: 180 },
+      { id: 'microgaming', name: 'Microgaming', games_count: 300 },
+      { id: 'evolution', name: 'Evolution Gaming', games_count: 120 },
+      { id: 'bgaming', name: 'BGaming', games_count: 80 }
+    ];
+  },
+  
+  addGame: async (gameData) => {
+    try {
+      return await createGame(gameData);
+    } catch (error) {
+      console.error('Error in clientGamesApi.addGame:', error);
+      throw error;
+    }
+  },
+  
+  updateGame: async (gameData) => {
+    try {
+      const { id, ...data } = gameData;
+      return await updateGame(id, data);
+    } catch (error) {
+      console.error('Error in clientGamesApi.updateGame:', error);
+      throw error;
+    }
+  },
+  
+  deleteGame: async (id) => {
+    try {
+      return await deleteGame(id);
+    } catch (error) {
+      console.error('Error in clientGamesApi.deleteGame:', error);
+      throw error;
+    }
+  },
+  
+  toggleGameFeature: async (id, feature, value) => {
+    try {
+      // Map API feature names to database column names
+      const featureColumn = feature === 'is_featured' ? 'is_featured' : 'show_home';
+      
+      // Update the feature
+      const result = await updateGame(id, { [featureColumn]: value });
+      return result;
+    } catch (error) {
+      console.error('Error in clientGamesApi.toggleGameFeature:', error);
+      throw error;
+    }
+  }
+};
+
+// Fix the safeQuery function to match the expected signature (function parameters)
+browserDb.query = (sql, params = []) => {
+  console.log('Mock browser DB query:', sql, params);
+  
+  // Return empty results for now
+  return [];
+};
+
