@@ -11,6 +11,7 @@ import {
   Globe,
   DollarSign
 } from "lucide-react";
+import { scrollToTop } from "../../utils/scrollUtils";
 
 const Footer = () => {
   return (
@@ -111,7 +112,7 @@ const FooterLink = ({ text, to }: { text: string; to: string }) => (
     <Link 
       to={to} 
       className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm"
-      onClick={() => window.scrollTo(0, 0)}
+      onClick={scrollToTop}
     >
       {text}
     </Link>

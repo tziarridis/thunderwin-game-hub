@@ -1,605 +1,604 @@
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { 
-  HelpCircle, 
-  MessageSquare, 
-  Shield, 
-  FileText, 
-  Book, 
-  ExternalLink, 
-  Search,
-  TicketCheck,
-  DollarSign,
-  CreditCard,
-  Lock,
-  Gift,
-  AlertCircle
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Search, 
+  HelpCircle, 
+  CreditCard, 
+  Users, 
+  MessageSquare, 
+  Lock, 
+  DollarSign, 
+  Gift, 
+  Copy,
+  CheckCircle
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-const HelpCenterPage = () => {
+const HelpCenter = () => {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("deposit");
+  const [copied, setCopied] = useState(false);
   
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Searching for:", searchQuery);
-    // Search functionality would be implemented here
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast({
+      title: "Copied to clipboard",
+      description: "The template has been copied to your clipboard.",
+      variant: "default",
+    });
+    
+    setTimeout(() => setCopied(false), 2000);
   };
+  
+  const supportCategories = [
+    { id: "deposit", name: "Deposit Issues", icon: <CreditCard className="h-5 w-5" /> },
+    { id: "inr", name: "INR Deposit Issues", icon: <DollarSign className="h-5 w-5" /> },
+    { id: "account", name: "Account Access", icon: <Lock className="h-5 w-5" /> },
+    { id: "withdrawal", name: "Withdrawal Issues", icon: <DollarSign className="h-5 w-5" /> },
+    { id: "bonus", name: "Bonus Issues", icon: <Gift className="h-5 w-5" /> },
+    { id: "general", name: "General Help", icon: <HelpCircle className="h-5 w-5" /> },
+  ];
+  
+  const depositTemplate = `Hi ThunderWin Support,
+I need help with a deposit issue. Please see the details below:
+
+Username: 
+Payment method: 
+Transaction ID: 
+Date & time of transaction: 
+Amount: 
+Additional details:
+
+I've attached a screenshot of the transaction (if available).
+Looking forward to your assistance.`;
+
+  const inrTemplate = `Hi ThunderWin Support,
+I need help with an INR deposit issue. Please see the details below:
+
+Username: 
+Payment gateway used: 
+Bank/UPI details: 
+Reference number: 
+Time of deposit attempt: 
+Bank confirmation: 
+Additional details:
+
+I've attached a screenshot of the payment proof.
+Looking forward to your assistance.`;
+
+  const accountTemplate = `Hi ThunderWin Support,
+I'm having issues accessing my account. Please see the details below:
+
+Username: 
+Error message received: 
+Last successful login: 
+Recent changes made: 
+KYC submitted: Yes / No
+Previous violations or warnings: 
+Additional details:
+
+Looking forward to your assistance.`;
+
+  const withdrawalTemplate = `Hi ThunderWin Support,
+I'm having issues with a withdrawal. Please see the details below:
+
+Username: 
+Withdrawal method: 
+Wallet address or bank account: 
+Amount requested: 
+Transaction hash / ID: 
+Date and time of request: 
+Additional details:
+
+I've attached a screenshot from the withdrawal page.
+Looking forward to your assistance.`;
+
+  const bonusTemplate = `Hi ThunderWin Support,
+I need help with a bonus or promotion issue. Please see the details below:
+
+Username: 
+Name of promotion: 
+Time and date of participation: 
+Expected bonus/reward: 
+Issue encountered: 
+Additional details:
+
+Looking forward to your assistance.`;
+
+  const generalTemplate = `Hi ThunderWin Support,
+I need help with the following issue:
+
+Username: 
+Issue category: 
+Description of the issue: 
+When did it start: 
+Steps to reproduce: 
+Additional details:
+
+Looking forward to your assistance.`;
+
+  const getTemplateForCategory = (categoryId: string) => {
+    switch(categoryId) {
+      case 'deposit': return depositTemplate;
+      case 'inr': return inrTemplate;
+      case 'account': return accountTemplate;
+      case 'withdrawal': return withdrawalTemplate;
+      case 'bonus': return bonusTemplate;
+      case 'general': return generalTemplate;
+      default: return generalTemplate;
+    }
+  };
+  
+  const faqs = [
+    {
+      category: "deposit",
+      questions: [
+        {
+          question: "Why is my deposit pending?",
+          answer: "Deposits can be pending for several reasons: 1) Bank verification is still in progress 2) The payment provider is experiencing delays 3) Additional verification is needed due to security protocols. Most deposits are processed within 15 minutes, but can take up to 24 hours in some cases."
+        },
+        {
+          question: "What payment methods do you accept?",
+          answer: "We accept Credit/Debit Cards, Cryptocurrency (Bitcoin, Ethereum, Litecoin), Bank Transfers, UPI (for INR), and various E-Wallets. The available methods depend on your region."
+        },
+        {
+          question: "Is there a minimum deposit amount?",
+          answer: "Yes, the minimum deposit amount is $10 or equivalent in your local currency. For cryptocurrencies, please check the deposit page for specific minimums as they can vary based on network fees."
+        }
+      ]
+    },
+    {
+      category: "inr",
+      questions: [
+        {
+          question: "Why was my INR deposit rejected?",
+          answer: "INR deposits might be rejected if: 1) The bank details don't match your registered information 2) The payment was sent from a third-party account 3) Required UPI verification failed 4) Transaction limits were exceeded."
+        },
+        {
+          question: "How long do INR deposits take to process?",
+          answer: "Most INR deposits are processed within 15-30 minutes. During high volume periods or bank holidays, it might take up to 2 hours. If your deposit hasn't been credited after 2 hours, please contact support with your transaction details."
+        },
+        {
+          question: "Which UPI methods are supported?",
+          answer: "We support all major UPI apps including BHIM, Google Pay, PhonePe, Paytm, and bank UPI apps. Make sure to use the exact payment details provided on the deposit screen."
+        }
+      ]
+    },
+    {
+      category: "account",
+      questions: [
+        {
+          question: "Why is my account temporarily unavailable?",
+          answer: "Your account might be temporarily unavailable due to: 1) Multiple failed login attempts 2) Suspicious activity detected 3) Pending verification requirements 4) Terms of service violation investigation. Please contact support for specific details about your account."
+        },
+        {
+          question: "How do I reset my password?",
+          answer: "To reset your password, click 'Forgot Password' on the login page, enter your registered email address, and follow the instructions sent to your email. If you don't receive the email, check your spam folder or contact support."
+        },
+        {
+          question: "Why am I being asked to verify my account again?",
+          answer: "Additional verification may be requested for various reasons: 1) Significant deposit or withdrawal activity 2) Account access from a new location 3) Regulatory requirements 4) Periodic security checks. This is for your protection and to comply with gaming regulations."
+        }
+      ]
+    },
+    {
+      category: "withdrawal",
+      questions: [
+        {
+          question: "Why was my withdrawal declined?",
+          answer: "Withdrawals might be declined if: 1) Your KYC verification is incomplete 2) Withdrawal amount exceeds your available balance 3) Wagering requirements on bonuses haven't been met 4) The withdrawal method differs from your deposit method (anti-money laundering policy)."
+        },
+        {
+          question: "How long do withdrawals take to process?",
+          answer: "Processing times vary by method: Cryptocurrencies: 10-60 minutes after approval, E-Wallets: 0-24 hours, Bank Transfers: 1-5 business days, Cards: 1-5 business days. All withdrawals undergo a review period of up to 24 hours before processing."
+        },
+        {
+          question: "Is there a withdrawal limit?",
+          answer: "Yes, withdrawal limits depend on your account level and verification status. Standard accounts: $2,000 per day, $10,000 per week, $40,000 per month. VIP accounts have higher limits. Please check your account settings for your specific limits."
+        }
+      ]
+    },
+    {
+      category: "bonus",
+      questions: [
+        {
+          question: "Why didn't I receive my welcome bonus?",
+          answer: "Welcome bonuses may not be credited if: 1) You didn't enter the required bonus code during deposit 2) Your deposit amount was below the minimum required 3) You're not eligible due to country restrictions 4) You've already claimed a welcome bonus on another account."
+        },
+        {
+          question: "What are wagering requirements?",
+          answer: "Wagering requirements specify how many times you need to bet the bonus amount before you can withdraw winnings associated with that bonus. For example, a 30x requirement on a $10 bonus means you need to place bets totaling $300 before withdrawal. Different games contribute differently toward wagering requirements."
+        },
+        {
+          question: "Can I withdraw my bonus?",
+          answer: "Bonuses themselves cannot be withdrawn directly. They must first be wagered according to the wagering requirements. Once the requirements are met, the bonus converts to real cash which can then be withdrawn. If you request a withdrawal before meeting requirements, the bonus and associated winnings may be forfeited."
+        }
+      ]
+    },
+    {
+      category: "general",
+      questions: [
+        {
+          question: "Is my personal information secure?",
+          answer: "Yes, we protect your personal information using industry-standard encryption and security protocols. We never share your data with unauthorized third parties and comply with all relevant data protection regulations. For more details, please refer to our Privacy Policy."
+        },
+        {
+          question: "How do I close my account?",
+          answer: "To close your account, go to Settings > Account > Close Account. Alternatively, contact our support team who can assist you. Please note that any remaining funds should be withdrawn before closing your account."
+        },
+        {
+          question: "How can I set gaming limits?",
+          answer: "You can set deposit limits, loss limits, session time limits, or temporary self-exclusion by going to Settings > Responsible Gaming. These limits help you maintain control over your gaming habits. Once set, reduction of limits takes effect immediately, while increases require a cooling-off period."
+        }
+      ]
+    }
+  ];
+  
+  const filteredFaqs = searchQuery 
+    ? faqs.flatMap(category => 
+        category.questions.filter(q => 
+          q.question.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          q.answer.toLowerCase().includes(searchQuery.toLowerCase())
+        ).map(q => ({ ...q, category: category.category }))
+      )
+    : faqs.find(category => category.category === activeCategory)?.questions || [];
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <div className="inline-flex justify-center mb-4">
-          <div className="bg-casino-thunder-green/20 p-4 rounded-full">
-            <HelpCircle size={40} className="text-casino-thunder-green" />
+    <div className="container mx-auto px-4 py-24">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4 thunder-glow">Help Center</h1>
+          <p className="text-lg text-white/70 max-w-2xl mx-auto">
+            Find answers to common questions or get in touch with our support team for personalized assistance.
+          </p>
+        </div>
+        
+        <div className="mb-10">
+          <div className="relative max-w-2xl mx-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50" />
+            <Input 
+              className="bg-white/5 border-white/10 pl-10 h-12 text-lg focus:ring-casino-thunder-green focus:border-casino-thunder-green"
+              placeholder="Search for help topics..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
-        <h1 className="text-3xl font-bold mb-4">Help Center</h1>
-        <p className="text-white/70 max-w-2xl mx-auto">
-          Welcome to our Help Center. Find answers to common questions, get support, or learn more about our services.
-        </p>
-      </div>
-      
-      {/* Search Bar - Made more prominent */}
-      <form onSubmit={handleSearch} className="max-w-3xl mx-auto mb-12">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Search for answers..."
-            className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10 text-lg"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
-          <Button 
-            type="submit"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-          >
-            Search
-          </Button>
-        </div>
-      </form>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-        <Card className="bg-casino-thunder-gray/30 border border-white/5 hover:border-casino-thunder-green transition-colors">
-          <CardContent className="p-6">
-            <div className="text-casino-thunder-green mb-4">
-              <HelpCircle size={28} />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Frequently Asked Questions</h2>
-            <p className="text-white/70 mb-4">
-              Find answers to common questions about account management, games, payments, and more.
-            </p>
-            <Link to="/support/faq" onClick={() => window.scrollTo(0, 0)}>
-              <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                View FAQs
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
         
-        <Card className="bg-casino-thunder-gray/30 border border-white/5 hover:border-casino-thunder-green transition-colors">
-          <CardContent className="p-6">
-            <div className="text-casino-thunder-green mb-4">
-              <TicketCheck size={28} />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Submit a Support Ticket</h2>
-            <p className="text-white/70 mb-4">
-              Need personalized help? Submit a ticket and our team will assist you with your specific issue.
-            </p>
-            <Link to="#support-request-template" onClick={() => document.getElementById('support-request-template')?.scrollIntoView({ behavior: 'smooth' })}>
-              <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                Raise a Ticket
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-casino-thunder-gray/30 border border-white/5 hover:border-casino-thunder-green transition-colors">
-          <CardContent className="p-6">
-            <div className="text-casino-thunder-green mb-4">
-              <Shield size={28} />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Responsible Gaming</h2>
-            <p className="text-white/70 mb-4">
-              Learn about our responsible gaming tools and resources to help keep gambling fun and under control.
-            </p>
-            <Link to="/support/responsible-gaming" onClick={() => window.scrollTo(0, 0)}>
-              <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                Learn More
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Common Topics Section */}
-      <div className="bg-casino-thunder-gray/30 border border-white/5 rounded-lg p-8 mb-12">
-        <h2 className="text-2xl font-bold mb-6">Common Topics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-          <Link to="/support/faq?topic=account" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>Account Management</span>
-          </Link>
-          
-          <Link to="/support/faq?topic=payments" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>Deposits & Withdrawals</span>
-          </Link>
-          
-          <Link to="/support/faq?topic=games" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>Games & Betting</span>
-          </Link>
-          
-          <Link to="/support/faq?topic=bonuses" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>Bonuses & Promotions</span>
-          </Link>
-          
-          <Link to="/support/faq?topic=security" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>Security & Privacy</span>
-          </Link>
-          
-          <Link to="/support/faq?topic=vip" className="flex items-center p-3 hover:bg-white/5 rounded-md transition-colors">
-            <div className="bg-white/10 p-2 rounded-md mr-3">
-              <HelpCircle size={16} />
-            </div>
-            <span>VIP Program</span>
-          </Link>
-        </div>
-      </div>
-      
-      {/* Support Request Template Section */}
-      <div id="support-request-template" className="bg-casino-thunder-gray/30 border border-white/5 rounded-lg p-8 mb-12 scroll-mt-24">
-        <h2 className="text-2xl font-bold mb-6">Support Request Templates</h2>
-        <p className="text-white/70 mb-6">
-          To help us resolve your issue more efficiently, please use the appropriate template below when contacting support.
-        </p>
-        
-        <Tabs defaultValue="deposit" className="w-full">
-          <TabsList className="mb-6 w-full justify-start overflow-auto enhanced-tabs">
-            <TabsTrigger value="deposit" className="flex items-center tab-highlight">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Deposit Issues
-            </TabsTrigger>
-            <TabsTrigger value="inr-deposit" className="flex items-center tab-highlight">
-              <CreditCard className="mr-2 h-4 w-4" />
-              INR Deposits
-            </TabsTrigger>
-            <TabsTrigger value="account" className="flex items-center tab-highlight">
-              <Lock className="mr-2 h-4 w-4" />
-              Account Issues
-            </TabsTrigger>
-            <TabsTrigger value="withdrawal" className="flex items-center tab-highlight">
-              <DollarSign className="mr-2 h-4 w-4" />
-              Withdrawal
-            </TabsTrigger>
-            <TabsTrigger value="bonus" className="flex items-center tab-highlight">
-              <Gift className="mr-2 h-4 w-4" />
-              Bonus Issues
-            </TabsTrigger>
+        <Tabs defaultValue="faqs" className="enhanced-tabs">
+          <TabsList className="bg-white/5 p-1 mb-8">
+            <TabsTrigger value="faqs" className="tab-highlight">Frequently Asked Questions</TabsTrigger>
+            <TabsTrigger value="support" className="tab-highlight">Support Tickets</TabsTrigger>
+            <TabsTrigger value="contact" className="tab-highlight">Contact Us</TabsTrigger>
           </TabsList>
           
-          {/* Deposit Issues Tab */}
-          <TabsContent value="deposit">
-            <Card className="border-white/10 bg-black/20">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <DollarSign className="mr-2 text-casino-thunder-green" />
-                  How to Raise a Ticket to Speed Up Your Deposit
-                </h3>
+          <TabsContent value="faqs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <Card className="bg-white/5 border-white/10">
+                  <CardHeader>
+                    <CardTitle>Categories</CardTitle>
+                    <CardDescription>Browse help topics by category</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {supportCategories.map((category) => (
+                        <button
+                          key={category.id}
+                          className={`w-full flex items-center p-3 rounded-lg transition-all ${
+                            activeCategory === category.id
+                              ? "bg-casino-thunder-green/20 text-casino-thunder-green"
+                              : "hover:bg-white/5 text-white/80"
+                          }`}
+                          onClick={() => {
+                            setActiveCategory(category.id);
+                            setSearchQuery("");
+                          }}
+                        >
+                          <div className="mr-3">{category.icon}</div>
+                          <span>{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="template">
-                    <AccordionTrigger>View Template</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="bg-casino-deep-black/50 p-4 rounded-md mb-4 border border-white/5">
-                        <pre className="whitespace-pre-wrap text-white/80 text-sm">
-{`Hi ThunderWin Support,
-
-I need help with my deposit. Below are the details:
-
-Username: [your username]
-Payment method: [method used]
-Transaction ID: [ID number]
-Date & time: [when you made the transaction]
-Amount: [amount deposited]
-
-[Any additional information about your issue]
-
-Thank you for your assistance.`}
-                        </pre>
+                <Card className="bg-white/5 border-white/10 mt-6">
+                  <CardHeader>
+                    <CardTitle>Still need help?</CardTitle>
+                    <CardDescription>Contact our support team</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button 
+                      className="w-full bg-casino-thunder-green hover:bg-casino-thunder-green/90 text-black"
+                      onClick={() => window.location.href = "/support/contact"}
+                    >
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Contact Support
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="md:col-span-2">
+                <Card className="bg-white/5 border-white/10">
+                  <CardHeader>
+                    <CardTitle>
+                      {searchQuery 
+                        ? `Search Results for "${searchQuery}"` 
+                        : `${supportCategories.find(c => c.id === activeCategory)?.name} FAQs`}
+                    </CardTitle>
+                    <CardDescription>
+                      {searchQuery 
+                        ? `${filteredFaqs.length} results found` 
+                        : "Find answers to common questions"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {filteredFaqs.length > 0 ? (
+                      <Accordion type="single" collapsible className="w-full">
+                        {filteredFaqs.map((faq, index) => (
+                          <AccordionItem key={index} value={`faq-${index}`} className="border-white/10">
+                            <AccordionTrigger className="text-white hover:text-casino-thunder-green">
+                              {faq.question}
+                            </AccordionTrigger>
+                            <AccordionContent className="text-white/80">
+                              {faq.answer}
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    ) : (
+                      <div className="text-center py-12">
+                        <HelpCircle className="mx-auto h-12 w-12 text-white/30 mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No results found</h3>
+                        <p className="text-white/60 mb-6">
+                          Try adjusting your search or browse our categories for help
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          className="border-casino-thunder-green text-casino-thunder-green hover:bg-casino-thunder-green hover:text-black"
+                          onClick={() => setSearchQuery("")}
+                        >
+                          Clear Search
+                        </Button>
                       </div>
-                      <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `Hi ThunderWin Support,\n\nI need help with my deposit. Below are the details:\n\nUsername: [your username]\nPayment method: [method used]\nTransaction ID: [ID number]\nDate & time: [when you made the transaction]\nAmount: [amount deposited]\n\n[Any additional information about your issue]\n\nThank you for your assistance.`
-                          );
-                          alert("Template copied to clipboard!");
-                        }}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Copy Template
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                
-                <div className="mt-4">
-                  <p className="text-white/70 mb-3">Please include:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-white/70">
-                    <li>Username</li>
-                    <li>Payment method</li>
-                    <li>Transaction ID</li>
-                    <li>Date & time of transaction</li>
-                    <li>Amount</li>
-                    <li>Screenshot (if available)</li>
-                  </ul>
-                </div>
-                
-                <Link to="/support/contact" className="block mt-6">
-                  <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                    Contact Support
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
           
-          {/* INR Deposits Tab */}
-          <TabsContent value="inr-deposit">
-            <Card className="border-white/10 bg-black/20">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <CreditCard className="mr-2 text-casino-thunder-green" />
-                  Submit a Ticket – INR Deposit Issues
-                </h3>
-                
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="template">
-                    <AccordionTrigger>View Template</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="bg-casino-deep-black/50 p-4 rounded-md mb-4 border border-white/5">
-                        <pre className="whitespace-pre-wrap text-white/80 text-sm">
-{`Hi ThunderWin Support,
-
-I'm having an issue with my INR deposit. Here are the details:
-
-Username: [your username]
-Payment gateway used: [gateway name]
-Bank/UPI details: [details]
-Reference number: [reference]
-Time of deposit attempt: [time]
-Bank confirmation: [Yes/No]
-
-[Any additional information about your issue]
-
-Thank you for your assistance.`}
-                        </pre>
-                      </div>
+          <TabsContent value="support">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <Card className="bg-white/5 border-white/10">
+                  <CardHeader>
+                    <CardTitle>Support Categories</CardTitle>
+                    <CardDescription>Select the type of support you need</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {supportCategories.map((category) => (
+                        <button
+                          key={category.id}
+                          className={`w-full flex items-center p-3 rounded-lg transition-all ${
+                            activeCategory === category.id
+                              ? "bg-casino-thunder-green/20 text-casino-thunder-green"
+                              : "hover:bg-white/5 text-white/80"
+                          }`}
+                          onClick={() => setActiveCategory(category.id)}
+                        >
+                          <div className="mr-3">{category.icon}</div>
+                          <span>{category.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="md:col-span-2">
+                <Card className="bg-white/5 border-white/10">
+                  <CardHeader>
+                    <CardTitle className="flex justify-between items-center">
+                      <span>{supportCategories.find(c => c.id === activeCategory)?.name} Template</span>
                       <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `Hi ThunderWin Support,\n\nI'm having an issue with my INR deposit. Here are the details:\n\nUsername: [your username]\nPayment gateway used: [gateway name]\nBank/UPI details: [details]\nReference number: [reference]\nTime of deposit attempt: [time]\nBank confirmation: [Yes/No]\n\n[Any additional information about your issue]\n\nThank you for your assistance.`
-                          );
-                          alert("Template copied to clipboard!");
-                        }}
-                        variant="outline"
-                        className="w-full"
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-casino-thunder-green"
+                        onClick={() => handleCopy(getTemplateForCategory(activeCategory))}
                       >
-                        Copy Template
+                        {copied ? (
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                        ) : (
+                          <Copy className="h-4 w-4 mr-2" />
+                        )}
+                        {copied ? "Copied!" : "Copy Template"}
                       </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                
-                <div className="mt-4">
-                  <p className="text-white/70 mb-3">If the deposit was made in INR, please include:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-white/70">
-                    <li>Payment gateway used</li>
-                    <li>Bank/UPI details</li>
-                    <li>Reference number</li>
-                    <li>Time of deposit attempt</li>
-                    <li>Bank confirmation (if any)</li>
-                    <li>Screenshot of payment proof</li>
-                  </ul>
-                </div>
-                
-                <Link to="/support/contact" className="block mt-6">
-                  <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                    Contact Support
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                    </CardTitle>
+                    <CardDescription>
+                      Use this template to submit a detailed support request
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-[300px] rounded-md bg-white/5 p-4">
+                      <pre className="whitespace-pre-wrap text-white/80 font-mono text-sm">
+                        {getTemplateForCategory(activeCategory)}
+                      </pre>
+                    </ScrollArea>
+                    
+                    <div className="mt-6 space-y-4">
+                      <h3 className="text-lg font-medium">Submit Your Request</h3>
+                      <Textarea 
+                        placeholder="Paste the template here and fill in your details..."
+                        className="min-h-[200px] bg-white/5 border-white/10"
+                      />
+                      <div className="flex justify-between items-center">
+                        <Button 
+                          variant="outline" 
+                          className="border-white/10 text-white/70"
+                          onClick={() => handleCopy(getTemplateForCategory(activeCategory))}
+                        >
+                          Copy Template
+                        </Button>
+                        <Button 
+                          className="bg-casino-thunder-green hover:bg-casino-thunder-green/90 text-black"
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" />
+                          Submit Ticket
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
           
-          {/* Account Issues Tab */}
-          <TabsContent value="account">
-            <Card className="border-white/10 bg-black/20">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <Lock className="mr-2 text-casino-thunder-green" />
-                  Account Temporarily Unavailable – What It Means and What to Do
-                </h3>
-                
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="template">
-                    <AccordionTrigger>View Template</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="bg-casino-deep-black/50 p-4 rounded-md mb-4 border border-white/5">
-                        <pre className="whitespace-pre-wrap text-white/80 text-sm">
-{`Hi ThunderWin Support,
-
-My account seems to be temporarily unavailable. Here are the details:
-
-Username: [your username]
-Error message received: [exact error message]
-Last successful login: [date and time]
-Recent changes made: [any changes to account, deposits, etc.]
-KYC submitted: [Yes/No]
-Previous violations or warnings: [details if any]
-
-[Any additional information that might help]
-
-Thank you for your assistance.`}
-                        </pre>
+          <TabsContent value="contact">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-white/5 border-white/10">
+                <CardHeader>
+                  <CardTitle>Contact Support</CardTitle>
+                  <CardDescription>Get in touch with our support team directly</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center p-4 bg-white/5 rounded-lg">
+                    <MessageSquare className="h-6 w-6 text-casino-thunder-green mr-4" />
+                    <div>
+                      <h3 className="font-medium">Live Chat</h3>
+                      <p className="text-sm text-white/70">Available 24/7. Average response time: &lt;5 minutes</p>
+                    </div>
+                    <Button className="ml-auto bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90">
+                      Start Chat
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center p-4 bg-white/5 rounded-lg">
+                    <div className="h-6 w-6 text-casino-thunder-green mr-4 flex items-center justify-center">
+                      📧
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Email Support</h3>
+                      <p className="text-sm text-white/70">support@thunderwin.com</p>
+                      <p className="text-sm text-white/70">Response time: 12-24 hours</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center p-4 bg-white/5 rounded-lg">
+                    <div className="h-6 w-6 text-casino-thunder-green mr-4 flex items-center justify-center">
+                      📞
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Phone Support</h3>
+                      <p className="text-sm text-white/70">+1-800-THUNDER</p>
+                      <p className="text-sm text-white/70">Hours: 9AM-9PM (UTC)</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-white/5 border-white/10">
+                <CardHeader>
+                  <CardTitle>Responsible Gaming</CardTitle>
+                  <CardDescription>Help and resources for responsible gambling</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-white/80">
+                    At ThunderWin, we're committed to promoting responsible gaming. If you need help or want to set limits on your gaming:
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Button 
+                      variant="outline" 
+                      className="border-white/10 hover:bg-white/5 flex items-center justify-start text-left"
+                      onClick={() => window.location.href = "/support/responsible-gaming"}
+                    >
+                      <div className="h-8 w-8 bg-white/10 rounded-full flex items-center justify-center mr-3">
+                        🛑
                       </div>
-                      <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `Hi ThunderWin Support,\n\nMy account seems to be temporarily unavailable. Here are the details:\n\nUsername: [your username]\nError message received: [exact error message]\nLast successful login: [date and time]\nRecent changes made: [any changes to account, deposits, etc.]\nKYC submitted: [Yes/No]\nPrevious violations or warnings: [details if any]\n\n[Any additional information that might help]\n\nThank you for your assistance.`
-                          );
-                          alert("Template copied to clipboard!");
-                        }}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Copy Template
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                
-                <div className="mt-4">
-                  <p className="text-white/70 mb-3">Guide users to provide the following information:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-white/70">
-                    <li>Username</li>
-                    <li>Error message received</li>
-                    <li>Last successful login</li>
-                    <li>Recent changes made</li>
-                    <li>KYC submitted: Yes / No</li>
-                    <li>Previous violations or warnings</li>
-                  </ul>
-                </div>
-                
-                <Link to="/support/contact" className="block mt-6">
-                  <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                    Contact Support
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Withdrawal Tab */}
-          <TabsContent value="withdrawal">
-            <Card className="border-white/10 bg-black/20">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <DollarSign className="mr-2 text-casino-thunder-green" />
-                  Withdrawal Issues
-                </h3>
-                
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="template">
-                    <AccordionTrigger>View Template</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="bg-casino-deep-black/50 p-4 rounded-md mb-4 border border-white/5">
-                        <pre className="whitespace-pre-wrap text-white/80 text-sm">
-{`Hi ThunderWin Support,
-
-I'm having an issue with my withdrawal. Here are the details:
-
-Username: [your username]
-Withdrawal method: [method used]
-Wallet address or bank account: [details]
-Amount requested: [amount]
-Transaction hash / ID: [if available]
-Date requested: [date]
-
-[Describe the issue you're experiencing]
-
-Thank you for your assistance.`}
-                        </pre>
+                      <div>
+                        <span className="block font-medium">Set Limits</span>
+                        <span className="text-xs text-white/60">Deposit, loss, or time limits</span>
                       </div>
-                      <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `Hi ThunderWin Support,\n\nI'm having an issue with my withdrawal. Here are the details:\n\nUsername: [your username]\nWithdrawal method: [method used]\nWallet address or bank account: [details]\nAmount requested: [amount]\nTransaction hash / ID: [if available]\nDate requested: [date]\n\n[Describe the issue you're experiencing]\n\nThank you for your assistance.`
-                          );
-                          alert("Template copied to clipboard!");
-                        }}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Copy Template
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                
-                <div className="mt-4">
-                  <p className="text-white/70 mb-3">For smoother resolution of withdrawal problems:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-white/70">
-                    <li>Withdrawal method</li>
-                    <li>Wallet address or bank account</li>
-                    <li>Amount requested</li>
-                    <li>Transaction hash / ID</li>
-                    <li>Screenshot from withdrawal page</li>
-                  </ul>
-                </div>
-                
-                <Link to="/support/contact" className="block mt-6">
-                  <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                    Contact Support
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Bonus Issues Tab */}
-          <TabsContent value="bonus">
-            <Card className="border-white/10 bg-black/20">
-              <CardContent className="pt-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center">
-                  <Gift className="mr-2 text-casino-thunder-green" />
-                  Bonus or Promotion Issue
-                </h3>
-                
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="template">
-                    <AccordionTrigger>View Template</AccordionTrigger>
-                    <AccordionContent>
-                      <div className="bg-casino-deep-black/50 p-4 rounded-md mb-4 border border-white/5">
-                        <pre className="whitespace-pre-wrap text-white/80 text-sm">
-{`Hi ThunderWin Support,
-
-I'm having an issue with a bonus or promotion. Here are the details:
-
-Username: [your username]
-Name of promotion: [promotion name]
-Time and date of participation: [when you tried to use the bonus]
-Expected bonus/reward: [what you should have received]
-Issue encountered: [describe what happened]
-
-[Any additional information]
-
-Thank you for your assistance.`}
-                        </pre>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="border-white/10 hover:bg-white/5 flex items-center justify-start text-left"
+                      onClick={() => window.location.href = "/support/responsible-gaming"}
+                    >
+                      <div className="h-8 w-8 bg-white/10 rounded-full flex items-center justify-center mr-3">
+                        ⏰
                       </div>
-                      <Button 
-                        onClick={() => {
-                          navigator.clipboard.writeText(
-                            `Hi ThunderWin Support,\n\nI'm having an issue with a bonus or promotion. Here are the details:\n\nUsername: [your username]\nName of promotion: [promotion name]\nTime and date of participation: [when you tried to use the bonus]\nExpected bonus/reward: [what you should have received]\nIssue encountered: [describe what happened]\n\n[Any additional information]\n\nThank you for your assistance.`
-                          );
-                          alert("Template copied to clipboard!");
-                        }}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Copy Template
-                      </Button>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-                
-                <div className="mt-4">
-                  <p className="text-white/70 mb-3">Help users report issues related to bonuses or promotions effectively:</p>
-                  <ul className="list-disc pl-5 space-y-2 text-white/70">
-                    <li>Name of promotion</li>
-                    <li>Time and date of participation</li>
-                    <li>Expected bonus/reward</li>
-                    <li>Issue encountered</li>
-                  </ul>
-                </div>
-                
-                <Link to="/support/contact" className="block mt-6">
-                  <Button className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                    Contact Support
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                      <div>
+                        <span className="block font-medium">Time Out</span>
+                        <span className="text-xs text-white/60">Take a short break</span>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="border-white/10 hover:bg-white/5 flex items-center justify-start text-left"
+                      onClick={() => window.location.href = "/support/responsible-gaming"}
+                    >
+                      <div className="h-8 w-8 bg-white/10 rounded-full flex items-center justify-center mr-3">
+                        🔒
+                      </div>
+                      <div>
+                        <span className="block font-medium">Self-Exclusion</span>
+                        <span className="text-xs text-white/60">Long-term account closure</span>
+                      </div>
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="border-white/10 hover:bg-white/5 flex items-center justify-start text-left"
+                      onClick={() => window.location.href = "/support/responsible-gaming"}
+                    >
+                      <div className="h-8 w-8 bg-white/10 rounded-full flex items-center justify-center mr-3">
+                        📊
+                      </div>
+                      <div>
+                        <span className="block font-medium">Account History</span>
+                        <span className="text-xs text-white/60">View your gaming activity</span>
+                      </div>
+                    </Button>
+                  </div>
+                  
+                  <div className="p-4 bg-casino-thunder-green/10 rounded-lg mt-4 border border-casino-thunder-green/30">
+                    <h3 className="font-medium mb-2 flex items-center">
+                      <HelpCircle className="h-5 w-5 mr-2" />
+                      Need help with gambling addiction?
+                    </h3>
+                    <p className="text-sm text-white/80 mb-3">
+                      If you or someone you know is struggling with gambling addiction, these resources can help:
+                    </p>
+                    <ul className="text-sm space-y-1 text-white/80">
+                      <li>• GamCare: 0808 8020 133</li>
+                      <li>• BeGambleAware: www.begambleaware.org</li>
+                      <li>• Gamblers Anonymous: www.gamblersanonymous.org</li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-casino-thunder-gray/30 border border-white/5">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <FileText className="mr-2" size={20} />
-              Legal Information
-            </h2>
-            <ul className="space-y-3">
-              <li>
-                <Link to="/legal/terms" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  Terms & Conditions
-                </Link>
-              </li>
-              <li>
-                <Link to="/legal/privacy" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link to="/support/responsible-gaming" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  Responsible Gaming Policy
-                </Link>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-casino-thunder-gray/30 border border-white/5">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <Book className="mr-2" size={20} />
-              Guides & Tutorials
-            </h2>
-            <ul className="space-y-3">
-              <li>
-                <Link to="/support/faq?topic=getting-started" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  Getting Started Guide
-                </Link>
-              </li>
-              <li>
-                <Link to="/support/faq?topic=deposits" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  How to Make a Deposit
-                </Link>
-              </li>
-              <li>
-                <Link to="/support/faq?topic=withdrawals" className="text-white/80 hover:text-casino-thunder-green flex items-center" onClick={() => window.scrollTo(0, 0)}>
-                  <ExternalLink size={14} className="mr-2" />
-                  How to Request a Withdrawal
-                </Link>
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
 };
 
-export default HelpCenterPage;
+export default HelpCenter;

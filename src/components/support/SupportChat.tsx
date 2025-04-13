@@ -1,524 +1,580 @@
 
-import { useState, useEffect, useRef } from "react";
-import { 
-  Send, 
-  X, 
-  MessageSquare, 
-  ArrowRight, 
-  Loader2,
-  ThumbsUp,
-  TicketCheck,
-  Tag,
-  ExternalLink
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { AutoResponse, SupportTicket, SupportMessage } from "@/types/support";
-import { v4 as uuidv4 } from "uuid";
-import { toast } from "@/components/ui/use-toast";
-import { Link, useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { MessageSquare, Send, X, Minimize2, Maximize2, HelpCircle, ChevronDown, Search } from "lucide-react";
+import { scrollToTop } from "@/utils/scrollUtils";
+import { useNavigate } from "react-router-dom";
+
+type Message = {
+  id: number;
+  sender: "user" | "agent";
+  text: string;
+  timestamp: Date;
+  isRead?: boolean;
+};
 
 const SupportChat = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [ticketCreated, setTicketCreated] = useState(false);
-  const [ticketId, setTicketId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [autoResponses, setAutoResponses] = useState<AutoResponse[]>([]);
-  const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState<SupportTicket['category']>("account");
-  const [showTicketForm, setShowTicketForm] = useState(false);
-  const [ticketDetails, setTicketDetails] = useState<SupportTicket | null>(null);
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [chatStarted, setChatStarted] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const navigate = useNavigate();
   
-  useEffect(() => {
-    // Load auto-responses from localStorage if available
-    const storedResponses = localStorage.getItem("autoResponses");
-    if (storedResponses) {
-      setAutoResponses(JSON.parse(storedResponses));
-    }
-    
-    // Initialize with welcome message
-    const initialMessage: SupportMessage = {
-      id: uuidv4(),
-      ticketId: "",
-      senderId: "system",
-      senderName: "Support Bot",
-      senderType: "system",
-      message: "Hello! How can I help you today? For faster assistance, you can check our Help Center to find answers to common questions.",
-      createdAt: new Date().toISOString(),
-      isRead: true
-    };
-    
-    setMessages([initialMessage]);
-  }, []);
+  // Quick help topics
+  const quickHelpTopics = [
+    { id: "deposit", title: "Deposit Issues" },
+    { id: "withdrawal", title: "Withdrawal Help" },
+    { id: "bonus", title: "Bonus Questions" },
+    { id: "account", title: "Account Access" },
+    { id: "technical", title: "Technical Issues" },
+  ];
   
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Common FAQs
+  const commonFaqs = [
+    { 
+      question: "How do I make a deposit?", 
+      answer: "To make a deposit, go to the Cashier section, select your preferred payment method, enter the amount, and follow the instructions. If you need additional help, our support team is here to assist you."
+    },
+    { 
+      question: "How long do withdrawals take?", 
+      answer: "Withdrawal times vary by method: Cryptocurrencies (10-60 min), E-Wallets (0-24 hrs), Bank Transfers (1-5 business days). All withdrawals have a review period of up to 24 hours."
+    },
+    { 
+      question: "Why can't I access my account?", 
+      answer: "Account access issues can be due to incorrect login details, temporary security measures, or account verification requirements. Try resetting your password or contact support for assistance."
+    },
+    { 
+      question: "How do I claim a bonus?", 
+      answer: "To claim a bonus, go to the Promotions section, select the bonus you want, and follow the instructions. Some bonuses might require a deposit or a bonus code."
+    },
+  ];
 
   useEffect(() => {
-    if (ticketId) {
-      // Load ticket details when ticketId is set
-      const storedTickets = localStorage.getItem("supportTickets");
-      if (storedTickets) {
-        const parsedTickets = JSON.parse(storedTickets);
-        const ticket = parsedTickets.find((t: SupportTicket) => t.id === ticketId);
-        if (ticket) {
-          setTicketDetails(ticket);
-        }
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const startChat = () => {
+    if (!name || !email) return;
+    
+    setChatStarted(true);
+    setMessages([
+      {
+        id: 1,
+        sender: "agent",
+        text: `Hello ${name}! Welcome to ThunderWin support. How can I help you today?`,
+        timestamp: new Date(),
       }
-    }
-  }, [ticketId]);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    ]);
   };
-  
-  const handleSendMessage = () => {
+
+  const sendMessage = () => {
     if (!message.trim()) return;
     
-    // Add user message
-    const userMessage: SupportMessage = {
-      id: uuidv4(),
-      ticketId: ticketId || "",
-      senderId: "user1", // This would come from auth in a real app
-      senderName: "You",
-      senderType: "user",
-      message: message.trim(),
-      createdAt: new Date().toISOString(),
-      isRead: true
+    const newUserMessage = {
+      id: messages.length + 1,
+      sender: "user",
+      text: message,
+      timestamp: new Date(),
     };
     
-    setMessages(prev => [...prev, userMessage]);
+    setMessages([...messages, newUserMessage]);
     setMessage("");
-    setIsLoading(true);
     
-    // Simulate processing time
+    // Simulate agent response after a delay
     setTimeout(() => {
-      // Check for auto-responses based on keywords
-      const userMessageLower = message.toLowerCase();
-      const matchingResponse = autoResponses.find(response => 
-        response.keyword.some(keyword => userMessageLower.includes(keyword.toLowerCase()))
-      );
+      const agentResponses = [
+        "Thank you for your question. Our team is looking into this for you.",
+        "I understand your concern. Let me help you with that.",
+        "Thank you for contacting support. We're processing your request.",
+        "I'm checking this information for you right now.",
+        "Thanks for reaching out. Is there anything else you'd like to know?",
+      ];
       
-      if (matchingResponse) {
-        // Send auto-response
-        const botMessage: SupportMessage = {
-          id: uuidv4(),
-          ticketId: ticketId || "",
-          senderId: "system",
-          senderName: "Support Bot",
-          senderType: "system",
-          message: matchingResponse.response,
-          createdAt: new Date().toISOString(),
-          isRead: true
-        };
-        
-        setMessages(prev => [...prev, botMessage]);
-      } else {
-        // Check if message contains help-related keywords
-        const helpKeywords = ['help', 'assistance', 'support', 'guide', 'faq', 'question', 'how to'];
-        const containsHelpKeyword = helpKeywords.some(keyword => userMessageLower.includes(keyword));
-        
-        if (containsHelpKeyword) {
-          // Suggest help center for help-related queries
-          const helpCenterMessage: SupportMessage = {
-            id: uuidv4(),
-            ticketId: "",
-            senderId: "system",
-            senderName: "Support Bot",
-            senderType: "system",
-            message: "It looks like you have a question. Our Help Center has detailed guides and FAQs that might answer your question faster. Would you like to check our Help Center?",
-            createdAt: new Date().toISOString(),
-            isRead: true
-          };
-          
-          setMessages(prev => [...prev, helpCenterMessage]);
-          
-          // Add help center button message
-          const helpButtonMessage: SupportMessage = {
-            id: uuidv4(),
-            ticketId: "",
-            senderId: "system",
-            senderName: "Support Bot",
-            senderType: "system",
-            message: "HELP_CENTER_BUTTON", // Special message type to render a button
-            createdAt: new Date().toISOString(),
-            isRead: true
-          };
-          
-          setMessages(prev => [...prev, helpButtonMessage]);
-        } else if (!ticketCreated && !showTicketForm) {
-          // Generic response prompting ticket creation if no ticket yet
-          const botMessage: SupportMessage = {
-            id: uuidv4(),
-            ticketId: "",
-            senderId: "system",
-            senderName: "Support Bot",
-            senderType: "system",
-            message: "I'll need more information to help you. Would you like to create a support ticket? You can also check our Help Center for faster assistance.",
-            createdAt: new Date().toISOString(),
-            isRead: true
-          };
-          
-          setMessages(prev => [...prev, botMessage]);
-          setShowTicketForm(true);
-        } else if (ticketCreated) {
-          // Acknowledge message for existing ticket
-          const botMessage: SupportMessage = {
-            id: uuidv4(),
-            ticketId: ticketId || "",
-            senderId: "system",
-            senderName: "Support Bot",
-            senderType: "system",
-            message: "Thank you for your message. Our team will review it as soon as possible.",
-            createdAt: new Date().toISOString(),
-            isRead: true
-          };
-          
-          setMessages(prev => [...prev, botMessage]);
-        }
-      }
+      const randomResponse = agentResponses[Math.floor(Math.random() * agentResponses.length)];
       
-      setIsLoading(false);
-    }, 1000);
-  };
-  
-  const handleCreateTicket = () => {
-    if (!subject.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a subject for your ticket",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    
-    // Create new ticket
-    const newTicketId = `TICKET-${1000 + Math.floor(Math.random() * 9000)}`;
-    const newTicket: SupportTicket = {
-      id: newTicketId,
-      userId: "user1", // This would come from auth in a real app
-      userName: "You",
-      subject: subject,
-      status: "new",
-      priority: "medium",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      messages: [...messages.filter(m => m.senderType !== "system")],
-      category: category
-    };
-    
-    // Update existing tickets or create new array
-    const existingTickets = localStorage.getItem("supportTickets");
-    const ticketsArray = existingTickets ? JSON.parse(existingTickets) : [];
-    localStorage.setItem("supportTickets", JSON.stringify([...ticketsArray, newTicket]));
-    
-    // Confirmation message
-    const confirmationMessage: SupportMessage = {
-      id: uuidv4(),
-      ticketId: newTicketId,
-      senderId: "system",
-      senderName: "Support Bot",
-      senderType: "system",
-      message: `Your ticket has been created with ID: ${newTicketId}. Our support team will review it shortly.`,
-      createdAt: new Date().toISOString(),
-      isRead: true
-    };
-    
-    setTimeout(() => {
-      setMessages(prev => [...prev, confirmationMessage]);
-      setTicketCreated(true);
-      setTicketId(newTicketId);
-      setTicketDetails(newTicket);
-      setShowTicketForm(false);
-      setIsLoading(false);
+      const newAgentMessage = {
+        id: messages.length + 2,
+        sender: "agent",
+        text: randomResponse,
+        timestamp: new Date(),
+      };
       
-      toast({
-        title: "Success",
-        description: "Your support ticket has been created",
-      });
+      setMessages(prev => [...prev, newAgentMessage]);
     }, 1500);
   };
   
-  const handleGoToHelpCenter = () => {
-    setIsOpen(false);
-    navigate('/support/help');
-    window.scrollTo(0, 0);
-  };
-  
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      sendMessage();
     }
+  };
+
+  const timeAgo = (date: Date) => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    let interval = seconds / 31536000;
+    
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return "just now";
   };
   
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const goToHelpCenter = () => {
+    navigate("/support/help");
+    scrollToTop();
+    setIsOpen(false);
   };
-
-  const getCategoryBadge = (category: SupportTicket['category']) => {
-    switch (category) {
-      case "account":
-        return <Badge variant="outline" className="border-purple-500 text-purple-500">Account</Badge>;
-      case "payment":
-        return <Badge variant="outline" className="border-green-500 text-green-500">Payment</Badge>;
-      case "game":
-        return <Badge variant="outline" className="border-blue-500 text-blue-500">Game</Badge>;
-      case "technical":
-        return <Badge variant="outline" className="border-yellow-500 text-yellow-500">Technical</Badge>;
-      case "other":
-        return <Badge variant="outline" className="border-gray-500 text-gray-500">Other</Badge>;
-      default:
-        return <Badge variant="outline">{category}</Badge>;
-    }
+  
+  const handleSelectCategory = (category: string) => {
+    setSelectedCategory(category);
+    setMessage(`I need help with ${category.toLowerCase()}.`);
   };
-
-  // Special message renderer for different message types
-  const renderMessage = (msg: SupportMessage) => {
-    if (msg.message === "HELP_CENTER_BUTTON") {
-      return (
-        <div className="p-2 bg-casino-thunder-green/20 rounded-lg">
-          <Button 
-            onClick={handleGoToHelpCenter}
-            className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-          >
-            Visit Help Center <ExternalLink className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      );
-    }
+  
+  const handleFaqClick = (answer: string) => {
+    const newAgentMessage = {
+      id: messages.length + 1,
+      sender: "agent",
+      text: answer,
+      timestamp: new Date(),
+    };
     
+    setMessages(prev => [...prev, newAgentMessage]);
+  };
+
+  // Mobile UI using Sheet
+  if (isMobile) {
     return (
       <>
-        <div className="text-xs opacity-75 mb-1">{formatTime(msg.createdAt)}</div>
-        <p className="whitespace-pre-wrap text-sm">{msg.message}</p>
+        <SheetTrigger asChild>
+          <Button 
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-neon bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 z-50"
+            onClick={() => setIsOpen(true)}
+          >
+            <MessageSquare className="h-6 w-6" />
+          </Button>
+        </SheetTrigger>
+        
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetContent side="bottom" className="h-[85vh] rounded-t-xl bg-casino-thunder-darker border-t border-white/10 p-0">
+            <div className="flex flex-col h-full">
+              <SheetHeader className="bg-gradient-to-r from-casino-thunder-green/20 to-transparent p-4 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Avatar className="h-10 w-10 border-2 border-casino-thunder-green mr-3">
+                      <AvatarImage src="/file.svg" alt="Support" />
+                      <AvatarFallback className="bg-casino-thunder-green text-black">TS</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <SheetTitle className="text-white">ThunderWin Support</SheetTitle>
+                      <SheetDescription className="text-white/70">We're here to help 24/7</SheetDescription>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+              </SheetHeader>
+              
+              {!chatStarted ? (
+                <div className="p-4 flex-1 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div className="text-center mb-6">
+                      <HelpCircle className="h-12 w-12 mx-auto text-casino-thunder-green mb-2" />
+                      <h3 className="text-xl font-medium mb-1">How can we help you?</h3>
+                      <p className="text-white/70 text-sm">
+                        Start a chat or browse our Help Center for quick answers
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      className="w-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 mb-4"
+                      onClick={goToHelpCenter}
+                    >
+                      <HelpCircle className="mr-2 h-4 w-4" />
+                      Browse Help Center
+                    </Button>
+                    
+                    <div className="space-y-3 mb-6">
+                      <h4 className="font-medium text-white/80">Quick Help Topics</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {quickHelpTopics.map(topic => (
+                          <Button 
+                            key={topic.id} 
+                            variant="outline" 
+                            className="justify-start border-white/10 hover:bg-white/5 hover:text-casino-thunder-green"
+                            onClick={() => handleSelectCategory(topic.title)}
+                          >
+                            {topic.title}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-white/80">Start a Chat</h4>
+                      <div className="space-y-3">
+                        <Input 
+                          placeholder="Your Name" 
+                          value={name} 
+                          onChange={(e) => setName(e.target.value)} 
+                          className="bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Input 
+                          placeholder="Email Address" 
+                          value={email} 
+                          onChange={(e) => setEmail(e.target.value)} 
+                          className="bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Textarea 
+                          placeholder="How can we help you?" 
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          className="min-h-[100px] bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Button 
+                          className="w-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90"
+                          onClick={startChat}
+                          disabled={!name || !email}
+                        >
+                          Start Chat
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-lg p-3 ${
+                            msg.sender === "user"
+                              ? "bg-casino-thunder-green/20 text-white ml-auto"
+                              : "bg-white/10 text-white"
+                          }`}
+                        >
+                          {msg.sender === "agent" && (
+                            <div className="flex items-center mb-1">
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarFallback className="bg-casino-thunder-green text-black text-xs">TS</AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs font-medium text-casino-thunder-green">Support Agent</span>
+                            </div>
+                          )}
+                          <p className="text-sm">{msg.text}</p>
+                          <div
+                            className={`text-xs mt-1 ${
+                              msg.sender === "user" ? "text-white/50 text-right" : "text-white/50"
+                            }`}
+                          >
+                            {timeAgo(msg.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-white/10 p-3">
+                    <div className="flex items-center space-x-2">
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        className="min-h-[60px] bg-white/5 border-white/10 focus:border-casino-thunder-green resize-none"
+                      />
+                      <Button 
+                        className="h-[60px] w-[60px] rounded-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 flex-shrink-0"
+                        onClick={sendMessage}
+                      >
+                        <Send className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full border-white/10 text-white/70">
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            <span>Quick FAQs</span>
+                            <ChevronDown className="ml-auto h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0 bg-casino-thunder-darker border border-white/10">
+                          <div className="p-3 border-b border-white/10">
+                            <Input 
+                              placeholder="Search FAQs" 
+                              value={searchTerm} 
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="bg-white/5 border-white/10"
+                            />
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto py-2">
+                            {commonFaqs
+                              .filter(faq => faq.question.toLowerCase().includes(searchTerm.toLowerCase()))
+                              .map((faq, index) => (
+                                <button
+                                  key={index}
+                                  className="w-full text-left p-3 hover:bg-white/5 text-sm transition-colors"
+                                  onClick={() => handleFaqClick(faq.answer)}
+                                >
+                                  {faq.question}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </>
     );
-  };
-
+  }
+  
+  // Desktop UI
   return (
-    <div className="fixed bottom-5 right-5 z-50">
-      {/* Chat Button */}
-      {!isOpen && (
+    <>
+      {!isOpen ? (
         <Button 
-          onClick={() => setIsOpen(true)} 
-          className="rounded-full w-14 h-14 bg-casino-thunder-green text-black shadow-lg hover:bg-casino-thunder-highlight"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-neon bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 z-50"
+          onClick={() => setIsOpen(true)}
         >
           <MessageSquare className="h-6 w-6" />
         </Button>
-      )}
-      
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="bg-casino-thunder-dark border border-white/10 rounded-lg shadow-xl w-80 sm:w-96 flex flex-col overflow-hidden animate-fade-in">
-          {/* Chat Header */}
-          <div className="bg-casino-thunder-darker p-3 border-b border-white/10 flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src="/file.svg" alt="Support" />
-                <AvatarFallback>S</AvatarFallback>
-              </Avatar>
-              <div>
-                <h3 className="font-semibold text-white">ThunderWin Support</h3>
-                {!ticketCreated ? (
-                  <p className="text-xs text-gray-400">How can we help you?</p>
-                ) : (
-                  <div className="flex items-center">
-                    <Badge variant="outline" className="text-xs mr-2">{ticketId}</Badge>
-                    {ticketDetails && getCategoryBadge(ticketDetails.category)}
-                  </div>
-                )}
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setIsOpen(false)}
-              className="text-white hover:bg-white/10"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          
-          {/* Messages Area */}
-          <div className="flex-1 p-3 overflow-y-auto max-h-80 bg-black/30">
-            <div className="space-y-3">
-              {messages.map((msg) => (
-                <div 
-                  key={msg.id} 
-                  className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {msg.senderType !== 'user' && (
-                    <Avatar className="h-8 w-8 mr-2 mt-1 flex-shrink-0">
-                      <AvatarImage src="/file.svg" alt="Support" />
-                      <AvatarFallback>S</AvatarFallback>
-                    </Avatar>
-                  )}
-                  
-                  <div 
-                    className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                      msg.senderType === 'user' 
-                        ? 'bg-casino-thunder-green text-black' 
-                        : msg.senderType === 'system'
-                          ? msg.message === "HELP_CENTER_BUTTON" ? 'bg-transparent p-0' : 'bg-gray-700 text-white'
-                          : 'bg-white/10 text-white'
-                    }`}
-                  >
-                    {renderMessage(msg)}
-                  </div>
-                  
-                  {msg.senderType === 'user' && (
-                    <Avatar className="h-8 w-8 ml-2 mt-1 flex-shrink-0">
-                      <AvatarImage src="/placeholder.svg" alt="You" />
-                      <AvatarFallback>U</AvatarFallback>
-                    </Avatar>
-                  )}
-                </div>
-              ))}
-              
-              {isLoading && (
-                <div className="flex justify-start">
-                  <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                    <AvatarImage src="/file.svg" alt="Support" />
-                    <AvatarFallback>S</AvatarFallback>
-                  </Avatar>
-                  <div className="bg-gray-700 rounded-lg px-4 py-2 flex items-center">
-                    <Loader2 className="h-4 w-4 animate-spin text-white" />
-                  </div>
-                </div>
-              )}
-              
-              {/* Help Center Suggestion */}
-              {!ticketCreated && !isLoading && (
-                <div className="flex justify-center my-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-xs text-casino-thunder-green border-casino-thunder-green/30"
-                    onClick={handleGoToHelpCenter}
-                  >
-                    Visit Help Center <ExternalLink className="ml-1 h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-              
-              {/* Ticket Creation Form */}
-              {showTicketForm && !ticketCreated && (
-                <div className="bg-white/5 rounded-lg p-3 mt-2 border border-white/10">
-                  <h4 className="font-medium text-white mb-2">Create Support Ticket</h4>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Subject</label>
-                      <input 
-                        type="text" 
-                        className="w-full bg-white/10 border border-white/20 rounded px-3 py-1 text-white text-sm" 
-                        placeholder="Brief description of your issue"
-                        value={subject}
-                        onChange={(e) => setSubject(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="flex items-center text-xs text-gray-400 mb-1">
-                        <Tag className="h-3 w-3 mr-1" />
-                        Category
-                      </label>
-                      <select 
-                        className="w-full bg-white/10 border border-white/20 rounded px-3 py-1 text-white text-sm"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value as SupportTicket['category'])}
-                      >
-                        <option value="account">Account</option>
-                        <option value="payment">Payment</option>
-                        <option value="game">Game</option>
-                        <option value="technical">Technical</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setShowTicketForm(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className="bg-casino-thunder-green text-black hover:bg-casino-thunder-highlight"
-                        onClick={handleCreateTicket}
-                      >
-                        Create Ticket <TicketCheck className="ml-1 h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {ticketCreated && ticketDetails && (
-                <div className="bg-white/5 rounded-lg p-2 mt-2 border border-white/10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Tag className="h-3 w-3 mr-1 text-gray-400" />
-                      <span className="text-xs text-gray-400">Category:</span>
-                    </div>
-                    {getCategoryBadge(ticketDetails.category)}
-                  </div>
-                </div>
-              )}
-              
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
-          
-          {/* Input Area */}
-          <div className="p-3 border-t border-white/10 bg-casino-thunder-darker">
-            <div className="flex items-end space-x-2">
-              <Textarea
-                placeholder="Type your message..."
-                className="flex-1 min-h-[60px] max-h-32 bg-white/10 border-white/20 focus:border-casino-thunder-green text-white resize-none"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-              <Button
-                className="bg-casino-thunder-green text-black hover:bg-casino-thunder-highlight h-10 w-10 p-0"
-                onClick={handleSendMessage}
-                disabled={!message.trim() || isLoading}
-              >
-                <Send className="h-5 w-5" />
+      ) : (
+        <div 
+          className={`fixed ${isMinimized ? 'bottom-6 right-6 w-auto h-auto' : 'bottom-6 right-6 w-[400px] h-[550px]'} 
+            bg-casino-thunder-darker border border-white/10 rounded-lg shadow-lg z-50 transition-all duration-300 overflow-hidden flex flex-col`}
+        >
+          <div className="bg-gradient-to-r from-casino-thunder-green/20 to-transparent p-4 border-b border-white/10 flex items-center justify-between">
+            {isMinimized ? (
+              <Button variant="ghost" className="text-white p-0 h-auto" onClick={() => setIsMinimized(false)}>
+                <span className="font-medium">ThunderWin Support</span>
               </Button>
-            </div>
-            
-            {!ticketCreated && (
-              <div className="mt-2 flex justify-center">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-xs text-gray-400 hover:text-white"
-                  onClick={() => setShowTicketForm(!showTicketForm)}
-                >
-                  {showTicketForm ? "Hide ticket form" : "Create support ticket"}
-                  {showTicketForm ? <ThumbsUp className="ml-1 h-3 w-3" /> : <ArrowRight className="ml-1 h-3 w-3" />}
-                </Button>
+            ) : (
+              <div className="flex items-center">
+                <Avatar className="h-10 w-10 border-2 border-casino-thunder-green mr-3">
+                  <AvatarImage src="/file.svg" alt="Support" />
+                  <AvatarFallback className="bg-casino-thunder-green text-black">TS</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-white font-medium">ThunderWin Support</h3>
+                  <p className="text-white/70 text-xs">We're here to help 24/7</p>
+                </div>
               </div>
             )}
+            
+            <div className="flex items-center space-x-1">
+              {isMinimized ? (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMinimized(false)}>
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsMinimized(true)}>
+                  <Minimize2 className="h-4 w-4" />
+                </Button>
+              )}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+          
+          {!isMinimized && (
+            <>
+              {!chatStarted ? (
+                <div className="p-4 flex-1 overflow-y-auto">
+                  <div className="space-y-4">
+                    <div className="text-center mb-6">
+                      <HelpCircle className="h-12 w-12 mx-auto text-casino-thunder-green mb-2" />
+                      <h3 className="text-xl font-medium mb-1">How can we help you?</h3>
+                      <p className="text-white/70 text-sm">
+                        Start a chat or browse our Help Center for quick answers
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      className="w-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 mb-4"
+                      onClick={goToHelpCenter}
+                    >
+                      <HelpCircle className="mr-2 h-4 w-4" />
+                      Browse Help Center
+                    </Button>
+                    
+                    <div className="space-y-3 mb-6">
+                      <h4 className="font-medium text-white/80">Quick Help Topics</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        {quickHelpTopics.map(topic => (
+                          <Button 
+                            key={topic.id} 
+                            variant="outline" 
+                            className="justify-start border-white/10 hover:bg-white/5 hover:text-casino-thunder-green"
+                            onClick={() => handleSelectCategory(topic.title)}
+                          >
+                            {topic.title}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-white/80">Start a Chat</h4>
+                      <div className="space-y-3">
+                        <Input 
+                          placeholder="Your Name" 
+                          value={name} 
+                          onChange={(e) => setName(e.target.value)} 
+                          className="bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Input 
+                          placeholder="Email Address" 
+                          value={email} 
+                          onChange={(e) => setEmail(e.target.value)} 
+                          className="bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Textarea 
+                          placeholder="How can we help you?" 
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          className="min-h-[100px] bg-white/5 border-white/10 focus:border-casino-thunder-green"
+                        />
+                        <Button 
+                          className="w-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90"
+                          onClick={startChat}
+                          disabled={!name || !email}
+                        >
+                          Start Chat
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-lg p-3 ${
+                            msg.sender === "user"
+                              ? "bg-casino-thunder-green/20 text-white ml-auto"
+                              : "bg-white/10 text-white"
+                          }`}
+                        >
+                          {msg.sender === "agent" && (
+                            <div className="flex items-center mb-1">
+                              <Avatar className="h-6 w-6 mr-2">
+                                <AvatarFallback className="bg-casino-thunder-green text-black text-xs">TS</AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs font-medium text-casino-thunder-green">Support Agent</span>
+                            </div>
+                          )}
+                          <p className="text-sm">{msg.text}</p>
+                          <div
+                            className={`text-xs mt-1 ${
+                              msg.sender === "user" ? "text-white/50 text-right" : "text-white/50"
+                            }`}
+                          >
+                            {timeAgo(msg.timestamp)}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t border-white/10 p-3">
+                    <div className="flex items-center space-x-2">
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        className="min-h-[60px] bg-white/5 border-white/10 focus:border-casino-thunder-green resize-none"
+                      />
+                      <Button 
+                        className="h-[60px] w-[60px] rounded-full bg-casino-thunder-green text-black hover:bg-casino-thunder-green/90 flex-shrink-0"
+                        onClick={sendMessage}
+                      >
+                        <Send className="h-5 w-5" />
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full border-white/10 text-white/70">
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            <span>Quick FAQs</span>
+                            <ChevronDown className="ml-auto h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0 bg-casino-thunder-darker border border-white/10">
+                          <div className="p-3 border-b border-white/10">
+                            <Input 
+                              placeholder="Search FAQs" 
+                              value={searchTerm} 
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="bg-white/5 border-white/10"
+                            />
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto py-2">
+                            {commonFaqs
+                              .filter(faq => faq.question.toLowerCase().includes(searchTerm.toLowerCase()))
+                              .map((faq, index) => (
+                                <button
+                                  key={index}
+                                  className="w-full text-left p-3 hover:bg-white/5 text-sm transition-colors"
+                                  onClick={() => handleFaqClick(faq.answer)}
+                                >
+                                  {faq.question}
+                                </button>
+                              ))
+                            }
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 };
 

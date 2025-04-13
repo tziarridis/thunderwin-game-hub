@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import NavigationMenu from "./NavigationMenu";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, LogOut, LogIn, Menu, X } from "lucide-react";
+import { User, LogOut, LogIn, Menu, X, HelpCircle } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { scrollToTop } from "@/utils/scrollUtils";
 
 const AppHeader = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -18,19 +19,28 @@ const AppHeader = () => {
 
   const handleLogin = () => {
     navigate("/login");
+    scrollToTop();
   };
 
   const handleRegister = () => {
     navigate("/register");
+    scrollToTop();
   };
 
   const handleProfile = () => {
     navigate("/profile");
+    scrollToTop();
   };
 
   const handleLogout = () => {
     logout();
     navigate("/");
+    scrollToTop();
+  };
+  
+  const handleHelpCenter = () => {
+    navigate("/support/help");
+    scrollToTop();
   };
 
   return (
@@ -54,14 +64,6 @@ const AppHeader = () => {
         <div className="flex items-center gap-2">
           {isAuthenticated ? (
             <>
-              <Button 
-                variant="outline" 
-                className="hidden sm:flex border-casino-thunder-green hover:border-casino-thunder-green/80 hover:bg-casino-thunder-green/10"
-                onClick={() => navigate("/bonuses")}
-              >
-                Bonuses
-              </Button>
-              
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -77,6 +79,10 @@ const AppHeader = () => {
                   <DropdownMenuItem onClick={handleProfile}>
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleHelpCenter}>
+                    <HelpCircle className="mr-2 h-4 w-4" />
+                    <span>Help Center</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -129,6 +135,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/casino");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -137,6 +144,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/casino/slots");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -145,6 +153,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/casino/table-games");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -153,6 +162,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/casino/live-casino");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -161,6 +171,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/casino/jackpots");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -169,6 +180,7 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/promotions");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                     />
                     <MobileNavLink 
@@ -177,8 +189,18 @@ const AppHeader = () => {
                       onClick={() => {
                         navigate("/vip");
                         setIsMenuOpen(false);
+                        scrollToTop();
                       }}
                       highlight
+                    />
+                    <MobileNavLink 
+                      title="Help Center" 
+                      icon={<span className="text-casino-thunder-green">❓</span>}
+                      onClick={() => {
+                        navigate("/support/help");
+                        setIsMenuOpen(false);
+                        scrollToTop();
+                      }}
                     />
                     
                     {isAuthenticated && (
@@ -190,14 +212,7 @@ const AppHeader = () => {
                           onClick={() => {
                             navigate("/profile");
                             setIsMenuOpen(false);
-                          }}
-                        />
-                        <MobileNavLink 
-                          title="Bonuses" 
-                          icon={<span className="text-casino-thunder-green">🎫</span>}
-                          onClick={() => {
-                            navigate("/bonuses");
-                            setIsMenuOpen(false);
+                            scrollToTop();
                           }}
                         />
                         {user?.isAdmin && (
@@ -207,6 +222,7 @@ const AppHeader = () => {
                             onClick={() => {
                               navigate("/admin");
                               setIsMenuOpen(false);
+                              scrollToTop();
                             }}
                           />
                         )}
