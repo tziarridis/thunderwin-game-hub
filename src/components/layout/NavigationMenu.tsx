@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
+import { navigateByButtonName } from "@/utils/navigationUtils";
 import { Gamepad2, Trophy, Gift, HelpCircle, Zap, Flame, Crown } from "lucide-react";
 
 const NavigationMenuDemo = () => {
@@ -38,6 +39,11 @@ const NavigationMenuDemo = () => {
     navigate(path);
     scrollToTop();
   };
+  
+  const handleTextNavigation = (text: string) => {
+    navigateByButtonName(text, navigate);
+    scrollToTop();
+  };
 
   return (
     <NavigationMenu className="max-w-none justify-start">
@@ -45,7 +51,7 @@ const NavigationMenuDemo = () => {
         {/* Casino - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -53,21 +59,21 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino')}
+              onClick={() => handleTextNavigation('Casino')}
             >
               <Gamepad2 className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Casino
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
         {/* Slots - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -75,21 +81,21 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino/slots')}
+              onClick={() => handleTextNavigation('Slots')}
             >
               <Flame className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Slots
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
         {/* Live Casino - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -97,14 +103,14 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino/live-casino')}
+              onClick={() => handleTextNavigation('Live Casino')}
             >
               <Zap className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Live Casino
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
@@ -112,7 +118,7 @@ const NavigationMenuDemo = () => {
         {showSportsSection && (
           <NavigationMenuItem>
             <NavigationMenuLink asChild>
-              <a
+              <button
                 className={cn(
                   navigationMenuTriggerStyle(),
                   "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -120,14 +126,14 @@ const NavigationMenuDemo = () => {
                     ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                     : "border-transparent"
                 )}
-                onClick={() => handleNavigation('/sports')}
+                onClick={() => handleTextNavigation('Sports')}
               >
                 <Trophy className="mr-2 h-4 w-4" />
                 <span className="relative overflow-hidden group">
                   Sports
                   <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
                 </span>
-              </a>
+              </button>
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
@@ -135,7 +141,7 @@ const NavigationMenuDemo = () => {
         {/* Promotions - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -143,21 +149,21 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/promotions')}
+              onClick={() => handleTextNavigation('Promotions')}
             >
               <Gift className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Promotions
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
         {/* VIP - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -165,21 +171,21 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/vip')}
+              onClick={() => handleTextNavigation('VIP')}
             >
               <Crown className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 VIP
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
         {/* Bonuses - Direct link */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -187,21 +193,21 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/bonuses')}
+              onClick={() => handleTextNavigation('Bonuses')}
             >
               <Zap className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Bonuses
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
         {/* Help Center - Direct link (moved to last position) */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
-            <a
+            <button
               className={cn(
                 navigationMenuTriggerStyle(),
                 "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -209,14 +215,14 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/support/help')}
+              onClick={() => handleTextNavigation('Help Center')}
             >
               <HelpCircle className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 Help Center
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
-            </a>
+            </button>
           </NavigationMenuLink>
         </NavigationMenuItem>
 
@@ -224,7 +230,7 @@ const NavigationMenuDemo = () => {
         {isAuthenticated && isAdmin && (
           <NavigationMenuItem>
             <NavigationMenuLink asChild>
-              <a
+              <button
                 className={cn(
                   navigationMenuTriggerStyle(),
                   "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
@@ -232,13 +238,13 @@ const NavigationMenuDemo = () => {
                     ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                     : "border-transparent"
                 )}
-                onClick={() => handleNavigation('/admin')}
+                onClick={() => handleTextNavigation('Admin')}
               >
                 <span className="relative overflow-hidden group">
                   Admin
                   <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
                 </span>
-              </a>
+              </button>
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}

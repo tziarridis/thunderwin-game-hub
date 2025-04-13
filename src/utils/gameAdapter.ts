@@ -70,6 +70,9 @@ export const adaptProvidersForUI = (apiProviders: APIGameProvider[]): UIGameProv
     id: provider.id.toString(),
     name: provider.name,
     code: provider.id.toString(),
-    currency: 'EUR'
+    currency: 'EUR',
+    logo: provider.logo || '',
+    gamesCount: provider.gamesCount || 0,
+    isPopular: provider.isPopular || false
   }));
 };

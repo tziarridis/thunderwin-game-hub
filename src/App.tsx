@@ -9,6 +9,7 @@ import {
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Layout from "./components/layout/Layout";
+import AppLayout from "./components/layout/AppLayout"; // Import AppLayout
 import AdminLayout from "./components/layout/AdminLayout";
 import Home from "./pages/Index";
 import CasinoMain from "./pages/casino/CasinoMain";
@@ -86,7 +87,7 @@ function App() {
         <ScrollToTop />
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<Layout />}>
+          <Route path="/" element={<AppLayout />}>
             <Route index element={<Home />} />
             <Route path="casino" element={<CasinoMain />} />
             <Route path="casino/slots" element={<PlaceholderPage title="Slots" />} />

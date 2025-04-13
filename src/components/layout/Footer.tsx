@@ -77,23 +77,100 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Casino</h4>
             <ul className="space-y-2">
-              <FooterLink text="All Casino Games" to="/casino" />
-              <FooterLink text="Slots" to="/casino/slots" />
-              <FooterLink text="Live Casino" to="/casino/live-casino" />
-              <FooterLink text="Table Games" to="/casino/table-games" />
-              <FooterLink text="Jackpots" to="/casino/jackpots" />
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("All Casino Games")}
+                >
+                  All Casino Games
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Slots")}
+                >
+                  Slots
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Live Casino")}
+                >
+                  Live Casino
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Table Games")}
+                >
+                  Table Games
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Jackpots")}
+                >
+                  Jackpots
+                </button>
+              </li>
             </ul>
           </div>
 
           <div>
             <h4 className="text-white font-semibold mb-4">Sports</h4>
             <ul className="space-y-2">
-              <FooterLink text="All Sports" to="/sports" />
-              <FooterLink text="Football" to="/sports/football" />
-              <FooterLink text="Basketball" to="/sports/basketball" />
-              <FooterLink text="Tennis" to="/sports/tennis" />
-              <FooterLink text="Hockey" to="/sports/hockey" />
-              <FooterLink text="eSports" to="/sports/esports" />
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("All Sports")}
+                >
+                  All Sports
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Football")}
+                >
+                  Football
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Basketball")}
+                >
+                  Basketball
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Tennis")}
+                >
+                  Tennis
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Hockey")}
+                >
+                  Hockey
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("eSports")}
+                >
+                  eSports
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -103,7 +180,7 @@ const Footer = () => {
               <li>
                 <button 
                   className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleNavigate("/support/help")}
+                  onClick={() => handleTextNavigation("Help Center")}
                 >
                   Help Center
                 </button>
@@ -111,20 +188,48 @@ const Footer = () => {
               <li>
                 <button 
                   className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleNavigate("/support/faq")}
+                  onClick={() => handleTextNavigation("FAQ")}
                 >
                   FAQ
                 </button>
               </li>
-              <FooterLink text="Responsible Gaming" to="/support/responsible-gaming" />
-              <FooterLink text="Terms & Conditions" to="/legal/terms" />
-              <FooterLink text="Privacy Policy" to="/legal/privacy" />
-              <FooterLink text="Contact Us" to="/support/contact" />
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Responsible Gaming")}
+                >
+                  Responsible Gaming
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Terms & Conditions")}
+                >
+                  Terms & Conditions
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Privacy Policy")}
+                >
+                  Privacy Policy
+                </button>
+              </li>
+              <li>
+                <button 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
+                  onClick={() => handleTextNavigation("Contact Us")}
+                >
+                  Contact Us
+                </button>
+              </li>
               
               <li className="pt-4 mt-2 border-t border-white/10">
                 <button 
                   className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer bg-transparent border-0 p-0 text-left"
-                  onClick={() => handleNavigate("/admin/login")}
+                  onClick={() => handleTextNavigation("Admin Login")}
                 >
                   Admin Login
                 </button>
