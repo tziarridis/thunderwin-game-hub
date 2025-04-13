@@ -1,13 +1,17 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
+import { getProviderConfig } from '@/config/gameProviders';
+
+// Get Pragmatic Play EUR configuration
+const ppConfig = getProviderConfig('ppeur');
 
 // PP API Constants
-const PP_API_BASE = 'https://apipg.slotgamesapi.com';
-const PP_AGENT_ID = 'captaingambleEUR';
-const PP_API_TOKEN = '275c535c8c014b59bedb2a2d6fe7d37b';
-const PP_SECRET_KEY = 'bbd0551e144c46d19975f985e037c9b0';
-const PP_CURRENCY = 'EUR';
+const PP_API_BASE = `https://${ppConfig?.credentials.apiEndpoint || 'apipg.slotgamesapi.com'}`;
+const PP_AGENT_ID = ppConfig?.credentials.agentId || 'captaingambleEUR';
+const PP_API_TOKEN = ppConfig?.credentials.apiToken || '275c535c8c014b59bedb2a2d6fe7d37b';
+const PP_SECRET_KEY = ppConfig?.credentials.secretKey || 'bbd0551e144c46d19975f985e037c9b0';
+const PP_CURRENCY = ppConfig?.currency || 'EUR';
 
 // Interface for game launch options
 export interface PPGameLaunchOptions {
@@ -144,7 +148,8 @@ export const pragmaticPlayService = {
       { code: 'vs20sbxmas', name: 'Sweet Bonanza Xmas' },
       { code: 'vs10wolfgold', name: 'Wolf Gold' },
       { code: 'vs25pyramid', name: 'Pyramid Bonanza' },
-      { code: 'vs20fparty2', name: 'Fruit Party 2' }
+      { code: 'vs20fparty2', name: 'Fruit Party 2' },
+      { code: 'vs20fruitparty', name: 'Fruit Party' }
     ];
   }
 };

@@ -1,285 +1,230 @@
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import React, { useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle, RefreshCw, Database } from "lucide-react";
-import WinningRoller from "@/components/casino/WinningRoller";
-import { gameAggregatorService } from "@/services/gameAggregatorService";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { gameProviderService } from "@/services/gameProviderService";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { availableProviders } from "@/config/gameProviders";
+import { Gamepad, Settings, Server, Database, Globe } from "lucide-react";
+import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
 
-const GameAggregator: React.FC = () => {
-  const [syncStatus, setSyncStatus] = useState({
-    isRunning: false,
-    lastSync: '',
-    nextScheduledSync: '',
-    status: 'idle',
-  });
-  
-  const [syncResults, setSyncResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("games");
-  
-  // Fetch initial sync status
-  useEffect(() => {
-    const fetchSyncStatus = async () => {
-      try {
-        const status = await gameAggregatorService.getSyncStatus();
-        setSyncStatus(status);
-      } catch (error) {
-        console.error("Error fetching sync status:", error);
-      }
-    };
-    
-    fetchSyncStatus();
-    
-    // Refresh status every 30 seconds
-    const interval = setInterval(fetchSyncStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-  
-  const handleSyncNow = async () => {
-    if (syncStatus.isRunning) {
-      toast.info("Sync is already in progress");
-      return;
-    }
-    
+const GameAggregator = () => {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [testMode, setTestMode] = useState<'demo' | 'real'>('demo');
+  const [testGameCode, setTestGameCode] = useState("vs20bonzanza");
+  const providers = gameProviderService.getSupportedProviders();
+
+  const handleTestGame = async () => {
     try {
-      setSyncStatus(prev => ({ ...prev, isRunning: true, status: 'syncing' }));
-      toast.info("Game sync started");
+      const launchUrl = await gameProviderService.getLaunchUrl({
+        gameId: testGameCode,
+        providerId: "ppeur", // Default to Pragmatic Play EUR
+        mode: testMode,
+        playerId: "test_player_" + Date.now()
+      });
       
-      const results = await gameAggregatorService.triggerSync();
-      setSyncResults(results);
-      
-      // Update sync status
-      const newStatus = await gameAggregatorService.getSyncStatus();
-      setSyncStatus(newStatus);
-      
-      toast.success("Game sync completed");
-    } catch (error) {
-      console.error("Error during sync:", error);
-      toast.error("Game sync failed");
-      setSyncStatus(prev => ({ ...prev, isRunning: false, status: 'error' }));
+      window.open(launchUrl, "_blank");
+      toast.success("Game launched successfully!");
+    } catch (error: any) {
+      toast.error(`Failed to launch game: ${error.message || "Unknown error"}`);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Game Aggregator</h1>
-        <Button 
-          onClick={handleSyncNow} 
-          disabled={syncStatus.isRunning}
-          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-        >
-          {syncStatus.isRunning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Syncing Games...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Sync Games Now
-            </>
-          )}
-        </Button>
+    <div className="container mx-auto p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-2">Game Aggregator Management</h1>
+        <p className="text-muted-foreground">
+          Manage and test game provider integrations, including Pragmatic Play
+        </p>
       </div>
-      
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader>
-          <CardTitle className="text-xl">Sync Status</CardTitle>
-          <CardDescription>
-            Current status of the game aggregator synchronization
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Status</div>
-              <div className="font-semibold flex items-center">
-                {syncStatus.status === 'idle' && (
-                  <Badge variant="outline" className="bg-blue-500/20 text-blue-400">Idle</Badge>
-                )}
-                {syncStatus.status === 'syncing' && (
-                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Syncing</Badge>
-                )}
-                {syncStatus.status === 'error' && (
-                  <Badge variant="outline" className="bg-red-500/20 text-red-400">Error</Badge>
-                )}
-              </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Last Sync</div>
-              <div className="font-semibold">
-                {syncStatus.lastSync ? new Date(syncStatus.lastSync).toLocaleString() : 'Never'}
-              </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Next Scheduled Sync</div>
-              <div className="font-semibold">
-                {syncStatus.nextScheduledSync ? new Date(syncStatus.nextScheduledSync).toLocaleString() : 'Not scheduled'}
-              </div>
-            </div>
-            
-            <div className="bg-slate-800 p-3 rounded-md">
-              <div className="text-white/70 text-sm mb-1">Configured Providers</div>
-              <div className="font-semibold">{availableProviders.length}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      {syncResults && (
-        <Card className="bg-slate-900 border-slate-800">
-          <CardHeader>
-            <CardTitle className="text-xl">Latest Sync Results</CardTitle>
-            <CardDescription>
-              Results from the most recent game synchronization
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Object.entries(syncResults.results).map(([providerId, result]: [string, any]) => (
-                <div key={providerId} className="bg-slate-800 p-4 rounded-md">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center">
-                      <h3 className="font-semibold">{availableProviders.find(p => p.id === providerId)?.name || providerId}</h3>
-                      <Badge className="ml-2" variant={result.success ? "default" : "destructive"}>
-                        {result.success ? "Success" : "Failed"}
-                      </Badge>
-                    </div>
-                    {result.success ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
-                  </div>
-                  
-                  {result.success ? (
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="text-white/70">Games Added:</span> {result.gamesAdded}
-                      </div>
-                      <div>
-                        <span className="text-white/70">Games Updated:</span> {result.gamesUpdated}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-red-400 text-sm">{result.error}</div>
-                  )}
-                </div>
-              ))}
-              
-              <div className="text-sm text-white/70">
-                Sync completed at {new Date(syncResults.timestamp).toLocaleString()}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle className="text-xl">Latest Game Winners</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <WinningRoller />
-        </CardContent>
-      </Card>
-      
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="games">Games</TabsTrigger>
-          <TabsTrigger value="providers">Providers</TabsTrigger>
-          <TabsTrigger value="stats">Statistics</TabsTrigger>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview">
+            <Gamepad className="mr-2 h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="pragmatic">
+            <Globe className="mr-2 h-4 w-4" />
+            Pragmatic Play
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="mr-2 h-4 w-4" />
+            Provider Settings
+          </TabsTrigger>
+          <TabsTrigger value="api">
+            <Server className="mr-2 h-4 w-4" />
+            API Configuration
+          </TabsTrigger>
+          <TabsTrigger value="database">
+            <Database className="mr-2 h-4 w-4" />
+            Game Database
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="games">
-          <GamesList />
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {providers.map((provider) => (
+              <Card key={provider.id} className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>{provider.name}</CardTitle>
+                  <CardDescription>Currency: {provider.currency}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="mb-4">Provider Code: {provider.code}</p>
+                  <p className="mb-4">Games Count: {provider.gamesCount}</p>
+                  <div className="flex justify-end">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setActiveTab(provider.code.toLowerCase());
+                        if (provider.code === 'PP') setActiveTab('pragmatic');
+                      }}
+                    >
+                      Manage
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
-        
-        <TabsContent value="providers">
-          <ProvidersList />
+
+        <TabsContent value="pragmatic">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Pragmatic Play Integration</CardTitle>
+                <CardDescription>
+                  Test and manage Pragmatic Play game integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="game-code">Game Code</Label>
+                  <Input 
+                    id="game-code" 
+                    value={testGameCode}
+                    onChange={(e) => setTestGameCode(e.target.value)}
+                    placeholder="e.g. vs20bonzanza"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter a Pragmatic Play game code to test
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mode">Game Mode</Label>
+                  <Select value={testMode} onValueChange={(value) => setTestMode(value as 'demo' | 'real')}>
+                    <SelectTrigger id="mode">
+                      <SelectValue placeholder="Select mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="demo">Demo Mode</SelectItem>
+                      <SelectItem value="real">Real Money Mode</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button onClick={handleTestGame} className="w-full">
+                  Launch Test Game
+                </Button>
+
+                <div className="mt-4 pt-4 border-t border-slate-700">
+                  <h3 className="text-sm font-medium mb-2">Integration Details</h3>
+                  <ul className="text-xs space-y-1">
+                    <li>Agent ID: captaingambleEUR</li>
+                    <li>API Endpoint: apipg.slotgamesapi.com</li>
+                    <li>Callback URL: /casino/seamless</li>
+                    <li>Currency: EUR</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <PragmaticPlayTester />
+          </div>
         </TabsContent>
-        
-        <TabsContent value="stats">
-          <GamesStatistics />
+
+        <TabsContent value="settings">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Provider Settings</CardTitle>
+              <CardDescription>Configure game provider settings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Configure provider-specific settings, credentials, and options.</p>
+              <div className="mt-4">
+                <Button variant="outline" onClick={() => window.location.href = '/admin/aggregator-settings'}>
+                  Go to Provider Settings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="api">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>API Configuration</CardTitle>
+              <CardDescription>Configure API endpoints and credentials</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="callback-url">Seamless Wallet Callback URL</Label>
+                  <Input 
+                    id="callback-url" 
+                    value="/casino/seamless"
+                    disabled
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This is the endpoint where game providers will send transaction callbacks
+                  </p>
+                </div>
+                
+                <div className="mt-6">
+                  <Button variant="outline" onClick={() => window.location.href = '/casino/seamless'}>
+                    View Seamless Integration
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="database">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Game Database</CardTitle>
+              <CardDescription>Manage game database and synchronization</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-4">
+                Configure game database settings and synchronization schedule.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span>Last game sync:</span>
+                  <span>Never</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Total games in database:</span>
+                  <span>0</span>
+                </div>
+                <Button variant="outline">
+                  Sync Games from Provider
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
-  );
-};
-
-const GamesList: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>All Games</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-slate-800 p-6 rounded-md text-center">
-          <Database className="h-12 w-12 text-casino-thunder-green mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Game Database Ready</h3>
-          <p className="text-white/70 mb-4">
-            The game database is ready to be populated. Click the "Sync Games Now" button 
-            at the top of the page to fetch games from all configured providers.
-          </p>
-          <p className="text-sm text-white/50">
-            After syncing, you can manage individual games in the Games Management section.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const ProvidersList: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game Providers</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableProviders.map(provider => (
-            <div key={provider.id} className="bg-slate-800 p-4 rounded-md">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold">{provider.name}</h3>
-                <Badge>{provider.currency}</Badge>
-              </div>
-              <div className="text-sm text-white/70">
-                Provider ID: {provider.id}
-              </div>
-              <div className="text-sm text-white/70">
-                Code: {provider.code}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const GamesStatistics: React.FC = () => {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game Statistics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="bg-slate-800 p-6 rounded-md text-center">
-          <h3 className="text-lg font-semibold mb-2">Statistics Coming Soon</h3>
-          <p className="text-white/70">
-            Detailed game statistics will be available after syncing games and collecting usage data.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 
