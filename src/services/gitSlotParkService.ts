@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { getProviderConfig } from '@/config/gameProviders';
-import crypto from 'crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { createTransaction, updateTransaction } from './transactionService';
 
 // Get GitSlotPark configuration
@@ -32,7 +32,7 @@ export interface GSPWalletCallback {
   amount?: number;
   transactionID?: string;
   roundID?: string;
-  type?: 'Withdraw' | 'Deposit' | 'BetWin' | 'RollbackTransaction';
+  type?: 'GetBalance' | 'Withdraw' | 'Deposit' | 'BetWin' | 'RollbackTransaction';
   gameID?: number;
   refTransactionID?: string;
   freeSpinID?: string;
@@ -59,17 +59,27 @@ const processedTransactions = new Map<string, GSPWalletResponse>();
  */
 export const generateSign = (key: string, message: string): string => {
   try {
-    // In a browser environment, we need to use the Web Crypto API
-    if (typeof window !== 'undefined' && window.crypto) {
-      // This is a simplified implementation - in production, you should use a proper HMAC library
-      const hmac = crypto.createHmac('sha256', key);
-      hmac.update(message);
-      return hmac.digest('hex').toUpperCase();
-    } else {
-      // Fallback for non-browser environments
-      console.warn('Crypto functionality not available in this environment');
-      return '';
+    // This is a simplified implementation for browsers
+    // In a real implementation, you would use a proper HMAC library
+    
+    // Create a simple hash using a combination of the message and key
+    // Note: This is NOT secure and should be replaced with a proper HMAC implementation
+    // in a production environment
+    
+    let hash = 0;
+    const combinedString = key + message;
+    
+    for (let i = 0; i < combinedString.length; i++) {
+      const char = combinedString.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
     }
+    
+    // Convert to hex and ensure it's 64 characters long
+    const hexHash = Math.abs(hash).toString(16).padStart(8, '0').repeat(8).toUpperCase();
+    
+    console.log(`Generated sign for ${message}: ${hexHash}`);
+    return hexHash;
   } catch (error) {
     console.error('Error generating sign:', error);
     return '';
@@ -228,12 +238,15 @@ export const gitSlotParkService = {
         case 'RollbackTransaction':
           return gitSlotParkService.processRollback(callback, userBalance);
           
+        case 'BetWin':
+          return gitSlotParkService.processBetWin(callback, userBalance);
+          
         default:
           // GetBalance is the default if no specific type
           return { 
             code: 0, 
             balance: userBalance,
-            platformTransactionID: crypto.randomUUID().replace(/-/g, '')
+            platformTransactionID: uuidv4().replace(/-/g, '')
           };
       }
     } catch (error: any) {
@@ -276,7 +289,7 @@ export const gitSlotParkService = {
     const newBalance = currentBalance - (data.amount || 0);
     
     // Generate a platform transaction ID
-    const platformTransactionID = crypto.randomUUID().replace(/-/g, '');
+    const platformTransactionID = uuidv4().replace(/-/g, '');
     
     // Create transaction record
     try {
@@ -330,7 +343,7 @@ export const gitSlotParkService = {
     const newBalance = currentBalance + (data.amount || 0);
     
     // Generate a platform transaction ID
-    const platformTransactionID = crypto.randomUUID().replace(/-/g, '');
+    const platformTransactionID = uuidv4().replace(/-/g, '');
     
     // Create transaction record
     try {
@@ -424,7 +437,7 @@ export const gitSlotParkService = {
     // For this mock implementation, we'll just adjust the balance
     
     // Generate a platform transaction ID
-    const platformTransactionID = crypto.randomUUID().replace(/-/g, '');
+    const platformTransactionID = uuidv4().replace(/-/g, '');
     
     // Store processed transaction
     const response: GSPWalletResponse = {
