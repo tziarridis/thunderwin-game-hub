@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   ImageIcon, 
-  Gamepad2,  // Replace Casino 
+  Gamepad2,  
   Grid3x3, 
-  Football,  // Replace FootballIcon
+  Award as SportIcon,  // Replace Football with Award
   Globe 
 } from 'lucide-react';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
@@ -69,7 +70,7 @@ const CMSOverview = () => {
         <CMSModule 
           title="Sportsbook" 
           description="Configure sportsbook banners, features and promotions." 
-          icon={<Football size={24} />} 
+          icon={<SportIcon size={24} />}  // Updated icon
           path="/admin/cms/sportsbook" 
         />
         

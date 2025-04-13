@@ -1,3 +1,4 @@
+import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { 
@@ -19,10 +20,10 @@ import {
   Shield,
   LogIn,
   Paintbrush,
-  Image,  // Replace ImageIcon
-  Gamepad2,  // Replace Casino
+  Image,
+  Gamepad2,
   Grid3x3,
-  Football,  // Replace FootballIcon
+  Award as SportIcon,  // Replace Football with Award
   Globe,
   Layers
 } from "lucide-react";
@@ -164,7 +165,7 @@ const AdminSidebar = () => {
               />
               <SidebarLink 
                 to="/admin/cms/sportsbook" 
-                icon={<Football size={16} />} 
+                icon={<SportIcon size={16} />} 
                 label="Sportsbook" 
                 expanded={expanded}
                 isActive={isActive("/admin/cms/sportsbook")}
