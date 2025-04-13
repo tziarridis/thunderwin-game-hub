@@ -487,6 +487,7 @@ export const mockGamesService = {
     console.log(`Mock toggling ${feature} to ${value} for game ${id}`);
     try {
       const game = await this.getGame(id);
+      
       if (!game) {
         throw new Error(`Game with id ${id} not found`);
       }
