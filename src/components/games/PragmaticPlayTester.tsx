@@ -4,7 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { pragmaticPlayService, PPGame } from "@/services/pragmaticPlayService";
+import { 
+  pragmaticPlayService, 
+  PPGame,
+  PP_AGENT_ID,
+  PP_API_TOKEN,
+  PP_SECRET_KEY,
+  PP_CURRENCY,
+  PP_API_BASE
+} from "@/services/pragmaticPlayService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, RefreshCw } from "lucide-react";

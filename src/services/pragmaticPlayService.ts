@@ -1,14 +1,13 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import MD5 from 'crypto-js/md5';
 
 // PP API Constants
-const PP_API_BASE = 'https://apipg.slotgamesapi.com';
-const PP_AGENT_ID = 'captaingambleEUR';
-const PP_API_TOKEN = '275c535c8c014b59bedb2a2d6fe7d37b';
-const PP_SECRET_KEY = 'bbd0551e144c46d19975f985e037c9b0';
-const PP_CURRENCY = 'EUR';
+export const PP_API_BASE = 'https://apipg.slotgamesapi.com';
+export const PP_AGENT_ID = 'captaingambleEUR';
+export const PP_API_TOKEN = '275c535c8c014b59bedb2a2d6fe7d37b';
+export const PP_SECRET_KEY = 'bbd0551e144c46d19975f985e037c9b0';
+export const PP_CURRENCY = 'EUR';
 
 // Interface for game launch options
 export interface PPGameLaunchOptions {
