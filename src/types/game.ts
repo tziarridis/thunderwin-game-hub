@@ -1,6 +1,6 @@
 
 export interface GameProvider {
-  id: number;
+  id: number | string;
   name: string;
   logo?: string;
   description?: string;
