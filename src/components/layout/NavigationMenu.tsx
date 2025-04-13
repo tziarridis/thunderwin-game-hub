@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -18,20 +17,6 @@ const NavigationMenuDemo = () => {
   const location = useLocation();
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.isAdmin;
-  const [showSportsSection, setShowSportsSection] = useState(true);
-
-  useEffect(() => {
-    // Check if sports section should be hidden from localStorage
-    const interfaceSettings = localStorage.getItem("backoffice_interface_settings");
-    if (interfaceSettings) {
-      try {
-        const settings = JSON.parse(interfaceSettings);
-        setShowSportsSection(settings.showSportsSection !== false); // Default to true if not explicitly false
-      } catch (error) {
-        console.error("Error parsing interface settings:", error);
-      }
-    }
-  }, []);
 
   const handleNavigation = (path: string) => {
     console.log(`Navigating to: ${path}`);
@@ -86,7 +71,29 @@ const NavigationMenuDemo = () => {
           </NavigationMenuLink>
         </NavigationMenuItem>
 
-        {/* Favorites - Direct link */}
+        {/* Sports - New placement (third) */}
+        <NavigationMenuItem>
+          <NavigationMenuLink asChild>
+            <a
+              className={cn(
+                navigationMenuTriggerStyle(),
+                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
+                location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
+                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
+                  : "border-transparent"
+              )}
+              onClick={() => handleNavigation('/sports')}
+            >
+              <Trophy className="mr-2 h-4 w-4" />
+              <span className="relative overflow-hidden group">
+                Sports
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
+              </span>
+            </a>
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+
+        {/* Favorites - Direct link (now fourth) */}
         <NavigationMenuItem>
           <NavigationMenuLink asChild>
             <a
@@ -124,28 +131,6 @@ const NavigationMenuDemo = () => {
               <Crown className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
                 VIP
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Sports - Direct link (always visible now) */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/sports')}
-            >
-              <Trophy className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Sports
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
               </span>
             </a>
