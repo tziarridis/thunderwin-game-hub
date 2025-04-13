@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { 
   Facebook, 
@@ -94,8 +95,22 @@ const Footer = () => {
           <div>
             <h4 className="text-white font-semibold mb-4">Support</h4>
             <ul className="space-y-2">
-              <FooterLink text="Help Center" to="/support/help" />
-              <FooterLink text="FAQ" to="/support/faq" />
+              <li>
+                <span 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer"
+                  onClick={() => handleNavigate("/support/help")}
+                >
+                  Help Center
+                </span>
+              </li>
+              <li>
+                <span 
+                  className="text-white/70 hover:text-casino-thunder-green transition-colors text-sm cursor-pointer"
+                  onClick={() => handleNavigate("/support/faq")}
+                >
+                  FAQ
+                </span>
+              </li>
               <FooterLink text="Responsible Gaming" to="/support/responsible-gaming" />
               <FooterLink text="Terms & Conditions" to="/legal/terms" />
               <FooterLink text="Privacy Policy" to="/legal/privacy" />
