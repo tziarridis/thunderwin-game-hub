@@ -11,10 +11,11 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     hmr: {
       // To make HMR work inside the Lovable editor
-      clientPort: 443,
-      protocol: 'wss'
+      clientPort: mode === 'development' ? 443 : undefined,
+      protocol: mode === 'development' ? 'wss' : 'ws'
     }
   },
+  // Ensure base path is properly set for production
   base: "/",
   plugins: [
     react(),
@@ -26,4 +27,16 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Add optimizations for production build
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@/components/ui']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000
+  }
 }));

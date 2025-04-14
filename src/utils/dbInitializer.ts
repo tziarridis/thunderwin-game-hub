@@ -76,6 +76,40 @@ const initialAdminAccounts = [
   }
 ];
 
+// Initial transaction data
+const initialTransactions = [
+  {
+    id: "TX-1001",
+    userId: "4",
+    type: "deposit",
+    method: "Credit Card",
+    amount: 1000,
+    currency: "EUR",
+    status: "completed",
+    timestamp: new Date(Date.now() - 86400000 * 2).toISOString() // 2 days ago
+  },
+  {
+    id: "TX-1002",
+    userId: "2",
+    type: "deposit",
+    method: "Bank Transfer",
+    amount: 500,
+    currency: "EUR",
+    status: "completed",
+    timestamp: new Date(Date.now() - 86400000 * 5).toISOString() // 5 days ago
+  },
+  {
+    id: "TX-1003",
+    userId: "4",
+    type: "withdrawal",
+    method: "Bank Transfer",
+    amount: 200,
+    currency: "EUR",
+    status: "completed",
+    timestamp: new Date(Date.now() - 86400000 * 1).toISOString() // 1 day ago
+  }
+];
+
 // Import mockGames as a default import if needed
 import mockGames from "@/data/mock-games";
 
@@ -99,6 +133,21 @@ const initializeDatabase = () => {
     // Initialize games
     if (!localStorage.getItem("games")) {
       localStorage.setItem("games", JSON.stringify(mockGames));
+    }
+
+    // Initialize transactions
+    if (!localStorage.getItem("transactions")) {
+      localStorage.setItem("transactions", JSON.stringify(initialTransactions));
+    }
+    
+    // Initialize payment methods
+    if (!localStorage.getItem("paymentMethods")) {
+      localStorage.setItem("paymentMethods", JSON.stringify([
+        { id: "card", name: "Credit Card", enabled: true, logo: "/payment/visa.svg" },
+        { id: "bank", name: "Bank Transfer", enabled: true, logo: "/payment/bank.svg" },
+        { id: "crypto", name: "Cryptocurrency", enabled: true, logo: "/payment/crypto.svg" },
+        { id: "paypal", name: "PayPal", enabled: true, logo: "/payment/paypal.svg" }
+      ]));
     }
     
     console.log("Browser database initialized successfully");
