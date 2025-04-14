@@ -1,5 +1,4 @@
 
-// Import React and necessary hooks
 import { Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
@@ -28,8 +27,8 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
+          <Toaster />
         </div>
-        <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );

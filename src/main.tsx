@@ -5,15 +5,11 @@ import App from './App.tsx';
 import './index.css';
 import './App.css';
 
-// No need to initialize database directly in the browser
-// Import only frontend data
-import './data/mock-games';
-
 // Create a root and ensure we're targeting the correct element
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");
 
-// Render with StrictMode removed to avoid double rendering
+// Render the app
 createRoot(rootElement).render(
   <Router>
     <App />
