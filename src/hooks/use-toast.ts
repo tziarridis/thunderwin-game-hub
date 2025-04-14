@@ -1,7 +1,5 @@
 
-import { toast as sonnerToast, Toast } from "sonner";
-
-type ToastProps = React.ComponentProps<typeof Toast>;
+import { toast as sonnerToast } from "sonner";
 
 // Internal toast state and interface
 const TOAST_LIMIT = 20;
@@ -43,7 +41,7 @@ export function toast({
   action?: React.ReactNode;
   variant?: "default" | "destructive" | "success" | "warning" | "info";
   duration?: number;
-} & Omit<ToastProps, "title" | "description" | "action" | "variant">) {
+} & Omit<React.ComponentProps<typeof sonnerToast>, "title" | "description" | "action" | "variant">) {
   const id = String(count++);
   
   // Add the toast to the array
