@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
       protocol: mode === 'development' ? 'wss' : 'ws'
     }
   },
-  // Ensure base path is properly set for production
+  // For Lovable preview, we need to ensure the base path is set correctly
   base: "/",
   plugins: [
     react(),
@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // Add optimizations for production build
+  // Optimize for development preview
   build: {
     rollupOptions: {
       output: {

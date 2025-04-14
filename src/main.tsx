@@ -8,7 +8,7 @@ import { AuthProvider } from './contexts/AuthContext';
 // Initialize browser database
 import initializeDatabase from './utils/dbInitializer';
 
-// Adding a more robust init process
+// Adding a robust init process for both production and Lovable preview
 const initApp = async () => {
   try {
     // Initialize the database
@@ -30,15 +30,16 @@ const initApp = async () => {
   } catch (error) {
     console.error("Error during app initialization:", error);
     
-    // Fallback rendering in case of initialization error
+    // Provide visual feedback about the error in the preview
     const rootElement = document.getElementById("root");
     if (rootElement) {
       rootElement.innerHTML = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center; color: white;">
+        <div style="font-family: Arial, sans-serif; padding: 20px; text-align: center; color: white; background-color: #1e1e2e;">
           <h1>ThunderWin Casino</h1>
-          <p>We're experiencing technical difficulties. Please try again in a few moments.</p>
-          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #00FF66; color: black; border: none; border-radius: 4px; cursor: pointer;">
-            Retry
+          <p>Initialization error: ${error instanceof Error ? error.message : 'Unknown error'}</p>
+          <p>Check the console for more details.</p>
+          <button onclick="window.location.reload()" style="padding: 10px 20px; background: #00FF66; color: black; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px;">
+            Reload App
           </button>
         </div>
       `;
