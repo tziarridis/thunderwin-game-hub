@@ -5,9 +5,11 @@ import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
 
-// No need to initialize database directly in the browser
-// Import only frontend data
-import './data/mock-games';
+// Initialize browser database
+import initializeDatabase from './utils/dbInitializer';
+
+// Initialize the database
+initializeDatabase();
 
 // Create a root
 const rootElement = document.getElementById("root");

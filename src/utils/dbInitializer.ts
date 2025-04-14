@@ -80,24 +80,32 @@ const initialAdminAccounts = [
 import mockGames from "@/data/mock-games";
 
 const initializeDatabase = () => {
-  // Initialize users
-  if (!localStorage.getItem("users")) {
-    localStorage.setItem("users", JSON.stringify(users));
-  }
+  try {
+    // Initialize users
+    if (!localStorage.getItem("users")) {
+      localStorage.setItem("users", JSON.stringify(users));
+    }
 
-  // Initialize mockUsers for authentication
-  if (!localStorage.getItem("mockUsers")) {
-    localStorage.setItem("mockUsers", JSON.stringify(users));
-  }
+    // Initialize mockUsers for authentication
+    if (!localStorage.getItem("mockUsers")) {
+      localStorage.setItem("mockUsers", JSON.stringify(users));
+    }
 
-  // Initialize the admin accounts for the Security page
-  if (!localStorage.getItem("adminAccounts")) {
-    localStorage.setItem("adminAccounts", JSON.stringify(initialAdminAccounts));
-  }
+    // Initialize the admin accounts for the Security page
+    if (!localStorage.getItem("adminAccounts")) {
+      localStorage.setItem("adminAccounts", JSON.stringify(initialAdminAccounts));
+    }
 
-  // Initialize games
-  if (!localStorage.getItem("games")) {
-    localStorage.setItem("games", JSON.stringify(mockGames));
+    // Initialize games
+    if (!localStorage.getItem("games")) {
+      localStorage.setItem("games", JSON.stringify(mockGames));
+    }
+    
+    console.log("Browser database initialized successfully");
+    return true;
+  } catch (error) {
+    console.error("Error initializing browser database:", error);
+    return false;
   }
 };
 
