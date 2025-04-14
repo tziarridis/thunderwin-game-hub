@@ -62,9 +62,3 @@
   color: #00FF66;
   text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
 }
-
-/* Fix for dark mode */
-body {
-  background-color: #121212;
-  color: white;
-}

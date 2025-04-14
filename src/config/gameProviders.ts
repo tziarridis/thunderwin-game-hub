@@ -29,7 +29,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleEUR",
       apiToken: "275c535c8c014b59bedb2a2d6fe7d37b", 
       secretKey: "bbd0551e144c46d19975f985e037c9b0",
-      callbackUrl: "https://thunderwin.io/casino/gitslotpark-seamless",
+      callbackUrl: "https://captaingamble/casino/seamless",
       apiEndpoint: "apipg.slotgamesapi.com"
     }
   },
