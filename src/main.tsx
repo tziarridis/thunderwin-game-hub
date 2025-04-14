@@ -8,8 +8,13 @@ import { AuthProvider } from './contexts/AuthContext';
 // Initialize browser database
 import initializeDatabase from './utils/dbInitializer';
 
-// Initialize the database
-initializeDatabase();
+// Initialize the database with a try-catch to prevent blocking the app render
+try {
+  initializeDatabase();
+  console.log("Database initialization completed");
+} catch (error) {
+  console.error("Error during database initialization:", error);
+}
 
 // Create a root
 const rootElement = document.getElementById("root");

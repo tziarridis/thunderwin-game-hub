@@ -5,9 +5,6 @@ import { Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
-// Auth provider
-import { AuthProvider } from "./contexts/AuthContext";
-
 // Layout components
 import Layout from "./components/layout/Layout";
 import AdminLayout from "./components/layout/AdminLayout";
@@ -73,86 +70,91 @@ import AggregatorSettings from "./pages/admin/AggregatorSettings";
 import PPIntegrationTester from "./pages/admin/PPIntegrationTester";
 
 // Create a client
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<IndexPage />} />
-            <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
-            <Route path="profile" element={<Profile />} />
-            
-            {/* Casino Routes */}
-            <Route path="casino" element={<CasinoMain />} />
-            <Route path="casino/game/:id" element={<GameDetails />} />
-            <Route path="casino/seamless" element={<Seamless />} />
-            <Route path="casino/gitslotpark-seamless" element={<GitSlotParkSeamless />} />
-            <Route path="casino/slots" element={<Slots />} />
-            <Route path="casino/table-games" element={<TableGames />} />
-            <Route path="casino/live-casino" element={<LiveCasino />} />
-            <Route path="casino/jackpots" element={<Jackpots />} />
-            <Route path="casino/providers" element={<Slots />} /> 
-            <Route path="casino/favorites" element={<Favorites />} />
-            <Route path="casino/crash" element={<Crash />} />
-            
-            {/* Sports Routes */}
-            <Route path="sports" element={<Sports />} />
-            <Route path="sports/football" element={<Football />} />
-            <Route path="sports/basketball" element={<Basketball />} />
-            <Route path="sports/tennis" element={<Tennis />} />
-            <Route path="sports/hockey" element={<Hockey />} />
-            <Route path="sports/esports" element={<Esports />} />
-            
-            {/* Promotions & Bonuses Routes */}
-            <Route path="promotions" element={<Promotions />} />
-            <Route path="bonuses" element={<BonusHub />} />
-            <Route path="vip" element={<VIP />} />
-            
-            {/* Support Routes */}
-            <Route path="support/help" element={<Help />} />
-            <Route path="support/faq" element={<Faq />} />
-            <Route path="support/contact" element={<Contact />} />
-            <Route path="support/responsible-gaming" element={<ResponsibleGaming />} />
-            
-            {/* Legal Routes */}
-            <Route path="legal/terms" element={<Terms />} />
-            <Route path="legal/privacy" element={<Privacy />} />
-            
-            {/* Fallback Route */}
-            <Route path="*" element={<NotFound />} />
-          </Route>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<IndexPage />} />
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+          <Route path="profile" element={<Profile />} />
           
-          {/* Admin Login Route */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+          {/* Casino Routes */}
+          <Route path="casino" element={<CasinoMain />} />
+          <Route path="casino/game/:id" element={<GameDetails />} />
+          <Route path="casino/seamless" element={<Seamless />} />
+          <Route path="casino/gitslotpark-seamless" element={<GitSlotParkSeamless />} />
+          <Route path="casino/slots" element={<Slots />} />
+          <Route path="casino/table-games" element={<TableGames />} />
+          <Route path="casino/live-casino" element={<LiveCasino />} />
+          <Route path="casino/jackpots" element={<Jackpots />} />
+          <Route path="casino/providers" element={<Slots />} /> 
+          <Route path="casino/favorites" element={<Favorites />} />
+          <Route path="casino/crash" element={<Crash />} />
           
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}>
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="games" element={<Games />} />
-            <Route path="game-aggregator" element={<GameAggregatorPage />} />
-            <Route path="aggregator-settings" element={<AggregatorSettings />} />
-            <Route path="pp-integration-tester" element={<PPIntegrationTester />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="support" element={<Support />} />
-            <Route path="users" element={<Users />} />
-            <Route path="transactions" element={<Transactions />} />
-            <Route path="affiliates" element={<Affiliates />} />
-            <Route path="promotions" element={<AdminPromotions />} />
-            <Route path="kyc" element={<KycManagement />} />
-            <Route path="logs" element={<Logs />} />
-            <Route path="security" element={<Security />} />
-            <Route path="vip-bonus" element={<VipBonusManagement />} />
-          </Route>
-        </Routes>
-      </AuthProvider>
+          {/* Sports Routes */}
+          <Route path="sports" element={<Sports />} />
+          <Route path="sports/football" element={<Football />} />
+          <Route path="sports/basketball" element={<Basketball />} />
+          <Route path="sports/tennis" element={<Tennis />} />
+          <Route path="sports/hockey" element={<Hockey />} />
+          <Route path="sports/esports" element={<Esports />} />
+          
+          {/* Promotions & Bonuses Routes */}
+          <Route path="promotions" element={<Promotions />} />
+          <Route path="bonuses" element={<BonusHub />} />
+          <Route path="vip" element={<VIP />} />
+          
+          {/* Support Routes */}
+          <Route path="support/help" element={<Help />} />
+          <Route path="support/faq" element={<Faq />} />
+          <Route path="support/contact" element={<Contact />} />
+          <Route path="support/responsible-gaming" element={<ResponsibleGaming />} />
+          
+          {/* Legal Routes */}
+          <Route path="legal/terms" element={<Terms />} />
+          <Route path="legal/privacy" element={<Privacy />} />
+          
+          {/* Fallback Route */}
+          <Route path="*" element={<NotFound />} />
+        </Route>
+        
+        {/* Admin Login Route */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}>
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="games" element={<Games />} />
+          <Route path="game-aggregator" element={<GameAggregatorPage />} />
+          <Route path="aggregator-settings" element={<AggregatorSettings />} />
+          <Route path="pp-integration-tester" element={<PPIntegrationTester />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="support" element={<Support />} />
+          <Route path="users" element={<Users />} />
+          <Route path="transactions" element={<Transactions />} />
+          <Route path="affiliates" element={<Affiliates />} />
+          <Route path="promotions" element={<AdminPromotions />} />
+          <Route path="kyc" element={<KycManagement />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="security" element={<Security />} />
+          <Route path="vip-bonus" element={<VipBonusManagement />} />
+        </Route>
+      </Routes>
       <Toaster />
     </QueryClientProvider>
   );
