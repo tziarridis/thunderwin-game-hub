@@ -1,14 +1,20 @@
 
 import { Outlet } from "react-router-dom";
-import Header from "./Header";
+import AppHeader from "./AppHeader";
 import Footer from "./Footer";
 
 const Layout = () => {
   return (
-    <div className="flex flex-col min-h-screen bg-casino-thunder-darker text-white">
+    <div className="flex flex-col min-h-screen bg-casino-thunder-darker text-white relative">
+      {/* Background pattern overlay */}
       <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
-      <Header />
-      <main className="flex-1 pt-20">
+      
+      {/* Glow effects */}
+      <div className="fixed -top-40 -left-40 w-80 h-80 bg-casino-thunder-green/20 rounded-full filter blur-[100px] opacity-30"></div>
+      <div className="fixed top-1/2 -right-40 w-80 h-80 bg-purple-500/20 rounded-full filter blur-[100px] opacity-20"></div>
+      
+      <AppHeader />
+      <main className="flex-1 relative z-10">
         <Outlet />
       </main>
       <Footer />

@@ -4,9 +4,6 @@
   margin: 0 auto;
   text-align: center;
   font-family: 'Montserrat', sans-serif;
-  min-height: 100vh;
-  background-color: #121212; /* casino-thunder-dark */
-  color: white;
 }
 
 .logo {
@@ -64,10 +61,4 @@
 .thunder-text {
   color: #00FF66;
   text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
-}
-
-/* Force dark theme */
-html, body {
-  background-color: #121212 !important;
-  color: white !important;
 }
