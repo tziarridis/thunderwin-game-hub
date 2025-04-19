@@ -1,3 +1,4 @@
+
 /**
  * Game Provider Configuration
  * These are game provider API configurations
@@ -28,7 +29,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleEUR",
       apiToken: "275c535c8c014b59bedb2a2d6fe7d37b", 
       secretKey: "bbd0551e144c46d19975f985e037c9b0",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/pragmatic",
       apiEndpoint: "apipg.slotgamesapi.com"
     }
   },
@@ -41,7 +42,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleBRL",
       apiToken: "6a72d79e7aab47d38b3d5cce9e0f33a0",
       secretKey: "51b22bb24f1a4d598324c76d9cf5e7b5",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/pragmatic",
       apiEndpoint: "apipg.slotgamesapi.com"
     }
   },
@@ -54,7 +55,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleEUR",
       apiToken: "2e16cbc82b394b9ca2a1e0a54d5e5b11",
       secretKey: "ad7c45f04ce14bf783efcc20e22b6ca0",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/playngo",
       apiEndpoint: "apigg.slotgamesapi.com"
     }
   },
@@ -67,7 +68,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleBRL",
       apiToken: "3babff0022ca4f6296c81487d14c0fdb",
       secretKey: "4efb3a12e7f54d31a5c2dd7f1c6c5f80",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/playngo",
       apiEndpoint: "apigg.slotgamesapi.com"
     }
   },
@@ -80,7 +81,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleEUR",
       apiToken: "77a06f2a86d94d5aa6b6654a7f3e1fbb",
       secretKey: "3c90d42fabb547dda2e5db6a0e17bc1e",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/amatic",
       apiEndpoint: "api.amaticgame.net"
     }
   },
@@ -93,7 +94,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "captaingambleBRL",
       apiToken: "fbdb7c85cc9245f89fcb50f2ca2efc1c",
       secretKey: "1de0c876a67d4c37a90adf2ffecbbf0e",
-      callbackUrl: window.location.origin + "/casino/seamless",
+      callbackUrl: window.location.origin + "/api/seamless/amatic",
       apiEndpoint: "api.amaticgame.net"
     }
   },
@@ -106,7 +107,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "Partner01",
       apiToken: "e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce",
       secretKey: "1234567890",
-      callbackUrl: window.location.origin + "/casino/gitslotpark-seamless",
+      callbackUrl: window.location.origin + "/api/seamless/gitslotpark",
       apiEndpoint: "apiv2.gitslotpark.com"
     }
   },
@@ -119,7 +120,7 @@ export const gameProviderConfigs: Record<string, GameProviderConfig> = {
       agentId: "Partner01BRL",
       apiToken: "e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce",
       secretKey: "1234567890",
-      callbackUrl: window.location.origin + "/casino/gitslotpark-seamless",
+      callbackUrl: window.location.origin + "/api/seamless/gitslotpark",
       apiEndpoint: "apiv2.gitslotpark.com"
     }
   }

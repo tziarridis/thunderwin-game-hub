@@ -5,6 +5,7 @@ import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LaunchGameProps {
   game: Game;
@@ -25,16 +26,30 @@ const LaunchGame = ({
 }: LaunchGameProps) => {
   const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
+  const { isAuthenticated, user } = useAuth();
   
   const handleLaunch = async () => {
+    // Check if player is authenticated for real money mode
+    if (mode === 'real' && !isAuthenticated) {
+      toast.error("Please log in to play in real money mode");
+      return;
+    }
+    
     try {
       setIsLaunching(true);
+      
+      // Use player ID if authenticated, otherwise use guest
+      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      
       const gameUrl = await launchGame(game, { 
         mode, 
-        providerId 
+        providerId,
+        playerId,
+        returnUrl: window.location.href
       });
       
       // Handle successful launch
+      window.open(gameUrl, '_blank');
       toast.success(`Game launched: ${game.title}`);
       
     } catch (error: any) {

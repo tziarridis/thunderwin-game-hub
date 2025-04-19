@@ -7,8 +7,10 @@ import { useEffect, useState } from "react";
 import { getProviderConfig } from "@/config/gameProviders";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Activity } from "lucide-react";
+import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
 
 /**
  * Game Aggregator component for admin dashboard
@@ -18,6 +20,8 @@ const GameAggregator = () => {
   const [activeTab, setActiveTab] = useState("pp");
   const [providers, setProviders] = useState<{id: string, name: string, code: string}[]>([]);
   const [additionalProviders, setAdditionalProviders] = useState<{id: string, name: string, code: string}[]>([]);
+  const [openProviderDetails, setOpenProviderDetails] = useState<string | null>(null);
+  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   
   useEffect(() => {
     // Get unique provider types
@@ -28,7 +32,9 @@ const GameAggregator = () => {
     // Get supported providers with available credentials
     const supportedProviders = {
       pp: { name: "Pragmatic Play", code: "PP" },
-      gsp: { name: "GitSlotPark", code: "GSP" }
+      gsp: { name: "GitSlotPark", code: "GSP" },
+      pg: { name: "Play'n GO", code: "PG" },
+      am: { name: "Amatic", code: "AM" }
     };
     
     // Check which providers have valid configurations
@@ -36,22 +42,20 @@ const GameAggregator = () => {
       if (!uniqueProviders.has(key)) {
         uniqueProviders.add(key);
         
-        // For implemented providers (PP and GSP), check if we have credentials
+        // For implemented providers, check if we have credentials
         const hasConfig = 
           (key === 'pp' && getProviderConfig('ppeur')) || 
-          (key === 'gsp' && getProviderConfig('gspeur'));
+          (key === 'gsp' && getProviderConfig('gspeur')) ||
+          (key === 'pg' && getProviderConfig('pgeur')) ||
+          (key === 'am' && getProviderConfig('ameur'));
         
         if (hasConfig) {
           providerList.push({ id: key, name: provider.name, code: provider.code });
+        } else {
+          additionalList.push({ id: key, name: provider.name, code: provider.code });
         }
       }
     });
-    
-    // Additional providers that could be integrated
-    additionalList.push(
-      { id: 'pg', name: 'Play\'n GO', code: 'PG' },
-      { id: 'am', name: 'Amatic', code: 'AM' }
-    );
     
     setProviders(providerList);
     setAdditionalProviders(additionalList);
@@ -61,6 +65,27 @@ const GameAggregator = () => {
       setActiveTab(providerList[0].id);
     }
   }, [activeTab]);
+
+  const handleCopyCallback = (providerId: string, endpoint: string) => {
+    const config = getProviderConfig(`${providerId}eur`);
+    if (config) {
+      navigator.clipboard.writeText(config.credentials.callbackUrl);
+      setCopiedEndpoint(endpoint);
+      toast.success(`Callback URL copied to clipboard`);
+      
+      setTimeout(() => {
+        setCopiedEndpoint(null);
+      }, 2000);
+    }
+  };
+
+  const toggleProviderDetails = (providerId: string) => {
+    if (openProviderDetails === providerId) {
+      setOpenProviderDetails(null);
+    } else {
+      setOpenProviderDetails(providerId);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -73,10 +98,10 @@ const GameAggregator = () => {
               PP Integration Tester
             </Button>
           </Link>
-          <Link to="/casino/gitslotpark-seamless" target="_blank">
+          <Link to="/api/seamless/pragmatic" target="_blank">
             <Button variant="outline" size="sm">
               <ExternalLink className="mr-2 h-4 w-4" />
-              View Seamless Wallet
+              View PP Callback Endpoint
             </Button>
           </Link>
         </div>
@@ -126,6 +151,122 @@ const GameAggregator = () => {
           </div>
         </TabsContent>
         
+        {/* PlayGo Integration Tab */}
+        <TabsContent value="pg">
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Play'n GO Integration</CardTitle>
+                <CardDescription>
+                  Test and manage Play'n GO games integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="mb-4 bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
+                  <AlertDescription>
+                    The Play'n GO integration is currently in setup. Use the callback URLs below to configure your integration.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-800 rounded-md">
+                    <h3 className="text-lg mb-2">Integration Details</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Configure these endpoints in your Play'n GO integration dashboard.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                        <div>
+                          <p className="text-sm font-semibold">Callback URL:</p>
+                          <p className="text-xs text-gray-400">{getProviderConfig('pgeur')?.credentials.callbackUrl}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => handleCopyCallback('pg', 'callback')}
+                          className="h-8 px-2">
+                          {copiedEndpoint === 'callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                        <div>
+                          <p className="text-sm font-semibold">API Endpoint:</p>
+                          <p className="text-xs text-gray-400">https://{getProviderConfig('pgeur')?.credentials.apiEndpoint}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          navigator.clipboard.writeText(`https://${getProviderConfig('pgeur')?.credentials.apiEndpoint}`);
+                          setCopiedEndpoint('api');
+                          toast.success('API endpoint copied to clipboard');
+                          setTimeout(() => setCopiedEndpoint(null), 2000);
+                        }} className="h-8 px-2">
+                          {copiedEndpoint === 'api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Amatic Integration Tab */}
+        <TabsContent value="am">
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Amatic Integration</CardTitle>
+                <CardDescription>
+                  Test and manage Amatic games integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="mb-4 bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
+                  <AlertDescription>
+                    The Amatic integration is currently in setup. Use the callback URLs below to configure your integration.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-800 rounded-md">
+                    <h3 className="text-lg mb-2">Integration Details</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Configure these endpoints in your Amatic integration dashboard.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                        <div>
+                          <p className="text-sm font-semibold">Callback URL:</p>
+                          <p className="text-xs text-gray-400">{getProviderConfig('ameur')?.credentials.callbackUrl}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => handleCopyCallback('am', 'am-callback')}
+                          className="h-8 px-2">
+                          {copiedEndpoint === 'am-callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                        <div>
+                          <p className="text-sm font-semibold">API Endpoint:</p>
+                          <p className="text-xs text-gray-400">https://{getProviderConfig('ameur')?.credentials.apiEndpoint}</p>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => {
+                          navigator.clipboard.writeText(`https://${getProviderConfig('ameur')?.credentials.apiEndpoint}`);
+                          setCopiedEndpoint('am-api');
+                          toast.success('API endpoint copied to clipboard');
+                          setTimeout(() => setCopiedEndpoint(null), 2000);
+                        }} className="h-8 px-2">
+                          {copiedEndpoint === 'am-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
         {/* Settings Tab */}
         <TabsContent value="settings">
           <div className="grid grid-cols-1 gap-6">
@@ -143,34 +284,96 @@ const GameAggregator = () => {
                     You can manage API keys, callback URLs, and other integration settings.
                   </p>
                   
-                  <h3 className="text-lg font-semibold mt-4">Integrated Providers</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
+                  <h3 className="text-lg font-semibold mt-4">Callback Endpoints</h3>
+                  <div className="space-y-4 mt-2">
                     {providers.map(provider => (
-                      <Card key={provider.id} className="bg-slate-800">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">{provider.name}</CardTitle>
-                          <CardDescription>Provider Code: {provider.code}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm">Status: <span className="text-green-400">Integrated</span></p>
-                          <p className="text-sm mt-1">Currency: EUR</p>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold mt-6">Available Providers</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
-                    {additionalProviders.map(provider => (
-                      <Card key={provider.id} className="bg-slate-800">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">{provider.name}</CardTitle>
-                          <CardDescription>Provider Code: {provider.code}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm">Status: <span className="text-yellow-400">Not Integrated</span></p>
-                        </CardContent>
-                      </Card>
+                      <Collapsible 
+                        key={provider.id} 
+                        open={openProviderDetails === provider.id}
+                        onOpenChange={() => toggleProviderDetails(provider.id)}
+                        className="border border-slate-700 rounded-md"
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-800">
+                            <div className="flex items-center">
+                              <Globe className="mr-2 h-5 w-5 text-blue-400" />
+                              <div>
+                                <p className="font-medium">{provider.name}</p>
+                                <p className="text-sm text-gray-400">Provider Code: {provider.code}</p>
+                              </div>
+                            </div>
+                            <ChevronDown className={`h-5 w-5 transition-transform ${openProviderDetails === provider.id ? 'transform rotate-180' : ''}`} />
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="p-4 border-t border-slate-700 bg-slate-800">
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="p-3 bg-slate-700 rounded-md">
+                                <p className="text-sm font-medium mb-1">EUR Callback URL</p>
+                                <div className="flex items-center justify-between">
+                                  <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
+                                    {getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
+                                  </code>
+                                  <Button size="sm" variant="ghost" onClick={() => {
+                                    const url = getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    if (url) {
+                                      navigator.clipboard.writeText(url);
+                                      toast.success('Callback URL copied');
+                                    }
+                                  }}>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              
+                              <div className="p-3 bg-slate-700 rounded-md">
+                                <p className="text-sm font-medium mb-1">BRL Callback URL</p>
+                                <div className="flex items-center justify-between">
+                                  <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
+                                    {getProviderConfig(`${provider.id}brl`)?.credentials.callbackUrl}
+                                  </code>
+                                  <Button size="sm" variant="ghost" onClick={() => {
+                                    const url = getProviderConfig(`${provider.id}brl`)?.credentials.callbackUrl;
+                                    if (url) {
+                                      navigator.clipboard.writeText(url);
+                                      toast.success('Callback URL copied');
+                                    }
+                                  }}>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="p-3 bg-slate-700 rounded-md">
+                              <p className="text-sm font-medium mb-1">API Endpoint</p>
+                              <div className="flex items-center justify-between">
+                                <code className="text-xs bg-slate-800 p-1 rounded">
+                                  https://{getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint}
+                                </code>
+                                <Button size="sm" variant="ghost" onClick={() => {
+                                  const endpoint = getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint;
+                                  if (endpoint) {
+                                    navigator.clipboard.writeText(`https://${endpoint}`);
+                                    toast.success('API endpoint copied');
+                                  }
+                                }}>
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <div className="flex justify-end mt-2">
+                              <Link to={`/api/seamless/${provider.id.toLowerCase()}`} target="_blank">
+                                <Button size="sm" variant="outline">
+                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                  Test Endpoint
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     ))}
                   </div>
                   
