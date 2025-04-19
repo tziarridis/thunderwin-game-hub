@@ -1,52 +1,50 @@
+
 import { Route, Routes } from "react-router-dom";
-import Layout from "./components/Layout";
-import Home from "./pages/Home";
-import Casino from "./pages/Casino";
-import Games from "./pages/Games";
-import GameDetails from "./pages/GameDetails";
-import Profile from "./pages/Profile";
-import Admin from "./pages/Admin";
+import Layout from "./components/layout/Layout";
+import AppLayout from "./components/layout/AppLayout";
 import NotFound from "./pages/NotFound";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import GameManagement from "./pages/admin/GameManagement";
-import UserManagement from "./pages/admin/UserManagement";
-import Settings from "./pages/admin/Settings";
-import PPIntegrationTester from "./pages/admin/PPIntegrationTester";
-import GameAggregator from "./pages/admin/GameAggregator";
-import GitSlotParkSeamless from "./pages/casino/GitSlotParkSeamless";
+import ScrollToTop from "./components/layout/ScrollToTop";
+import TableGamesPage from "./pages/casino/TableGames";
+import NewGamesPage from "./pages/casino/NewGames";
+import Providers from "./pages/casino/Providers";
+import KycStatusPage from "./pages/kyc/KycStatus";
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Home />} />
-        <Route path="/casino" element={<Casino />} />
-        <Route path="/games" element={<Games />} />
-        <Route path="/games/:id" element={<GameDetails />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="*" element={<NotFound />} />
-        
-        {/* Auth routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
-        
-        {/* Admin routes */}
-        <Route path="/admin/game-management" element={<GameManagement />} />
-        <Route path="/admin/user-management" element={<UserManagement />} />
-        <Route path="/admin/settings" element={<Settings />} />
-        <Route path="/admin/pp-integration" element={<PPIntegrationTester />} />
-        <Route path="/admin/game-aggregator" element={<GameAggregator />} />
-        
-        {/* Casino routes */}
-        <Route path="/casino/gitslotpark-seamless" element={<GitSlotParkSeamless />} />
-      </Route>
-    </Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
+        <Route path="/" element={<AppLayout />}>
+          <Route index element={<NotFound />} />
+          <Route path="/casino" element={<NotFound />} />
+          <Route path="/casino/table-games" element={<TableGamesPage />} />
+          <Route path="/casino/new-games" element={<NewGamesPage />} />
+          <Route path="/casino/providers" element={<Providers />} />
+          <Route path="/games" element={<NotFound />} />
+          <Route path="/games/:id" element={<NotFound />} />
+          <Route path="/profile" element={<NotFound />} />
+          <Route path="/admin" element={<NotFound />} />
+          <Route path="*" element={<NotFound />} />
+          
+          {/* Auth routes */}
+          <Route path="/login" element={<NotFound />} />
+          <Route path="/register" element={<NotFound />} />
+          <Route path="/forgot-password" element={<NotFound />} />
+          <Route path="/reset-password/:token" element={<NotFound />} />
+          <Route path="/kyc/status" element={<KycStatusPage />} />
+          
+          {/* Admin routes */}
+          <Route path="/admin/game-management" element={<NotFound />} />
+          <Route path="/admin/user-management" element={<NotFound />} />
+          <Route path="/admin/settings" element={<NotFound />} />
+          <Route path="/admin/pp-integration" element={<NotFound />} />
+          <Route path="/admin/game-aggregator" element={<NotFound />} />
+          
+          {/* Casino routes */}
+          <Route path="/casino/gitslotpark-seamless" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </>
   );
 }
 
