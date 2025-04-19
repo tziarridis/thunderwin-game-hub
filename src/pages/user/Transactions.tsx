@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,93 +12,51 @@ import {
   ArrowDown,
   Gift,
   Wallet,
-  Search
+  Search,
+  Loader2
 } from "lucide-react";
-
-// Mock transaction data
-const mockTransactions = [
-  {
-    id: "tx-1001",
-    type: "deposit",
-    amount: 200.00,
-    balance: 200.00,
-    status: "completed",
-    method: "Credit Card",
-    date: "2025-04-08T14:32:21Z",
-    description: "Deposit via Credit Card"
-  },
-  {
-    id: "tx-1002",
-    type: "bonus",
-    amount: 100.00,
-    balance: 300.00,
-    status: "completed",
-    method: "Welcome Bonus",
-    date: "2025-04-08T14:35:10Z",
-    description: "Welcome Bonus Credit"
-  },
-  {
-    id: "tx-1003",
-    type: "bet",
-    amount: -25.00,
-    balance: 275.00,
-    status: "completed",
-    method: "Book of Dead",
-    date: "2025-04-08T15:12:33Z",
-    description: "Game: Book of Dead"
-  },
-  {
-    id: "tx-1004",
-    type: "win",
-    amount: 76.50,
-    balance: 351.50,
-    status: "completed",
-    method: "Lightning Roulette",
-    date: "2025-04-08T15:45:22Z",
-    description: "Game: Lightning Roulette"
-  },
-  {
-    id: "tx-1005",
-    type: "bet",
-    amount: -50.00,
-    balance: 301.50,
-    status: "completed",
-    method: "Sweet Bonanza",
-    date: "2025-04-09T10:10:15Z",
-    description: "Game: Sweet Bonanza"
-  },
-  {
-    id: "tx-1006",
-    type: "win",
-    amount: 125.75,
-    balance: 427.25,
-    status: "completed",
-    method: "Sweet Bonanza",
-    date: "2025-04-09T10:14:30Z",
-    description: "Game: Sweet Bonanza"
-  },
-  {
-    id: "tx-1007",
-    type: "withdrawal",
-    amount: -100.00,
-    balance: 327.25,
-    status: "pending",
-    method: "Bank Transfer",
-    date: "2025-04-09T11:30:45Z",
-    description: "Withdrawal via Bank Transfer"
-  }
-];
+import { toast } from "sonner";
+import { getTransactions, Transaction, TransactionFilter } from "@/services/transactionService";
 
 const Transactions = () => {
   const { user, isAuthenticated } = useAuth();
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   
   const itemsPerPage = 5;
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchUserTransactions();
+    }
+  }, [isAuthenticated, user]);
+  
+  const fetchUserTransactions = async () => {
+    if (!isAuthenticated || !user) return;
+    
+    setIsLoading(true);
+    try {
+      const filter: TransactionFilter = {
+        player_id: user.id,
+        limit: 100 // Get a reasonable amount of transactions
+      };
+      
+      const data = await getTransactions(filter);
+      setTransactions(data);
+      toast.success(`Loaded ${data.length} transactions`);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      toast.error("Failed to load your transactions");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const filterTransactions = () => {
-    let filtered = [...mockTransactions];
+    let filtered = [...transactions];
     
     // Apply type filter
     if (activeFilter !== "all") {
@@ -109,8 +67,8 @@ const Transactions = () => {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(tx => 
-        tx.description.toLowerCase().includes(query) || 
-        tx.method.toLowerCase().includes(query) || 
+        (tx.game_id && tx.game_id.toLowerCase().includes(query)) || 
+        tx.provider.toLowerCase().includes(query) || 
         tx.id.toLowerCase().includes(query)
       );
     }
@@ -153,7 +111,7 @@ const Transactions = () => {
     switch (type) {
       case "deposit":
         return <ArrowDown className="h-4 w-4 text-green-500" />;
-      case "withdrawal":
+      case "withdraw":
         return <ArrowUp className="h-4 w-4 text-yellow-500" />;
       case "bet":
         return <ArrowUp className="h-4 w-4 text-red-500" />;
@@ -166,9 +124,9 @@ const Transactions = () => {
     }
   };
   
-  const getAmountColor = (amount: number) => {
-    if (amount > 0) return "text-green-500";
-    if (amount < 0) return "text-red-500";
+  const getAmountColor = (amount: number, type: string) => {
+    if (type === 'win' || type === 'deposit') return "text-green-500";
+    if (type === 'bet' || type === 'withdraw') return "text-red-500";
     return "text-white/70";
   };
 
@@ -201,6 +159,10 @@ const Transactions = () => {
             <Button variant="outline">
               <Calendar className="mr-2 h-4 w-4" />
               Date Range
+            </Button>
+            <Button variant="outline" onClick={fetchUserTransactions}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
             </Button>
             <Button variant="outline">
               <Download className="mr-2 h-4 w-4" />
@@ -248,9 +210,9 @@ const Transactions = () => {
               />
               <FilterButton 
                 label="Withdrawals"
-                isActive={activeFilter === "withdrawal"}
+                isActive={activeFilter === "withdraw"}
                 onClick={() => {
-                  setActiveFilter("withdrawal");
+                  setActiveFilter("withdraw");
                   setCurrentPage(1);
                 }}
               />
@@ -270,92 +232,93 @@ const Transactions = () => {
                   setCurrentPage(1);
                 }}
               />
-              <FilterButton 
-                label="Bonuses"
-                isActive={activeFilter === "bonus"}
-                onClick={() => {
-                  setActiveFilter("bonus");
-                  setCurrentPage(1);
-                }}
-              />
             </div>
           </div>
         </div>
         
         {/* Transaction Table */}
         <div className="thunder-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Transaction
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Method
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Balance
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {paginatedTransactions.length > 0 ? (
-                  paginatedTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-white/5">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-white/70">
-                        {formatDate(transaction.date)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">
-                            {getTypeIcon(transaction.type)}
-                          </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium text-white/90">
-                              {transaction.description}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green mr-3" />
+              <span>Loading your transactions...</span>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-white/10">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Transaction
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Provider
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Game
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {paginatedTransactions.length > 0 ? (
+                    paginatedTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-white/5">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white/70">
+                          {formatDate(transaction.created_at)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center">
+                              {getTypeIcon(transaction.type)}
                             </div>
-                            <div className="text-xs text-white/50">
-                              ID: {transaction.id}
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-white/90">
+                                {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                              </div>
+                              <div className="text-xs text-white/50">
+                                ID: {transaction.id.substring(0, 8)}...
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-white/70">
-                        {transaction.method}
-                      </td>
-                      <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium ${getAmountColor(transaction.amount)}`}>
-                        {transaction.amount > 0 ? '+' : ''}{transaction.amount.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-white/90">
-                        ${transaction.balance.toFixed(2)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
-                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                        </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white/70">
+                          {transaction.provider}
+                        </td>
+                        <td className={`px-4 py-4 whitespace-nowrap text-sm font-medium ${getAmountColor(transaction.amount, transaction.type)}`}>
+                          {(transaction.type === 'win' || transaction.type === 'deposit') ? '+' : '-'}${Math.abs(Number(transaction.amount)).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-white/90">
+                          {transaction.game_id || '-'}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(transaction.status)}`}>
+                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-white/50">
+                        {transactions.length === 0 
+                          ? "You don't have any transactions yet." 
+                          : "No transactions found matching your criteria."}
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-white/50">
-                      No transactions found matching your criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
           
           {/* Pagination */}
           {filteredTransactions.length > 0 && (

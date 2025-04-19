@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,19 +34,8 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
     setIsLoading(true);
     try {
       const result = await getPragmaticPlayTransactions(limit);
-      
-      // Add UI-friendly properties to the transactions
-      const formattedTransactions = result.map(tx => ({
-        ...tx,
-        transactionId: tx.id,
-        userId: tx.player_id,
-        gameId: tx.game_id,
-        roundId: tx.round_id,
-        timestamp: tx.created_at
-      }));
-      
-      setTransactions(formattedTransactions);
-      toast.success(`Loaded ${formattedTransactions.length} transactions`);
+      setTransactions(result);
+      toast.success(`Loaded ${result.length} transactions`);
     } catch (error) {
       toast.error("Failed to load transactions");
       console.error("Error fetching transactions:", error);
@@ -251,7 +241,7 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                 ) : (
                   filteredTransactions.map((tx) => (
                     <tr key={tx.transactionId || tx.id} className="border-b border-slate-700 hover:bg-slate-900">
-                      <td className="p-2 font-mono text-xs">{(tx.transactionId || tx.id).slice(0, 12)}...</td>
+                      <td className="p-2 font-mono text-xs">{((tx.transactionId || tx.id).slice(0, 12))}...</td>
                       <td className="p-2">
                         <Badge className={
                           tx.type === 'bet' 
@@ -270,7 +260,7 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                       <td className="p-2">{tx.userId || tx.player_id}</td>
                       <td className="p-2">
                         <span className={tx.type === 'win' || tx.type === 'deposit' ? 'text-green-400' : tx.type === 'bet' || tx.type === 'withdraw' ? 'text-red-400' : ''}>
-                          {tx.amount.toFixed(2)} {tx.currency}
+                          {Number(tx.amount).toFixed(2)} {tx.currency}
                         </span>
                       </td>
                       <td className="p-2">{tx.gameId || tx.game_id || 'N/A'}</td>

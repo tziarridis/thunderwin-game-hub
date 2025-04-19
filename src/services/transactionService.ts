@@ -208,6 +208,11 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
   // Type assertion for the array of transactions
   return data.map(item => ({
     ...item,
+    transactionId: item.id,
+    userId: item.player_id,
+    gameId: item.game_id,
+    roundId: item.round_id,
+    timestamp: item.created_at,
     type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: item.status as 'pending' | 'completed' | 'failed',
   })) as Transaction[];

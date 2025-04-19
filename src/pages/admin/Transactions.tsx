@@ -16,9 +16,12 @@ import {
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Transaction } from "@/types";
-import { getTransactions, transactionsApi } from "@/services/apiService";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+import { 
+  getTransactions, 
+  Transaction, 
+  TransactionFilter 
+} from "@/services/transactionService";
 
 const AdminTransactions = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -31,30 +34,40 @@ const AdminTransactions = () => {
   const [typeFilter, setTypeFilter] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const transactionsPerPage = 8;
-  const { toast } = useToast();
   
   // Fetch transactions on component mount
   useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      try {
-        const data = await transactionsApi.getTransactions();
-        setTransactions(data);
-        setFilteredTransactions(data);
-      } catch (error) {
-        console.error("Failed to fetch transactions:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load transactions",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchTransactions();
-  }, [toast]);
+  }, []);
+  
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const filter: TransactionFilter = {
+        limit: 100 // Get a reasonable amount of transactions
+      };
+      const data = await getTransactions(filter);
+      
+      // Add UI-friendly properties to the transactions
+      const formattedTransactions = data.map(tx => ({
+        ...tx,
+        id: tx.id, // Use the actual ID
+        userName: tx.player_id,
+        userId: tx.player_id,
+        date: tx.created_at,
+        method: tx.provider
+      }));
+      
+      setTransactions(formattedTransactions);
+      setFilteredTransactions(formattedTransactions);
+      toast.success(`Loaded ${formattedTransactions.length} transactions`);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      toast.error("Failed to load transactions");
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Calculate pagination
   const indexOfLastTransaction = currentPage * transactionsPerPage;
@@ -136,6 +149,48 @@ const AdminTransactions = () => {
     setFilteredTransactions(transactions);
   };
   
+  const exportToCsv = () => {
+    const headers = [
+      "Transaction ID",
+      "Type",
+      "User ID",
+      "Amount",
+      "Currency",
+      "Game ID",
+      "Status",
+      "Provider",
+      "Timestamp"
+    ];
+    
+    const rows = filteredTransactions.map(tx => [
+      tx.id,
+      tx.type,
+      tx.player_id,
+      tx.amount,
+      tx.currency,
+      tx.game_id || "",
+      tx.status,
+      tx.provider,
+      tx.created_at
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `casino-transactions-${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("Transactions exported to CSV");
+  };
+  
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case "completed":
@@ -174,11 +229,11 @@ const AdminTransactions = () => {
   // Calculate totals for deposits and withdrawals
   const totalDeposits = transactions
     .filter(t => t.type === "deposit" && t.status === "completed")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Number(t.amount), 0);
     
   const totalWithdrawals = transactions
     .filter(t => t.type === "withdraw" && t.status === "completed")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Number(t.amount), 0);
     
   const pendingTransactions = transactions
     .filter(t => t.status === "pending")
@@ -204,9 +259,13 @@ const AdminTransactions = () => {
             <Filter className="mr-2 h-4 w-4" />
             {showFilters ? "Hide Filters" : "Show Filters"}
           </Button>
-          <Button variant="outline" className="flex items-center">
+          <Button variant="outline" className="flex items-center" onClick={exportToCsv}>
             <Download className="mr-2 h-4 w-4" />
             Export
+          </Button>
+          <Button variant="outline" className="flex items-center" onClick={fetchTransactions}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
           </Button>
         </div>
       </div>
@@ -379,7 +438,7 @@ const AdminTransactions = () => {
                     Amount
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Method
+                    Provider
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     Date
@@ -404,7 +463,7 @@ const AdminTransactions = () => {
                       />
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      {transaction.id}
+                      {transaction.id.substring(0, 8)}...
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -437,14 +496,14 @@ const AdminTransactions = () => {
                           ? "text-green-500" 
                           : "text-red-500"
                       }`}>
-                        {transaction.type === "deposit" || transaction.type === "win" ? "+" : "-"}${transaction.amount.toFixed(2)}
+                        {transaction.type === "deposit" || transaction.type === "win" ? "+" : "-"}${Number(transaction.amount).toFixed(2)}
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {transaction.method || 'N/A'}
+                      {transaction.provider}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {transaction.date ? formatDate(transaction.date) : 'N/A'}
+                      {transaction.created_at ? formatDate(transaction.created_at) : 'N/A'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex items-center text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(transaction.status)}`}>

@@ -32,7 +32,37 @@ export const setupDatabase = async () => {
     console.log('Categories:', categoriesCheck.error ? 'Error' : 'OK');
     console.log('Transactions:', transactionsCheck.error ? 'Error' : 'OK');
 
-    // If any table has an error, we'll still return true since we'll seed test data
+    // Check if we need to seed data
+    let needToSeedData = false;
+    
+    if (!providersCheck.error) {
+      const { count: providersCount } = await supabase
+        .from('providers')
+        .select('*', { count: 'exact', head: true });
+        
+      if (providersCount === 0) {
+        console.log('Providers table is empty, will seed data');
+        needToSeedData = true;
+      }
+    }
+    
+    if (!categoriesCheck.error) {
+      const { count: categoriesCount } = await supabase
+        .from('game_categories')
+        .select('*', { count: 'exact', head: true });
+        
+      if (categoriesCount === 0) {
+        console.log('Categories table is empty, will seed data');
+        needToSeedData = true;
+      }
+    }
+
+    if (needToSeedData) {
+      await seedTestData();
+    } else {
+      console.log('Database already has data, skipping seeding');
+    }
+
     console.log('Database setup check completed');
     return true;
   } catch (error) {
@@ -110,6 +140,32 @@ export const seedTestData = async () => {
         amount: 25,
         currency: 'USD',
         game_id: 'sweet-bonanza',
+        status: 'completed'
+      },
+      {
+        player_id: 'user456',
+        provider: 'Evolution Gaming',
+        type: 'deposit',
+        amount: 200,
+        currency: 'USD',
+        status: 'completed'
+      },
+      {
+        player_id: 'user456',
+        provider: 'NetEnt',
+        type: 'bet',
+        amount: 15,
+        currency: 'USD',
+        game_id: 'starburst',
+        status: 'completed'
+      },
+      {
+        player_id: 'user789',
+        provider: 'Microgaming',
+        type: 'win',
+        amount: 150,
+        currency: 'USD',
+        game_id: 'immortal-romance',
         status: 'completed'
       }
     ];
