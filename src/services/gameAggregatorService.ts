@@ -1,8 +1,9 @@
+
 import axios from 'axios';
 import { getProviderConfig, gameProviderConfigs } from '@/config/gameProviders';
 import { createGame, getGameByGameId, updateGame } from './gamesService';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface GameInfo {
   game_id: string;
@@ -21,6 +22,9 @@ interface ProviderGameResponse {
   games?: GameInfo[];
   errorMessage?: string;
 }
+
+// In-memory storage for games (since we don't have a games table in Supabase yet)
+let inMemoryGames: {[key: string]: GameInfo[]} = {};
 
 /**
  * Game Aggregator Service
@@ -42,73 +46,21 @@ export const gameAggregatorService = {
       // Log the provider fetch attempt
       console.log(`Fetching games for ${providerConfig.name} (${providerConfig.currency})`);
       
-      // In a real implementation, this would call the actual provider's API
-      // For this demo, we'll use mockData and store it in the database
-      
-      // Check if we already have games from this provider in the database
-      const { data: existingGames, error: queryError } = await supabase
-        .from('games')
-        .select('*')
-        .eq('provider_id', providerKey)
-        .limit(1);
-      
-      if (queryError) {
-        console.error(`Error checking for existing games: ${queryError.message}`);
+      // Check if we already have games from this provider in our in-memory storage
+      if (inMemoryGames[providerKey] && inMemoryGames[providerKey].length > 0) {
+        return { success: true, games: inMemoryGames[providerKey] };
       }
       
-      // If we don't have any games from this provider yet, generate mock games
-      if (!existingGames || existingGames.length === 0) {
-        // Generate mock data
-        const mockGames = generateMockGamesForProvider(
-          providerConfig.code, 
-          Math.floor(Math.random() * 30) + 20
-        );
-        
-        // Store mock games in the database for future use
-        for (const game of mockGames) {
-          try {
-            await supabase.from('games').insert({
-              game_id: game.game_id,
-              name: game.game_name,
-              provider_id: providerKey,
-              type: game.type || 'slots',
-              thumbnail: game.thumbnail || '',
-              is_mobile: game.is_mobile || true,
-              is_featured: Math.random() > 0.8, // Random 20% are featured
-              show_home: Math.random() > 0.3, // Random 70% shown on home
-              status: 'active'
-            });
-          } catch (insertError) {
-            console.error(`Error inserting game ${game.game_name}:`, insertError);
-          }
-        }
-        
-        return { success: true, games: mockGames };
-      } else {
-        // Fetch existing games from database
-        const { data: games, error } = await supabase
-          .from('games')
-          .select('*')
-          .eq('provider_id', providerKey)
-          .order('name', { ascending: true });
-        
-        if (error) {
-          throw error;
-        }
-        
-        // Map database games to GameInfo format
-        const mappedGames: GameInfo[] = games.map(game => ({
-          game_id: game.game_id,
-          game_name: game.name,
-          game_code: game.game_id,
-          type: game.type,
-          is_mobile: game.is_mobile,
-          is_desktop: true,
-          thumbnail: game.thumbnail
-        }));
-        
-        return { success: true, games: mappedGames };
-      }
+      // Generate mock data for this provider
+      const mockGames = generateMockGamesForProvider(
+        providerConfig.code, 
+        Math.floor(Math.random() * 30) + 20
+      );
+      
+      // Store mock games in our in-memory storage
+      inMemoryGames[providerKey] = mockGames;
+      
+      return { success: true, games: mockGames };
     } catch (error: any) {
       console.error(`Error fetching games from ${providerConfig.name}:`, error);
       
@@ -156,59 +108,24 @@ export const gameAggregatorService = {
         let gamesUpdated = 0;
 
         for (const game of providerResponse.games) {
-          // Check if game already exists in the database
-          const { data: existingGame, error } = await supabase
-            .from('games')
-            .select('*')
-            .eq('game_id', game.game_id)
-            .single();
+          // Check if game already exists in our in-memory storage
+          const existingGames = inMemoryGames[providerKey] || [];
+          const existingGameIndex = existingGames.findIndex(g => g.game_id === game.game_id);
           
-          if (error && error.code !== 'PGRST116') {
-            console.error(`Error checking for existing game ${game.game_id}:`, error);
-            continue;
-          }
-
-          if (existingGame) {
+          if (existingGameIndex !== -1) {
             // Update existing game
-            const { error: updateError } = await supabase
-              .from('games')
-              .update({
-                name: game.game_name,
-                type: game.type || 'slots',
-                thumbnail: game.thumbnail || '',
-                is_mobile: game.is_mobile || true,
-                updated_at: new Date().toISOString()
-              })
-              .eq('game_id', game.game_id);
-            
-            if (updateError) {
-              console.error(`Error updating game ${game.game_name}:`, updateError);
-            } else {
-              gamesUpdated++;
-            }
+            existingGames[existingGameIndex] = {
+              ...existingGames[existingGameIndex],
+              ...game,
+            };
+            gamesUpdated++;
           } else {
             // Add new game
-            const { error: insertError } = await supabase
-              .from('games')
-              .insert({
-                game_id: game.game_id,
-                name: game.game_name,
-                provider_id: providerKey,
-                type: game.type || 'slots',
-                thumbnail: game.thumbnail || '',
-                is_mobile: game.is_mobile || true,
-                is_featured: Math.random() > 0.8, // Random 20% are featured
-                show_home: Math.random() > 0.3, // Random 70% shown on home
-                status: 'active',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              });
-            
-            if (insertError) {
-              console.error(`Error adding game ${game.game_name}:`, insertError);
-            } else {
-              gamesAdded++;
+            if (!inMemoryGames[providerKey]) {
+              inMemoryGames[providerKey] = [];
             }
+            inMemoryGames[providerKey].push(game);
+            gamesAdded++;
           }
         }
 
@@ -247,19 +164,16 @@ export const gameAggregatorService = {
    */
   getAllGames: async () => {
     try {
-      const { data, error } = await supabase
-        .from('games')
-        .select('*')
-        .eq('status', 'active')
-        .order('name', { ascending: true });
+      // Combine all games from all providers
+      const allGames: GameInfo[] = [];
       
-      if (error) {
-        throw error;
+      for (const [providerKey, games] of Object.entries(inMemoryGames)) {
+        allGames.push(...games);
       }
       
       return {
         success: true,
-        games: data
+        games: allGames
       };
     } catch (error: any) {
       console.error('Error fetching all games:', error);
@@ -291,6 +205,44 @@ export const gameAggregatorService = {
     // This would trigger your cron job or background process
     // For demonstration, we'll call the sync directly
     return await gameAggregatorService.syncAllProviders();
+  },
+  
+  /**
+   * Store a transaction for game play
+   * @param data Transaction data
+   */
+  storeGameTransaction: async (data: { 
+    player_id: string; 
+    game_id: string; 
+    provider: string; 
+    type: string;
+    amount: number;
+    currency: string;
+  }) => {
+    try {
+      // Store the transaction in Supabase
+      const { data: result, error } = await supabase
+        .from('transactions')
+        .insert({
+          player_id: data.player_id,
+          game_id: data.game_id,
+          provider: data.provider,
+          type: data.type,
+          amount: data.amount,
+          currency: data.currency,
+          status: 'completed'
+        });
+      
+      if (error) throw error;
+      
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error storing game transaction:', error);
+      return { 
+        success: false, 
+        errorMessage: error.message 
+      };
+    }
   }
 };
 

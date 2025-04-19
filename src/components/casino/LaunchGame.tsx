@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/walletService';
+import { gameAggregatorService } from '@/services/gameAggregatorService';
 
 interface LaunchGameProps {
   game: Game;
@@ -60,6 +61,16 @@ const LaunchGame = ({
         language,
         currency,
         platform
+      });
+      
+      // Log this game launch attempt
+      await gameAggregatorService.storeGameTransaction({
+        player_id: playerId,
+        game_id: game.id,
+        provider: providerId,
+        type: 'game_launch',
+        amount: 0,
+        currency: currency
       });
       
       const gameUrl = await launchGame(game, { 
