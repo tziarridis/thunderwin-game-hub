@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import { getProviderConfig } from '@/config/gameProviders';
@@ -295,54 +294,18 @@ export const gitSlotParkService = {
    * Get available GitSlotPark games
    * @returns Array of game codes and names
    */
-  getAvailableGames: async () => {
-    try {
-      // Get games from Supabase database
-      const { data, error } = await supabase
-        .from('providers')
-        .select(`
-          id,
-          name,
-          status,
-          games:game_categories(id, name, slug, status)
-        `)
-        .eq('name', 'GitSlotPark')
-        .single();
-      
-      if (error) {
-        console.error('Error getting provider data:', error);
-        // Fallback to default games
-        return [
-          { code: 'gsp_slots_1', name: 'GSP Mega Fortune' },
-          { code: 'gsp_slots_2', name: 'GSP Treasure Hunt' },
-          { code: 'gsp_slots_3', name: 'GSP Lucky Sevens' },
-          { code: 'gsp_slots_4', name: 'GSP Diamond Blast' },
-          { code: 'gsp_slots_5', name: 'GSP Gold Rush' },
-          { code: 'gsp_blackjack', name: 'GSP Blackjack' },
-          { code: 'gsp_roulette', name: 'GSP Roulette' },
-          { code: 'gsp_baccarat', name: 'GSP Baccarat' }
-        ];
-      }
-      
-      // Map games to expected format
-      return data.games.map((game: any) => ({
-        code: `gsp_${game.slug}`,
-        name: game.name
-      }));
-    } catch (error: any) {
-      console.error('Error getting available games:', error);
-      // Fallback to default games
-      return [
-        { code: 'gsp_slots_1', name: 'GSP Mega Fortune' },
-        { code: 'gsp_slots_2', name: 'GSP Treasure Hunt' },
-        { code: 'gsp_slots_3', name: 'GSP Lucky Sevens' },
-        { code: 'gsp_slots_4', name: 'GSP Diamond Blast' },
-        { code: 'gsp_slots_5', name: 'GSP Gold Rush' },
-        { code: 'gsp_blackjack', name: 'GSP Blackjack' },
-        { code: 'gsp_roulette', name: 'GSP Roulette' },
-        { code: 'gsp_baccarat', name: 'GSP Baccarat' }
-      ];
-    }
+  getAvailableGames: () => {
+    // Return a static array of games directly (not a Promise)
+    return [
+      { code: 'gsp_slots_1', name: 'GSP Mega Fortune' },
+      { code: 'gsp_slots_2', name: 'GSP Treasure Hunt' },
+      { code: 'gsp_slots_3', name: 'GSP Lucky Sevens' },
+      { code: 'gsp_slots_4', name: 'GSP Diamond Blast' },
+      { code: 'gsp_slots_5', name: 'GSP Gold Rush' },
+      { code: 'gsp_blackjack', name: 'GSP Blackjack' },
+      { code: 'gsp_roulette', name: 'GSP Roulette' },
+      { code: 'gsp_baccarat', name: 'GSP Baccarat' }
+    ];
   },
 
   /**
