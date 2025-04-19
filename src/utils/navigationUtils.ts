@@ -1,4 +1,3 @@
-
 import { NavigateFunction } from "react-router-dom";
 
 /**
@@ -39,16 +38,13 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'claim bonus': '/bonuses',
     'promotions': '/promotions',
     'promo': '/promotions',
-    'promotion': '/promotions',
     'vip': '/vip',
-    'vip club': '/vip',
     
     // Authentication
-    'login': '/auth/login',
-    'sign in': '/auth/login',
-    'register': '/auth/register',
-    'sign up': '/auth/register',
-    'join now': '/auth/register',
+    'login': '/login',
+    'sign in': '/login',
+    'register': '/register',
+    'sign up': '/register',
     
     // User account
     'profile': '/profile',
@@ -58,7 +54,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'transactions': '/transactions',
     
     // Support
-    'support': '/support/help',
+    'support': '/support/contact',
     'help': '/support/help',
     'help center': '/support/help',
     'faq': '/support/faq',
@@ -97,7 +93,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'esports betting': '/sports/esports',
     
     // Other specific pages 
-    'new games': '/casino/new-games',
+    'new games': '/casino/new',
     'favorite games': '/casino/favorites',
     'favorites': '/casino/favorites',
     'providers': '/casino/providers',
@@ -106,25 +102,21 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'settings': '/settings',
     'admin': '/admin',
     'admin dashboard': '/admin',
-    'admin login': '/admin/login',
-    'admin access': '/admin/login',
-    'shield admin access': '/admin/login',
-    'admin panel': '/admin',
-    'back office': '/admin',
-    'management': '/admin',
   };
   
-  // First check for exact matches
-  if (routeMap[name]) {
-    console.log(`Exact match: Navigating to ${routeMap[name]} based on button name: ${name}`);
-    navigate(routeMap[name]);
-    return;
+  // Find the matching route or try partial matches
+  for (const [key, route] of Object.entries(routeMap)) {
+    if (name === key) {
+      console.log(`Exact match: Navigating to ${route} based on button name: ${name}`);
+      navigate(route);
+      return;
+    }
   }
   
-  // Try partial matching if no exact match
+  // Try partial matching
   for (const [key, route] of Object.entries(routeMap)) {
     if (name.includes(key)) {
-      console.log(`Partial match: Navigating to ${route} based on button name: ${name} (matched with ${key})`);
+      console.log(`Partial match: Navigating to ${route} based on button name: ${name}`);
       navigate(route);
       return;
     }

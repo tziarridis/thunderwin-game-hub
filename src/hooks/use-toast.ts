@@ -1,115 +1,191 @@
+import * as React from "react"
 
-import { toast as sonnerToast } from "sonner";
-import React from "react";
+import type {
+  ToastActionElement,
+  ToastProps,
+} from "@/components/ui/toast"
 
-type ToastProps = {
-  title?: string;
-  description?: string;
-  variant?: "default" | "destructive" | "success" | "warning" | "info";
-  duration?: number;
-  action?: React.ReactNode;
-};
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
 
-// Define what the adapted toast props will look like
-type AdaptedToastProps = {
-  message?: React.ReactNode | string;
-  duration?: number;
-  action?: React.ReactNode;
-};
-
-// Create an adapter that maps our toast interface to Sonner's
-function adaptToast(props: ToastProps): AdaptedToastProps {
-  const { title, description, variant, ...rest } = props;
-  
-  // If we have both title and description, join them
-  if (title && description) {
-    return {
-      ...rest,
-      // Sonner doesn't have a built-in title/description structure,
-      // so we join them with the title in bold
-      message: React.createElement("div", null, 
-        React.createElement("div", { className: "font-medium" }, title),
-        React.createElement("div", { className: "text-sm opacity-90" }, description)
-      )
-    };
-  }
-  
-  // If we only have a title, use it as the message
-  if (title) {
-    return { ...rest, message: title };
-  }
-  
-  // If we only have a description, use it as the message
-  if (description) {
-    return { ...rest, message: description };
-  }
-  
-  return rest;
+type ToasterToast = ToastProps & {
+  id: string
+  title?: React.ReactNode
+  description?: React.ReactNode
+  action?: ToastActionElement
 }
 
-// Define a toast function interface that can be called directly
-interface ToastFunction {
-  (props: ToastProps): void;
-  error: (props: ToastProps | string) => void;
-  success: (props: ToastProps | string) => void;
-  info: (props: ToastProps | string) => void;
-  warning: (props: ToastProps | string) => void;
-  dismiss: typeof sonnerToast.dismiss;
-  promise: typeof sonnerToast.promise;
+const actionTypes = {
+  ADD_TOAST: "ADD_TOAST",
+  UPDATE_TOAST: "UPDATE_TOAST",
+  DISMISS_TOAST: "DISMISS_TOAST",
+  REMOVE_TOAST: "REMOVE_TOAST",
+} as const
+
+let count = 0
+
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
+  return count.toString()
 }
 
-// Create the base toast function
-const showToast = (props: ToastProps) => {
-  const adaptedProps = adaptToast(props);
-  return sonnerToast(adaptedProps.message as string, adaptedProps);
-};
+type ActionType = typeof actionTypes
 
-// Create and export the toast function with all the methods
-export const toast = showToast as unknown as ToastFunction;
+type Action =
+  | {
+      type: ActionType["ADD_TOAST"]
+      toast: ToasterToast
+    }
+  | {
+      type: ActionType["UPDATE_TOAST"]
+      toast: Partial<ToasterToast>
+    }
+  | {
+      type: ActionType["DISMISS_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
+  | {
+      type: ActionType["REMOVE_TOAST"]
+      toastId?: ToasterToast["id"]
+    }
 
-// Add methods to the toast function
-toast.error = (props: ToastProps | string) => {
-  if (typeof props === 'string') {
-    return sonnerToast.error(props);
+interface State {
+  toasts: ToasterToast[]
+}
+
+const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+const addToRemoveQueue = (toastId: string) => {
+  if (toastTimeouts.has(toastId)) {
+    return
   }
-  const adaptedProps = adaptToast(props);
-  return sonnerToast.error(adaptedProps.message as string, adaptedProps);
-};
 
-toast.success = (props: ToastProps | string) => {
-  if (typeof props === 'string') {
-    return sonnerToast.success(props);
+  const timeout = setTimeout(() => {
+    toastTimeouts.delete(toastId)
+    dispatch({
+      type: "REMOVE_TOAST",
+      toastId: toastId,
+    })
+  }, TOAST_REMOVE_DELAY)
+
+  toastTimeouts.set(toastId, timeout)
+}
+
+export const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case "ADD_TOAST":
+      return {
+        ...state,
+        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+      }
+
+    case "UPDATE_TOAST":
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === action.toast.id ? { ...t, ...action.toast } : t
+        ),
+      }
+
+    case "DISMISS_TOAST": {
+      const { toastId } = action
+
+      // ! Side effects ! - This could be extracted into a dismissToast() action,
+      // but I'll keep it here for simplicity
+      if (toastId) {
+        addToRemoveQueue(toastId)
+      } else {
+        state.toasts.forEach((toast) => {
+          addToRemoveQueue(toast.id)
+        })
+      }
+
+      return {
+        ...state,
+        toasts: state.toasts.map((t) =>
+          t.id === toastId || toastId === undefined
+            ? {
+                ...t,
+                open: false,
+              }
+            : t
+        ),
+      }
+    }
+    case "REMOVE_TOAST":
+      if (action.toastId === undefined) {
+        return {
+          ...state,
+          toasts: [],
+        }
+      }
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+      }
   }
-  const adaptedProps = adaptToast(props);
-  return sonnerToast.success(adaptedProps.message as string, adaptedProps);
-};
+}
 
-toast.info = (props: ToastProps | string) => {
-  if (typeof props === 'string') {
-    return sonnerToast(props);
-  }
-  const adaptedProps = adaptToast(props);
-  return sonnerToast(adaptedProps.message as string, adaptedProps);
-};
+const listeners: Array<(state: State) => void> = []
 
-toast.warning = (props: ToastProps | string) => {
-  if (typeof props === 'string') {
-    return sonnerToast(props);
-  }
-  const adaptedProps = adaptToast(props);
-  return sonnerToast(adaptedProps.message as string, adaptedProps);
-};
+let memoryState: State = { toasts: [] }
 
-// Add the other methods directly from sonnerToast
-toast.dismiss = sonnerToast.dismiss;
-toast.promise = sonnerToast.promise;
+function dispatch(action: Action) {
+  memoryState = reducer(memoryState, action)
+  listeners.forEach((listener) => {
+    listener(memoryState)
+  })
+}
 
-// Export the hook
-export function useToast() {
+type Toast = Omit<ToasterToast, "id">
+
+function toast({ ...props }: Toast) {
+  const id = genId()
+
+  const update = (props: ToasterToast) =>
+    dispatch({
+      type: "UPDATE_TOAST",
+      toast: { ...props, id },
+    })
+  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+
+  dispatch({
+    type: "ADD_TOAST",
+    toast: {
+      ...props,
+      id,
+      open: true,
+      onOpenChange: (open) => {
+        if (!open) dismiss()
+      },
+    },
+  })
+
   return {
-    toast,
-    // This is used by the UI components that expect a toasts array
-    // But since Sonner manages this internally, we return an empty array
-    toasts: []
-  };
+    id: id,
+    dismiss,
+    update,
+  }
 }
+
+function useToast() {
+  const [state, setState] = React.useState<State>(memoryState)
+
+  React.useEffect(() => {
+    listeners.push(setState)
+    return () => {
+      const index = listeners.indexOf(setState)
+      if (index > -1) {
+        listeners.splice(index, 1)
+      }
+    }
+  }, [state])
+
+  return {
+    ...state,
+    toast,
+    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+  }
+}
+
+export { useToast, toast }

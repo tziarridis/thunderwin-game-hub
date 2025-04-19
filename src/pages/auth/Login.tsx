@@ -160,7 +160,7 @@ const Login = () => {
             
             <div className="mt-8 text-center text-sm text-white/60">
               <span>Don't have an account?</span>
-              <Link to="/auth/register" className="ml-1 text-casino-thunder-green hover:text-casino-thunder-highlight transition-colors font-medium">
+              <Link to="/register" className="ml-1 text-casino-thunder-green hover:text-casino-thunder-highlight transition-colors font-medium">
                 Create Account
               </Link>
             </div>

@@ -1,7 +1,10 @@
 
 /**
- * Scroll to top of the page
- * Utility function for components that need to scroll to the top of the page
+ * Utility functions for scroll behavior
+ */
+
+/**
+ * Scrolls to the top of the page
  */
 export const scrollToTop = (): void => {
   window.scrollTo({
@@ -11,20 +14,27 @@ export const scrollToTop = (): void => {
 };
 
 /**
- * Scroll to a specific element on the page
+ * Scrolls to a specific element by ID
  * @param elementId The ID of the element to scroll to
+ * @param offset Optional offset from the top of the element (in pixels)
  */
-export const scrollToElement = (elementId: string): void => {
+export const scrollToElement = (elementId: string, offset: number = 0): void => {
   const element = document.getElementById(elementId);
   if (element) {
-    element.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
+    const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+    window.scrollTo({
+      top: elementPosition - offset,
+      behavior: 'smooth'
     });
   }
 };
 
-export default {
-  scrollToTop,
-  scrollToElement
+/**
+ * Handles smooth scroll behavior for anchor links
+ * @param event The click event
+ * @param targetId The target element ID
+ */
+export const handleSmoothScroll = (event: React.MouseEvent<HTMLAnchorElement>, targetId: string): void => {
+  event.preventDefault();
+  scrollToElement(targetId);
 };

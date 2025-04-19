@@ -24,7 +24,7 @@ const Index = () => {
     
     // If the user is not authenticated and clicks on buttons that require authentication
     if (!isAuthenticated && (buttonName === "Play Now" || buttonName === "Claim Bonus" || buttonName === "Bonuses" || buttonName === "Deposit")) {
-      navigate('/auth/register');
+      navigate('/register');
       scrollToTop();
       return;
     }
@@ -33,8 +33,8 @@ const Index = () => {
   };
 
   // Direct navigation handlers
-  const handleNavigate = (buttonName: string) => {
-    navigateByButtonName(buttonName, navigate);
+  const handleNavigate = (path: string) => {
+    navigate(path);
     scrollToTop();
   };
   
@@ -68,10 +68,11 @@ const Index = () => {
                 className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
                 onClick={() => {
                   if (!isAuthenticated) {
-                    navigate('/auth/register');
+                    navigate('/register');
                     scrollToTop();
                   } else {
-                    navigateByButtonName('Casino', navigate);
+                    navigate('/casino');
+                    scrollToTop();
                   }
                 }}
               >
@@ -90,10 +91,11 @@ const Index = () => {
                 className="border-white text-white hover:bg-white/10"
                 onClick={() => {
                   if (!isAuthenticated) {
-                    navigate('/auth/register');
+                    navigate('/register');
                     scrollToTop();
                   } else {
-                    navigateByButtonName('Bonuses', navigate);
+                    navigate('/bonuses');
+                    scrollToTop();
                   }
                 }}
               >
@@ -108,7 +110,7 @@ const Index = () => {
           <Button 
             variant="outline" 
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigate('Slots')}
+            onClick={() => handleNavigate('/casino/slots')}
           >
             <Gamepad2 className="h-8 w-8 mb-2" />
             <span>Slots</span>
@@ -116,7 +118,7 @@ const Index = () => {
           <Button 
             variant="outline" 
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigate('Live Casino')}
+            onClick={() => handleNavigate('/casino/live-casino')}
           >
             <Zap className="h-8 w-8 mb-2" />
             <span>Live Casino</span>
@@ -124,7 +126,7 @@ const Index = () => {
           <Button 
             variant="outline" 
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigate('Jackpots')}
+            onClick={() => handleNavigate('/casino/jackpots')}
           >
             <Trophy className="h-8 w-8 mb-2" />
             <span>Jackpots</span>
@@ -134,10 +136,11 @@ const Index = () => {
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
             onClick={() => {
               if (!isAuthenticated) {
-                navigate('/auth/register');
+                navigate('/register');
                 scrollToTop();
               } else {
-                navigateByButtonName('Bonuses', navigate);
+                navigate('/bonuses');
+                scrollToTop();
               }
             }}
           >
@@ -147,7 +150,7 @@ const Index = () => {
           <Button 
             variant="outline" 
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigate('Help Center')}
+            onClick={() => handleNavigate('/support/help')}
           >
             <HelpCircle className="h-8 w-8 mb-2" />
             <span>Help Center</span>
@@ -157,10 +160,11 @@ const Index = () => {
             className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
             onClick={() => {
               if (!isAuthenticated) {
-                navigate('/auth/register');
+                navigate('/register');
                 scrollToTop();
               } else {
-                navigateByButtonName('Profile', navigate);
+                navigate('/profile');
+                scrollToTop();
               }
             }}
           >
@@ -184,7 +188,7 @@ const Index = () => {
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
           <GameCategories onCategoryClick={(category) => {
-            navigateByButtonName(category, navigate);
+            navigate(`/casino/${category}`);
             scrollToTop();
           }} />
         </div>
@@ -196,7 +200,7 @@ const Index = () => {
             <Button 
               variant="link" 
               className="text-casino-thunder-green"
-              onClick={() => handleNavigate('popular')}
+              onClick={() => handleNavigate('/casino/popular')}
             >
               View All
             </Button>
@@ -229,10 +233,11 @@ const Index = () => {
             buttonText="Claim Now"
             onButtonClick={() => {
               if (!isAuthenticated) {
-                navigate('/auth/register');
+                navigate('/register');
                 scrollToTop();
               } else {
-                navigateByButtonName('Bonuses', navigate);
+                navigate('/bonuses');
+                scrollToTop();
               }
             }}
           />
@@ -245,7 +250,7 @@ const Index = () => {
             <Button 
               variant="link" 
               className="text-casino-thunder-green"
-              onClick={() => handleNavigate('new')}
+              onClick={() => handleNavigate('/casino/new')}
             >
               View All
             </Button>
@@ -283,7 +288,7 @@ const Index = () => {
             <Button 
               variant="link" 
               className="text-casino-thunder-green"
-              onClick={() => handleNavigate('jackpots')}
+              onClick={() => handleNavigate('/casino/jackpots')}
             >
               View All
             </Button>
@@ -321,7 +326,7 @@ const Index = () => {
             <Button 
               variant="link" 
               className="text-casino-thunder-green"
-              onClick={() => handleNavigate('table-games')}
+              onClick={() => handleNavigate('/casino/table-games')}
             >
               View All
             </Button>
