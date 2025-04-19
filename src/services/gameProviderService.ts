@@ -76,9 +76,11 @@ export const gameProviderService = {
     }
     
     try {
+      let gameUrl = '';
+      
       switch(providerConfig.code) {
         case 'PP':
-          return await getPragmaticPlayLaunchUrl(
+          gameUrl = await getPragmaticPlayLaunchUrl(
             providerConfig, 
             gameId, 
             playerId, 
@@ -88,9 +90,10 @@ export const gameProviderService = {
             platform,
             options.returnUrl
           );
+          break;
         
         case 'GSP':
-          return await gitSlotParkService.launchGame({
+          gameUrl = await gitSlotParkService.launchGame({
             playerId,
             gameCode: gameId,
             mode,
@@ -99,10 +102,37 @@ export const gameProviderService = {
             currency,
             platform
           });
+          break;
         
         default:
           throw new Error(`Provider integration not implemented: ${providerConfig.name}`);
       }
+      
+      // Update transaction status to completed
+      try {
+        const { data } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('player_id', playerId)
+          .eq('game_id', gameId)
+          .eq('type', 'game_launch')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (data?.id) {
+          await supabase
+            .from('transactions')
+            .update({ status: 'completed' })
+            .eq('id', data.id);
+        }
+      } catch (dbError) {
+        console.error("Failed to update transaction status:", dbError);
+      }
+      
+      return gameUrl;
+      
     } catch (error: any) {
       console.error(`Error getting launch URL for ${providerId}:`, error);
       

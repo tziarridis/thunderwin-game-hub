@@ -1,7 +1,8 @@
-
 import axios from 'axios';
 import { getProviderConfig, gameProviderConfigs } from '@/config/gameProviders';
 import { createGame, getGameByGameId, updateGame } from './gamesService';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface GameInfo {
   game_id: string;
@@ -38,53 +39,75 @@ export const gameAggregatorService = {
     }
 
     try {
-      // Different providers might have slightly different API formats
-      // Here we'll implement a general approach that can be extended for each provider
+      // Log the provider fetch attempt
+      console.log(`Fetching games for ${providerConfig.name} (${providerConfig.currency})`);
       
       // In a real implementation, this would call the actual provider's API
-      console.log(`Fetching games for ${providerConfig.name} (${providerConfig.currency})`);
-
-      // Mocked API call for development/testing
-      // In production, this would be an actual API call to the provider's endpoint
-      if (process.env.NODE_ENV === 'development') {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Mock response with random games
+      // For this demo, we'll use mockData and store it in the database
+      
+      // Check if we already have games from this provider in the database
+      const { data: existingGames, error: queryError } = await supabase
+        .from('games')
+        .select('*')
+        .eq('provider_id', providerKey)
+        .limit(1);
+      
+      if (queryError) {
+        console.error(`Error checking for existing games: ${queryError.message}`);
+      }
+      
+      // If we don't have any games from this provider yet, generate mock games
+      if (!existingGames || existingGames.length === 0) {
+        // Generate mock data
         const mockGames = generateMockGamesForProvider(
           providerConfig.code, 
-          Math.floor(Math.random() * 100) + 50
+          Math.floor(Math.random() * 30) + 20
         );
-
+        
+        // Store mock games in the database for future use
+        for (const game of mockGames) {
+          try {
+            await supabase.from('games').insert({
+              game_id: game.game_id,
+              name: game.game_name,
+              provider_id: providerKey,
+              type: game.type || 'slots',
+              thumbnail: game.thumbnail || '',
+              is_mobile: game.is_mobile || true,
+              is_featured: Math.random() > 0.8, // Random 20% are featured
+              show_home: Math.random() > 0.3, // Random 70% shown on home
+              status: 'active'
+            });
+          } catch (insertError) {
+            console.error(`Error inserting game ${game.game_name}:`, insertError);
+          }
+        }
+        
         return { success: true, games: mockGames };
-      }
-
-      // Real API implementation for production
-      const apiUrl = `https://${providerConfig.credentials.apiEndpoint}/api/games/list`;
-      
-      const response = await axios.post(apiUrl, {
-        agent_id: providerConfig.credentials.agentId,
-        api_token: providerConfig.credentials.apiToken,
-        currency: providerConfig.currency
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000 // 10 second timeout
-      });
-
-      if (response.data && response.data.success) {
-        // Each provider might format their games differently
-        // We would need to normalize their format to our schema
-        return {
-          success: true,
-          games: normalizeGames(response.data.games, providerConfig)
-        };
       } else {
-        return {
-          success: false,
-          errorMessage: response.data.message || `Failed to fetch games from ${providerConfig.name}`
-        };
+        // Fetch existing games from database
+        const { data: games, error } = await supabase
+          .from('games')
+          .select('*')
+          .eq('provider_id', providerKey)
+          .order('name', { ascending: true });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // Map database games to GameInfo format
+        const mappedGames: GameInfo[] = games.map(game => ({
+          game_id: game.game_id,
+          game_name: game.name,
+          game_code: game.game_id,
+          type: game.type,
+          is_mobile: game.is_mobile,
+          is_desktop: true,
+          thumbnail: game.thumbnail
+        }));
+        
+        return { success: true, games: mappedGames };
       }
     } catch (error: any) {
       console.error(`Error fetching games from ${providerConfig.name}:`, error);
@@ -109,6 +132,8 @@ export const gameAggregatorService = {
       error?: string;
     }> = {};
 
+    toast.info("Starting game sync from all providers");
+    
     // Process each provider
     for (const [providerKey, config] of Object.entries(gameProviderConfigs)) {
       try {
@@ -131,33 +156,59 @@ export const gameAggregatorService = {
         let gamesUpdated = 0;
 
         for (const game of providerResponse.games) {
-          // Check if game already exists
-          const existingGame = await getGameByGameId(game.game_id);
+          // Check if game already exists in the database
+          const { data: existingGame, error } = await supabase
+            .from('games')
+            .select('*')
+            .eq('game_id', game.game_id)
+            .single();
+          
+          if (error && error.code !== 'PGRST116') {
+            console.error(`Error checking for existing game ${game.game_id}:`, error);
+            continue;
+          }
 
           if (existingGame) {
             // Update existing game
-            await updateGame(existingGame.id, {
-              ...game,
-              provider_id: providerKey,
-              distribution: config.code,
-              updated_at: new Date().toISOString()
-            });
-            gamesUpdated++;
+            const { error: updateError } = await supabase
+              .from('games')
+              .update({
+                name: game.game_name,
+                type: game.type || 'slots',
+                thumbnail: game.thumbnail || '',
+                is_mobile: game.is_mobile || true,
+                updated_at: new Date().toISOString()
+              })
+              .eq('game_id', game.game_id);
+            
+            if (updateError) {
+              console.error(`Error updating game ${game.game_name}:`, updateError);
+            } else {
+              gamesUpdated++;
+            }
           } else {
             // Add new game
-            await createGame({
-              ...game,
-              provider_id: providerKey,
-              distribution: config.code,
-              status: 'active',
-              views: 0,
-              popularity: 0,
-              is_featured: false,
-              show_home: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            });
-            gamesAdded++;
+            const { error: insertError } = await supabase
+              .from('games')
+              .insert({
+                game_id: game.game_id,
+                name: game.game_name,
+                provider_id: providerKey,
+                type: game.type || 'slots',
+                thumbnail: game.thumbnail || '',
+                is_mobile: game.is_mobile || true,
+                is_featured: Math.random() > 0.8, // Random 20% are featured
+                show_home: Math.random() > 0.3, // Random 70% shown on home
+                status: 'active',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              });
+            
+            if (insertError) {
+              console.error(`Error adding game ${game.game_name}:`, insertError);
+            } else {
+              gamesAdded++;
+            }
           }
         }
 
@@ -167,6 +218,8 @@ export const gameAggregatorService = {
           gamesAdded,
           gamesUpdated
         };
+        
+        toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${config.name}`);
 
       } catch (error: any) {
         console.error(`Error syncing ${config.name} (${config.currency}):`, error);
@@ -176,6 +229,8 @@ export const gameAggregatorService = {
           gamesUpdated: 0,
           error: error.message || 'Unknown error'
         };
+        
+        toast.error(`Failed to sync games from ${config.name}`);
       }
     }
 
@@ -186,6 +241,35 @@ export const gameAggregatorService = {
     };
   },
 
+  /**
+   * Get all available games from all providers
+   * @returns Promise with all games
+   */
+  getAllGames: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('status', 'active')
+        .order('name', { ascending: true });
+      
+      if (error) {
+        throw error;
+      }
+      
+      return {
+        success: true,
+        games: data
+      };
+    } catch (error: any) {
+      console.error('Error fetching all games:', error);
+      return {
+        success: false,
+        errorMessage: error.message || 'Unknown error'
+      };
+    }
+  },
+  
   /**
    * Get scheduled sync status
    */
@@ -209,32 +293,6 @@ export const gameAggregatorService = {
     return await gameAggregatorService.syncAllProviders();
   }
 };
-
-/**
- * Normalize games from various provider formats to our schema
- */
-function normalizeGames(games: any[], providerConfig: any): GameInfo[] {
-  if (!games || !Array.isArray(games)) {
-    return [];
-  }
-
-  // Different providers might use different field names
-  // This function handles the mapping
-  return games.map(game => {
-    // Default mappings for common provider formats
-    return {
-      game_id: game.id || game.game_id || game.gameId || '',
-      game_name: game.name || game.title || game.game_name || game.gameName || '',
-      game_code: game.code || game.game_code || game.gameCode || '',
-      type: game.category || game.type || game.gameType || 'slots',
-      theme: game.theme || game.genre || '',
-      is_mobile: game.mobile_support !== false && game.isMobile !== false,
-      is_desktop: game.desktop_support !== false && game.isDesktop !== false,
-      thumbnail: game.thumbnail || game.image || game.icon || '',
-      background: game.background || game.banner || game.bgImage || ''
-    };
-  });
-}
 
 /**
  * Generate mock games for development
@@ -265,6 +323,32 @@ function generateMockGamesForProvider(providerCode: string, count: number): Game
   }
   
   return mockGames;
+}
+
+/**
+ * Normalize games from various provider formats to our schema
+ */
+function normalizeGames(games: any[], providerConfig: any): GameInfo[] {
+  if (!games || !Array.isArray(games)) {
+    return [];
+  }
+
+  // Different providers might use different field names
+  // This function handles the mapping
+  return games.map(game => {
+    // Default mappings for common provider formats
+    return {
+      game_id: game.id || game.game_id || game.gameId || '',
+      game_name: game.name || game.title || game.game_name || game.gameName || '',
+      game_code: game.code || game.game_code || game.gameCode || '',
+      type: game.category || game.type || game.gameType || 'slots',
+      theme: game.theme || game.genre || '',
+      is_mobile: game.mobile_support !== false && game.isMobile !== false,
+      is_desktop: game.desktop_support !== false && game.isDesktop !== false,
+      thumbnail: game.thumbnail || game.image || game.icon || '',
+      background: game.background || game.banner || game.bgImage || ''
+    };
+  });
 }
 
 export default gameAggregatorService;

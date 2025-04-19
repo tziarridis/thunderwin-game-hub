@@ -6,7 +6,7 @@ import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { walletService } from '@/services/walletService';
 
 interface LaunchGameProps {
   game: Game;
@@ -45,17 +45,14 @@ const LaunchGame = ({
       setIsLaunching(true);
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
       
-      // Log game launch attempt to database
-      if (isAuthenticated) {
-        await supabase.from('transactions').insert({
-          player_id: playerId,
-          provider: game.provider || providerId,
-          type: 'game_launch',
-          amount: 0,
-          currency: currency,
-          game_id: game.id,
-          status: 'completed'
-        });
+      // Check wallet balance for real money play
+      if (mode === 'real' && isAuthenticated && user?.id) {
+        const wallet = await walletService.getWalletByUserId(user.id);
+        if (!wallet || wallet.balance <= 0) {
+          toast.error("Insufficient funds. Please deposit to play in real money mode.");
+          setIsLaunching(false);
+          return;
+        }
       }
       
       console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
