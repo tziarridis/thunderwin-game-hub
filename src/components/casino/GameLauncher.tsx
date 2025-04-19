@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
 import { availableProviders } from '@/config/gameProviders';
+import CurrencyLanguageSelector from '@/components/admin/CurrencyLanguageSelector';
 
 interface GameLauncherProps {
   game: Game;
@@ -18,6 +19,8 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
   const [loading, setLoading] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('ppeur'); // Default to PP EUR as requested
   const [mode, setMode] = useState<'real' | 'demo'>('demo');
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
   
   const handleLaunch = async () => {
     try {
@@ -25,7 +28,9 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
       await launchGame(game, {
         providerId: selectedProvider,
         mode,
-        playerId: 'demo_player'
+        playerId: 'demo_player',
+        language: selectedLanguage,
+        currency: selectedCurrency
       });
     } catch (error) {
       console.error('Error launching game:', error);
@@ -69,6 +74,13 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
             </SelectContent>
           </Select>
         </div>
+        
+        <CurrencyLanguageSelector
+          selectedCurrency={selectedCurrency}
+          onCurrencyChange={setSelectedCurrency}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
+        />
       </CardContent>
       <CardFooter>
         <Button 

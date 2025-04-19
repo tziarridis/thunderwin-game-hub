@@ -168,7 +168,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
       setLaunchingGame(true);
       
       // Determine provider ID
-      let providerId = "ppeur"; // Default to Pragmatic Play EUR as requested
+      let providerId = options.providerId || "ppeur"; // Default to Pragmatic Play EUR as requested
       
       // Prepare launch options
       const launchOptions: GameLaunchOptions = {
@@ -177,6 +177,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
         mode: options.mode || "demo",
         playerId: options.playerId || "demo_player",
         language: options.language || "en",
+        currency: options.currency || "USD",
         returnUrl: options.returnUrl || window.location.href
       };
       

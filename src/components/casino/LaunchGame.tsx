@@ -14,6 +14,8 @@ interface LaunchGameProps {
   variant?: 'default' | 'outline' | 'destructive' | 'secondary' | 'ghost' | 'link';
   className?: string;
   providerId?: string;
+  currency?: string;
+  language?: string;
 }
 
 const LaunchGame = ({ 
@@ -22,7 +24,9 @@ const LaunchGame = ({
   buttonText = 'Play Game', 
   variant = 'default',
   className = '',
-  providerId = 'ppeur' // Default to Pragmatic Play EUR
+  providerId = 'ppeur', // Default to Pragmatic Play EUR
+  currency = 'USD',
+  language = 'en'
 }: LaunchGameProps) => {
   const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
@@ -46,7 +50,8 @@ const LaunchGame = ({
         mode, 
         providerId,
         playerId,
-        language: 'en',
+        language,
+        currency,
         returnUrl: window.location.href
       });
       

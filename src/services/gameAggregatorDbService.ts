@@ -1,4 +1,3 @@
-
 import { query, transaction } from './databaseService';
 import { GameDBModel, ProviderDBModel, TransactionDBModel } from '@/types/database';
 import { toast } from 'sonner';

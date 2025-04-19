@@ -7,6 +7,7 @@ import { Loader2, GamepadIcon } from "lucide-react";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import CurrencyLanguageSelector from "@/components/admin/CurrencyLanguageSelector";
 
 interface GameIntegrationProps {
   gameId: string;
@@ -25,6 +26,8 @@ const GameIntegration = ({
   const [isGameLoaded, setIsGameLoaded] = useState(false);
   const [selectedGame, setSelectedGame] = useState(gameId);
   const [gameMode, setGameMode] = useState<'demo' | 'real'>('demo');
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
   const { isAuthenticated, user } = useAuth();
   
   // Get available PP games
@@ -44,7 +47,9 @@ const GameIntegration = ({
         playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
         gameCode: selectedGame,
         mode: gameMode,
-        returnUrl: window.location.href
+        returnUrl: window.location.href,
+        language: selectedLanguage,
+        currency: selectedCurrency
       });
       
       // Open game in new window or iframe
@@ -103,6 +108,13 @@ const GameIntegration = ({
               </SelectContent>
             </Select>
           </div>
+          
+          <CurrencyLanguageSelector
+            selectedCurrency={selectedCurrency}
+            onCurrencyChange={setSelectedCurrency}
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+          />
         </div>
         
         <Button 
@@ -119,7 +131,7 @@ const GameIntegration = ({
         </Button>
         
         <div className="mt-4 text-xs text-white/50">
-          Provider: {providerName} | Selected Game: {selectedGame}
+          Provider: {providerName} | Selected Game: {selectedGame} | Currency: {selectedCurrency} | Language: {selectedLanguage}
         </div>
       </div>
     </div>

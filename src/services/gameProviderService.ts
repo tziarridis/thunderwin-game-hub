@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
@@ -11,8 +10,8 @@ export interface GameLaunchOptions {
   playerId?: string;
   mode?: 'real' | 'demo';
   language?: string;
-  returnUrl?: string;
   currency?: string;
+  returnUrl?: string;
 }
 
 // Interface for provider API response
@@ -45,22 +44,23 @@ export const gameProviderService = {
       // Handle different providers based on their code
       switch(providerConfig.code) {
         case 'PP':
-          return await getPragmaticPlayLaunchUrl(providerConfig, gameId, playerId, mode, language, options.returnUrl);
+          return await getPragmaticPlayLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
         
         case 'PG':
-          return await getPlayGoLaunchUrl(providerConfig, gameId, playerId, mode, language, options.returnUrl);
+          return await getPlayGoLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
         
         case 'AM':
-          return await getAmaticLaunchUrl(providerConfig, gameId, playerId, mode, language, options.returnUrl);
+          return await getAmaticLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
           
         case 'GSP':
           // Use the GitSlotPark service for this provider
           return await gitSlotParkService.launchGame({
             playerId,
-            gameCode: gameId, // Fixed: using gameCode instead of gameId
+            gameCode: gameId,
             mode,
             returnUrl: options.returnUrl,
-            language
+            language,
+            currency
           });
         
         default:
@@ -160,13 +160,14 @@ async function getPragmaticPlayLaunchUrl(
   playerId: string, 
   mode: 'real' | 'demo',
   language: string,
+  currency: string,
   returnUrl?: string
 ): Promise<string> {
   const apiBaseUrl = `https://${config.credentials.apiEndpoint}`;
   
   // For demo mode, we can use a simpler approach
   if (mode === 'demo') {
-    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?lang=${language}&platform=web&lobbyUrl=${encodeURIComponent(returnUrl || window.location.href)}`;
+    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?lang=${language}&currency=${currency}&platform=web&lobbyUrl=${encodeURIComponent(returnUrl || window.location.href)}`;
     console.log(`Launching ${config.name} demo game: ${demoUrl}`);
     return demoUrl;
   }
@@ -182,7 +183,7 @@ async function getPragmaticPlayLaunchUrl(
       agentid: config.credentials.agentId,
       playerid: playerId,
       language: language,
-      currency: config.currency,
+      currency: currency,
       gamecode: gameId,
       platform: 'web',
       callbackurl: config.credentials.callbackUrl
@@ -191,23 +192,8 @@ async function getPragmaticPlayLaunchUrl(
     // Log the request for debugging
     console.log('API Request:', requestBody);
     
-    // Simulate API response
-    // In production, this would be an actual API call:
-    /*
-    const response = await axios.post(`${apiBaseUrl}/v1/launchgame`, requestBody, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.credentials.apiToken}`
-      }
-    });
-    
-    if (response.data && response.data.gameURL) {
-      return response.data.gameURL;
-    }
-    */
-    
     // Simulate a successful response with a mock game URL
-    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?token=mock-token-${Date.now()}&lang=${language}&lobby=${encodeURIComponent(returnUrl || window.location.href)}`;
+    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?token=mock-token-${Date.now()}&lang=${language}&currency=${currency}&lobby=${encodeURIComponent(returnUrl || window.location.href)}`;
     
     console.log(`Mocked game URL (real money): ${mockGameUrl}`);
     return mockGameUrl;
@@ -217,7 +203,7 @@ async function getPragmaticPlayLaunchUrl(
     
     // Log the error and fall back to demo mode
     toast.error(`Failed to launch real money game. Falling back to demo mode.`);
-    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, returnUrl);
+    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, currency, returnUrl);
   }
 }
 
@@ -230,6 +216,7 @@ async function getPlayGoLaunchUrl(
   playerId: string, 
   mode: 'real' | 'demo',
   language: string,
+  currency: string,
   returnUrl?: string
 ): Promise<string> {
   // This is the URL structure for Play'n GO games
@@ -242,11 +229,11 @@ async function getPlayGoLaunchUrl(
     player: playerId,
     mode,
     lang: language,
-    home: returnUrl || 'https://captaingamble.com/casino',
-    currency: config.currency
+    currency: currency,
+    home: returnUrl || 'https://captaingamble.com/casino'
   });
   
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode`);
+  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
   
   // Return mock URL for demo
   return `${baseUrl}?${params.toString()}`;
@@ -261,6 +248,7 @@ async function getAmaticLaunchUrl(
   playerId: string, 
   mode: 'real' | 'demo',
   language: string,
+  currency: string,
   returnUrl?: string
 ): Promise<string> {
   // This is the URL structure for Amatic games
@@ -273,11 +261,11 @@ async function getAmaticLaunchUrl(
     userId: playerId,
     mode,
     language,
-    returnUrl: returnUrl || 'https://captaingamble.com/casino',
-    currency: config.currency
+    currency,
+    returnUrl: returnUrl || 'https://captaingamble.com/casino'
   });
   
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode`);
+  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
   
   // Return mock URL for demo
   return `${baseUrl}?${params.toString()}`;
