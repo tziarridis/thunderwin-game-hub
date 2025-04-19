@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import { getProviderConfig } from '@/config/gameProviders';
@@ -38,6 +37,9 @@ export interface PPWalletCallback {
   trxid: string;
   roundid: string;
   gameref?: string;
+  currency?: string;  // Added as per documentation
+  timestamp?: string; // Added as per documentation
+  hash?: string;      // Added as per documentation
 }
 
 // Interface for test result
@@ -140,7 +142,6 @@ export const pragmaticPlayService = {
    */
   processWalletCallback: async (callback: PPWalletCallback): Promise<{errorcode: string, balance: number}> => {
     try {
-      // Log the incoming request
       console.log('Processing wallet callback:', callback);
       
       // Validate agent ID
@@ -149,36 +150,46 @@ export const pragmaticPlayService = {
         return { errorcode: "1", balance: 0 };
       }
       
-      // Check for duplicate transaction - important for idempotency
+      // Check for duplicate transaction
       const transactionExists = processedTransactions.has(callback.trxid);
       if (transactionExists) {
         console.log('Duplicate transaction detected:', callback.trxid);
-        // Return the same response as before for idempotency
         const existingResponse = processedTransactions.get(callback.trxid);
         return existingResponse || { errorcode: "0", balance: 100.00 };
       }
       
-      // Process the transaction based on type according to documentation
+      // Validate hash if provided (in production implementation)
+      if (callback.hash) {
+        // Implement hash validation here
+        console.log('Hash validation would be implemented here in production');
+      }
+      
+      // Process the transaction
       let newBalance = 100.00; // Mock starting balance
       
       if (callback.type === 'debit') {
-        // Check if player has sufficient balance
         if (callback.amount > newBalance) {
-          return { errorcode: "3", balance: newBalance }; // Insufficient funds (code 3 per documentation)
+          return { errorcode: "3", balance: newBalance }; // Insufficient funds
         }
-        
-        // Debit the amount
         newBalance -= callback.amount;
       } else if (callback.type === 'credit') {
-        // Credit the amount
         newBalance += callback.amount;
       }
       
-      // Store the response for idempotency
+      // Store response for idempotency
       const response = { errorcode: "0", balance: newBalance };
       processedTransactions.set(callback.trxid, response);
       
+      // Log the successful transaction
+      console.log('Transaction processed successfully:', {
+        type: callback.type,
+        amount: callback.amount,
+        newBalance: newBalance,
+        timestamp: callback.timestamp || new Date().toISOString()
+      });
+      
       return response;
+      
     } catch (error) {
       console.error('Error processing wallet callback:', error);
       return { 

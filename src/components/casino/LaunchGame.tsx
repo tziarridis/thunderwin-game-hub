@@ -16,6 +16,7 @@ interface LaunchGameProps {
   providerId?: string;
   currency?: string;
   language?: string;
+  platform?: 'web' | 'mobile';
 }
 
 const LaunchGame = ({ 
@@ -24,16 +25,16 @@ const LaunchGame = ({
   buttonText = 'Play Game', 
   variant = 'default',
   className = '',
-  providerId = 'ppeur', // Default to Pragmatic Play EUR
+  providerId = 'ppeur',
   currency = 'USD',
-  language = 'en'
+  language = 'en',
+  platform = 'web'
 }: LaunchGameProps) => {
   const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
   const { isAuthenticated, user } = useAuth();
   
   const handleLaunch = async () => {
-    // Check if player is authenticated for real money mode
     if (mode === 'real' && !isAuthenticated) {
       toast.error("Please log in to play in real money mode");
       return;
@@ -41,29 +42,30 @@ const LaunchGame = ({
     
     try {
       setIsLaunching(true);
-      
-      // Use player ID if authenticated, otherwise use guest
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
       
-      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`);
+      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
+        mode,
+        language,
+        currency,
+        platform
+      });
       
-      // Add language and return URL to launch options
       const gameUrl = await launchGame(game, { 
         mode, 
         providerId,
         playerId,
         language,
         currency,
+        platform,
         returnUrl: window.location.href
       });
       
       console.log("Generated game URL:", gameUrl);
       
-      // Handle successful launch
       if (gameUrl) {
         const gameWindow = window.open(gameUrl, '_blank');
         
-        // Check if popup blocker prevented the window from opening
         if (!gameWindow) {
           throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
         }

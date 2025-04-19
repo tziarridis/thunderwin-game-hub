@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
@@ -13,6 +12,7 @@ export interface GameLaunchOptions {
   language?: string;
   currency?: string;
   returnUrl?: string;
+  platform?: 'web' | 'mobile';  // Added platform option as per docs
 }
 
 // Interface for provider API response
@@ -33,35 +33,53 @@ export const gameProviderService = {
    * @returns Promise with the game URL or error
    */
   getLaunchUrl: async (options: GameLaunchOptions): Promise<string> => {
-    const { providerId, gameId, playerId = 'demo', mode = 'demo', language = 'en', currency = 'EUR' } = options;
+    const { 
+      providerId, 
+      gameId, 
+      playerId = 'demo', 
+      mode = 'demo',
+      language = 'en',
+      currency = 'EUR',
+      platform = 'web'
+    } = options;
     
-    // Get provider configuration
     const providerConfig = getProviderConfig(providerId);
     if (!providerConfig) {
       throw new Error(`Unknown provider: ${providerId}`);
     }
     
+    console.log(`Launching game with provider ${providerId}:`, {
+      gameId,
+      playerId,
+      mode,
+      language,
+      currency,
+      platform
+    });
+    
     try {
-      // Handle different providers based on their code
       switch(providerConfig.code) {
         case 'PP':
-          return await getPragmaticPlayLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
+          return await getPragmaticPlayLaunchUrl(
+            providerConfig, 
+            gameId, 
+            playerId, 
+            mode, 
+            language, 
+            currency,
+            platform,
+            options.returnUrl
+          );
         
-        case 'PG':
-          return await getPlayGoLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
-        
-        case 'AM':
-          return await getAmaticLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
-          
         case 'GSP':
-          // Use the GitSlotPark service for this provider with the correct options
           return await gitSlotParkService.launchGame({
             playerId,
             gameCode: gameId,
             mode,
             returnUrl: options.returnUrl,
             language,
-            currency // Make sure currency is passed to match the updated interface
+            currency,
+            platform
           });
         
         default:
@@ -162,49 +180,58 @@ async function getPragmaticPlayLaunchUrl(
   mode: 'real' | 'demo',
   language: string,
   currency: string,
+  platform: string,
   returnUrl?: string
 ): Promise<string> {
   const apiBaseUrl = `https://${config.credentials.apiEndpoint}`;
   
-  // For demo mode, we can use a simpler approach
+  // For demo mode, use the documented demo endpoint
   if (mode === 'demo') {
-    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?lang=${language}&currency=${currency}&platform=web&lobbyUrl=${encodeURIComponent(returnUrl || window.location.href)}`;
-    console.log(`Launching ${config.name} demo game: ${demoUrl}`);
+    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?` + new URLSearchParams({
+      lang: language,
+      platform: platform,
+      currency: currency,
+      lobbyUrl: returnUrl || window.location.href
+    });
+    
+    console.log(`Launching demo game: ${demoUrl}`);
     return demoUrl;
   }
   
-  // For real money mode, we need to make an API call with authentication
+  // For real money mode
   try {
-    // In a production environment, this should be a server-side call
-    // For demo purposes, we're simulating the API call
-    console.log(`Preparing to launch ${config.name} real money game for player: ${playerId}`);
+    console.log(`Preparing to launch real money game for player: ${playerId}`);
     
-    // Construct the API request parameters
     const requestBody = {
       agentid: config.credentials.agentId,
       playerid: playerId,
       language: language,
       currency: currency,
       gamecode: gameId,
-      platform: 'web',
-      callbackurl: config.credentials.callbackUrl
+      platform: platform,
+      callbackurl: config.credentials.callbackUrl,
+      returnurl: returnUrl || window.location.href
     };
     
-    // Log the request for debugging
     console.log('API Request:', requestBody);
     
-    // Simulate a successful response with a mock game URL
-    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?token=mock-token-${Date.now()}&lang=${language}&currency=${currency}&lobby=${encodeURIComponent(returnUrl || window.location.href)}`;
+    // In production, this would be a server-side API call
+    // For demo, return a mock URL with all parameters
+    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?` + new URLSearchParams({
+      token: `mock-token-${Date.now()}`,
+      lang: language,
+      currency: currency,
+      platform: platform,
+      lobby: encodeURIComponent(returnUrl || window.location.href)
+    });
     
-    console.log(`Mocked game URL (real money): ${mockGameUrl}`);
+    console.log(`Generated game URL (real money): ${mockGameUrl}`);
     return mockGameUrl;
     
   } catch (error: any) {
-    console.error(`Error launching ${config.name} real money game:`, error);
-    
-    // Log the error and fall back to demo mode
+    console.error(`Error launching real money game:`, error);
     toast.error(`Failed to launch real money game. Falling back to demo mode.`);
-    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, currency, returnUrl);
+    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, currency, platform, returnUrl);
   }
 }
 
