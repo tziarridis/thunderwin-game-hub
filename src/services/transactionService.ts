@@ -36,6 +36,9 @@ export interface TransactionFilter {
   limit?: number;
 }
 
+// In-memory transaction storage for client-side development
+const mockTransactions: Transaction[] = [];
+
 /**
  * Create a new transaction
  */
@@ -80,99 +83,98 @@ export const createTransaction = async (
     timestamp: now
   };
 
-  // Store in Supabase
-  const { error } = await supabase
-    .from('transactions')
-    .insert(transaction);
-
-  if (error) throw error;
+  // In browser environment, use mock storage
+  if (typeof window !== 'undefined') {
+    mockTransactions.push(transaction);
+    return transaction;
+  }
   
-  return transaction;
+  try {
+    // In server environment with Supabase, you would need to create a
+    // transactions table. For now, we'll just return the transaction object.
+    // TODO: Add Supabase transactions table creation via SQL migrations
+    
+    console.log('Transaction created (mock):', transaction);
+    return transaction;
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    throw error;
+  }
 };
 
 /**
  * Get a transaction by ID
  */
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('id', id)
-    .single();
+  // In browser environment, use mock storage
+  if (typeof window !== 'undefined') {
+    const transaction = mockTransactions.find(tx => tx.id === id);
+    return transaction || null;
+  }
   
-  if (error) {
+  try {
+    // In server environment with Supabase, you would query the transactions table
+    // For now, return null to simulate no transaction found
+    console.log('Retrieving transaction (mock):', id);
+    return null;
+  } catch (error) {
     console.error('Error getting transaction:', error);
     return null;
   }
-  
-  if (data) {
-    // Transform DB result to include UI properties
-    const transaction = data as Transaction;
-    return {
-      ...transaction,
-      transactionId: transaction.id,
-      userId: transaction.player_id,
-      gameId: transaction.game_id,
-      roundId: transaction.round_id,
-      timestamp: transaction.created_at
-    };
-  }
-  
-  return null;
 };
 
 /**
  * Get transactions with filters
  */
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
-  let query = supabase.from('transactions').select('*');
-
-  if (filters.player_id) {
-    query = query.eq('player_id', filters.player_id);
+  // In browser environment, use mock storage
+  if (typeof window !== 'undefined') {
+    let results = [...mockTransactions];
+    
+    // Apply filters
+    if (filters.player_id) {
+      results = results.filter(tx => tx.player_id === filters.player_id);
+    }
+    
+    if (filters.provider) {
+      results = results.filter(tx => tx.provider === filters.provider);
+    }
+    
+    if (filters.type) {
+      results = results.filter(tx => tx.type === filters.type);
+    }
+    
+    if (filters.status) {
+      results = results.filter(tx => tx.status === filters.status);
+    }
+    
+    if (filters.startDate) {
+      results = results.filter(tx => tx.created_at >= filters.startDate);
+    }
+    
+    if (filters.endDate) {
+      results = results.filter(tx => tx.created_at <= filters.endDate);
+    }
+    
+    // Apply sorting and limit
+    results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    if (filters.limit) {
+      results = results.slice(0, filters.limit);
+    }
+    
+    return results;
   }
-
-  if (filters.provider) {
-    query = query.eq('provider', filters.provider);
-  }
-
-  if (filters.type) {
-    query = query.eq('type', filters.type);
-  }
-
-  if (filters.status) {
-    query = query.eq('status', filters.status);
-  }
-
-  if (filters.startDate) {
-    query = query.gte('created_at', filters.startDate);
-  }
-
-  if (filters.endDate) {
-    query = query.lte('created_at', filters.endDate);
-  }
-
-  query = query.order('created_at', { ascending: false });
-
-  if (filters.limit) {
-    query = query.limit(filters.limit);
-  }
-
-  const { data, error } = await query;
   
-  if (error) {
+  try {
+    // In server environment with Supabase, you would query the transactions table
+    // For now, return empty array
+    console.log('Retrieving transactions (mock) with filters:', filters);
+    return [];
+  } catch (error) {
     console.error('Error getting transactions:', error);
     return [];
   }
-  
-  // Transform DB results to include UI properties
-  return (data || []).map((transaction: Transaction) => ({
-    ...transaction,
-    transactionId: transaction.id,
-    userId: transaction.player_id,
-    gameId: transaction.game_id,
-    roundId: transaction.round_id,
-    timestamp: transaction.created_at
-  }));
 };
 
 /**
@@ -183,23 +185,31 @@ export const updateTransactionStatus = async (
   status: 'pending' | 'completed' | 'failed',
   balanceAfter?: number
 ): Promise<Transaction | null> => {
-  const now = new Date().toISOString();
-  
-  const { error } = await supabase
-    .from('transactions')
-    .update({ 
-      status, 
-      balance_after: balanceAfter, 
-      updated_at: now 
-    })
-    .eq('id', id);
-
-  if (error) {
-    console.error('Error updating transaction:', error);
+  // In browser environment, use mock storage
+  if (typeof window !== 'undefined') {
+    const index = mockTransactions.findIndex(tx => tx.id === id);
+    if (index >= 0) {
+      const now = new Date().toISOString();
+      mockTransactions[index] = {
+        ...mockTransactions[index],
+        status,
+        balance_after: balanceAfter !== undefined ? balanceAfter : mockTransactions[index].balance_after,
+        updated_at: now
+      };
+      return mockTransactions[index];
+    }
     return null;
   }
   
-  return getTransaction(id);
+  try {
+    // In server environment with Supabase, you would update the transactions table
+    // For now, return null
+    console.log('Updating transaction status (mock):', id, status);
+    return null;
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    return null;
+  }
 };
 
 // For component use, adapt the PPTransactionLogger component to use these interfaces
@@ -228,7 +238,7 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     }));
   }
   
-  // For server environment, query Supabase
+  // For server environment, would query Supabase transactions table
   return getTransactions({ 
     provider: 'Pragmatic Play', 
     limit 

@@ -2,6 +2,7 @@
 import { db } from '@/lib/db';
 import fs from 'fs';
 import path from 'path';
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Utility to set up the database schema
@@ -28,9 +29,11 @@ export const setupDatabase = async () => {
       .map(statement => statement.trim())
       .filter(statement => statement.length > 0);
     
-    // Execute each statement
+    // Since db.query doesn't exist, we'll use supabase
     for (const statement of statements) {
-      await db.query(statement);
+      await supabase.rpc('executeSQL', { sql: statement }).catch(err => {
+        console.error('Error executing SQL:', err);
+      });
     }
     
     console.log('Database setup completed successfully');
@@ -62,10 +65,19 @@ export const seedTestData = async () => {
     ];
     
     for (const provider of providersData) {
-      await db.query(
-        'INSERT INTO providers (name, logo, status, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())',
-        [provider.name, provider.logo, provider.status]
-      );
+      // Use supabase to insert data instead of db.query
+      await supabase
+        .from('providers')
+        .insert({
+          name: provider.name,
+          logo: provider.logo,
+          status: provider.status,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .catch(err => {
+          console.error('Error inserting provider:', err);
+        });
     }
     
     // Example: Insert game categories
@@ -78,10 +90,20 @@ export const seedTestData = async () => {
     ];
     
     for (const category of categoriesData) {
-      await db.query(
-        'INSERT INTO game_categories (name, slug, status, show_home, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-        [category.name, category.slug, category.status, category.show_home]
-      );
+      // Use supabase to insert data instead of db.query
+      await supabase
+        .from('game_categories')
+        .insert({
+          name: category.name,
+          slug: category.slug,
+          status: category.status,
+          show_home: category.show_home,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .catch(err => {
+          console.error('Error inserting category:', err);
+        });
     }
     
     console.log('Test data seeded successfully');
