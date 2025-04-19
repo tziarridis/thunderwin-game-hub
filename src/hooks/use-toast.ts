@@ -10,8 +10,15 @@ type ToastProps = {
   action?: React.ReactNode;
 };
 
+// Define what the adapted toast props will look like
+type AdaptedToastProps = {
+  message?: React.ReactNode | string;
+  duration?: number;
+  action?: React.ReactNode;
+};
+
 // Create an adapter that maps our toast interface to Sonner's
-function adaptToast(props: ToastProps) {
+function adaptToast(props: ToastProps): AdaptedToastProps {
   const { title, description, variant, ...rest } = props;
   
   // If we have both title and description, join them
@@ -37,7 +44,7 @@ function adaptToast(props: ToastProps) {
     return { ...rest, message: description };
   }
   
-  return props;
+  return rest;
 }
 
 // Define a toast function interface that can be called directly
