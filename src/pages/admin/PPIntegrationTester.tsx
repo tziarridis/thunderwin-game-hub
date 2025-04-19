@@ -72,7 +72,7 @@ const PPIntegrationTester = () => {
     try {
       // Check API configuration
       const ppConfig = await pragmaticPlayService.validateConfig();
-      addLog(`Config validation: ${ppConfig.valid ? 'Success' : 'Failed'}`);
+      addLog(`Config validation: ${ppConfig.success ? 'Success' : 'Failed'}`);
 
       // Check API connectivity
       const apiStatus = await pragmaticPlayService.testApiConnection();
@@ -84,12 +84,12 @@ const PPIntegrationTester = () => {
 
       // Validate callback URL
       const callbackStatus = await pragmaticPlayService.validateCallbackUrl();
-      addLog(`Callback URL validation: ${callbackStatus.valid ? 'Success' : 'Failed'} - ${callbackStatus.message}`);
+      addLog(`Callback URL validation: ${callbackStatus.success ? 'Success' : 'Failed'} - ${callbackStatus.message}`);
 
       // Determine overall status
-      if (ppConfig.valid && apiStatus.success && games.length > 0 && callbackStatus.valid) {
+      if (ppConfig.success && apiStatus.success && games.length > 0 && callbackStatus.success) {
         setIntegrationStatus('success');
-      } else if (!ppConfig.valid || !apiStatus.success) {
+      } else if (!ppConfig.success || !apiStatus.success) {
         setIntegrationStatus('error');
       } else {
         setIntegrationStatus('warning');

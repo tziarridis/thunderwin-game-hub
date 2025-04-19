@@ -76,8 +76,8 @@ const PPIntegrationReport: React.FC<PPIntegrationReportProps> = ({ status }) => 
       updateTestResult(0, "pending", "Running API configuration test...");
       const configTest = await pragmaticPlayService.validateConfig();
       updateTestResult(0, 
-        configTest.valid ? "success" : "error",
-        configTest.valid ? "API configuration is valid" : "Invalid API configuration",
+        configTest.success ? "success" : "error",
+        configTest.message,
         configTest.details
       );
       

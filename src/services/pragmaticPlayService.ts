@@ -323,7 +323,7 @@ export const pragmaticPlayService = {
    */
   validateConfig: async (): Promise<TestResult> => {
     // Check if configuration has all required fields
-    const valid = !!(
+    const success = !!(
       ppConfig &&
       ppConfig.credentials.apiEndpoint &&
       ppConfig.credentials.agentId &&
@@ -332,11 +332,11 @@ export const pragmaticPlayService = {
     );
     
     return {
-      success: valid,
-      message: valid ? 
+      success,
+      message: success ? 
         "API configuration is valid" : 
         "Invalid API configuration",
-      details: valid ? 
+      details: success ? 
         `Endpoint: ${PP_API_BASE}, Agent: ${PP_AGENT_ID}, Currency: ${PP_CURRENCY}` :
         "Missing required configuration parameters"
     };
@@ -372,12 +372,12 @@ export const pragmaticPlayService = {
     const callbackUrl = ppConfig?.credentials.callbackUrl || `${window.location.origin}/api/seamless/pragmatic`;
     
     // Check if the callback URL is valid
-    const valid = callbackUrl.startsWith('http') && 
+    const success = callbackUrl.startsWith('http') && 
                  (callbackUrl.includes('/api/') || callbackUrl.includes('/seamless/'));
     
     return {
-      success: valid,
-      message: valid ? 
+      success,
+      message: success ? 
         "Callback URL is valid" : 
         "Invalid callback URL format",
       details: `Callback URL: ${callbackUrl}`
