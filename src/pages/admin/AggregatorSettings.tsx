@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -168,26 +167,29 @@ const AggregatorSettings = () => {
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
               <CardTitle>Database Settings</CardTitle>
-              <CardDescription>Configure database settings for the game aggregator.</CardDescription>
+              <CardDescription>View your Supabase database configuration.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="dbHost">Database Host</Label>
-                <Input id="dbHost" placeholder="Enter database host" defaultValue="localhost" />
+                <Label>Project URL</Label>
+                <Input value="https://xucpujttrmcfnxalnuzr.supabase.co" readOnly className="bg-gray-900" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dbName">Database Name</Label>
-                <Input id="dbName" placeholder="Enter database name" defaultValue="game_aggregator" />
+                <Label>Project Reference</Label>
+                <Input value="xucpujttrmcfnxalnuzr" readOnly className="bg-gray-900" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dbUser">Database User</Label>
-                <Input id="dbUser" placeholder="Enter database user" defaultValue="admin" />
+                <Label>Database Provider</Label>
+                <Input value="Supabase" readOnly className="bg-gray-900" />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dbPassword">Database Password</Label>
-                <Input id="dbPassword" placeholder="Enter database password" type="password" defaultValue="password" />
+              <div className="flex gap-4 mt-4">
+                <Link to="https://supabase.com/dashboard/project/xucpujttrmcfnxalnuzr/database/tables" target="_blank">
+                  <Button variant="outline">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View Database
+                  </Button>
+                </Link>
               </div>
-              <Button className="mt-4" onClick={handleSaveSettings}>Save Database Settings</Button>
             </CardContent>
           </Card>
         </TabsContent>
