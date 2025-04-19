@@ -48,7 +48,9 @@ const AggregatorGameSection = () => {
           id: game.code,
           title: game.name,
           provider: 'Pragmatic Play',
-          image: game.image || `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
+          // The pragmaticPlayService.getAvailableGames() returns objects with only code and name properties
+          // So we need to generate a random image path instead of trying to use game.image
+          image: `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
           isPopular: Math.random() > 0.7,
           isNew: Math.random() > 0.8,
           rtp: (88 + Math.random() * 10).toFixed(2) + '%',
