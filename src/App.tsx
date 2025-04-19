@@ -28,8 +28,14 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CasinoMain from "./pages/casino/CasinoMain";
 import AdminLogin from "./pages/auth/AdminLogin";
+import AdminLayout from "./components/layout/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import CMSOverview from "./pages/admin/cms/CMSOverview";
+import { useState } from "react";
 
 function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
   return (
     <>
       <ScrollToTop />
@@ -88,18 +94,41 @@ function App() {
           <Route path="/reset-password/:token" element={<NotFound />} />
           <Route path="/kyc/status" element={<KycStatusPage />} />
           
-          {/* Admin routes */}
-          <Route path="/admin" element={<NotFound />} />
-          <Route path="/admin/game-management" element={<NotFound />} />
-          <Route path="/admin/user-management" element={<NotFound />} />
-          <Route path="/admin/settings" element={<NotFound />} />
-          <Route path="/admin/pp-integration" element={<NotFound />} />
-          <Route path="/admin/game-aggregator" element={<NotFound />} />
+          {/* Admin login */}
           <Route path="/admin/login" element={<AdminLogin />} />
-          
-          {/* Catch-all route */}
-          <Route path="*" element={<NotFound />} />
         </Route>
+        
+        {/* Admin routes with AdminLayout */}
+        <Route element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}>
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<NotFound />} />
+          <Route path="/admin/games" element={<NotFound />} />
+          <Route path="/admin/game-aggregator" element={<NotFound />} />
+          <Route path="/admin/aggregator-settings" element={<NotFound />} />
+          <Route path="/admin/transactions" element={<NotFound />} />
+          <Route path="/admin/affiliates" element={<NotFound />} />
+          <Route path="/admin/promotions" element={<NotFound />} />
+          <Route path="/admin/vip-bonus" element={<NotFound />} />
+          <Route path="/admin/kyc" element={<NotFound />} />
+          <Route path="/admin/reports" element={<NotFound />} />
+          <Route path="/admin/logs" element={<NotFound />} />
+          <Route path="/admin/support" element={<NotFound />} />
+          <Route path="/admin/security" element={<NotFound />} />
+          <Route path="/admin/settings" element={<NotFound />} />
+          
+          {/* CMS Routes */}
+          <Route path="/admin/cms" element={<CMSOverview />} />
+          <Route path="/admin/cms/banners" element={<NotFound />} />
+          <Route path="/admin/cms/casino" element={<NotFound />} />
+          <Route path="/admin/cms/categories" element={<NotFound />} />
+          <Route path="/admin/cms/sportsbook" element={<NotFound />} />
+          <Route path="/admin/cms/site-data" element={<NotFound />} />
+          <Route path="/admin/cms/games" element={<NotFound />} />
+        </Route>
+        
+        {/* Catch-all route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );
