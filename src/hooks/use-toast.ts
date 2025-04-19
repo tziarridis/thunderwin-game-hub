@@ -40,58 +40,64 @@ function adaptToast(props: ToastProps) {
   return props;
 }
 
-// Define the toast function first
-function showToast(props: ToastProps) {
-  const adaptedProps = adaptToast(props);
-  return sonnerToast(adaptedProps.message, adaptedProps);
+// Define a toast function interface that can be called directly
+interface ToastFunction {
+  (props: ToastProps): void;
+  error: (props: ToastProps | string) => void;
+  success: (props: ToastProps | string) => void;
+  info: (props: ToastProps | string) => void;
+  warning: (props: ToastProps | string) => void;
+  dismiss: typeof sonnerToast.dismiss;
+  promise: typeof sonnerToast.promise;
 }
 
-// Export a wrapper around sonner's toast that adapts our interface
-export const toast = {
-  // Basic toast function that accepts our custom props
-  ...showToast,
-  
-  // Shorthand methods for different toast types
-  error(props: ToastProps | string) {
-    if (typeof props === 'string') {
-      return sonnerToast.error(props);
-    }
-    const adaptedProps = adaptToast(props);
-    return sonnerToast.error(adaptedProps.message, adaptedProps);
-  },
-  
-  success(props: ToastProps | string) {
-    if (typeof props === 'string') {
-      return sonnerToast.success(props);
-    }
-    const adaptedProps = adaptToast(props);
-    return sonnerToast.success(adaptedProps.message, adaptedProps);
-  },
-  
-  info(props: ToastProps | string) {
-    if (typeof props === 'string') {
-      return sonnerToast(props);
-    }
-    const adaptedProps = adaptToast(props);
-    return sonnerToast(adaptedProps.message, adaptedProps);
-  },
-  
-  warning(props: ToastProps | string) {
-    if (typeof props === 'string') {
-      return sonnerToast(props);
-    }
-    const adaptedProps = adaptToast(props);
-    return sonnerToast(adaptedProps.message, adaptedProps);
-  },
-  
-  // Match the old API
-  dismiss: sonnerToast.dismiss,
-  promise: sonnerToast.promise,
+// Create the base toast function
+const showToast = (props: ToastProps) => {
+  const adaptedProps = adaptToast(props);
+  return sonnerToast(adaptedProps.message as string, adaptedProps);
 };
 
-// Ensure the toast function can be called directly
-Object.setPrototypeOf(toast, Function.prototype);
+// Create and export the toast function with all the methods
+export const toast = showToast as unknown as ToastFunction;
 
+// Add methods to the toast function
+toast.error = (props: ToastProps | string) => {
+  if (typeof props === 'string') {
+    return sonnerToast.error(props);
+  }
+  const adaptedProps = adaptToast(props);
+  return sonnerToast.error(adaptedProps.message as string, adaptedProps);
+};
+
+toast.success = (props: ToastProps | string) => {
+  if (typeof props === 'string') {
+    return sonnerToast.success(props);
+  }
+  const adaptedProps = adaptToast(props);
+  return sonnerToast.success(adaptedProps.message as string, adaptedProps);
+};
+
+toast.info = (props: ToastProps | string) => {
+  if (typeof props === 'string') {
+    return sonnerToast(props);
+  }
+  const adaptedProps = adaptToast(props);
+  return sonnerToast(adaptedProps.message as string, adaptedProps);
+};
+
+toast.warning = (props: ToastProps | string) => {
+  if (typeof props === 'string') {
+    return sonnerToast(props);
+  }
+  const adaptedProps = adaptToast(props);
+  return sonnerToast(adaptedProps.message as string, adaptedProps);
+};
+
+// Add the other methods directly from sonnerToast
+toast.dismiss = sonnerToast.dismiss;
+toast.promise = sonnerToast.promise;
+
+// Export the hook
 export function useToast() {
   return {
     toast,
