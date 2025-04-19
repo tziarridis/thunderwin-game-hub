@@ -25,7 +25,8 @@ export interface GSPGameLaunchOptions {
   language?: string;
   mode?: 'real' | 'demo';
   returnUrl?: string;
-  currency?: string; // Added the currency property to fix the type error
+  currency?: string;
+  platform?: 'web' | 'mobile'; // Added platform property to match with documentation
 }
 
 // Interface for wallet callback request based on documentation
@@ -61,7 +62,8 @@ export const gitSlotParkService = {
       gameCode, 
       language = 'en', 
       mode = 'demo',
-      returnUrl = window.location.origin + '/casino'
+      returnUrl = window.location.origin + '/casino',
+      platform = 'web' // Default to web if not specified
     } = options;
 
     try {
@@ -74,6 +76,7 @@ export const gitSlotParkService = {
         language: language,
         currency: GSP_CURRENCY,
         return_url: returnUrl,
+        platform: platform, // Include platform in params
         token: GSP_API_TOKEN,
       };
       
@@ -89,6 +92,7 @@ export const gitSlotParkService = {
         mode: params.mode,
         language: params.language,
         currency: params.currency,
+        platform: params.platform, // Include platform in URL
         return_url: encodeURIComponent(params.return_url),
         token: params.token
       }).toString()}`;
