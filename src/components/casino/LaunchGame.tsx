@@ -41,10 +41,12 @@ const LaunchGame = ({
       // Use player ID if authenticated, otherwise use guest
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
       
+      // Add language and return URL to launch options
       const gameUrl = await launchGame(game, { 
         mode, 
         providerId,
         playerId,
+        language: 'en',
         returnUrl: window.location.href
       });
       

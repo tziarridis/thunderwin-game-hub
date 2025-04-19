@@ -1,374 +1,213 @@
 
-import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 import { toast } from 'sonner';
-import { Transaction } from './transactionService';
-import * as transactionService from './transactionService';
+import { getProviderConfig } from '@/config/gameProviders';
+import { v4 as uuidv4 } from 'uuid';
 
-// Player balance stored in localStorage
-const BALANCE_KEY = 'gsp_player_balance';
+// Get GitSlotPark EUR configuration
+const gspConfig = getProviderConfig('gspeur');
 
-interface GitSlotParkPlayer {
-  id: string;
-  balance: number;
+// GSP API Constants based on the documentation
+const GSP_API_BASE = `https://${gspConfig?.credentials.apiEndpoint || 'apiv2.gitslotpark.com'}`;
+const GSP_AGENT_ID = gspConfig?.credentials.agentId || 'Partner01';
+const GSP_API_TOKEN = gspConfig?.credentials.apiToken || 'e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce';
+const GSP_SECRET_KEY = gspConfig?.credentials.secretKey || '1234567890';
+const GSP_CURRENCY = gspConfig?.currency || 'EUR';
+
+// Store processed transactions to prevent duplicates
+const processedTransactions = new Map();
+
+// Interface for game launch options
+export interface GSPGameLaunchOptions {
+  playerId: string;
+  gameCode: string;
+  language?: string;
+  mode?: 'real' | 'demo';
+  returnUrl?: string;
+}
+
+// Interface for wallet callback request based on documentation
+export interface GSPWalletCallback {
+  partner_id: string;
+  player_id: string;
+  amount: number;
+  currency: string;
+  transaction_type: 'bet' | 'win';
+  transaction_id: string;
+  game_id: string;
+  round_id: string;
+  timestamp: number;
+}
+
+// Interface for balance request
+export interface GSPBalanceRequest {
+  partner_id: string;
+  player_id: string;
   currency: string;
 }
 
-interface TransactionResult {
-  success: boolean;
-  message?: string;
-  transaction?: Transaction;
-}
-
-interface LaunchOptions {
-  playerId: string;
-  gameCode: string;
-  mode: 'demo' | 'real';
-  returnUrl?: string;
-  language?: string;
-}
-
-// Get player balance from local storage
-const getPlayerBalance = (playerId: string): number => {
-  const storedBalances = localStorage.getItem(BALANCE_KEY);
-  if (storedBalances) {
-    const balances = JSON.parse(storedBalances) as Record<string, number>;
-    return balances[playerId] || 1000; // Default balance is 1000
-  }
-  
-  // Initialize with default balance
-  const defaultBalance = 1000;
-  const newBalances = { [playerId]: defaultBalance };
-  localStorage.setItem(BALANCE_KEY, JSON.stringify(newBalances));
-  return defaultBalance;
-};
-
-// Set player balance in local storage
-const setPlayerBalance = (playerId: string, balance: number): void => {
-  const storedBalances = localStorage.getItem(BALANCE_KEY);
-  const balances = storedBalances ? JSON.parse(storedBalances) as Record<string, number> : {};
-  balances[playerId] = balance;
-  localStorage.setItem(BALANCE_KEY, JSON.stringify(balances));
-};
-
-// GitSlotPark API service
+// Service for GitSlotPark integration
 export const gitSlotParkService = {
-  // Get player balance
-  getBalance: async (playerId: string): Promise<{ balance: number; currency: string }> => {
+  /**
+   * Launch a GitSlotPark game
+   * @param options Game launch options
+   * @returns Promise with game URL
+   */
+  launchGame: async (options: GSPGameLaunchOptions): Promise<string> => {
+    const { 
+      playerId, 
+      gameCode, 
+      language = 'en', 
+      mode = 'demo',
+      returnUrl = window.location.origin + '/casino'
+    } = options;
+
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const balance = getPlayerBalance(playerId);
-      return { balance, currency: 'EUR' };
-    } catch (error) {
-      console.error('Error fetching GitSlotPark balance:', error);
-      throw new Error('Failed to fetch balance');
-    }
-  },
-  
-  // Credit (deposit) to player's wallet
-  credit: async (playerId: string, amount: number): Promise<TransactionResult> => {
-    try {
-      if (amount <= 0) {
-        return { success: false, message: 'Amount must be greater than zero' };
-      }
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Get current balance
-      const currentBalance = getPlayerBalance(playerId);
-      
-      // Update balance
-      const newBalance = currentBalance + amount;
-      setPlayerBalance(playerId, newBalance);
-      
-      // Create transaction record
-      const transactionId = uuidv4().replace(/-/g, '');
-      const transaction = await transactionService.createTransaction(
-        playerId,
-        playerId,
-        'credit',
-        amount,
-        'EUR',
-        'completed',
-        'GitSlotPark',
-        undefined,
-        undefined,
-        transactionId
-      );
-      
-      return {
-        success: true,
-        message: `Successfully credited ${amount} EUR to player ${playerId}`,
-        transaction
+      // Prepare parameters according to documentation
+      const params = {
+        partner_id: GSP_AGENT_ID,
+        player_id: playerId,
+        game_id: gameCode,
+        mode: mode,
+        language: language,
+        currency: GSP_CURRENCY,
+        return_url: returnUrl,
+        token: GSP_API_TOKEN,
       };
-    } catch (error) {
-      console.error('Error processing GitSlotPark credit:', error);
-      return { success: false, message: 'Failed to process credit' };
-    }
-  },
-  
-  // Debit (withdraw) from player's wallet
-  debit: async (playerId: string, amount: number): Promise<TransactionResult> => {
-    try {
-      if (amount <= 0) {
-        return { success: false, message: 'Amount must be greater than zero' };
-      }
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // For demo purposes, simulate the API response
+      // In production this would be an actual API call
+      console.log('Launching GSP game with params:', params);
       
-      // Get current balance
-      const currentBalance = getPlayerBalance(playerId);
-      
-      // Check if player has sufficient balance
-      if (currentBalance < amount) {
-        return { success: false, message: 'Insufficient balance' };
-      }
-      
-      // Update balance
-      const newBalance = currentBalance - amount;
-      setPlayerBalance(playerId, newBalance);
-      
-      // Create transaction record
-      const transactionId = uuidv4().replace(/-/g, '');
-      const transaction = await transactionService.createTransaction(
-        playerId,
-        playerId,
-        'debit',
-        amount,
-        'EUR',
-        'completed',
-        'GitSlotPark',
-        undefined,
-        undefined,
-        transactionId
-      );
-      
-      return {
-        success: true,
-        message: `Successfully debited ${amount} EUR from player ${playerId}`,
-        transaction
-      };
-    } catch (error) {
-      console.error('Error processing GitSlotPark debit:', error);
-      return { success: false, message: 'Failed to process debit' };
-    }
-  },
-  
-  // Process bet
-  processBet: async (playerId: string, amount: number, gameId: string, roundId: string): Promise<TransactionResult> => {
-    try {
-      // Get current balance
-      const currentBalance = getPlayerBalance(playerId);
-      
-      // Check if player has sufficient balance
-      if (currentBalance < amount) {
-        return { success: false, message: 'Insufficient balance' };
-      }
-      
-      // Update balance
-      const newBalance = currentBalance - amount;
-      setPlayerBalance(playerId, newBalance);
-      
-      // Create transaction record
-      const transactionId = uuidv4().replace(/-/g, '');
-      const transaction = await transactionService.createTransaction(
-        playerId,
-        'casino',
-        'bet',
-        amount,
-        'EUR',
-        'completed',
-        'GitSlotPark',
-        gameId,
-        roundId,
-        transactionId
-      );
-      
-      return {
-        success: true,
-        transaction
-      };
-    } catch (error: any) {
-      console.error('Error processing GitSlotPark bet:', error);
-      return { success: false, message: 'Failed to process bet' };
-    }
-  },
-  
-  // Process win
-  processWin: async (playerId: string, amount: number, gameId: string, roundId: string): Promise<TransactionResult> => {
-    try {
-      // Get current balance
-      const currentBalance = getPlayerBalance(playerId);
-      
-      // Update balance
-      const newBalance = currentBalance + amount;
-      setPlayerBalance(playerId, newBalance);
-      
-      // Create transaction record
-      const transactionId = uuidv4().replace(/-/g, '');
-      const transaction = await transactionService.createTransaction(
-        'casino',
-        playerId,
-        'win',
-        amount,
-        'EUR',
-        'completed',
-        'GitSlotPark',
-        gameId,
-        roundId,
-        transactionId
-      );
-      
-      return {
-        success: true,
-        transaction
-      };
-    } catch (error) {
-      console.error('Error processing GitSlotPark win:', error);
-      return { success: false, message: 'Failed to process win' };
-    }
-  },
-  
-  // Process wallet callback from GitSlotPark
-  processCallback: async (callbackData: any): Promise<{ status: string; balance: number }> => {
-    try {
-      console.log('Processing GitSlotPark callback:', callbackData);
-      
-      // Ensure required properties are present
-      if (!callbackData || !callbackData.playerId) {
-        return {
-          status: 'ERROR',
-          balance: 0
-        };
-      }
-      
-      const playerId = callbackData.playerId;
-      const amount = callbackData.amount || 0;
-      const type = callbackData.type || '';
-      const gameId = callbackData.gameId || '';
-      const roundId = callbackData.roundId || '';
-      const transactionId = callbackData.transactionId || '';
-      
-      // Check if transaction already exists (idempotency check)
-      if (transactionId) {
-        const exists = await transactionService.transactionExists(transactionId);
-        if (exists) {
-          console.log(`Duplicate transaction detected: ${transactionId}`);
-          // Return current balance without processing duplicate transaction
-          return {
-            status: 'OK',
-            balance: getPlayerBalance(playerId)
-          };
-        }
-      }
-      
-      let result: TransactionResult;
-      
-      // Process based on transaction type
-      if (type === 'bet' || type === 'debit') {
-        // Use nullish coalescing to ensure gameId and roundId are strings
-        const safeGameId = gameId || '';
-        const safeRoundId = roundId || '';
-        result = await gitSlotParkService.processBet(playerId, amount, safeGameId, safeRoundId);
-      } else if (type === 'win' || type === 'credit') {
-        // Use nullish coalescing to ensure gameId and roundId are strings
-        const safeGameId = gameId || '';
-        const safeRoundId = roundId || '';
-        result = await gitSlotParkService.processWin(playerId, amount, safeGameId, safeRoundId);
-      } else {
-        return {
-          status: 'ERROR',
-          balance: getPlayerBalance(playerId)
-        };
-      }
-      
-      if (result.success) {
-        return {
-          status: 'OK',
-          balance: getPlayerBalance(playerId)
-        };
-      } else {
-        return {
-          status: 'ERROR',
-          balance: getPlayerBalance(playerId)
-        };
-      }
-    } catch (error) {
-      console.error('Error processing GitSlotPark callback:', error);
-      return {
-        status: 'ERROR',
-        balance: 0
-      };
-    }
-  },
-  
-  // Launch a game
-  launchGame: async (options: LaunchOptions): Promise<string> => {
-    try {
-      const { playerId, gameCode, mode, returnUrl = window.location.href, language = 'en' } = options;
-      
-      // Demo mode doesn't require a session
-      if (mode === 'demo') {
-        // Construct demo URL
-        const demoUrl = `https://gspgames.slotparkapi.com/demo/${gameCode}?lang=${language}&returnUrl=${encodeURIComponent(returnUrl)}`;
-        return demoUrl;
-      }
-      
-      // For real money mode, we need to create a session
-      const sessionId = uuidv4();
-      const balance = await gitSlotParkService.getBalance(playerId);
-      
-      // In a real implementation, this would call the GitSlotPark API
-      // to create a session and get a token
-      
-      // For demo purposes, construct a URL with query parameters
-      // Make sure balance exists before accessing its properties
-      const balanceAmount = balance && typeof balance.balance === 'number' ? balance.balance : 0;
-      
-      const gameUrl = `https://gspgames.slotparkapi.com/game/${gameCode}?` + 
-        `playerId=${encodeURIComponent(playerId)}` +
-        `&sessionId=${sessionId}` +
-        `&currency=EUR` +
-        `&balance=${balanceAmount}` +
-        `&lang=${language}` +
-        `&returnUrl=${encodeURIComponent(returnUrl)}`;
+      // Build a mock URL structure based on documentation
+      const gameUrl = `${GSP_API_BASE}/games/launch?${new URLSearchParams({
+        partner_id: params.partner_id,
+        player_id: params.player_id,
+        game_id: params.game_id,
+        mode: params.mode,
+        language: params.language,
+        currency: params.currency,
+        return_url: encodeURIComponent(params.return_url),
+        token: params.token
+      }).toString()}`;
       
       return gameUrl;
-    } catch (error) {
-      console.error('Error launching GitSlotPark game:', error);
-      throw new Error('Failed to launch game');
+    } catch (error: any) {
+      console.error('Error launching GSP game:', error);
+      throw new Error(`Failed to launch game: ${error.message || 'Unknown error'}`);
     }
   },
   
-  // Get available games
-  getAvailableGames: () => {
-    // This would typically come from an API call to GitSlotPark
-    return [
-      { code: 'gsp_slots_1', name: 'GSP Fruit Fiesta' },
-      { code: 'gsp_slots_2', name: 'GSP Mega Fortune' },
-      { code: 'gsp_slots_3', name: 'GSP Thunder Spin' },
-      { code: 'gsp_slots_4', name: 'GSP Diamond Rush' },
-      { code: 'gsp_slots_5', name: 'GSP Golden Goddess' }
-    ];
-  },
-  
-  // Get transactions for a player
-  getTransactions: async (playerId: string): Promise<Transaction[]> => {
+  /**
+   * Get player balance from GitSlotPark
+   * @param playerId The player ID
+   * @returns Promise with balance data
+   */
+  getBalance: async (playerId: string): Promise<{ balance: number, currency: string }> => {
     try {
-      const transactions = await transactionService.getTransactions({
-        userId: playerId,
-        provider: 'GitSlotPark',
-        limit: 50
-      });
+      // In a real implementation, this would be a server-side API call
+      const params: GSPBalanceRequest = {
+        partner_id: GSP_AGENT_ID,
+        player_id: playerId,
+        currency: GSP_CURRENCY
+      };
       
-      return transactions;
-    } catch (error) {
-      console.error('Error fetching GitSlotPark transactions:', error);
-      throw new Error('Failed to fetch transactions');
+      console.log('Getting balance for player:', playerId);
+      
+      // Simulate the API response for demo
+      return {
+        balance: 1000.00,
+        currency: GSP_CURRENCY
+      };
+    } catch (error: any) {
+      console.error('Error getting player balance:', error);
+      throw new Error(`Failed to get balance: ${error.message || 'Unknown error'}`);
     }
+  },
+  
+  /**
+   * Process callback from GitSlotPark based on documentation
+   * @param data Callback data
+   * @returns Promise with response
+   */
+  processCallback: async (data: GSPWalletCallback): Promise<any> => {
+    try {
+      console.log('Processing GitSlotPark callback:', data);
+      
+      // Validate the partner ID
+      if (data.partner_id !== GSP_AGENT_ID) {
+        return {
+          status: "error",
+          error_code: "INVALID_PARTNER",
+          message: "Invalid partner ID"
+        };
+      }
+      
+      // Check for duplicate transaction
+      if (processedTransactions.has(data.transaction_id)) {
+        console.log('Duplicate transaction detected:', data.transaction_id);
+        // Return the same response as before for idempotency
+        return processedTransactions.get(data.transaction_id) || {
+          status: "success",
+          balance: 1000.00,
+          currency: GSP_CURRENCY
+        };
+      }
+      
+      // Process based on transaction type according to documentation
+      let newBalance = 1000.00; // Mock starting balance
+      
+      if (data.transaction_type === 'bet') {
+        // Debit the amount (bet)
+        if (data.amount > newBalance) {
+          return {
+            status: "error",
+            error_code: "INSUFFICIENT_FUNDS",
+            message: "Insufficient funds for this transaction"
+          };
+        }
+        
+        newBalance -= data.amount;
+      } else if (data.transaction_type === 'win') {
+        // Credit the amount (win)
+        newBalance += data.amount;
+      }
+      
+      // Store the response for idempotency
+      const response = {
+        status: "success",
+        balance: newBalance,
+        currency: GSP_CURRENCY
+      };
+      
+      processedTransactions.set(data.transaction_id, response);
+      return response;
+    } catch (error: any) {
+      console.error('Error processing GitSlotPark callback:', error);
+      return {
+        status: "error",
+        error_code: "INTERNAL_ERROR",
+        message: error.message || "Unknown error"
+      };
+    }
+  },
+  
+  /**
+   * Get available GitSlotPark games
+   * @returns Array of game codes and names
+   */
+  getAvailableGames: () => {
+    // In a real implementation, this would come from GitSlotPark's API
+    return [
+      { code: 'gsp_slots_1', name: 'GSP Mega Fortune' },
+      { code: 'gsp_slots_2', name: 'GSP Treasure Hunt' },
+      { code: 'gsp_slots_3', name: 'GSP Lucky Sevens' },
+      { code: 'gsp_slots_4', name: 'GSP Diamond Blast' },
+      { code: 'gsp_slots_5', name: 'GSP Gold Rush' },
+      { code: 'gsp_blackjack', name: 'GSP Blackjack' },
+      { code: 'gsp_roulette', name: 'GSP Roulette' },
+      { code: 'gsp_baccarat', name: 'GSP Baccarat' }
+    ];
   }
 };
 

@@ -1,220 +1,109 @@
 
 import { v4 as uuidv4 } from 'uuid';
 
+// Simple in-memory transaction store for demo purposes
+// In a real implementation, this would be a database
+const transactions = new Map();
+
 export interface Transaction {
-  transactionId: string;
-  userId: string;
-  receiverId: string;
-  type: string;
+  id: string;
+  playerId: string;
+  gameId: string;
+  type: 'bet' | 'win' | 'deposit' | 'withdraw';
   amount: number;
   currency: string;
-  status: string;
+  status: 'pending' | 'completed' | 'failed';
   provider: string;
-  gameId?: string;
   roundId?: string;
-  referenceId?: string;
   timestamp: string;
 }
 
-interface TransactionQuery {
-  userId?: string;
-  provider?: string;
-  type?: string;
-  status?: string;
-  startDate?: Date;
-  endDate?: Date;
-  limit?: number;
-  offset?: number;
-}
-
-// This would be a database in a real application
-// For this demo, we'll use localStorage with some mock data
-const getStoredTransactions = (): Transaction[] => {
-  try {
-    const storedData = localStorage.getItem('transactions');
-    if (storedData) {
-      return JSON.parse(storedData);
-    }
-    return generateMockTransactions();
-  } catch (error) {
-    console.error('Error retrieving transactions:', error);
-    return generateMockTransactions();
-  }
-};
-
-const saveTransactions = (transactions: Transaction[]) => {
-  try {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
-  } catch (error) {
-    console.error('Error saving transactions:', error);
-  }
-};
-
-// Generate mock transactions if none exist
-const generateMockTransactions = (): Transaction[] => {
-  const providers = ['Pragmatic Play', 'GitSlotPark'];
-  const userIds = ['player1', 'admin', 'demouser', 'newuser'];
-  const gameIds = ['vs20bonzanza', 'vs20doghouse', 'vs10wolfgold', '2001', '2002', '2003'];
-  const types = ['bet', 'win', 'rollback'];
-  const statuses = ['completed', 'failed', 'pending'];
-  
-  const mockTransactions: Transaction[] = [];
-  
-  // Generate random transactions for the past 30 days
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  
-  for (let i = 0; i < 100; i++) {
-    const type = types[Math.floor(Math.random() * types.length)];
-    const provider = providers[Math.floor(Math.random() * providers.length)];
-    const userId = userIds[Math.floor(Math.random() * userIds.length)];
-    const gameId = gameIds[Math.floor(Math.random() * gameIds.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    
-    // Generate a random date between now and 30 days ago
-    const timestamp = new Date(
-      thirtyDaysAgo.getTime() + Math.random() * (now.getTime() - thirtyDaysAgo.getTime())
-    ).toISOString();
-    
-    mockTransactions.push({
-      transactionId: uuidv4().replace(/-/g, ''),
-      userId,
-      receiverId: userId,
-      type,
-      amount: Math.round(Math.random() * 100 * 100) / 100,
-      currency: 'EUR',
-      status,
-      provider,
-      gameId,
-      roundId: uuidv4().replace(/-/g, ''),
-      timestamp
-    });
-  }
-  
-  // Sort by timestamp, newest first
-  mockTransactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
-  // Save to localStorage
-  saveTransactions(mockTransactions);
-  
-  return mockTransactions;
-};
-
-// Create a new transaction
+/**
+ * Create a new transaction
+ */
 export const createTransaction = async (
-  userId: string,
-  receiverId: string,
-  type: string,
+  id: string,
+  playerId: string,
+  type: 'bet' | 'win' | 'deposit' | 'withdraw',
   amount: number,
   currency: string,
-  status: string,
+  status: 'pending' | 'completed' | 'failed',
   provider: string,
-  gameId?: string,
-  roundId?: string,
-  referenceId?: string
+  roundId?: string
 ): Promise<Transaction> => {
-  const transactions = getStoredTransactions();
+  const transactionId = id || uuidv4();
   
-  const newTransaction: Transaction = {
-    transactionId: uuidv4().replace(/-/g, ''),
-    userId,
-    receiverId,
+  const transaction: Transaction = {
+    id: transactionId,
+    playerId,
+    gameId: roundId?.split('_')[0] || 'unknown',
     type,
     amount,
     currency,
     status,
     provider,
-    gameId,
     roundId,
-    referenceId,
     timestamp: new Date().toISOString()
   };
   
-  transactions.unshift(newTransaction);
-  saveTransactions(transactions);
+  // Store the transaction
+  transactions.set(transactionId, transaction);
   
-  return newTransaction;
+  return transaction;
 };
 
-// Get transactions with filtering options
-export const getTransactions = async (query: TransactionQuery = {}): Promise<Transaction[]> => {
-  const transactions = getStoredTransactions();
-  
-  let filtered = [...transactions];
-  
-  // Apply filters
-  if (query.userId) {
-    filtered = filtered.filter(tx => tx.userId === query.userId);
-  }
-  
-  if (query.provider) {
-    filtered = filtered.filter(tx => tx.provider === query.provider);
-  }
-  
-  if (query.type) {
-    filtered = filtered.filter(tx => tx.type === query.type);
-  }
-  
-  if (query.status) {
-    filtered = filtered.filter(tx => tx.status === query.status);
-  }
-  
-  if (query.startDate) {
-    filtered = filtered.filter(tx => new Date(tx.timestamp) >= query.startDate!);
-  }
-  
-  if (query.endDate) {
-    filtered = filtered.filter(tx => new Date(tx.timestamp) <= query.endDate!);
-  }
-  
-  // Apply pagination
-  if (query.limit) {
-    const offset = query.offset || 0;
-    filtered = filtered.slice(offset, offset + query.limit);
-  }
-  
-  return filtered;
+/**
+ * Check if a transaction exists
+ */
+export const transactionExists = async (transactionId: string): Promise<boolean> => {
+  return transactions.has(transactionId);
 };
 
-// Get a transaction by ID
-export const getTransactionById = async (id: string): Promise<Transaction | null> => {
-  const transactions = getStoredTransactions();
-  return transactions.find(tx => tx.transactionId === id) || null;
+/**
+ * Get a transaction by ID
+ */
+export const getTransaction = async (transactionId: string): Promise<Transaction | null> => {
+  return transactions.get(transactionId) || null;
 };
 
-// Update a transaction
-export const updateTransaction = async (
-  id: string,
-  updates: Partial<Transaction>
+/**
+ * Get all transactions for a player
+ */
+export const getPlayerTransactions = async (playerId: string): Promise<Transaction[]> => {
+  const playerTransactions: Transaction[] = [];
+  
+  transactions.forEach(transaction => {
+    if (transaction.playerId === playerId) {
+      playerTransactions.push(transaction);
+    }
+  });
+  
+  return playerTransactions;
+};
+
+/**
+ * Update transaction status
+ */
+export const updateTransactionStatus = async (
+  transactionId: string, 
+  status: 'pending' | 'completed' | 'failed'
 ): Promise<Transaction | null> => {
-  const transactions = getStoredTransactions();
-  const index = transactions.findIndex(tx => tx.transactionId === id);
+  const transaction = transactions.get(transactionId);
   
-  if (index === -1) {
+  if (!transaction) {
     return null;
   }
   
-  const updatedTransaction = {
-    ...transactions[index],
-    ...updates
-  };
+  transaction.status = status;
+  transactions.set(transactionId, transaction);
   
-  transactions[index] = updatedTransaction;
-  saveTransactions(transactions);
-  
-  return updatedTransaction;
-};
-
-// Check if a transaction exists
-export const transactionExists = async (id: string): Promise<boolean> => {
-  const transactions = getStoredTransactions();
-  return transactions.some(tx => tx.transactionId === id);
+  return transaction;
 };
 
 export default {
   createTransaction,
-  getTransactions,
-  getTransactionById,
-  updateTransaction,
-  transactionExists
+  transactionExists,
+  getTransaction,
+  getPlayerTransactions,
+  updateTransactionStatus
 };
