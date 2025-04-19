@@ -5,9 +5,9 @@ import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
 import GitSlotParkTester from "@/components/games/GitSlotParkTester";
 import { useEffect, useState } from "react";
 import { getProviderConfig } from "@/config/gameProviders";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check } from "lucide-react";
+import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
@@ -106,6 +106,20 @@ const GameAggregator = () => {
           </Link>
         </div>
       </div>
+      
+      <Alert className="mb-6 bg-yellow-500/10 border border-yellow-500/30">
+        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+        <AlertTitle className="text-yellow-500">Game Launch Troubleshooting</AlertTitle>
+        <AlertDescription>
+          If games are not playing, please check that:
+          <ul className="list-disc list-inside ml-4 mt-2 text-sm">
+            <li>Your browser is not blocking pop-ups for this site</li>
+            <li>Provider API configuration is correct in the Settings tab</li>
+            <li>Your wallet has sufficient balance for real money play</li>
+            <li>You're logged in when trying to play in real money mode</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
       
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
@@ -376,14 +390,6 @@ const GameAggregator = () => {
                       </Collapsible>
                     ))}
                   </div>
-                  
-                  <Alert className="mt-4 bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
-                    <AlertDescription>
-                      <p className="text-yellow-500">
-                        Note: In a production environment, these settings would be managed securely in a server-side database and not exposed in the client-side application.
-                      </p>
-                    </AlertDescription>
-                  </Alert>
                 </div>
               </CardContent>
             </Card>

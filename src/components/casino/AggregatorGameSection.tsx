@@ -7,11 +7,13 @@ import { gitSlotParkService } from "@/services/gitSlotParkService";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Gamepad2, ExternalLink } from "lucide-react";
+import { Gamepad2, ExternalLink, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 const AggregatorGameSection = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
+  const [loadingGame, setLoadingGame] = useState<string | null>(null);
 
   // Get a few games from each aggregator
   const ppGames = pragmaticPlayService.getAvailableGames().slice(0, 5);
@@ -19,29 +21,53 @@ const AggregatorGameSection = () => {
   
   const handleLaunchGame = async (provider: 'pp' | 'gsp', gameCode: string) => {
     try {
+      setLoadingGame(`${provider}-${gameCode}`);
       let gameUrl;
       
+      // Use player ID if authenticated, otherwise use guest
+      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      
       if (provider === 'pp') {
+        console.log(`Launching Pragmatic Play game ${gameCode} for player ${playerId}`);
         gameUrl = await pragmaticPlayService.launchGame({
-          playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
+          playerId,
           gameCode,
           mode: 'demo',
-          returnUrl: window.location.href
+          returnUrl: window.location.href,
+          currency: 'USD',
+          language: 'en'
         });
       } else {
+        console.log(`Launching GitSlotPark game ${gameCode} for player ${playerId}`);
         gameUrl = await gitSlotParkService.launchGame({
-          playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
+          playerId,
           gameCode,
           mode: 'demo',
-          returnUrl: window.location.href
+          returnUrl: window.location.href,
+          currency: 'USD',
+          language: 'en'
         });
       }
       
-      window.open(gameUrl, '_blank');
-      toast.success("Game launched successfully");
+      console.log("Generated game URL:", gameUrl);
+      
+      if (gameUrl) {
+        const gameWindow = window.open(gameUrl, '_blank');
+        
+        // Check if popup blocker prevented the window from opening
+        if (!gameWindow) {
+          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
+        }
+        
+        toast.success("Game launched successfully");
+      } else {
+        throw new Error("Failed to generate game URL");
+      }
     } catch (error: any) {
       console.error("Error launching game:", error);
       toast.error(error.message || "Failed to launch game");
+    } finally {
+      setLoadingGame(null);
     }
   };
   
@@ -84,8 +110,14 @@ const AggregatorGameSection = () => {
                       size="sm" 
                       className="w-full mt-2 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
                       onClick={() => handleLaunchGame('pp', game.code)}
+                      disabled={loadingGame === `pp-${game.code}`}
                     >
-                      Play Now
+                      {loadingGame === `pp-${game.code}` ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : "Play Now"}
                     </Button>
                   </div>
                 </div>
@@ -119,8 +151,14 @@ const AggregatorGameSection = () => {
                       size="sm" 
                       className="w-full mt-2 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
                       onClick={() => handleLaunchGame('gsp', game.code)}
+                      disabled={loadingGame === `gsp-${game.code}`}
                     >
-                      Play Now
+                      {loadingGame === `gsp-${game.code}` ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : "Play Now"}
                     </Button>
                   </div>
                 </div>

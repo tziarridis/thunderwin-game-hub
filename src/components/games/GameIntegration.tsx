@@ -42,9 +42,14 @@ const GameIntegration = ({
 
     setIsLoading(true);
     try {
+      // Create a player ID (either the authenticated user's ID or a guest ID)
+      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      
+      console.log(`Launching game: ${selectedGame} for player: ${playerId} in ${gameMode} mode`);
+      
       // Get game URL from Pragmatic Play service
       const gameUrl = await pragmaticPlayService.launchGame({
-        playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
+        playerId,
         gameCode: selectedGame,
         mode: gameMode,
         returnUrl: window.location.href,
@@ -52,17 +57,29 @@ const GameIntegration = ({
         currency: selectedCurrency
       });
       
+      console.log("Generated game URL:", gameUrl);
+      
       // Open game in new window or iframe
-      window.open(gameUrl, '_blank');
-      
-      setIsGameLoaded(true);
-      toast.success(`${providerName} game launched successfully`);
-      
-      if (onGameLoad) {
-        onGameLoad();
+      if (gameUrl) {
+        const gameWindow = window.open(gameUrl, '_blank');
+        
+        // Check if window was opened successfully
+        if (!gameWindow) {
+          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
+        }
+        
+        setIsGameLoaded(true);
+        toast.success(`${providerName} game launched successfully`);
+        
+        if (onGameLoad) {
+          onGameLoad();
+        }
+      } else {
+        throw new Error("Failed to generate game URL");
       }
     } catch (error: any) {
       const errorMessage = error.message || "Failed to load game";
+      console.error("Error launching game:", errorMessage);
       toast.error(errorMessage);
       
       if (onError) {

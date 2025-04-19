@@ -45,6 +45,8 @@ const LaunchGame = ({
       // Use player ID if authenticated, otherwise use guest
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
       
+      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`);
+      
       // Add language and return URL to launch options
       const gameUrl = await launchGame(game, { 
         mode, 
@@ -55,9 +57,21 @@ const LaunchGame = ({
         returnUrl: window.location.href
       });
       
+      console.log("Generated game URL:", gameUrl);
+      
       // Handle successful launch
-      window.open(gameUrl, '_blank');
-      toast.success(`Game launched: ${game.title}`);
+      if (gameUrl) {
+        const gameWindow = window.open(gameUrl, '_blank');
+        
+        // Check if popup blocker prevented the window from opening
+        if (!gameWindow) {
+          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
+        }
+        
+        toast.success(`Game launched: ${game.title}`);
+      } else {
+        throw new Error("Failed to generate game URL");
+      }
       
     } catch (error: any) {
       console.error('Error launching game:', error);
