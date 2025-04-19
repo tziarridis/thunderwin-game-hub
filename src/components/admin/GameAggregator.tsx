@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { getProviderConfig } from "@/config/gameProviders";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Activity } from "lucide-react";
+import { ExternalLink, Activity, Cpu } from "lucide-react";
 import { Link } from "react-router-dom";
+import PPTransactionLogger from "./PPTransactionLogger";
 
 /**
  * Game Aggregator component for admin dashboard
@@ -79,6 +80,12 @@ const GameAggregator = () => {
               View Seamless Wallet
             </Button>
           </Link>
+          <Link to="/casino/seamless" target="_blank">
+            <Button variant="outline" size="sm">
+              <Cpu className="mr-2 h-4 w-4" />
+              Seamless API Docs
+            </Button>
+          </Link>
         </div>
       </div>
       
@@ -89,6 +96,7 @@ const GameAggregator = () => {
               {provider.name}
             </TabsTrigger>
           ))}
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         
@@ -121,6 +129,126 @@ const GameAggregator = () => {
               </CardHeader>
               <CardContent>
                 <GitSlotParkTester />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>API Documentation</CardTitle>
+                <CardDescription>
+                  GitSlotPark Seamless API Endpoints
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="bg-slate-800 rounded-md p-4">
+                    <h3 className="font-semibold mb-2 text-white">Withdraw Endpoint (Bet)</h3>
+                    <p className="text-sm text-white/70 mb-2">
+                      Called when the User places a bet (debit). Decreases player's balance by amount and returns new balance.
+                    </p>
+                    <pre className="bg-slate-900 p-3 rounded-md text-xs overflow-auto">
+{`POST /Withdraw
+
+// Request
+{
+  "agentID": "Partner01",
+  "sign": "AED10CF82100B6B4E94089A60E0043A49395442E1F2D343E8DF2C27343A89FC4",
+  "userID": "Player01",
+  "amount": 0.1,
+  "transactionID": "4146ed8dd6d5497780e9fc273e86bae0",
+  "roundID": "307e9124a5314f2795ce583391e1c61c",
+  "gameID": 2001,
+  "freeSpinID":"freespin001"
+}
+
+// Response
+{
+  "code": 0,
+  "message": "",
+  "platformTransactionID": "d2583e276c0a4980bf7a0913a94c00c0",
+  "balance": 22981.77
+}`}</pre>
+                  </div>
+                  
+                  <div className="bg-slate-800 rounded-md p-4">
+                    <h3 className="font-semibold mb-2 text-white">Deposit Endpoint (Win)</h3>
+                    <p className="text-sm text-white/70 mb-2">
+                      Called when the User wins. Increases player's balance by amount and returns new balance.
+                    </p>
+                    <pre className="bg-slate-900 p-3 rounded-md text-xs overflow-auto">
+{`POST /Deposit
+
+// Request
+{
+  "agentID": "Partner01",
+  "sign": "5E0A0349AE36AD67CD21D891AB124CCE8CC4171C5BD7EF5B26FCA86DB71F500A",
+  "userID": "Player01",
+  "amount": 3.40,
+  "refTransactionID": "4146ed8dd6d5497780e9fc273e86bae0",
+  "transactionID": "2f489d44b61f4650af780ab4c28a7745",
+  "roundID": "307e9124a5314f2795ce583391e1c61c",
+  "gameID": 2001,
+  "freeSpinID":"freespin001"
+}
+
+// Response
+{
+  "code": 0,
+  "message": "",
+  "platformTransactionID": "474e1a293c2f4e7ab122c52d68423fcb",
+  "balance": 100
+}`}</pre>
+                  </div>
+                  
+                  <div className="bg-slate-800 rounded-md p-4">
+                    <h3 className="font-semibold mb-2 text-white">Rollback Endpoint</h3>
+                    <p className="text-sm text-white/70 mb-2">
+                      Called when there is need to roll back the effect of a transaction.
+                    </p>
+                    <pre className="bg-slate-900 p-3 rounded-md text-xs overflow-auto">
+{`POST /RollbackTransaction
+
+// Request
+{
+  "agentID": "Partner01",
+  "sign": "712523E472F936E88B9806A5919326B50DE2C71319837E7149B8BFD1DA9E09DD",
+  "userID": "Player01",
+  "refTransactionID": "4146ed8dd6d5497780e9fc273e86bae0",
+  "gameID": 2001
+}
+
+// Response
+{
+  "code": 0,
+  "message": ""
+}`}</pre>
+                  </div>
+                  
+                  <Alert className="bg-slate-800 border-slate-700">
+                    <AlertDescription>
+                      <p className="text-white/70 text-sm">
+                        For a full API reference, please visit the <Link to="/casino/seamless" className="text-casino-thunder-green underline">Seamless API Documentation</Link> page.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Transactions Tab */}
+        <TabsContent value="transactions">
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Transaction Logs</CardTitle>
+                <CardDescription>
+                  Monitor and analyze game transactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PPTransactionLogger />
               </CardContent>
             </Card>
           </div>
