@@ -48,7 +48,7 @@ const Register = () => {
   const onSubmit = async (values: RegisterValues) => {
     setIsSubmitting(true);
     try {
-      await register(values.username, values.email, values.password);
+      await register(values.email, values.username, values.password);
       
       // Store user in localStorage for admin panel
       const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
@@ -197,7 +197,7 @@ const Register = () => {
                 
                 <div className="mt-2">
                   <p className="text-xs text-white/50">
-                    By creating an account, you agree to our <Link to="/terms" className="text-casino-thunder-green hover:underline">Terms of Service</Link> and <Link to="/privacy" className="text-casino-thunder-green hover:underline">Privacy Policy</Link>.
+                    By creating an account, you agree to our <Link to="/legal/terms" className="text-casino-thunder-green hover:underline">Terms of Service</Link> and <Link to="/legal/privacy" className="text-casino-thunder-green hover:underline">Privacy Policy</Link>.
                   </p>
                 </div>
                 
@@ -218,7 +218,7 @@ const Register = () => {
             
             <div className="mt-8 text-center text-sm text-white/60">
               <span>Already have an account?</span>
-              <Link to="/login" className="ml-1 text-casino-thunder-green hover:text-casino-thunder-highlight transition-colors font-medium">
+              <Link to="/auth/login" className="ml-1 text-casino-thunder-green hover:text-casino-thunder-highlight transition-colors font-medium">
                 Sign In
               </Link>
             </div>

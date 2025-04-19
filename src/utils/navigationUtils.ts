@@ -43,11 +43,11 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'vip club': '/vip',
     
     // Authentication
-    'login': '/login',
-    'sign in': '/login',
-    'register': '/register',
-    'sign up': '/register',
-    'join now': '/register',
+    'login': '/auth/login',
+    'sign in': '/auth/login',
+    'register': '/auth/register',
+    'sign up': '/auth/register',
+    'join now': '/auth/register',
     
     // User account
     'profile': '/profile',
@@ -108,19 +108,17 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'admin login': '/admin/login',
   };
   
-  // Find the matching route or try partial matches
-  for (const [key, route] of Object.entries(routeMap)) {
-    if (name === key) {
-      console.log(`Exact match: Navigating to ${route} based on button name: ${name}`);
-      navigate(route);
-      return;
-    }
+  // First check for exact matches
+  if (routeMap[name]) {
+    console.log(`Exact match: Navigating to ${routeMap[name]} based on button name: ${name}`);
+    navigate(routeMap[name]);
+    return;
   }
   
-  // Try partial matching
+  // Try partial matching if no exact match
   for (const [key, route] of Object.entries(routeMap)) {
     if (name.includes(key)) {
-      console.log(`Partial match: Navigating to ${route} based on button name: ${name}`);
+      console.log(`Partial match: Navigating to ${route} based on button name: ${name} (matched with ${key})`);
       navigate(route);
       return;
     }

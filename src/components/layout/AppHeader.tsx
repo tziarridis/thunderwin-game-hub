@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useIsMobile } from "@/hooks/use-mobile";
 import { scrollToTop } from "@/utils/scrollUtils";
 import { Dialog, DialogTrigger, DialogContent } from "@/components/ui/dialog";
+import { navigateByButtonName } from "@/utils/navigationUtils";
 
 const AppHeader = () => {
   const { isAuthenticated, user, logout } = useAuth();
@@ -19,12 +20,12 @@ const AppHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
   const handleLogin = () => {
-    navigate("/login");
+    navigate("/auth/login");
     scrollToTop();
   };
 
   const handleRegister = () => {
-    navigate("/register");
+    navigate("/auth/register");
     scrollToTop();
   };
 
@@ -52,6 +53,11 @@ const AppHeader = () => {
   const handleNavigate = (path: string) => {
     navigate(path);
     scrollToTop();
+    setIsMenuOpen(false);
+  };
+
+  const handleButtonClick = (buttonName: string) => {
+    navigateByButtonName(buttonName, navigate);
     setIsMenuOpen(false);
   };
 
@@ -151,37 +157,42 @@ const AppHeader = () => {
                     <MobileNavLink 
                       title="Casino" 
                       icon={<span className="text-casino-thunder-green">♠️</span>}
-                      onClick={() => handleNavigate("/casino")}
+                      onClick={() => handleButtonClick("Casino")}
                     />
                     <MobileNavLink 
                       title="Slots" 
                       icon={<span className="text-casino-thunder-green">🎰</span>}
-                      onClick={() => handleNavigate("/casino/slots")}
+                      onClick={() => handleButtonClick("Slots")}
                     />
                     <MobileNavLink 
                       title="Table Games" 
                       icon={<span className="text-casino-thunder-green">♣️</span>}
-                      onClick={() => handleNavigate("/casino/table-games")}
+                      onClick={() => handleButtonClick("Table Games")}
                     />
                     <MobileNavLink 
                       title="Live Casino" 
                       icon={<span className="text-casino-thunder-green">🎮</span>}
-                      onClick={() => handleNavigate("/casino/live-casino")}
+                      onClick={() => handleButtonClick("Live Casino")}
                     />
                     <MobileNavLink 
                       title="Jackpots" 
                       icon={<span className="text-casino-thunder-green">💰</span>}
-                      onClick={() => handleNavigate("/casino/jackpots")}
+                      onClick={() => handleButtonClick("Jackpots")}
+                    />
+                    <MobileNavLink 
+                      title="Sports" 
+                      icon={<span className="text-casino-thunder-green">🏆</span>}
+                      onClick={() => handleButtonClick("Sports")}
                     />
                     <MobileNavLink 
                       title="Promotions" 
                       icon={<span className="text-casino-thunder-green">🎁</span>}
-                      onClick={() => handleNavigate("/promotions")}
+                      onClick={() => handleButtonClick("Promotions")}
                     />
                     <MobileNavLink 
                       title="Help Center" 
                       icon={<span className="text-casino-thunder-green">❓</span>}
-                      onClick={() => handleNavigate("/support/help")}
+                      onClick={() => handleButtonClick("Help Center")}
                     />
                     
                     {isAuthenticated && (
@@ -190,13 +201,13 @@ const AppHeader = () => {
                         <MobileNavLink 
                           title="Profile" 
                           icon={<span className="text-casino-thunder-green">👤</span>}
-                          onClick={() => handleNavigate("/profile")}
+                          onClick={() => handleButtonClick("Profile")}
                         />
                         {user?.isAdmin && (
                           <MobileNavLink 
                             title="Admin Dashboard" 
                             icon={<span className="text-casino-thunder-green">⚙️</span>}
-                            onClick={() => handleNavigate("/admin")}
+                            onClick={() => handleButtonClick("Admin Dashboard")}
                           />
                         )}
                       </>

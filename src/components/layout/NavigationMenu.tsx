@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
 import { Gamepad2, Trophy, Gift, HelpCircle, Zap, Heart, Users, Crown } from "lucide-react";
+import { navigateByButtonName } from "@/utils/navigationUtils";
 
 const NavigationMenuDemo = () => {
   const navigate = useNavigate();
@@ -18,9 +20,9 @@ const NavigationMenuDemo = () => {
   const { isAuthenticated, user } = useAuth();
   const isAdmin = user?.isAdmin;
 
-  const handleNavigation = (path: string) => {
-    console.log(`Navigating to: ${path}`);
-    navigate(path);
+  const handleNavigation = (buttonName: string) => {
+    console.log(`Navigation menu clicking: ${buttonName}`);
+    navigateByButtonName(buttonName, navigate);
     scrollToTop();
   };
 
@@ -38,7 +40,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino')}
+              onClick={() => handleNavigation('Casino')}
             >
               <Gamepad2 className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -60,7 +62,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino/live-casino')}
+              onClick={() => handleNavigation('Live Casino')}
             >
               <Users className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -82,7 +84,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/sports')}
+              onClick={() => handleNavigation('Sports')}
             >
               <Trophy className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -104,7 +106,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/casino/favorites')}
+              onClick={() => handleNavigation('Favorites')}
             >
               <Heart className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -126,7 +128,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/vip')}
+              onClick={() => handleNavigation('VIP')}
             >
               <Crown className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -148,7 +150,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/promotions')}
+              onClick={() => handleNavigation('Promotions')}
             >
               <Gift className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -170,7 +172,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/bonuses')}
+              onClick={() => handleNavigation('Bonuses')}
             >
               <Zap className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -192,7 +194,7 @@ const NavigationMenuDemo = () => {
                   ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                   : "border-transparent"
               )}
-              onClick={() => handleNavigation('/support/help')}
+              onClick={() => handleNavigation('Help Center')}
             >
               <HelpCircle className="mr-2 h-4 w-4" />
               <span className="relative overflow-hidden group">
@@ -215,7 +217,7 @@ const NavigationMenuDemo = () => {
                     ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
                     : "border-transparent"
                 )}
-                onClick={() => handleNavigation('/admin')}
+                onClick={() => handleNavigation('Admin Dashboard')}
               >
                 <span className="relative overflow-hidden group">
                   Admin

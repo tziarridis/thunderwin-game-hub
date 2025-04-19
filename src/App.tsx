@@ -24,6 +24,9 @@ import PrivacyPage from "./pages/legal/Privacy";
 import VIPPage from "./pages/vip/VIP";
 import PromotionsPage from "./pages/promotions/Promotions";
 import FavoritesPage from "./pages/casino/Favorites";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import CasinoMain from "./pages/casino/CasinoMain";
 
 function App() {
   return (
@@ -34,7 +37,7 @@ function App() {
           <Route index element={<Index />} />
           
           {/* Casino routes */}
-          <Route path="/casino" element={<NotFound />} />
+          <Route path="/casino" element={<CasinoMain />} />
           <Route path="/casino/table-games" element={<TableGamesPage />} />
           <Route path="/casino/new-games" element={<NewGamesPage />} />
           <Route path="/casino/providers" element={<Providers />} />
@@ -75,8 +78,10 @@ function App() {
           <Route path="/transactions" element={<NotFound />} />
           
           {/* Auth routes */}
-          <Route path="/login" element={<NotFound />} />
-          <Route path="/register" element={<NotFound />} />
+          <Route path="/auth/login" element={<Login />} />
+          <Route path="/auth/register" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<NotFound />} />
           <Route path="/reset-password/:token" element={<NotFound />} />
           <Route path="/kyc/status" element={<KycStatusPage />} />
