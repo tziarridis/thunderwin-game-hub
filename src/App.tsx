@@ -8,6 +8,7 @@ import TableGamesPage from "./pages/casino/TableGames";
 import NewGamesPage from "./pages/casino/NewGames";
 import Providers from "./pages/casino/Providers";
 import KycStatusPage from "./pages/kyc/KycStatus";
+import Index from "./pages/Index";
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<AppLayout />}>
-          <Route index element={<NotFound />} />
+          <Route index element={<Index />} />
           <Route path="/casino" element={<NotFound />} />
           <Route path="/casino/table-games" element={<TableGamesPage />} />
           <Route path="/casino/new-games" element={<NewGamesPage />} />
