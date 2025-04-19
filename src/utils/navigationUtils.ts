@@ -38,13 +38,16 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'claim bonus': '/bonuses',
     'promotions': '/promotions',
     'promo': '/promotions',
+    'promotion': '/promotions',
     'vip': '/vip',
+    'vip club': '/vip',
     
     // Authentication
     'login': '/login',
     'sign in': '/login',
     'register': '/register',
     'sign up': '/register',
+    'join now': '/register',
     
     // User account
     'profile': '/profile',
@@ -54,7 +57,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'transactions': '/transactions',
     
     // Support
-    'support': '/support/contact',
+    'support': '/support/help',
     'help': '/support/help',
     'help center': '/support/help',
     'faq': '/support/faq',
@@ -93,7 +96,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'esports betting': '/sports/esports',
     
     // Other specific pages 
-    'new games': '/casino/new',
+    'new games': '/casino/new-games',
     'favorite games': '/casino/favorites',
     'favorites': '/casino/favorites',
     'providers': '/casino/providers',
@@ -102,6 +105,7 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'settings': '/settings',
     'admin': '/admin',
     'admin dashboard': '/admin',
+    'admin login': '/admin/login',
   };
   
   // Find the matching route or try partial matches
