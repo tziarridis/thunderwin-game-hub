@@ -1,243 +1,382 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { gitSlotParkService } from "@/services/gitSlotParkService";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { Loader2, Play, BarChart3, Wallet } from "lucide-react";
-import { Link } from "react-router-dom";
+import { gitSlotParkService } from '@/services/gitSlotParkService';
+import { toast } from 'sonner';
+
+interface GameOption {
+  code: string;
+  name: string;
+}
 
 const GitSlotParkTester = () => {
-  const [activeTab, setActiveTab] = useState("game-launcher");
-  const [selectedGame, setSelectedGame] = useState("gsp_slots_1");
-  const [gameMode, setGameMode] = useState<'demo' | 'real'>('demo');
-  const [isLaunching, setIsLaunching] = useState(false);
-  const [isBalanceLoading, setIsBalanceLoading] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
-  const { isAuthenticated, user } = useAuth();
+  const [playerIdInput, setPlayerIdInput] = useState('test_player_1');
+  const [playerId, setPlayerId] = useState('test_player_1');
+  const [selectedGameCode, setSelectedGameCode] = useState('');
+  const [language, setLanguage] = useState('en');
+  const [mode, setMode] = useState<'real' | 'demo'>('demo');
+  const [balance, setBalance] = useState<number>(0);
+  const [currency, setCurrency] = useState<string>('EUR');
+  const [amount, setAmount] = useState<number>(10);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [games, setGames] = useState<GameOption[]>([]);
+  const [gameUrl, setGameUrl] = useState<string>('');
   
-  const availableGames = gitSlotParkService.getAvailableGames();
-
+  // Fetch initial data
+  useEffect(() => {
+    loadGames();
+    updateBalance();
+  }, []);
+  
+  // Update when player ID changes
+  useEffect(() => {
+    if (playerId) {
+      updateBalance();
+      loadTransactions();
+    }
+  }, [playerId]);
+  
+  const loadGames = () => {
+    try {
+      // GitSlotPark games are returned directly as an array
+      const gspGames = gitSlotParkService.getAvailableGames();
+      setGames(gspGames);
+      if (gspGames.length > 0 && !selectedGameCode) {
+        setSelectedGameCode(gspGames[0].code);
+      }
+    } catch (error) {
+      console.error('Error loading games:', error);
+      toast.error('Failed to load games');
+    }
+  };
+  
+  const updateBalance = async () => {
+    if (!playerId) return;
+    
+    try {
+      const balanceData = await gitSlotParkService.getBalance(playerId);
+      setBalance(balanceData.balance);
+      setCurrency(balanceData.currency);
+    } catch (error) {
+      console.error('Error getting balance:', error);
+      toast.error('Failed to get balance');
+    }
+  };
+  
+  const loadTransactions = async () => {
+    if (!playerId) return;
+    
+    try {
+      const txData = await gitSlotParkService.getTransactions(playerId);
+      setTransactions(txData.slice(0, 10));
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+      toast.error('Failed to load transactions');
+    }
+  };
+  
   const handleLaunchGame = async () => {
-    if (!selectedGame) {
-      toast.error("Please select a game");
+    if (!playerId || !selectedGameCode) {
+      toast.error('Player ID and Game are required');
       return;
     }
     
-    setIsLaunching(true);
     try {
-      const gameUrl = await gitSlotParkService.launchGame({
-        playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
-        gameCode: selectedGame,
-        mode: gameMode,
+      const url = await gitSlotParkService.launchGame({
+        playerId,
+        gameCode: selectedGameCode,
+        language,
+        mode,
         returnUrl: window.location.href
       });
       
-      window.open(gameUrl, '_blank');
-      toast.success("Game launched successfully");
-    } catch (error: any) {
-      console.error("Error launching game:", error);
-      toast.error(error.message || "Failed to launch game");
-    } finally {
-      setIsLaunching(false);
+      setGameUrl(url);
+      toast.success('Game launch URL generated');
+    } catch (error) {
+      console.error('Error launching game:', error);
+      toast.error('Failed to launch game');
     }
   };
   
-  const handleCheckBalance = async () => {
-    setIsBalanceLoading(true);
-    try {
-      const balanceData = await gitSlotParkService.getBalance(
-        isAuthenticated ? user?.id || 'guest' : 'guest'
-      );
-      setBalance(balanceData.balance);
-      toast.success(`Current balance: €${balanceData.balance.toFixed(2)}`);
-    } catch (error: any) {
-      console.error("Error checking balance:", error);
-      toast.error(error.message || "Failed to check balance");
-    } finally {
-      setIsBalanceLoading(false);
+  const handleDeposit = async () => {
+    if (!playerId || amount <= 0) {
+      toast.error('Player ID and a positive amount are required');
+      return;
     }
+    
+    try {
+      const result = await gitSlotParkService.credit(playerId, amount);
+      if (result.success) {
+        toast.success(result.message);
+        updateBalance();
+        loadTransactions();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Error depositing funds:', error);
+      toast.error('Failed to deposit funds');
+    }
+  };
+  
+  const handleWithdraw = async () => {
+    if (!playerId || amount <= 0) {
+      toast.error('Player ID and a positive amount are required');
+      return;
+    }
+    
+    try {
+      const result = await gitSlotParkService.debit(playerId, amount);
+      if (result.success) {
+        toast.success(result.message);
+        updateBalance();
+        loadTransactions();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Error withdrawing funds:', error);
+      toast.error('Failed to withdraw funds');
+    }
+  };
+  
+  const handleSetPlayerId = () => {
+    if (!playerIdInput.trim()) {
+      toast.error('Player ID cannot be empty');
+      return;
+    }
+    setPlayerId(playerIdInput);
   };
   
   return (
-    <div className="space-y-8">
-      <Alert className="bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
-        <AlertDescription>
-          This is a test environment for GitSlotPark integration. Use the Seamless Wallet page to manage your balance.
-        </AlertDescription>
-      </Alert>
-      
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="game-launcher">
-            <Play className="mr-2 h-4 w-4" />
-            Game Launcher
-          </TabsTrigger>
-          <TabsTrigger value="wallet-tester">
-            <Wallet className="mr-2 h-4 w-4" />
-            Wallet Tester
-          </TabsTrigger>
-          <TabsTrigger value="integration-status">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Integration Status
-          </TabsTrigger>
-        </TabsList>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>GitSlotPark Tester</CardTitle>
+          <CardDescription>Integration tool for testing GitSlotPark games</CardDescription>
+        </CardHeader>
         
-        <TabsContent value="game-launcher">
-          <Card>
-            <CardHeader>
-              <CardTitle>Launch GitSlotPark Game</CardTitle>
-              <CardDescription>
-                Test the GitSlotPark integration by launching games
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="game-select">Select Game</Label>
-                <Select value={selectedGame} onValueChange={setSelectedGame}>
-                  <SelectTrigger id="game-select">
-                    <SelectValue placeholder="Select a game" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableGames.map(game => (
-                      <SelectItem key={game.code} value={game.code}>
-                        {game.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="mode-select">Game Mode</Label>
-                <Select value={gameMode} onValueChange={(value) => setGameMode(value as 'demo' | 'real')}>
-                  <SelectTrigger id="mode-select">
-                    <SelectValue placeholder="Select mode" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="demo">Demo Mode</SelectItem>
-                    <SelectItem value="real">Real Money</SelectItem>
-                  </SelectContent>
-                </Select>
-                {gameMode === 'real' && !isAuthenticated && (
-                  <p className="text-yellow-500 text-xs mt-1">
-                    You need to be logged in to play with real money
-                  </p>
-                )}
-              </div>
-              
-              <Button 
-                onClick={handleLaunchGame} 
-                disabled={isLaunching || (gameMode === 'real' && !isAuthenticated)}
-                className="w-full mt-4 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                {isLaunching ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Launching...
-                  </>
-                ) : "Launch Game"}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="wallet-tester">
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet Operations</CardTitle>
-              <CardDescription>
-                Test GitSlotPark wallet operations
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center p-4 bg-casino-thunder-darker rounded-md mb-4">
-                <div>
-                  <p className="text-sm text-white/60">Current Balance</p>
-                  <p className="text-2xl font-bold">
-                    {balance !== null ? `€${balance.toFixed(2)}` : "Not checked"}
-                  </p>
-                </div>
-                <Button 
-                  variant="outline"
-                  onClick={handleCheckBalance}
-                  disabled={isBalanceLoading}
-                >
-                  {isBalanceLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : "Check Balance"}
-                </Button>
-              </div>
-              
-              <Link to="/casino/gitslotpark-seamless">
-                <Button className="w-full">
-                  Go to Seamless Wallet Page
-                </Button>
-              </Link>
-              
-              <div className="mt-4 p-4 bg-black/20 rounded-md text-sm">
-                <p>
-                  The Seamless Wallet page provides a complete interface for testing:
-                </p>
-                <ul className="list-disc pl-5 mt-2 space-y-1">
-                  <li>Checking your balance</li>
-                  <li>Depositing funds</li>
-                  <li>Withdrawing funds</li>
-                  <li>Viewing transaction history</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="integration-status">
-          <Card>
-            <CardHeader>
-              <CardTitle>GitSlotPark Integration Status</CardTitle>
-              <CardDescription>
-                Current status of the GitSlotPark integration
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        <CardContent>
+          <Tabs defaultValue="settings" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="wallet">Wallet</TabsTrigger>
+              <TabsTrigger value="history">Transaction History</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="settings">
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-casino-thunder-darker rounded-md">
-                    <h3 className="font-semibold mb-2">Game Launching</h3>
-                    <p className="text-green-500 text-sm">✓ Operational</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="playerId">Player ID</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="playerId" 
+                        value={playerIdInput} 
+                        onChange={(e) => setPlayerIdInput(e.target.value)}
+                        placeholder="Enter player ID"
+                      />
+                      <Button onClick={handleSetPlayerId}>Set</Button>
+                    </div>
                   </div>
                   
-                  <div className="p-4 bg-casino-thunder-darker rounded-md">
-                    <h3 className="font-semibold mb-2">Wallet Integration</h3>
-                    <p className="text-green-500 text-sm">✓ Operational</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="gameSelect">Game</Label>
+                    <Select 
+                      value={selectedGameCode} 
+                      onValueChange={setSelectedGameCode}
+                    >
+                      <SelectTrigger id="gameSelect">
+                        <SelectValue placeholder="Select a game" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {games.map((game) => (
+                          <SelectItem key={game.code} value={game.code}>
+                            {game.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   
-                  <div className="p-4 bg-casino-thunder-darker rounded-md">
-                    <h3 className="font-semibold mb-2">Callback Processing</h3>
-                    <p className="text-green-500 text-sm">✓ Operational</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="languageSelect">Language</Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger id="languageSelect">
+                        <SelectValue placeholder="Select language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
-                  <div className="p-4 bg-casino-thunder-darker rounded-md">
-                    <h3 className="font-semibold mb-2">Transaction Handling</h3>
-                    <p className="text-green-500 text-sm">✓ Operational</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="modeSelect">Mode</Label>
+                    <Select 
+                      value={mode} 
+                      onValueChange={(value) => setMode(value as 'real' | 'demo')}
+                    >
+                      <SelectTrigger id="modeSelect">
+                        <SelectValue placeholder="Select mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="demo">Demo</SelectItem>
+                        <SelectItem value="real">Real Money</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 
-                <Alert className="mt-4 bg-blue-500/10 text-blue-300 border-blue-500/50">
-                  <AlertDescription>
-                    <p>This integration is using a simulated version of the GitSlotPark API for demonstration purposes.</p>
-                  </AlertDescription>
-                </Alert>
+                <Button className="w-full" onClick={handleLaunchGame}>
+                  Launch Game
+                </Button>
+                
+                {gameUrl && (
+                  <div className="mt-4 p-4 bg-black/20 rounded-md">
+                    <Label className="block mb-2">Game URL:</Label>
+                    <div className="flex gap-2">
+                      <Input readOnly value={gameUrl} className="font-mono text-xs" />
+                      <Button 
+                        onClick={() => window.open(gameUrl, '_blank')}
+                        variant="outline"
+                      >
+                        Open
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+            
+            <TabsContent value="wallet">
+              <div className="space-y-4">
+                <div className="p-4 bg-black/20 rounded-md text-center">
+                  <div className="text-lg text-white/70">Current Balance</div>
+                  <div className="text-3xl font-bold">{balance.toFixed(2)} {currency}</div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="amount">Amount</Label>
+                    <Input 
+                      id="amount" 
+                      type="number" 
+                      min="1" 
+                      value={amount} 
+                      onChange={(e) => setAmount(parseFloat(e.target.value))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Actions</Label>
+                    <div className="flex gap-2">
+                      <Button onClick={handleDeposit} className="flex-1">
+                        Deposit
+                      </Button>
+                      <Button onClick={handleWithdraw} className="flex-1" variant="destructive">
+                        Withdraw
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    updateBalance();
+                    toast.success('Balance refreshed');
+                  }}
+                >
+                  Refresh Balance
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="history">
+              <div className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full mb-4"
+                  onClick={loadTransactions}
+                >
+                  Refresh Transactions
+                </Button>
+                
+                {transactions.length === 0 ? (
+                  <div className="text-center p-8 text-white/50">
+                    No transactions found
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {transactions.map((tx, index) => (
+                      <div key={index} className="p-3 bg-black/20 rounded-md">
+                        <div className="flex justify-between mb-1">
+                          <span 
+                            className={
+                              tx.type === 'win' || tx.type === 'deposit' 
+                                ? 'text-green-400' 
+                                : tx.type === 'bet' || tx.type === 'withdraw' 
+                                  ? 'text-red-400' 
+                                  : 'text-blue-400'
+                            }
+                          >
+                            {tx.type.toUpperCase()}
+                          </span>
+                          <span className="text-white/70 text-sm">
+                            {new Date(tx.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Game: {tx.game_id || 'N/A'}</span>
+                          <span 
+                            className={
+                              tx.type === 'win' || tx.type === 'deposit' 
+                                ? 'text-green-400' 
+                                : tx.type === 'bet' || tx.type === 'withdraw' 
+                                  ? 'text-red-400' 
+                                  : ''
+                            }
+                          >
+                            {tx.type === 'win' || tx.type === 'deposit' ? '+' : ''}
+                            {tx.type === 'bet' || tx.type === 'withdraw' ? '-' : ''}
+                            {tx.amount} {tx.currency}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+        
+        <CardFooter className="justify-between border-t border-white/10 pt-4">
+          <div className="text-sm text-white/50">
+            Current Player: <span className="font-semibold">{playerId}</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            onClick={() => {
+              updateBalance();
+              loadTransactions();
+              toast.success('Data refreshed');
+            }}
+          >
+            Refresh Data
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

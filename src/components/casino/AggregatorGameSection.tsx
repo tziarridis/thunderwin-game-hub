@@ -1,172 +1,173 @@
 
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { gitSlotParkService } from "@/services/gitSlotParkService";
-import { pragmaticPlayService } from "@/services/pragmaticPlayService";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { Gamepad2, ExternalLink, Loader2 } from "lucide-react";
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
+import GameCard from '@/components/games/GameCard';
+import gitSlotParkService from '@/services/gitSlotParkService';
+import pragmaticPlayService from '@/services/pragmaticPlayService';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AggregatorGameSection = () => {
+  const [activeTab, setActiveTab] = useState('gitslotpark');
+  const [games, setGames] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
-  const [loadingGame, setLoadingGame] = useState<string | null>(null);
-
-  // Get a few games from each aggregator
-  const ppGames = pragmaticPlayService.getAvailableGames().slice(0, 5);
-  const gspGames = gitSlotParkService.getAvailableGames();
+  const { user } = useAuth();
   
-  const handleLaunchGame = async (provider: 'pp' | 'gsp', gameCode: string) => {
+  useEffect(() => {
+    loadGames(activeTab);
+  }, [activeTab]);
+  
+  const loadGames = async (provider: string) => {
+    setIsLoading(true);
     try {
-      setLoadingGame(`${provider}-${gameCode}`);
-      let gameUrl;
+      let gamesData: any[] = [];
       
-      // Use player ID if authenticated, otherwise use guest
-      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
-      
-      if (provider === 'pp') {
-        console.log(`Launching Pragmatic Play game ${gameCode} for player ${playerId}`);
-        gameUrl = await pragmaticPlayService.launchGame({
-          playerId,
-          gameCode,
-          mode: 'demo',
-          returnUrl: window.location.href,
-          currency: 'USD',
-          language: 'en'
-        });
-      } else {
-        console.log(`Launching GitSlotPark game ${gameCode} for player ${playerId}`);
-        gameUrl = await gitSlotParkService.launchGame({
-          playerId,
-          gameCode,
-          mode: 'demo',
-          returnUrl: window.location.href,
-          currency: 'USD',
-          language: 'en'
-        });
+      if (provider === 'gitslotpark') {
+        // GitSlotPark games are returned directly, not as a Promise
+        const gspGames = gitSlotParkService.getAvailableGames();
+        gamesData = gspGames.map(game => ({
+          id: game.code,
+          title: game.name,
+          provider: 'GitSlotPark',
+          image: `/lovable-uploads/casino-games/gsp_${Math.floor(Math.random() * 5) + 1}.jpg`,
+          isPopular: Math.random() > 0.7,
+          isNew: Math.random() > 0.8,
+          rtp: (88 + Math.random() * 10).toFixed(2) + '%',
+          minBet: '$0.10',
+          maxBet: '$100',
+          gameCode: game.code
+        }));
+      } else if (provider === 'pragmaticplay') {
+        // Pragmatic Play games
+        const ppGames = await pragmaticPlayService.getGames();
+        gamesData = ppGames.map(game => ({
+          id: game.game_id,
+          title: game.name,
+          provider: 'Pragmatic Play',
+          image: game.image || `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
+          isPopular: Math.random() > 0.7,
+          isNew: Math.random() > 0.8,
+          rtp: (88 + Math.random() * 10).toFixed(2) + '%',
+          minBet: '$0.20',
+          maxBet: '$200',
+          gameCode: game.game_id
+        }));
       }
       
-      console.log("Generated game URL:", gameUrl);
-      
-      if (gameUrl) {
-        const gameWindow = window.open(gameUrl, '_blank');
-        
-        // Check if popup blocker prevented the window from opening
-        if (!gameWindow) {
-          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
-        }
-        
-        toast.success("Game launched successfully");
-      } else {
-        throw new Error("Failed to generate game URL");
-      }
-    } catch (error: any) {
-      console.error("Error launching game:", error);
-      toast.error(error.message || "Failed to launch game");
+      setGames(gamesData.slice(0, 6));
+    } catch (error) {
+      console.error(`Error loading ${provider} games:`, error);
+      toast.error(`Failed to load games from ${provider}`);
+      setGames([]);
     } finally {
-      setLoadingGame(null);
+      setIsLoading(false);
     }
   };
   
+  const handlePlayGame = (game: any) => {
+    if (!user) {
+      toast.error("Please log in to play games");
+      navigate('/login');
+      return;
+    }
+    
+    if (activeTab === 'gitslotpark') {
+      navigate(`/casino/gitslotpark-seamless?gameCode=${game.gameCode}`);
+    } else if (activeTab === 'pragmaticplay') {
+      navigate(`/casino/seamless?gameCode=${game.gameCode}`);
+    }
+  };
+  
+  const handleViewAll = () => {
+    if (activeTab === 'gitslotpark') {
+      navigate('/casino/providers/gitslotpark');
+    } else if (activeTab === 'pragmaticplay') {
+      navigate('/casino/providers/pragmaticplay');
+    }
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold thunder-glow">Partner Casino Games</h2>
+        <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="bg-casino-thunder-gray/30 rounded-lg h-48"></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold thunder-glow">Game Aggregator Partners</h2>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold thunder-glow">Partner Casino Games</h2>
         <Button 
-          variant="outline"
-          size="sm"
-          className="text-casino-thunder-green"
-          onClick={() => navigate('/casino/slots')}
+          variant="outline" 
+          className="text-casino-thunder-green border-casino-thunder-green hover:bg-casino-thunder-green/20"
+          onClick={handleViewAll}
         >
           View All
-          <ExternalLink className="ml-1 h-4 w-4" />
         </Button>
       </div>
       
-      {/* Pragmatic Play Section */}
-      <div>
-        <h3 className="text-lg font-semibold mb-3 flex items-center">
-          <Gamepad2 className="mr-2 h-4 w-4 text-yellow-500" />
-          Pragmatic Play Games
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {ppGames.map((game) => (
-            <Card key={game.code} className="bg-casino-thunder-dark hover:bg-casino-thunder-highlight/20 transition-colors border border-white/10 overflow-hidden">
-              <CardContent className="p-0">
-                <div className="group relative overflow-hidden aspect-[3/4]">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80" />
-                  <img
-                    src={`https://source.unsplash.com/random/300x400?slot-machine&${game.code}`}
-                    alt={game.name}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
+      <Card className="bg-casino-thunder-dark/50 border-white/10">
+        <CardContent className="p-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full mb-4">
+              <TabsTrigger value="gitslotpark">GitSlotPark</TabsTrigger>
+              <TabsTrigger value="pragmaticplay">Pragmatic Play</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="gitslotpark">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {games.map((game) => (
+                  <GameCard 
+                    key={game.id}
+                    id={game.id}
+                    title={game.title}
+                    image={game.image}
+                    provider={game.provider}
+                    isPopular={game.isPopular}
+                    isNew={game.isNew}
+                    rtp={game.rtp}
+                    isFavorite={false}
+                    minBet={game.minBet}
+                    maxBet={game.maxBet}
+                    onClick={() => handlePlayGame(game)}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col">
-                    <h4 className="text-sm font-medium line-clamp-1">{game.name}</h4>
-                    <p className="text-xs text-white/60 mb-2">Pragmatic Play</p>
-                    <Button 
-                      size="sm" 
-                      className="w-full mt-2 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={() => handleLaunchGame('pp', game.code)}
-                      disabled={loadingGame === `pp-${game.code}`}
-                    >
-                      {loadingGame === `pp-${game.code}` ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : "Play Now"}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-      
-      {/* GitSlotPark Section */}
-      <div>
-        <h3 className="text-lg font-semibold mb-3 flex items-center">
-          <Gamepad2 className="mr-2 h-4 w-4 text-blue-500" />
-          GitSlotPark Games
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {gspGames.map((game) => (
-            <Card key={game.code} className="bg-casino-thunder-dark hover:bg-casino-thunder-highlight/20 transition-colors border border-white/10 overflow-hidden">
-              <CardContent className="p-0">
-                <div className="group relative overflow-hidden aspect-[3/4]">
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80" />
-                  <img
-                    src={`https://source.unsplash.com/random/300x400?casino&${game.code}`}
-                    alt={game.name}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="pragmaticplay">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                {games.map((game) => (
+                  <GameCard 
+                    key={game.id}
+                    id={game.id}
+                    title={game.title}
+                    image={game.image}
+                    provider={game.provider}
+                    isPopular={game.isPopular}
+                    isNew={game.isNew}
+                    rtp={game.rtp}
+                    isFavorite={false}
+                    minBet={game.minBet}
+                    maxBet={game.maxBet}
+                    onClick={() => handlePlayGame(game)}
                   />
-                  <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col">
-                    <h4 className="text-sm font-medium line-clamp-1">{game.name}</h4>
-                    <p className="text-xs text-white/60 mb-2">GitSlotPark</p>
-                    <Button 
-                      size="sm" 
-                      className="w-full mt-2 bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={() => handleLaunchGame('gsp', game.code)}
-                      disabled={loadingGame === `gsp-${game.code}`}
-                    >
-                      {loadingGame === `gsp-${game.code}` ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : "Play Now"}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };
