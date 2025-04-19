@@ -20,12 +20,10 @@ function adaptToast(props: ToastProps) {
       ...rest,
       // Sonner doesn't have a built-in title/description structure,
       // so we join them with the title in bold
-      message: (
-        <div>
-          <div className="font-medium">{title}</div>
-          <div className="text-sm opacity-90">{description}</div>
-        </div>
-      ),
+      message: React.createElement("div", null, 
+        React.createElement("div", { className: "font-medium" }, title),
+        React.createElement("div", { className: "text-sm opacity-90" }, description)
+      )
     };
   }
   
