@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { getProviderConfig } from '@/config/gameProviders';
 import { v4 as uuidv4 } from 'uuid';
+import { Transaction } from '@/services/transactionService';
 
 // Get GitSlotPark EUR configuration
 const gspConfig = getProviderConfig('gspeur');
@@ -208,6 +209,123 @@ export const gitSlotParkService = {
       { code: 'gsp_roulette', name: 'GSP Roulette' },
       { code: 'gsp_baccarat', name: 'GSP Baccarat' }
     ];
+  },
+
+  /**
+   * Get player transactions from GitSlotPark
+   * @param playerId The player ID
+   * @returns Promise with transaction data
+   */
+  getTransactions: async (playerId: string): Promise<Transaction[]> => {
+    try {
+      // In a real implementation, this would be a server-side API call
+      console.log('Getting transactions for player:', playerId);
+      
+      // Simulate the API response for demo with mock transactions
+      const mockTransactions: Transaction[] = Array(10).fill(0).map((_, index) => ({
+        id: `gsp-tx-${index + 1000}`,
+        player_id: playerId,
+        session_id: `session-${300 + index}`,
+        game_id: `gsp_slots_${(index % 5) + 1}`,
+        round_id: `round-${400 + index}`,
+        provider: 'GitSlotPark',
+        type: index % 2 === 0 ? 'bet' : 'win',
+        amount: index % 2 === 0 ? 10.00 + index : 15.00 + (index * 2),
+        currency: GSP_CURRENCY,
+        status: index % 5 === 0 ? 'pending' : (index % 5 === 1 ? 'failed' : 'completed'),
+        balance_before: 1000.00 + (index * 5),
+        balance_after: 1000.00 + (index * 5) + (index % 2 === 0 ? -(10.00 + index) : (15.00 + (index * 2))),
+        created_at: new Date(Date.now() - index * 3600000).toISOString(),
+        updated_at: new Date(Date.now() - index * 3600000).toISOString(),
+        
+        // UI-friendly properties
+        transactionId: `gsp-tx-${index + 1000}`,
+        userId: playerId,
+        gameId: `gsp_slots_${(index % 5) + 1}`,
+        roundId: `round-${400 + index}`,
+        timestamp: new Date(Date.now() - index * 3600000).toISOString()
+      }));
+      
+      return mockTransactions;
+    } catch (error: any) {
+      console.error('Error getting player transactions:', error);
+      throw new Error(`Failed to get transactions: ${error.message || 'Unknown error'}`);
+    }
+  },
+
+  /**
+   * Credit funds to player wallet
+   * @param playerId The player ID
+   * @param amount The amount to credit
+   * @returns Promise with result
+   */
+  credit: async (playerId: string, amount: number): Promise<{success: boolean, message?: string, balance?: number}> => {
+    try {
+      if (amount <= 0) {
+        return {
+          success: false,
+          message: "Amount must be greater than zero"
+        };
+      }
+      
+      console.log(`Crediting ${amount} to player ${playerId}`);
+      
+      // Simulate a successful credit transaction
+      return {
+        success: true,
+        message: "Deposit successful",
+        balance: 1000.00 + amount
+      };
+    } catch (error: any) {
+      console.error('Error crediting funds:', error);
+      return {
+        success: false,
+        message: error.message || "Unknown error occurred"
+      };
+    }
+  },
+
+  /**
+   * Debit funds from player wallet
+   * @param playerId The player ID
+   * @param amount The amount to debit
+   * @returns Promise with result
+   */
+  debit: async (playerId: string, amount: number): Promise<{success: boolean, message?: string, balance?: number}> => {
+    try {
+      if (amount <= 0) {
+        return {
+          success: false,
+          message: "Amount must be greater than zero"
+        };
+      }
+      
+      console.log(`Debiting ${amount} from player ${playerId}`);
+      
+      // Get current balance
+      const { balance } = await gitSlotParkService.getBalance(playerId);
+      
+      // Check if player has sufficient balance
+      if (amount > balance) {
+        return {
+          success: false,
+          message: "Insufficient funds for this transaction"
+        };
+      }
+      
+      // Simulate a successful debit transaction
+      return {
+        success: true,
+        message: "Withdrawal successful",
+        balance: balance - amount
+      };
+    } catch (error: any) {
+      console.error('Error debiting funds:', error);
+      return {
+        success: false,
+        message: error.message || "Unknown error occurred"
+      };
+    }
   }
 };
 

@@ -131,6 +131,15 @@ const GitSlotParkSeamless = () => {
     }, 2000);
   };
   
+  // Helper function to determine if transaction is a debit/credit type
+  const isDebitType = (type: string): boolean => {
+    return type === 'bet' || type === 'withdraw' || type === 'debit';
+  };
+
+  const isCreditType = (type: string): boolean => {
+    return type === 'win' || type === 'deposit' || type === 'credit';
+  };
+  
   return (
     <div className="container mx-auto px-4 pt-8 pb-16">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
@@ -295,12 +304,12 @@ const GitSlotParkSeamless = () => {
                               {tx.transactionId.substring(0, 8)}...
                             </TableCell>
                             <TableCell>
-                              <Badge variant={tx.type === 'bet' || tx.type === 'debit' ? 'destructive' : 'default'}>
+                              <Badge variant={isDebitType(tx.type) ? 'destructive' : 'default'}>
                                 {tx.type}
                               </Badge>
                             </TableCell>
-                            <TableCell className={tx.type === 'win' || tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}>
-                              {tx.type === 'win' || tx.type === 'credit' ? '+' : '-'}€{tx.amount.toFixed(2)}
+                            <TableCell className={isCreditType(tx.type) ? 'text-green-500' : 'text-red-500'}>
+                              {isCreditType(tx.type) ? '+' : '-'}€{tx.amount.toFixed(2)}
                             </TableCell>
                             <TableCell>
                               {getStatusBadge(tx.status)}
@@ -359,12 +368,12 @@ const GitSlotParkSeamless = () => {
                           </TableCell>
                           <TableCell>{tx.userId}</TableCell>
                           <TableCell>
-                            <Badge variant={tx.type === 'bet' || tx.type === 'debit' ? 'destructive' : 'default'}>
+                            <Badge variant={isDebitType(tx.type) ? 'destructive' : 'default'}>
                               {tx.type}
                             </Badge>
                           </TableCell>
-                          <TableCell className={tx.type === 'win' || tx.type === 'credit' ? 'text-green-500' : 'text-red-500'}>
-                            {tx.type === 'win' || tx.type === 'credit' ? '+' : '-'}€{tx.amount.toFixed(2)}
+                          <TableCell className={isCreditType(tx.type) ? 'text-green-500' : 'text-red-500'}>
+                            {isCreditType(tx.type) ? '+' : '-'}€{tx.amount.toFixed(2)}
                           </TableCell>
                           <TableCell>{tx.gameId || '-'}</TableCell>
                           <TableCell className="font-mono text-xs">{tx.roundId || '-'}</TableCell>
