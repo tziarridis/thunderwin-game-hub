@@ -83,98 +83,63 @@ export const createTransaction = async (
     timestamp: now
   };
 
-  // In browser environment, use mock storage
-  if (typeof window !== 'undefined') {
-    mockTransactions.push(transaction);
-    return transaction;
-  }
-  
-  try {
-    // In server environment with Supabase, you would need to create a
-    // transactions table. For now, we'll just return the transaction object.
-    // TODO: Add Supabase transactions table creation via SQL migrations
-    
-    console.log('Transaction created (mock):', transaction);
-    return transaction;
-  } catch (error) {
-    console.error('Error creating transaction:', error);
-    throw error;
-  }
+  // Always use mock storage since we don't have a transactions table in Supabase
+  mockTransactions.push(transaction);
+  console.log('Transaction created (mock):', transaction);
+  return transaction;
 };
 
 /**
  * Get a transaction by ID
  */
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
-  // In browser environment, use mock storage
-  if (typeof window !== 'undefined') {
-    const transaction = mockTransactions.find(tx => tx.id === id);
-    return transaction || null;
-  }
-  
-  try {
-    // In server environment with Supabase, you would query the transactions table
-    // For now, return null to simulate no transaction found
-    console.log('Retrieving transaction (mock):', id);
-    return null;
-  } catch (error) {
-    console.error('Error getting transaction:', error);
-    return null;
-  }
+  // Always use mock storage since we don't have a transactions table in Supabase
+  const transaction = mockTransactions.find(tx => tx.id === id);
+  console.log('Retrieving transaction (mock):', id, transaction || 'Not found');
+  return transaction || null;
 };
 
 /**
  * Get transactions with filters
  */
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
-  // In browser environment, use mock storage
-  if (typeof window !== 'undefined') {
-    let results = [...mockTransactions];
-    
-    // Apply filters
-    if (filters.player_id) {
-      results = results.filter(tx => tx.player_id === filters.player_id);
-    }
-    
-    if (filters.provider) {
-      results = results.filter(tx => tx.provider === filters.provider);
-    }
-    
-    if (filters.type) {
-      results = results.filter(tx => tx.type === filters.type);
-    }
-    
-    if (filters.status) {
-      results = results.filter(tx => tx.status === filters.status);
-    }
-    
-    if (filters.startDate) {
-      results = results.filter(tx => tx.created_at >= filters.startDate);
-    }
-    
-    if (filters.endDate) {
-      results = results.filter(tx => tx.created_at <= filters.endDate);
-    }
-    
-    // Apply sorting and limit
-    results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
-    if (filters.limit) {
-      results = results.slice(0, filters.limit);
-    }
-    
-    return results;
+  // Always use mock storage since we don't have a transactions table in Supabase
+  let results = [...mockTransactions];
+  
+  // Apply filters
+  if (filters.player_id) {
+    results = results.filter(tx => tx.player_id === filters.player_id);
   }
   
-  try {
-    // In server environment with Supabase, you would query the transactions table
-    // For now, return empty array
-    console.log('Retrieving transactions (mock) with filters:', filters);
-    return [];
-  } catch (error) {
-    console.error('Error getting transactions:', error);
-    return [];
+  if (filters.provider) {
+    results = results.filter(tx => tx.provider === filters.provider);
   }
+  
+  if (filters.type) {
+    results = results.filter(tx => tx.type === filters.type);
+  }
+  
+  if (filters.status) {
+    results = results.filter(tx => tx.status === filters.status);
+  }
+  
+  if (filters.startDate) {
+    results = results.filter(tx => tx.created_at >= filters.startDate);
+  }
+  
+  if (filters.endDate) {
+    results = results.filter(tx => tx.created_at <= filters.endDate);
+  }
+  
+  // Apply sorting and limit
+  results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  
+  if (filters.limit) {
+    results = results.slice(0, filters.limit);
+  }
+  
+  console.log('Getting transactions (mock) with filters:', filters, `Found: ${results.length}`);
+  return results;
 };
 
 /**
@@ -185,60 +150,57 @@ export const updateTransactionStatus = async (
   status: 'pending' | 'completed' | 'failed',
   balanceAfter?: number
 ): Promise<Transaction | null> => {
-  // In browser environment, use mock storage
-  if (typeof window !== 'undefined') {
-    const index = mockTransactions.findIndex(tx => tx.id === id);
-    if (index >= 0) {
-      const now = new Date().toISOString();
-      mockTransactions[index] = {
-        ...mockTransactions[index],
-        status,
-        balance_after: balanceAfter !== undefined ? balanceAfter : mockTransactions[index].balance_after,
-        updated_at: now
-      };
-      return mockTransactions[index];
-    }
-    return null;
+  // Always use mock storage since we don't have a transactions table in Supabase
+  const index = mockTransactions.findIndex(tx => tx.id === id);
+  if (index >= 0) {
+    const now = new Date().toISOString();
+    mockTransactions[index] = {
+      ...mockTransactions[index],
+      status,
+      balance_after: balanceAfter !== undefined ? balanceAfter : mockTransactions[index].balance_after,
+      updated_at: now
+    };
+    console.log('Updated transaction status (mock):', id, status);
+    return mockTransactions[index];
   }
   
-  try {
-    // In server environment with Supabase, you would update the transactions table
-    // For now, return null
-    console.log('Updating transaction status (mock):', id, status);
-    return null;
-  } catch (error) {
-    console.error('Error updating transaction:', error);
-    return null;
-  }
+  console.log('Transaction not found for status update (mock):', id);
+  return null;
 };
 
 // For component use, adapt the PPTransactionLogger component to use these interfaces
 export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transaction[]> => {
-  // For browser environment, return mock data
-  if (typeof window !== 'undefined') {
-    return Array(limit).fill(0).map((_, index) => ({
-      id: `tx-${index + 1000}`,
-      transactionId: `tx-${index + 1000}`,
-      player_id: `player-${100 + index}`,
-      userId: `player-${100 + index}`,
-      game_id: `game-${200 + index}`,
-      gameId: `game-${200 + index}`,
-      round_id: `round-${300 + index}`,
-      roundId: `round-${300 + index}`,
-      provider: 'Pragmatic Play',
-      type: index % 3 === 0 ? 'bet' : (index % 3 === 1 ? 'win' : 'deposit'),
-      amount: index % 3 === 0 ? -Math.random() * 100 : Math.random() * 100,
-      currency: 'EUR',
-      status: index % 5 === 0 ? 'pending' : (index % 5 === 1 ? 'failed' : 'completed'),
-      created_at: new Date(Date.now() - index * 3600000).toISOString(),
-      updated_at: new Date(Date.now() - index * 3600000).toISOString(),
-      timestamp: new Date(Date.now() - index * 3600000).toISOString(),
-      balance_before: 1000 + (index * 10),
-      balance_after: 1000 + (index * 10) + (index % 3 === 0 ? -Math.random() * 100 : Math.random() * 100)
-    }));
+  // Create mock data if none exists
+  if (mockTransactions.length === 0) {
+    // Populate some mock data
+    for (let i = 0; i < limit; i++) {
+      const isBet = i % 3 === 0;
+      const amount = isBet ? -Math.random() * 100 : Math.random() * 100;
+      const balanceBefore = 1000 + (i * 10);
+      
+      mockTransactions.push({
+        id: `tx-${i + 1000}`,
+        transactionId: `tx-${i + 1000}`,
+        player_id: `player-${100 + i}`,
+        userId: `player-${100 + i}`,
+        game_id: `game-${200 + i}`,
+        gameId: `game-${200 + i}`,
+        round_id: `round-${300 + i}`,
+        roundId: `round-${300 + i}`,
+        provider: 'Pragmatic Play',
+        type: i % 3 === 0 ? 'bet' : (i % 3 === 1 ? 'win' : 'deposit'),
+        amount,
+        currency: 'EUR',
+        status: i % 5 === 0 ? 'pending' : (i % 5 === 1 ? 'failed' : 'completed'),
+        created_at: new Date(Date.now() - i * 3600000).toISOString(),
+        updated_at: new Date(Date.now() - i * 3600000).toISOString(),
+        timestamp: new Date(Date.now() - i * 3600000).toISOString(),
+        balance_before: balanceBefore,
+        balance_after: balanceBefore + amount
+      });
+    }
   }
   
-  // For server environment, would query Supabase transactions table
   return getTransactions({ 
     provider: 'Pragmatic Play', 
     limit 
