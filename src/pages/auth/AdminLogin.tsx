@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ const AdminLogin = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { adminLogin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -22,9 +21,8 @@ const AdminLogin = () => {
     try {
       // Since this is a mock, we'll use a hardcoded check for "admin/admin"
       if (username === "admin" && password === "admin") {
-        // Call the login function from auth context with isAdmin flag
-        // Fix: Pass the credentials object correctly to match the expected parameters
-        await login({ username, password, isAdmin: true }, { redirect: false });
+        // Call the adminLogin function from auth context
+        await adminLogin(username, password);
         
         toast({
           title: "Login successful",
