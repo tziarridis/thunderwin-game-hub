@@ -2,6 +2,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 import { getWalletByUserId, updateWalletBalance } from './walletService';
+import { getUserById } from './userService';
 
 export interface Transaction {
   id: string;
@@ -101,6 +102,17 @@ export const createTransaction = async (
     throw error;
   }
 
+  // Try to get the user's name
+  let userName = playerId;
+  try {
+    const user = await getUserById(playerId);
+    if (user) {
+      userName = user.username;
+    }
+  } catch (error) {
+    console.error('Error fetching user data for transaction:', error);
+  }
+
   // Type assertion to ensure data matches our Transaction interface
   return {
     ...data,
@@ -109,7 +121,7 @@ export const createTransaction = async (
     // Add UI properties
     transactionId: data.id,
     userId: data.player_id,
-    userName: data.player_id, // Default to player_id, will be enhanced when needed
+    userName: userName,
     gameId: data.game_id,
     roundId: data.round_id,
     timestamp: data.created_at,
@@ -124,19 +136,24 @@ export const createTransaction = async (
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
   const { data, error } = await supabase
     .from('transactions')
-    .select(`
-      *,
-      users!transactions_player_id_fkey (
-        email,
-        username
-      )
-    `)
+    .select()
     .eq('id', id)
     .single();
 
   if (error) {
     console.error('Error getting transaction:', error);
     return null;
+  }
+
+  // Try to get the user's name
+  let userName = data.player_id;
+  try {
+    const user = await getUserById(data.player_id);
+    if (user) {
+      userName = user.username;
+    }
+  } catch (error) {
+    console.error('Error fetching user data for transaction:', error);
   }
 
   // Type assertion to ensure data matches our Transaction interface
@@ -147,7 +164,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     // Add UI properties
     transactionId: data.id,
     userId: data.player_id,
-    userName: data.users?.username || data.player_id,
+    userName: userName,
     gameId: data.game_id,
     roundId: data.round_id,
     timestamp: data.created_at,
@@ -162,13 +179,7 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
   let query = supabase
     .from('transactions')
-    .select(`
-      *,
-      users (
-        email,
-        username
-      )
-    `);
+    .select();
   
   if (filters.player_id) {
     query = query.eq('player_id', filters.player_id);
@@ -208,20 +219,35 @@ export const getTransactions = async (filters: TransactionFilter = {}): Promise<
   }
 
   // Process the data to include UI-friendly properties
-  return data.map(item => ({
-    ...item,
-    type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
-    status: item.status as 'pending' | 'completed' | 'failed',
-    // Add UI properties
-    transactionId: item.id,
-    userId: item.player_id,
-    userName: item.users?.username || item.player_id,
-    gameId: item.game_id,
-    roundId: item.round_id,
-    timestamp: item.created_at,
-    date: item.created_at,
-    method: item.provider
-  })) as Transaction[];
+  // For each transaction, try to get the user's name
+  const enhancedTransactions = await Promise.all(data.map(async (item) => {
+    let userName = item.player_id;
+    try {
+      const user = await getUserById(item.player_id);
+      if (user) {
+        userName = user.username;
+      }
+    } catch (error) {
+      console.error(`Error fetching user data for transaction ${item.id}:`, error);
+    }
+
+    return {
+      ...item,
+      type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+      status: item.status as 'pending' | 'completed' | 'failed',
+      // Add UI properties
+      transactionId: item.id,
+      userId: item.player_id,
+      userName: userName,
+      gameId: item.game_id,
+      roundId: item.round_id,
+      timestamp: item.created_at,
+      date: item.created_at,
+      method: item.provider
+    };
+  }));
+
+  return enhancedTransactions as Transaction[];
 };
 
 /**
@@ -247,6 +273,17 @@ export const updateTransactionStatus = async (
     return null;
   }
 
+  // Try to get the user's name
+  let userName = data.player_id;
+  try {
+    const user = await getUserById(data.player_id);
+    if (user) {
+      userName = user.username;
+    }
+  } catch (error) {
+    console.error('Error fetching user data for transaction:', error);
+  }
+
   // Type assertion to ensure data matches our Transaction interface
   return {
     ...data,
@@ -255,7 +292,7 @@ export const updateTransactionStatus = async (
     // Add UI properties
     transactionId: data.id,
     userId: data.player_id,
-    userName: data.player_id,
+    userName: userName,
     gameId: data.game_id,
     roundId: data.round_id,
     timestamp: data.created_at,
@@ -268,13 +305,7 @@ export const updateTransactionStatus = async (
 export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from('transactions')
-    .select(`
-      *,
-      users (
-        email,
-        username
-      )
-    `)
+    .select()
     .eq('provider', 'Pragmatic Play')
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -284,20 +315,34 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     return [];
   }
 
-  // Process the data to include UI-friendly properties
-  return data.map(item => ({
-    ...item,
-    transactionId: item.id,
-    userId: item.player_id,
-    userName: item.users?.username || item.player_id,
-    gameId: item.game_id,
-    roundId: item.round_id,
-    timestamp: item.created_at,
-    date: item.created_at,
-    method: item.provider,
-    type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
-    status: item.status as 'pending' | 'completed' | 'failed',
-  })) as Transaction[];
+  // For each transaction, try to get the user's name
+  const enhancedTransactions = await Promise.all(data.map(async (item) => {
+    let userName = item.player_id;
+    try {
+      const user = await getUserById(item.player_id);
+      if (user) {
+        userName = user.username;
+      }
+    } catch (error) {
+      console.error(`Error fetching user data for transaction ${item.id}:`, error);
+    }
+
+    return {
+      ...item,
+      transactionId: item.id,
+      userId: item.player_id,
+      userName: userName,
+      gameId: item.game_id,
+      roundId: item.round_id,
+      timestamp: item.created_at,
+      date: item.created_at,
+      method: item.provider,
+      type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+      status: item.status as 'pending' | 'completed' | 'failed',
+    };
+  }));
+
+  return enhancedTransactions as Transaction[];
 };
 
 export default {
