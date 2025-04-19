@@ -16,11 +16,6 @@ export const setupDatabase = async () => {
       .select('id')
       .limit(1);
     
-    const categoriesCheck = await supabase
-      .from('game_categories')
-      .select('id')
-      .limit(1);
-
     const transactionsCheck = await supabase
       .from('transactions')
       .select('id')
@@ -29,7 +24,6 @@ export const setupDatabase = async () => {
     // Log table check results
     console.log('Tables check results:');
     console.log('Providers:', providersCheck.error ? 'Error' : 'OK');
-    console.log('Categories:', categoriesCheck.error ? 'Error' : 'OK');
     console.log('Transactions:', transactionsCheck.error ? 'Error' : 'OK');
 
     // Check if we need to seed data
@@ -46,13 +40,13 @@ export const setupDatabase = async () => {
       }
     }
     
-    if (!categoriesCheck.error) {
-      const { count: categoriesCount } = await supabase
-        .from('game_categories')
+    if (!transactionsCheck.error) {
+      const { count: transactionsCount } = await supabase
+        .from('transactions')
         .select('*', { count: 'exact', head: true });
         
-      if (categoriesCount === 0) {
-        console.log('Categories table is empty, will seed data');
+      if (transactionsCount === 0) {
+        console.log('Transactions table is empty, will seed data');
         needToSeedData = true;
       }
     }
@@ -95,25 +89,6 @@ export const seedTestData = async () => {
       console.log('Providers data seeded successfully');
     }
     
-    // Example: Insert game categories data
-    const categoriesData = [
-      { name: 'Slots', slug: 'slots', status: 'active', show_home: true },
-      { name: 'Table Games', slug: 'table-games', status: 'active', show_home: true },
-      { name: 'Live Casino', slug: 'live-casino', status: 'active', show_home: true },
-      { name: 'Jackpot Games', slug: 'jackpot-games', status: 'active', show_home: true },
-      { name: 'Video Poker', slug: 'video-poker', status: 'active', show_home: false }
-    ];
-    
-    const { error: categoriesError } = await supabase
-      .from('game_categories')
-      .upsert(categoriesData, { onConflict: 'slug' });
-
-    if (categoriesError) {
-      console.error('Error seeding categories:', categoriesError);
-    } else {
-      console.log('Categories data seeded successfully');
-    }
-
     // Seed some example transactions
     const sampleTransactions = [
       {
@@ -122,7 +97,9 @@ export const seedTestData = async () => {
         type: 'deposit',
         amount: 100,
         currency: 'USD',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 0,
+        balance_after: 100
       },
       {
         player_id: 'user123',
@@ -131,7 +108,9 @@ export const seedTestData = async () => {
         amount: 10,
         currency: 'USD',
         game_id: 'sweet-bonanza',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 100,
+        balance_after: 90
       },
       {
         player_id: 'user123',
@@ -140,7 +119,9 @@ export const seedTestData = async () => {
         amount: 25,
         currency: 'USD',
         game_id: 'sweet-bonanza',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 90,
+        balance_after: 115
       },
       {
         player_id: 'user456',
@@ -148,7 +129,9 @@ export const seedTestData = async () => {
         type: 'deposit',
         amount: 200,
         currency: 'USD',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 0,
+        balance_after: 200
       },
       {
         player_id: 'user456',
@@ -157,7 +140,9 @@ export const seedTestData = async () => {
         amount: 15,
         currency: 'USD',
         game_id: 'starburst',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 200,
+        balance_after: 185
       },
       {
         player_id: 'user789',
@@ -166,7 +151,9 @@ export const seedTestData = async () => {
         amount: 150,
         currency: 'USD',
         game_id: 'immortal-romance',
-        status: 'completed'
+        status: 'completed',
+        balance_before: 50,
+        balance_after: 200
       }
     ];
 

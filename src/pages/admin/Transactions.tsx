@@ -48,19 +48,9 @@ const AdminTransactions = () => {
       };
       const data = await getTransactions(filter);
       
-      // Add UI-friendly properties to the transactions
-      const formattedTransactions = data.map(tx => ({
-        ...tx,
-        id: tx.id, // Use the actual ID
-        userName: tx.player_id,
-        userId: tx.player_id,
-        date: tx.created_at,
-        method: tx.provider
-      }));
-      
-      setTransactions(formattedTransactions);
-      setFilteredTransactions(formattedTransactions);
-      toast.success(`Loaded ${formattedTransactions.length} transactions`);
+      setTransactions(data);
+      setFilteredTransactions(data);
+      toast.success(`Loaded ${data.length} transactions`);
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
       toast.error("Failed to load transactions");
@@ -123,8 +113,7 @@ const AdminTransactions = () => {
     if (query) {
       results = results.filter(transaction => 
         transaction.id.toLowerCase().includes(query) || 
-        (transaction.userName && transaction.userName.toLowerCase().includes(query)) ||
-        (transaction.userId && transaction.userId.toLowerCase().includes(query))
+        (transaction.player_id && transaction.player_id.toLowerCase().includes(query))
       );
     }
     

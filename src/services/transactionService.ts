@@ -20,12 +20,12 @@ export interface Transaction {
   // Additional properties for UI components
   transactionId?: string;
   userId?: string;
-  userName?: string; // Added to fix TypeScript error
+  userName?: string; // For displaying user's name
   gameId?: string;
   roundId?: string;
   timestamp?: string;
-  date?: string; // Added to fix date property issue
-  method?: string; // Added for UI compatibility
+  date?: string; // For date display
+  method?: string; // For payment method display
 }
 
 export interface TransactionFilter {
@@ -154,11 +154,20 @@ export const getTransactions = async (filters: TransactionFilter = {}): Promise<
     return [];
   }
 
-  // Type assertion for the array of transactions
+  // Process the data to include UI-friendly properties
   return data.map(item => ({
     ...item,
     type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: item.status as 'pending' | 'completed' | 'failed',
+    // Add UI-specific properties
+    transactionId: item.id,
+    userId: item.player_id,
+    userName: item.player_id, // Using player_id as userName for now
+    gameId: item.game_id,
+    roundId: item.round_id,
+    timestamp: item.created_at,
+    date: item.created_at,
+    method: item.provider
   })) as Transaction[];
 };
 
@@ -207,14 +216,17 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     return [];
   }
 
-  // Type assertion for the array of transactions
+  // Process the data to include UI-friendly properties
   return data.map(item => ({
     ...item,
     transactionId: item.id,
     userId: item.player_id,
+    userName: item.player_id, // Using player_id as userName for now
     gameId: item.game_id,
     roundId: item.round_id,
     timestamp: item.created_at,
+    date: item.created_at,
+    method: item.provider,
     type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: item.status as 'pending' | 'completed' | 'failed',
   })) as Transaction[];
