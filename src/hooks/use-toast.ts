@@ -1,5 +1,6 @@
 
 import { toast as sonnerToast } from "sonner";
+import React from "react";
 
 type ToastProps = {
   title?: string;
@@ -41,13 +42,16 @@ function adaptToast(props: ToastProps) {
   return props;
 }
 
+// Define the toast function first
+function showToast(props: ToastProps) {
+  const adaptedProps = adaptToast(props);
+  return sonnerToast(adaptedProps.message, adaptedProps);
+}
+
 // Export a wrapper around sonner's toast that adapts our interface
 export const toast = {
   // Basic toast function that accepts our custom props
-  (props: ToastProps) {
-    const adaptedProps = adaptToast(props);
-    return sonnerToast(adaptedProps.message, adaptedProps);
-  },
+  ...showToast,
   
   // Shorthand methods for different toast types
   error(props: ToastProps | string) {
@@ -86,6 +90,9 @@ export const toast = {
   dismiss: sonnerToast.dismiss,
   promise: sonnerToast.promise,
 };
+
+// Ensure the toast function can be called directly
+Object.setPrototypeOf(toast, Function.prototype);
 
 export function useToast() {
   return {
