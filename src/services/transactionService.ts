@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,9 +20,12 @@ export interface Transaction {
   // Additional properties for UI components
   transactionId?: string;
   userId?: string;
+  userName?: string; // Added to fix TypeScript error
   gameId?: string;
   roundId?: string;
   timestamp?: string;
+  date?: string; // Added to fix date property issue
+  method?: string; // Added for UI compatibility
 }
 
 export interface TransactionFilter {

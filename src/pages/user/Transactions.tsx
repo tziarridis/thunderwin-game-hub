@@ -13,7 +13,8 @@ import {
   Gift,
   Wallet,
   Search,
-  Loader2
+  Loader2,
+  RotateCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { getTransactions, Transaction, TransactionFilter } from "@/services/transactionService";
@@ -161,7 +162,7 @@ const Transactions = () => {
               Date Range
             </Button>
             <Button variant="outline" onClick={fetchUserTransactions}>
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RotateCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
             <Button variant="outline">
