@@ -1,5 +1,7 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
+import { getWalletByUserId, updateWalletBalance } from './walletService';
 
 export interface Transaction {
   id: string;
@@ -55,6 +57,27 @@ export const createTransaction = async (
     balance_after?: number;
   } = {}
 ): Promise<Transaction> => {
+  // Get the current wallet balance if not provided
+  let balanceBefore = options.balance_before;
+  let balanceAfter = options.balance_after;
+  
+  if (balanceBefore === undefined || balanceAfter === undefined) {
+    const wallet = await getWalletByUserId(playerId);
+    if (wallet) {
+      balanceBefore = wallet.balance;
+      
+      // Calculate new balance based on transaction type
+      if (type === 'deposit' || type === 'win') {
+        balanceAfter = balanceBefore + amount;
+      } else if (type === 'withdraw' || type === 'bet') {
+        balanceAfter = balanceBefore - amount;
+      }
+      
+      // Update wallet with new balance
+      await updateWalletBalance(playerId, balanceAfter || balanceBefore);
+    }
+  }
+
   const { data, error } = await supabase
     .from('transactions')
     .insert({
@@ -66,8 +89,8 @@ export const createTransaction = async (
       session_id: options.session_id,
       game_id: options.game_id,
       round_id: options.round_id,
-      balance_before: options.balance_before,
-      balance_after: options.balance_after,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
       status: 'pending'
     })
     .select()
@@ -83,6 +106,15 @@ export const createTransaction = async (
     ...data,
     type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: data.status as 'pending' | 'completed' | 'failed',
+    // Add UI properties
+    transactionId: data.id,
+    userId: data.player_id,
+    userName: data.player_id, // Default to player_id, will be enhanced when needed
+    gameId: data.game_id,
+    roundId: data.round_id,
+    timestamp: data.created_at,
+    date: data.created_at,
+    method: data.provider
   } as Transaction;
 };
 
@@ -92,7 +124,13 @@ export const createTransaction = async (
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
   const { data, error } = await supabase
     .from('transactions')
-    .select()
+    .select(`
+      *,
+      users!transactions_player_id_fkey (
+        email,
+        username
+      )
+    `)
     .eq('id', id)
     .single();
 
@@ -106,6 +144,15 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     ...data,
     type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: data.status as 'pending' | 'completed' | 'failed',
+    // Add UI properties
+    transactionId: data.id,
+    userId: data.player_id,
+    userName: data.users?.username || data.player_id,
+    gameId: data.game_id,
+    roundId: data.round_id,
+    timestamp: data.created_at,
+    date: data.created_at,
+    method: data.provider
   } as Transaction;
 };
 
@@ -115,7 +162,13 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
   let query = supabase
     .from('transactions')
-    .select();
+    .select(`
+      *,
+      users (
+        email,
+        username
+      )
+    `);
   
   if (filters.player_id) {
     query = query.eq('player_id', filters.player_id);
@@ -159,10 +212,10 @@ export const getTransactions = async (filters: TransactionFilter = {}): Promise<
     ...item,
     type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: item.status as 'pending' | 'completed' | 'failed',
-    // Add UI-specific properties
+    // Add UI properties
     transactionId: item.id,
     userId: item.player_id,
-    userName: item.player_id, // Using player_id as userName for now
+    userName: item.users?.username || item.player_id,
     gameId: item.game_id,
     roundId: item.round_id,
     timestamp: item.created_at,
@@ -199,6 +252,15 @@ export const updateTransactionStatus = async (
     ...data,
     type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
     status: data.status as 'pending' | 'completed' | 'failed',
+    // Add UI properties
+    transactionId: data.id,
+    userId: data.player_id,
+    userName: data.player_id,
+    gameId: data.game_id,
+    roundId: data.round_id,
+    timestamp: data.created_at,
+    date: data.created_at,
+    method: data.provider
   } as Transaction;
 };
 
@@ -206,7 +268,13 @@ export const updateTransactionStatus = async (
 export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transaction[]> => {
   const { data, error } = await supabase
     .from('transactions')
-    .select()
+    .select(`
+      *,
+      users (
+        email,
+        username
+      )
+    `)
     .eq('provider', 'Pragmatic Play')
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -221,7 +289,7 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     ...item,
     transactionId: item.id,
     userId: item.player_id,
-    userName: item.player_id, // Using player_id as userName for now
+    userName: item.users?.username || item.player_id,
     gameId: item.game_id,
     roundId: item.round_id,
     timestamp: item.created_at,

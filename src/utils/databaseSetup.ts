@@ -20,11 +20,17 @@ export const setupDatabase = async () => {
       .from('transactions')
       .select('id')
       .limit(1);
+      
+    const walletsCheck = await supabase
+      .from('wallets')
+      .select('id')
+      .limit(1);
 
     // Log table check results
     console.log('Tables check results:');
     console.log('Providers:', providersCheck.error ? 'Error' : 'OK');
     console.log('Transactions:', transactionsCheck.error ? 'Error' : 'OK');
+    console.log('Wallets:', walletsCheck.error ? 'Error' : 'OK');
 
     // Check if we need to seed data
     let needToSeedData = false;
@@ -47,6 +53,17 @@ export const setupDatabase = async () => {
         
       if (transactionsCount === 0) {
         console.log('Transactions table is empty, will seed data');
+        needToSeedData = true;
+      }
+    }
+    
+    if (!walletsCheck.error) {
+      const { count: walletsCount } = await supabase
+        .from('wallets')
+        .select('*', { count: 'exact', head: true });
+        
+      if (walletsCount === 0) {
+        console.log('Wallets table is empty, will seed data');
         needToSeedData = true;
       }
     }
@@ -87,6 +104,59 @@ export const seedTestData = async () => {
       console.error('Error seeding providers:', providersError);
     } else {
       console.log('Providers data seeded successfully');
+    }
+    
+    // Seed wallet data for test users
+    const walletData = [
+      {
+        user_id: 'user123',
+        currency: 'USD',
+        symbol: '$',
+        balance: 200,
+        active: true
+      },
+      {
+        user_id: 'user456',
+        currency: 'USD',
+        symbol: '$',
+        balance: 350,
+        active: true
+      },
+      {
+        user_id: 'user789',
+        currency: 'USD',
+        symbol: '$',
+        balance: 500,
+        active: true
+      }
+    ];
+    
+    // Check if wallets already exist for these users
+    const existingWallets = await supabase
+      .from('wallets')
+      .select('user_id')
+      .in('user_id', walletData.map(w => w.user_id));
+      
+    if (existingWallets.error) {
+      console.error('Error checking existing wallets:', existingWallets.error);
+    } else {
+      // Filter out wallets that already exist
+      const existingUserIds = new Set(existingWallets.data.map(w => w.user_id));
+      const walletsToInsert = walletData.filter(w => !existingUserIds.has(w.user_id));
+      
+      if (walletsToInsert.length > 0) {
+        const { error: walletsError } = await supabase
+          .from('wallets')
+          .insert(walletsToInsert);
+        
+        if (walletsError) {
+          console.error('Error seeding wallets:', walletsError);
+        } else {
+          console.log('Wallets data seeded successfully');
+        }
+      } else {
+        console.log('All test wallets already exist, skipping wallet seeding');
+      }
     }
     
     // Seed some example transactions
