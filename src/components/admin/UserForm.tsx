@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { User } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast";
 
 interface UserFormProps {
   initialValues?: User;
@@ -27,7 +26,6 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { toast } = useToast();
   
   const handleChange = (field: string, value: any) => {
     setFormData({
