@@ -1,7 +1,6 @@
 
 import React from "react";
-import PlaceholderPage from "@/components/PlaceholderPage";
-import { Trophy, Football, Basketball, Tennis } from "lucide-react";
+import { Trophy, Dribbble, Gamepad, Goal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "@/utils/navigationUtils";
@@ -33,7 +32,7 @@ const Sports = () => {
             className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white flex items-center justify-center h-16"
             onClick={() => handleNavigation("Football")}
           >
-            <Football className="mr-2 h-5 w-5 text-casino-thunder-green" />
+            <Dribbble className="mr-2 h-5 w-5 text-casino-thunder-green" />
             Football
           </Button>
           
@@ -43,7 +42,7 @@ const Sports = () => {
             className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white flex items-center justify-center h-16"
             onClick={() => handleNavigation("Basketball")}
           >
-            <Basketball className="mr-2 h-5 w-5 text-casino-thunder-green" />
+            <Gamepad className="mr-2 h-5 w-5 text-casino-thunder-green" />
             Basketball
           </Button>
           
@@ -53,7 +52,7 @@ const Sports = () => {
             className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-white flex items-center justify-center h-16"
             onClick={() => handleNavigation("Tennis")}
           >
-            <Tennis className="mr-2 h-5 w-5 text-casino-thunder-green" />
+            <Goal className="mr-2 h-5 w-5 text-casino-thunder-green" />
             Tennis
           </Button>
         </div>
