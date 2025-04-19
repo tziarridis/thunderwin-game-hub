@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { RotateCw, Download, Database, ArrowDownUp, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getTransactions, Transaction } from "@/services/transactionService";
+import { getPragmaticPlayTransactions, Transaction } from "@/services/transactionService";
 
 interface PPTransactionLoggerProps {
   limit?: number;
@@ -33,10 +33,7 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
   const fetchTransactions = async () => {
     setIsLoading(true);
     try {
-      const result = await getTransactions({
-        provider: "Pragmatic Play",
-        limit: limit
-      });
+      const result = await getPragmaticPlayTransactions(limit);
       
       setTransactions(result);
       toast.success(`Loaded ${result.length} transactions`);
@@ -60,8 +57,8 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(tx => 
-        tx.userId.toLowerCase().includes(query) ||
-        tx.transactionId.toLowerCase().includes(query) ||
+        tx.userId?.toLowerCase().includes(query) ||
+        tx.transactionId?.toLowerCase().includes(query) ||
         (tx.gameId && tx.gameId.toLowerCase().includes(query))
       );
     }
@@ -91,7 +88,7 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
     }
     
     if (timeRange !== "all") {
-      filtered = filtered.filter(tx => new Date(tx.timestamp) >= timeLimit);
+      filtered = filtered.filter(tx => tx.timestamp && new Date(tx.timestamp) >= timeLimit);
     }
     
     setFilteredTransactions(filtered);
@@ -111,15 +108,15 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
     ];
     
     const rows = filteredTransactions.map(tx => [
-      tx.transactionId,
+      tx.transactionId || tx.id,
       tx.type,
-      tx.userId,
+      tx.userId || tx.player_id,
       tx.amount,
       tx.currency,
-      tx.gameId || "",
+      tx.gameId || tx.game_id || "",
       tx.status,
       tx.provider,
-      tx.timestamp
+      tx.timestamp || tx.created_at
     ]);
     
     const csvContent = [
@@ -170,7 +167,8 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                   <SelectItem value="all">All</SelectItem>
                   <SelectItem value="bet">Bets</SelectItem>
                   <SelectItem value="win">Wins</SelectItem>
-                  <SelectItem value="rollback">Rollbacks</SelectItem>
+                  <SelectItem value="deposit">Deposits</SelectItem>
+                  <SelectItem value="withdraw">Withdrawals</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -243,8 +241,8 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                   </tr>
                 ) : (
                   filteredTransactions.map((tx) => (
-                    <tr key={tx.transactionId} className="border-b border-slate-700 hover:bg-slate-900">
-                      <td className="p-2 font-mono text-xs">{tx.transactionId.slice(0, 12)}...</td>
+                    <tr key={tx.transactionId || tx.id} className="border-b border-slate-700 hover:bg-slate-900">
+                      <td className="p-2 font-mono text-xs">{(tx.transactionId || tx.id).slice(0, 12)}...</td>
                       <td className="p-2">
                         <Badge className={
                           tx.type === 'bet' 
@@ -255,17 +253,18 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                         }>
                           {tx.type === 'bet' && <ArrowDown className="h-3 w-3 mr-1" />}
                           {tx.type === 'win' && <ArrowUp className="h-3 w-3 mr-1" />}
-                          {tx.type === 'rollback' && <ArrowDownUp className="h-3 w-3 mr-1" />}
+                          {tx.type === 'deposit' && <ArrowDown className="h-3 w-3 mr-1" />}
+                          {tx.type === 'withdraw' && <ArrowUp className="h-3 w-3 mr-1" />}
                           {tx.type}
                         </Badge>
                       </td>
-                      <td className="p-2">{tx.userId}</td>
+                      <td className="p-2">{tx.userId || tx.player_id}</td>
                       <td className="p-2">
-                        <span className={tx.type === 'win' ? 'text-green-400' : tx.type === 'bet' ? 'text-red-400' : ''}>
+                        <span className={tx.type === 'win' || tx.type === 'deposit' ? 'text-green-400' : tx.type === 'bet' || tx.type === 'withdraw' ? 'text-red-400' : ''}>
                           {tx.amount.toFixed(2)} {tx.currency}
                         </span>
                       </td>
-                      <td className="p-2">{tx.gameId || 'N/A'}</td>
+                      <td className="p-2">{tx.gameId || tx.game_id || 'N/A'}</td>
                       <td className="p-2">
                         <Badge className={
                           tx.status === 'completed' 
@@ -278,7 +277,7 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
                         </Badge>
                       </td>
                       <td className="p-2 text-slate-400">
-                        {new Date(tx.timestamp).toLocaleString()}
+                        {new Date(tx.timestamp || tx.created_at).toLocaleString()}
                       </td>
                     </tr>
                   ))

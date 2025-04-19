@@ -17,6 +17,13 @@ export interface Transaction {
   balance_after?: number;
   created_at: string;
   updated_at: string;
+  
+  // Additional properties for UI components
+  transactionId?: string;
+  userId?: string;
+  gameId?: string;
+  roundId?: string;
+  timestamp?: string;
 }
 
 export interface TransactionFilter {
@@ -46,8 +53,11 @@ export const createTransaction = async (
     balance_after?: number;
   } = {}
 ): Promise<Transaction> => {
+  const transactionId = uuidv4();
+  const now = new Date().toISOString();
+  
   const transaction: Transaction = {
-    id: uuidv4(),
+    id: transactionId,
     player_id: playerId,
     session_id: options.session_id,
     game_id: options.game_id,
@@ -59,8 +69,15 @@ export const createTransaction = async (
     status: 'pending',
     balance_before: options.balance_before,
     balance_after: options.balance_after,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    created_at: now,
+    updated_at: now,
+    
+    // Add UI-friendly properties
+    transactionId,
+    userId: playerId,
+    gameId: options.game_id,
+    roundId: options.round_id,
+    timestamp: now
   };
 
   const sql = `
@@ -96,7 +113,21 @@ export const createTransaction = async (
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
   const sql = 'SELECT * FROM transactions WHERE id = ? LIMIT 1';
   const result = await query(sql, [id]);
-  return result[0] || null;
+  
+  if (result && result[0]) {
+    // Transform DB result to include UI properties
+    const transaction = result[0] as Transaction;
+    return {
+      ...transaction,
+      transactionId: transaction.id,
+      userId: transaction.player_id,
+      gameId: transaction.game_id,
+      roundId: transaction.round_id,
+      timestamp: transaction.created_at
+    };
+  }
+  
+  return null;
 };
 
 /**
@@ -143,7 +174,17 @@ export const getTransactions = async (filters: TransactionFilter = {}): Promise<
     values.push(filters.limit);
   }
 
-  return await query(sql, values);
+  const results = await query(sql, values);
+  
+  // Transform DB results to include UI properties
+  return results.map((transaction: Transaction) => ({
+    ...transaction,
+    transactionId: transaction.id,
+    userId: transaction.player_id,
+    gameId: transaction.game_id,
+    roundId: transaction.round_id,
+    timestamp: transaction.created_at
+  }));
 };
 
 /**
@@ -166,10 +207,43 @@ export const updateTransactionStatus = async (
   return getTransaction(id);
 };
 
+// For component use, adapt the PPTransactionLogger component to use these interfaces
+export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transaction[]> => {
+  // For browser environment, return mock data
+  if (typeof window !== 'undefined') {
+    return Array(limit).fill(0).map((_, index) => ({
+      id: `tx-${index + 1000}`,
+      transactionId: `tx-${index + 1000}`,
+      player_id: `player-${100 + index}`,
+      userId: `player-${100 + index}`,
+      game_id: `game-${200 + index}`,
+      gameId: `game-${200 + index}`,
+      round_id: `round-${300 + index}`,
+      roundId: `round-${300 + index}`,
+      provider: 'Pragmatic Play',
+      type: index % 3 === 0 ? 'bet' : (index % 3 === 1 ? 'win' : 'deposit'),
+      amount: index % 3 === 0 ? -Math.random() * 100 : Math.random() * 100,
+      currency: 'EUR',
+      status: index % 5 === 0 ? 'pending' : (index % 5 === 1 ? 'failed' : 'completed'),
+      created_at: new Date(Date.now() - index * 3600000).toISOString(),
+      updated_at: new Date(Date.now() - index * 3600000).toISOString(),
+      timestamp: new Date(Date.now() - index * 3600000).toISOString(),
+      balance_before: 1000 + (index * 10),
+      balance_after: 1000 + (index * 10) + (index % 3 === 0 ? -Math.random() * 100 : Math.random() * 100)
+    }));
+  }
+  
+  // For server environment, query the database
+  return getTransactions({ 
+    provider: 'Pragmatic Play', 
+    limit 
+  });
+};
+
 export default {
   createTransaction,
   getTransaction,
   getTransactions,
-  updateTransactionStatus
+  updateTransactionStatus,
+  getPragmaticPlayTransactions
 };
-

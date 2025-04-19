@@ -1,3 +1,4 @@
+
 // This is a browser-safe version of the database service
 // It provides mock implementations that are safe to use in browser environments
 

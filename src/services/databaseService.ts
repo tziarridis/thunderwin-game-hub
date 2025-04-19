@@ -17,11 +17,12 @@ if (!isBrowser) {
 } 
 
 // Configuration for the database connection
+// Use a browser-safe approach to configuration
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'casino',
+  host: isBrowser ? 'localhost' : (process.env.DB_HOST || 'localhost'),
+  user: isBrowser ? 'root' : (process.env.DB_USER || 'root'),
+  password: isBrowser ? '' : (process.env.DB_PASSWORD || ''),
+  database: isBrowser ? 'casino' : (process.env.DB_NAME || 'casino'),
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0

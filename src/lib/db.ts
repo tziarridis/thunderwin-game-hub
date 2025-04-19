@@ -79,10 +79,10 @@ export const getDatabaseStatus = async () => {
   
   try {
     const connection = await mysql.createConnection({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'casino'
+      host: isBrowser ? 'localhost' : (process.env.DB_HOST || 'localhost'),
+      user: isBrowser ? 'root' : (process.env.DB_USER || 'root'),
+      password: isBrowser ? '' : (process.env.DB_PASSWORD || ''),
+      database: isBrowser ? 'casino' : (process.env.DB_NAME || 'casino')
     });
     
     // Test the connection
