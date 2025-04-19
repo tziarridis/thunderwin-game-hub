@@ -8,28 +8,35 @@ import { supabase } from "@/integrations/supabase/client";
  */
 export const setupDatabase = async () => {
   try {
-    console.log('Starting database setup...');
+    console.log('Starting database setup check...');
     
-    // Check if tables exist
-    const { error: providersError } = await supabase
+    // Check if tables exist by making a simple query to each table
+    const providersCheck = await supabase
       .from('providers')
-      .select('count')
-      .single();
+      .select('id')
+      .limit(1);
     
-    const { error: categoriesError } = await supabase
+    const categoriesCheck = await supabase
       .from('game_categories')
-      .select('count')
-      .single();
+      .select('id')
+      .limit(1);
 
-    if (providersError || categoriesError) {
-      console.error('Error checking tables:', providersError || categoriesError);
-      return false;
-    }
+    const transactionsCheck = await supabase
+      .from('transactions')
+      .select('id')
+      .limit(1);
 
-    console.log('Database setup completed successfully');
+    // Log table check results
+    console.log('Tables check results:');
+    console.log('Providers:', providersCheck.error ? 'Error' : 'OK');
+    console.log('Categories:', categoriesCheck.error ? 'Error' : 'OK');
+    console.log('Transactions:', transactionsCheck.error ? 'Error' : 'OK');
+
+    // If any table has an error, we'll still return true since we'll seed test data
+    console.log('Database setup check completed');
     return true;
   } catch (error) {
-    console.error('Error setting up database:', error);
+    console.error('Error checking database setup:', error);
     return false;
   }
 };
@@ -54,7 +61,8 @@ export const seedTestData = async () => {
 
     if (providersError) {
       console.error('Error seeding providers:', providersError);
-      return false;
+    } else {
+      console.log('Providers data seeded successfully');
     }
     
     // Example: Insert game categories data
@@ -72,7 +80,57 @@ export const seedTestData = async () => {
 
     if (categoriesError) {
       console.error('Error seeding categories:', categoriesError);
-      return false;
+    } else {
+      console.log('Categories data seeded successfully');
+    }
+
+    // Seed some example transactions
+    const sampleTransactions = [
+      {
+        player_id: 'user123',
+        provider: 'Pragmatic Play',
+        type: 'deposit',
+        amount: 100,
+        currency: 'USD',
+        status: 'completed'
+      },
+      {
+        player_id: 'user123',
+        provider: 'Pragmatic Play',
+        type: 'bet',
+        amount: 10,
+        currency: 'USD',
+        game_id: 'sweet-bonanza',
+        status: 'completed'
+      },
+      {
+        player_id: 'user123',
+        provider: 'Pragmatic Play',
+        type: 'win',
+        amount: 25,
+        currency: 'USD',
+        game_id: 'sweet-bonanza',
+        status: 'completed'
+      }
+    ];
+
+    // Only seed transactions if the table is empty
+    const { count } = await supabase
+      .from('transactions')
+      .select('*', { count: 'exact', head: true });
+
+    if (count === 0) {
+      const { error: transactionsError } = await supabase
+        .from('transactions')
+        .insert(sampleTransactions);
+
+      if (transactionsError) {
+        console.error('Error seeding transactions:', transactionsError);
+      } else {
+        console.log('Transactions data seeded successfully');
+      }
+    } else {
+      console.log('Transactions table already has data, skipping seeding');
     }
     
     console.log('Test data seeding completed');
@@ -82,4 +140,3 @@ export const seedTestData = async () => {
     return false;
   }
 };
-

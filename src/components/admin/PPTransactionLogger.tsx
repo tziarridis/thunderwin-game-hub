@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,8 +34,18 @@ const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = ({ limit = 100 }
     try {
       const result = await getPragmaticPlayTransactions(limit);
       
-      setTransactions(result);
-      toast.success(`Loaded ${result.length} transactions`);
+      // Add UI-friendly properties to the transactions
+      const formattedTransactions = result.map(tx => ({
+        ...tx,
+        transactionId: tx.id,
+        userId: tx.player_id,
+        gameId: tx.game_id,
+        roundId: tx.round_id,
+        timestamp: tx.created_at
+      }));
+      
+      setTransactions(formattedTransactions);
+      toast.success(`Loaded ${formattedTransactions.length} transactions`);
     } catch (error) {
       toast.error("Failed to load transactions");
       console.error("Error fetching transactions:", error);

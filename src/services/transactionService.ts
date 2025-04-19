@@ -1,3 +1,4 @@
+
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -75,7 +76,12 @@ export const createTransaction = async (
     throw error;
   }
 
-  return data;
+  // Type assertion to ensure data matches our Transaction interface
+  return {
+    ...data,
+    type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+    status: data.status as 'pending' | 'completed' | 'failed',
+  } as Transaction;
 };
 
 /**
@@ -93,7 +99,12 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
     return null;
   }
 
-  return data;
+  // Type assertion to ensure data matches our Transaction interface
+  return {
+    ...data,
+    type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+    status: data.status as 'pending' | 'completed' | 'failed',
+  } as Transaction;
 };
 
 /**
@@ -141,7 +152,12 @@ export const getTransactions = async (filters: TransactionFilter = {}): Promise<
     return [];
   }
 
-  return data;
+  // Type assertion for the array of transactions
+  return data.map(item => ({
+    ...item,
+    type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+    status: item.status as 'pending' | 'completed' | 'failed',
+  })) as Transaction[];
 };
 
 /**
@@ -167,7 +183,12 @@ export const updateTransactionStatus = async (
     return null;
   }
 
-  return data;
+  // Type assertion to ensure data matches our Transaction interface
+  return {
+    ...data,
+    type: data.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+    status: data.status as 'pending' | 'completed' | 'failed',
+  } as Transaction;
 };
 
 // For component use, adapt the PPTransactionLogger component
@@ -184,7 +205,12 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     return [];
   }
 
-  return data;
+  // Type assertion for the array of transactions
+  return data.map(item => ({
+    ...item,
+    type: item.type as 'bet' | 'win' | 'deposit' | 'withdraw',
+    status: item.status as 'pending' | 'completed' | 'failed',
+  })) as Transaction[];
 };
 
 export default {
