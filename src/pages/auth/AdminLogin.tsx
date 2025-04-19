@@ -23,7 +23,8 @@ const AdminLogin = () => {
       // Since this is a mock, we'll use a hardcoded check for "admin/admin"
       if (username === "admin" && password === "admin") {
         // Call the login function from auth context with isAdmin flag
-        await login({ username, password, isAdmin: true });
+        // Fix: Pass the credentials object correctly to match the expected parameters
+        await login({ username, password, isAdmin: true }, { redirect: false });
         
         toast({
           title: "Login successful",
