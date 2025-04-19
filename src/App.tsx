@@ -9,6 +9,13 @@ import NewGamesPage from "./pages/casino/NewGames";
 import Providers from "./pages/casino/Providers";
 import KycStatusPage from "./pages/kyc/KycStatus";
 import Index from "./pages/Index";
+import Sports from "./pages/sports";
+import LiveCasinoPage from "./pages/casino/LiveCasino";
+import SlotsPage from "./pages/casino/Slots";
+import JackpotsPage from "./pages/casino/Jackpots";
+import HelpPage from "./pages/support/Help";
+import ProfilePage from "./pages/user/Profile";
+import BonusHub from "./pages/bonuses/BonusHub";
 
 function App() {
   return (
@@ -21,9 +28,13 @@ function App() {
           <Route path="/casino/table-games" element={<TableGamesPage />} />
           <Route path="/casino/new-games" element={<NewGamesPage />} />
           <Route path="/casino/providers" element={<Providers />} />
+          <Route path="/casino/slots" element={<SlotsPage />} />
+          <Route path="/casino/live-casino" element={<LiveCasinoPage />} />
+          <Route path="/casino/jackpots" element={<JackpotsPage />} />
           <Route path="/games" element={<NotFound />} />
           <Route path="/games/:id" element={<NotFound />} />
-          <Route path="/profile" element={<NotFound />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/bonuses" element={<BonusHub />} />
           <Route path="/admin" element={<NotFound />} />
           <Route path="*" element={<NotFound />} />
           
@@ -43,6 +54,17 @@ function App() {
           
           {/* Casino routes */}
           <Route path="/casino/gitslotpark-seamless" element={<NotFound />} />
+          
+          {/* Sports routes */}
+          <Route path="/sports" element={<Sports />} />
+          <Route path="/sports/football" element={<NotFound />} />
+          <Route path="/sports/basketball" element={<NotFound />} />
+          <Route path="/sports/tennis" element={<NotFound />} />
+          <Route path="/sports/hockey" element={<NotFound />} />
+          <Route path="/sports/esports" element={<NotFound />} />
+          
+          {/* Support routes */}
+          <Route path="/support/help" element={<HelpPage />} />
         </Route>
       </Routes>
     </>
