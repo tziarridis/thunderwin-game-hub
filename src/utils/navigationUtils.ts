@@ -1,3 +1,4 @@
+
 import { NavigateFunction } from "react-router-dom";
 
 /**
@@ -106,6 +107,8 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'admin': '/admin',
     'admin dashboard': '/admin',
     'admin login': '/admin/login',
+    'admin access': '/admin/login',
+    'shield admin access': '/admin/login',
   };
   
   // First check for exact matches

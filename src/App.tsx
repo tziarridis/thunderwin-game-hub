@@ -27,6 +27,7 @@ import FavoritesPage from "./pages/casino/Favorites";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import CasinoMain from "./pages/casino/CasinoMain";
+import AdminLogin from "./pages/auth/AdminLogin";
 
 function App() {
   return (
@@ -93,7 +94,7 @@ function App() {
           <Route path="/admin/settings" element={<NotFound />} />
           <Route path="/admin/pp-integration" element={<NotFound />} />
           <Route path="/admin/game-aggregator" element={<NotFound />} />
-          <Route path="/admin/login" element={<NotFound />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* Catch-all route */}
           <Route path="*" element={<NotFound />} />
