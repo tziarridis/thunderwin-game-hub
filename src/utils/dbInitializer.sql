@@ -1,4 +1,3 @@
-
 -- Table structure for games
 DROP TABLE IF EXISTS `games`;
 CREATE TABLE `games`  (
@@ -83,3 +82,77 @@ CREATE TABLE `game_categories` (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE KEY `game_categories_slug_unique` (`slug`) USING BTREE
 ) ENGINE = MyISAM AUTO_INCREMENT = 10 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = DYNAMIC;
+
+-- Table structure for game sessions
+DROP TABLE IF EXISTS `game_sessions`;
+CREATE TABLE `game_sessions` (
+  `id` varchar(191) NOT NULL,
+  `player_id` varchar(191) NOT NULL,
+  `game_id` varchar(191) NOT NULL,
+  `provider` varchar(191) NOT NULL,
+  `currency` varchar(10) NOT NULL,
+  `mode` varchar(50) NOT NULL DEFAULT 'real',
+  `status` varchar(50) NOT NULL DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `expired_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `game_sessions_player_id_index` (`player_id`),
+  KEY `game_sessions_game_id_index` (`game_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for transactions
+DROP TABLE IF EXISTS `transactions`;
+CREATE TABLE `transactions` (
+  `id` varchar(191) NOT NULL,
+  `player_id` varchar(191) NOT NULL,
+  `session_id` varchar(191) NULL,
+  `game_id` varchar(191) NULL,
+  `round_id` varchar(191) NULL,
+  `provider` varchar(191) NOT NULL,
+  `type` varchar(50) NOT NULL,
+  `amount` decimal(20, 2) NOT NULL,
+  `currency` varchar(10) NOT NULL,
+  `status` varchar(50) NOT NULL DEFAULT 'pending',
+  `balance_before` decimal(20, 2) NULL,
+  `balance_after` decimal(20, 2) NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `transactions_player_id_index` (`player_id`),
+  KEY `transactions_session_id_index` (`session_id`),
+  KEY `transactions_round_id_index` (`round_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for players
+DROP TABLE IF EXISTS `players`;
+CREATE TABLE `players` (
+  `id` varchar(191) NOT NULL,
+  `username` varchar(191) NOT NULL,
+  `email` varchar(191) NOT NULL,
+  `currency` varchar(10) NOT NULL DEFAULT 'EUR',
+  `balance` decimal(20, 2) NOT NULL DEFAULT 0.00,
+  `status` varchar(50) NOT NULL DEFAULT 'active',
+  `last_login` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `players_username_unique` (`username`),
+  UNIQUE KEY `players_email_unique` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Table structure for wallets
+DROP TABLE IF EXISTS `wallets`;
+CREATE TABLE `wallets` (
+  `id` varchar(191) NOT NULL,
+  `player_id` varchar(191) NOT NULL,
+  `currency` varchar(10) NOT NULL,
+  `balance` decimal(20, 2) NOT NULL DEFAULT 0.00,
+  `type` varchar(50) NOT NULL DEFAULT 'main',
+  `status` varchar(50) NOT NULL DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `wallets_player_currency_unique` (`player_id`, `currency`),
+  KEY `wallets_player_id_index` (`player_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
