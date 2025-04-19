@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,9 +35,6 @@ export interface TransactionFilter {
   limit?: number;
 }
 
-// In-memory transaction storage for client-side development
-const mockTransactions: Transaction[] = [];
-
 /**
  * Create a new transaction
  */
@@ -56,90 +52,96 @@ export const createTransaction = async (
     balance_after?: number;
   } = {}
 ): Promise<Transaction> => {
-  const transactionId = uuidv4();
-  const now = new Date().toISOString();
-  
-  const transaction: Transaction = {
-    id: transactionId,
-    player_id: playerId,
-    session_id: options.session_id,
-    game_id: options.game_id,
-    round_id: options.round_id,
-    provider,
-    type,
-    amount,
-    currency,
-    status: 'pending',
-    balance_before: options.balance_before,
-    balance_after: options.balance_after,
-    created_at: now,
-    updated_at: now,
-    
-    // Add UI-friendly properties
-    transactionId,
-    userId: playerId,
-    gameId: options.game_id,
-    roundId: options.round_id,
-    timestamp: now
-  };
+  const { data, error } = await supabase
+    .from('transactions')
+    .insert({
+      player_id: playerId,
+      type,
+      amount,
+      currency,
+      provider,
+      session_id: options.session_id,
+      game_id: options.game_id,
+      round_id: options.round_id,
+      balance_before: options.balance_before,
+      balance_after: options.balance_after,
+      status: 'pending'
+    })
+    .select()
+    .single();
 
-  // Always use mock storage since we don't have a transactions table in Supabase
-  mockTransactions.push(transaction);
-  console.log('Transaction created (mock):', transaction);
-  return transaction;
+  if (error) {
+    console.error('Error creating transaction:', error);
+    throw error;
+  }
+
+  return data;
 };
 
 /**
  * Get a transaction by ID
  */
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
-  // Always use mock storage since we don't have a transactions table in Supabase
-  const transaction = mockTransactions.find(tx => tx.id === id);
-  console.log('Retrieving transaction (mock):', id, transaction || 'Not found');
-  return transaction || null;
+  const { data, error } = await supabase
+    .from('transactions')
+    .select()
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error('Error getting transaction:', error);
+    return null;
+  }
+
+  return data;
 };
 
 /**
  * Get transactions with filters
  */
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
-  // Always use mock storage since we don't have a transactions table in Supabase
-  let results = [...mockTransactions];
+  let query = supabase
+    .from('transactions')
+    .select();
   
-  // Apply filters
   if (filters.player_id) {
-    results = results.filter(tx => tx.player_id === filters.player_id);
+    query = query.eq('player_id', filters.player_id);
   }
   
   if (filters.provider) {
-    results = results.filter(tx => tx.provider === filters.provider);
+    query = query.eq('provider', filters.provider);
   }
   
   if (filters.type) {
-    results = results.filter(tx => tx.type === filters.type);
+    query = query.eq('type', filters.type);
   }
   
   if (filters.status) {
-    results = results.filter(tx => tx.status === filters.status);
+    query = query.eq('status', filters.status);
   }
   
   if (filters.startDate) {
-    results = results.filter(tx => tx.created_at >= filters.startDate);
+    query = query.gte('created_at', filters.startDate);
   }
   
   if (filters.endDate) {
-    results = results.filter(tx => tx.created_at <= filters.endDate);
+    query = query.lte('created_at', filters.endDate);
   }
-  
-  // Apply sorting and limit
-  results.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   
   if (filters.limit) {
-    results = results.slice(0, filters.limit);
+    query = query.limit(filters.limit);
   }
   
-  console.log('Getting transactions (mock) with filters:', filters, `Found: ${results.length}`);
-  return results;
+  query = query.order('created_at', { ascending: false });
+  
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error getting transactions:', error);
+    return [];
+  }
+
+  return data;
 };
 
 /**
@@ -150,61 +152,39 @@ export const updateTransactionStatus = async (
   status: 'pending' | 'completed' | 'failed',
   balanceAfter?: number
 ): Promise<Transaction | null> => {
-  // Always use mock storage since we don't have a transactions table in Supabase
-  const index = mockTransactions.findIndex(tx => tx.id === id);
-  if (index >= 0) {
-    const now = new Date().toISOString();
-    mockTransactions[index] = {
-      ...mockTransactions[index],
+  const { data, error } = await supabase
+    .from('transactions')
+    .update({ 
       status,
-      balance_after: balanceAfter !== undefined ? balanceAfter : mockTransactions[index].balance_after,
-      updated_at: now
-    };
-    console.log('Updated transaction status (mock):', id, status);
-    return mockTransactions[index];
+      ...(balanceAfter !== undefined ? { balance_after: balanceAfter } : {})
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating transaction status:', error);
+    return null;
   }
-  
-  console.log('Transaction not found for status update (mock):', id);
-  return null;
+
+  return data;
 };
 
-// For component use, adapt the PPTransactionLogger component to use these interfaces
+// For component use, adapt the PPTransactionLogger component
 export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transaction[]> => {
-  // Create mock data if none exists
-  if (mockTransactions.length === 0) {
-    // Populate some mock data
-    for (let i = 0; i < limit; i++) {
-      const isBet = i % 3 === 0;
-      const amount = isBet ? -Math.random() * 100 : Math.random() * 100;
-      const balanceBefore = 1000 + (i * 10);
-      
-      mockTransactions.push({
-        id: `tx-${i + 1000}`,
-        transactionId: `tx-${i + 1000}`,
-        player_id: `player-${100 + i}`,
-        userId: `player-${100 + i}`,
-        game_id: `game-${200 + i}`,
-        gameId: `game-${200 + i}`,
-        round_id: `round-${300 + i}`,
-        roundId: `round-${300 + i}`,
-        provider: 'Pragmatic Play',
-        type: i % 3 === 0 ? 'bet' : (i % 3 === 1 ? 'win' : 'deposit'),
-        amount,
-        currency: 'EUR',
-        status: i % 5 === 0 ? 'pending' : (i % 5 === 1 ? 'failed' : 'completed'),
-        created_at: new Date(Date.now() - i * 3600000).toISOString(),
-        updated_at: new Date(Date.now() - i * 3600000).toISOString(),
-        timestamp: new Date(Date.now() - i * 3600000).toISOString(),
-        balance_before: balanceBefore,
-        balance_after: balanceBefore + amount
-      });
-    }
+  const { data, error } = await supabase
+    .from('transactions')
+    .select()
+    .eq('provider', 'Pragmatic Play')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error getting Pragmatic Play transactions:', error);
+    return [];
   }
-  
-  return getTransactions({ 
-    provider: 'Pragmatic Play', 
-    limit 
-  });
+
+  return data;
 };
 
 export default {

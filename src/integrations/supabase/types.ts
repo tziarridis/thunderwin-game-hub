@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      game_categories: {
+        Row: {
+          created_at: string | null
+          icon: string | null
+          id: string
+          image: string | null
+          name: string
+          show_home: boolean | null
+          slug: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          image?: string | null
+          name: string
+          show_home?: boolean | null
+          slug: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          image?: string | null
+          name?: string
+          show_home?: boolean | null
+          slug?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -46,6 +82,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      providers: {
+        Row: {
+          api_endpoint: string | null
+          api_key: string | null
+          api_secret: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          logo: string | null
+          name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          logo?: string | null
+          name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_endpoint?: string | null
+          api_key?: string | null
+          api_secret?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          logo?: string | null
+          name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          balance_before: number | null
+          created_at: string | null
+          currency: string
+          game_id: string | null
+          id: string
+          player_id: string
+          provider: string
+          round_id: string | null
+          session_id: string | null
+          status: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          balance_before?: number | null
+          created_at?: string | null
+          currency: string
+          game_id?: string | null
+          id?: string
+          player_id: string
+          provider: string
+          round_id?: string | null
+          session_id?: string | null
+          status?: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          balance_before?: number | null
+          created_at?: string | null
+          currency?: string
+          game_id?: string | null
+          id?: string
+          player_id?: string
+          provider?: string
+          round_id?: string | null
+          session_id?: string | null
+          status?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       users: {
         Row: {
