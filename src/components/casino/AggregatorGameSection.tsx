@@ -42,10 +42,10 @@ const AggregatorGameSection = () => {
           gameCode: game.code
         }));
       } else if (provider === 'pragmaticplay') {
-        // Pragmatic Play games
-        const ppGames = await pragmaticPlayService.getGames();
+        // Pragmatic Play games - using getAvailableGames instead of getGames
+        const ppGames = pragmaticPlayService.getAvailableGames();
         gamesData = ppGames.map(game => ({
-          id: game.game_id,
+          id: game.code,
           title: game.name,
           provider: 'Pragmatic Play',
           image: game.image || `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
@@ -54,7 +54,7 @@ const AggregatorGameSection = () => {
           rtp: (88 + Math.random() * 10).toFixed(2) + '%',
           minBet: '$0.20',
           maxBet: '$200',
-          gameCode: game.game_id
+          gameCode: game.code
         }));
       }
       
