@@ -1,7 +1,9 @@
+
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
 import { gitSlotParkService } from './gitSlotParkService';
+import { supabase } from '@/integrations/supabase/client';
 
 // Interface for game launch options
 export interface GameLaunchOptions {
@@ -57,6 +59,22 @@ export const gameProviderService = {
       platform
     });
     
+    // Log this game launch attempt to the database
+    try {
+      await supabase.from('transactions').insert({
+        player_id: playerId,
+        type: 'game_launch',
+        amount: 0,
+        currency: currency,
+        provider: providerConfig.name,
+        game_id: gameId,
+        status: 'pending'
+      });
+    } catch (error) {
+      console.error("Failed to log game launch:", error);
+      // Continue with game launch even if logging fails
+    }
+    
     try {
       switch(providerConfig.code) {
         case 'PP':
@@ -87,6 +105,30 @@ export const gameProviderService = {
       }
     } catch (error: any) {
       console.error(`Error getting launch URL for ${providerId}:`, error);
+      
+      // Update the transaction status to failed
+      try {
+        const { data } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('player_id', playerId)
+          .eq('game_id', gameId)
+          .eq('type', 'game_launch')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (data?.id) {
+          await supabase
+            .from('transactions')
+            .update({ status: 'failed' })
+            .eq('id', data.id);
+        }
+      } catch (dbError) {
+        console.error("Failed to update transaction status:", dbError);
+      }
+      
       throw new Error(`Failed to get game URL: ${error.message || 'Unknown error'}`);
     }
   },

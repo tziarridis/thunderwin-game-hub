@@ -1,127 +1,102 @@
 
-import axios from 'axios';
-import { toast } from 'sonner';
-import { getProviderConfig } from '@/config/gameProviders';
-import { v4 as uuidv4 } from 'uuid';
-import { Transaction } from '@/services/transactionService';
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-// Get GitSlotPark EUR configuration
-const gspConfig = getProviderConfig('gspeur');
+export interface GameOption {
+  code: string;
+  name: string;
+  image?: string;
+  provider?: string;
+}
 
-// GSP API Constants based on the documentation
-const GSP_API_BASE = `https://${gspConfig?.credentials.apiEndpoint || 'apiv2.gitslotpark.com'}`;
-const GSP_AGENT_ID = gspConfig?.credentials.agentId || 'Partner01';
-const GSP_API_TOKEN = gspConfig?.credentials.apiToken || 'e5h2c84215935ebfc8371df59e679c773ea081f8edd273358c83ff9f16e024ce';
-const GSP_SECRET_KEY = gspConfig?.credentials.secretKey || '1234567890';
-const GSP_CURRENCY = gspConfig?.currency || 'EUR';
-
-// Store processed transactions to prevent duplicates
-const processedTransactions = new Map();
-
-// Interface for game launch options
-export interface GSPGameLaunchOptions {
+export interface GameLaunchOptions {
   playerId: string;
   gameCode: string;
   language?: string;
   mode?: 'real' | 'demo';
   returnUrl?: string;
+  platform?: 'web' | 'mobile';
   currency?: string;
-  platform?: 'web' | 'mobile'; // Added platform property to match with documentation
 }
 
-// Interface for wallet callback request based on documentation
-export interface GSPWalletCallback {
-  partner_id: string;
-  player_id: string;
-  amount: number;
+export interface WalletResponse {
+  success: boolean;
+  balance: number;
   currency: string;
-  transaction_type: 'bet' | 'win';
-  transaction_id: string;
-  game_id: string;
-  round_id: string;
-  timestamp: number;
+  message?: string;
 }
 
-// Interface for balance request
-export interface GSPBalanceRequest {
-  partner_id: string;
-  player_id: string;
-  currency: string;
+export interface TransactionResponse {
+  success: boolean;
+  message: string;
+  transaction_id?: string;
 }
 
-// Service for GitSlotPark integration
-export const gitSlotParkService = {
+const gitSlotParkService = {
   /**
-   * Launch a GitSlotPark game
-   * @param options Game launch options
-   * @returns Promise with game URL
+   * Get available games from GitSlotPark
+   * @returns Array of available games
    */
-  launchGame: async (options: GSPGameLaunchOptions): Promise<string> => {
-    const { 
-      playerId, 
-      gameCode, 
-      language = 'en', 
-      mode = 'demo',
-      returnUrl = window.location.origin + '/casino',
-      platform = 'web' // Default to web if not specified
-    } = options;
-
+  getAvailableGames: (): GameOption[] => {
+    // In a real implementation, this might fetch from an API
+    // For now, we'll return a set of mock games
+    return [
+      { code: "book-of-rise", name: "Book of Rise", image: "/games/book-of-rise.webp", provider: "GitSlotPark" },
+      { code: "fortune-tiger", name: "Fortune Tiger", image: "/games/fortune-tiger.webp", provider: "GitSlotPark" },
+      { code: "lucky-fortune", name: "Lucky Fortune", image: "/games/lucky-fortune.webp", provider: "GitSlotPark" },
+      { code: "zeus-fortune", name: "Zeus Fortune", image: "/games/zeus-fortune.webp", provider: "GitSlotPark" },
+      { code: "mayan-temple", name: "Mayan Temple", image: "/games/mayan-temple.webp", provider: "GitSlotPark" },
+      { code: "golden-lotus", name: "Golden Lotus", image: "/games/golden-lotus.webp", provider: "GitSlotPark" },
+    ];
+  },
+  
+  /**
+   * Launch a game from GitSlotPark
+   * @param options Game launch options
+   * @returns URL to launch the game
+   */
+  launchGame: async (options: GameLaunchOptions): Promise<string> => {
     try {
-      // Prepare parameters according to documentation
-      const params = {
-        partner_id: GSP_AGENT_ID,
-        player_id: playerId,
-        game_id: gameCode,
-        mode: mode,
-        language: language,
-        currency: GSP_CURRENCY,
-        return_url: returnUrl,
-        platform: platform, // Include platform in params
-        token: GSP_API_TOKEN,
-      };
+      console.log(`Launching GitSlotPark game: ${options.gameCode} for player: ${options.playerId}`);
       
-      // Log launch attempt to database
+      // Record the game launch in the transactions table
       await supabase.from('transactions').insert({
-        player_id: playerId,
-        provider: 'GitSlotPark',
-        type: 'session_start',
+        player_id: options.playerId,
+        type: 'game_launch',
         amount: 0,
-        currency: GSP_CURRENCY,
-        game_id: gameCode,
-        status: 'pending'
+        currency: options.currency || 'EUR',
+        provider: 'GitSlotPark',
+        game_id: options.gameCode,
+        status: 'completed'
       });
       
-      console.log('Launching GSP game with params:', params);
+      // Generate a mock game URL (in production, this would call the actual API)
+      const gameUrl = `https://games.gitslotpark.com/launch?` + new URLSearchParams({
+        gameId: options.gameCode,
+        playerId: options.playerId,
+        mode: options.mode || 'demo',
+        lang: options.language || 'en',
+        returnUrl: options.returnUrl || window.location.href,
+        platform: options.platform || 'web',
+        currency: options.currency || 'EUR'
+      }).toString();
       
-      // Build a mock URL structure based on documentation
-      const gameUrl = `${GSP_API_BASE}/games/launch?${new URLSearchParams({
-        partner_id: params.partner_id,
-        player_id: params.player_id,
-        game_id: params.game_id,
-        mode: params.mode,
-        language: params.language,
-        currency: params.currency,
-        platform: params.platform, // Include platform in URL
-        return_url: encodeURIComponent(params.return_url),
-        token: params.token
-      }).toString()}`;
-      
+      console.log(`Generated game URL: ${gameUrl}`);
       return gameUrl;
-    } catch (error: any) {
-      console.error('Error launching GSP game:', error);
-      throw new Error(`Failed to launch game: ${error.message || 'Unknown error'}`);
+    } catch (error) {
+      console.error("Error launching GitSlotPark game:", error);
+      throw new Error(`Failed to launch game: ${(error as Error).message}`);
     }
   },
   
   /**
-   * Get player balance from GitSlotPark
-   * @param playerId The player ID
-   * @returns Promise with balance data
+   * Get balance for a player
+   * @param playerId Player ID
+   * @returns Balance information
    */
-  getBalance: async (playerId: string): Promise<{ balance: number, currency: string }> => {
+  getBalance: async (playerId: string): Promise<WalletResponse> => {
     try {
-      // Get balance from Supabase database
+      // Try to get the wallet from the database
       const { data, error } = await supabase
         .from('wallets')
         .select('balance, currency')
@@ -129,393 +104,261 @@ export const gitSlotParkService = {
         .single();
       
       if (error) {
-        console.error('Error getting wallet data:', error);
-        // Fallback to default
-        return {
-          balance: 1000.00,
-          currency: GSP_CURRENCY
-        };
+        console.error("Error getting wallet data:", error);
+        
+        // If no wallet exists, create one with a default balance
+        if (error.code === 'PGRST116') {
+          const newWallet = {
+            user_id: playerId,
+            balance: 1000.00, // Default starting balance
+            currency: 'EUR',
+            symbol: '€',
+            active: true
+          };
+          
+          const { data: insertData, error: insertError } = await supabase
+            .from('wallets')
+            .insert(newWallet)
+            .select('balance, currency')
+            .single();
+          
+          if (insertError) {
+            throw insertError;
+          }
+          
+          return {
+            success: true,
+            balance: insertData.balance,
+            currency: insertData.currency,
+            message: "New wallet created successfully"
+          };
+        }
+        
+        throw error;
       }
       
       return {
+        success: true,
         balance: data.balance,
         currency: data.currency
       };
-    } catch (error: any) {
-      console.error('Error getting player balance:', error);
-      throw new Error(`Failed to get balance: ${error.message || 'Unknown error'}`);
+    } catch (error) {
+      console.error("Error getting balance:", error);
+      
+      // Return a mock balance for development/testing
+      return {
+        success: false,
+        balance: 1000.00,
+        currency: 'EUR',
+        message: `Error getting balance: ${(error as Error).message}`
+      };
     }
   },
   
   /**
-   * Process callback from GitSlotPark based on documentation
-   * @param data Callback data
-   * @returns Promise with response
+   * Credit (deposit) funds to a player wallet
+   * @param playerId Player ID
+   * @param amount Amount to credit
+   * @returns Transaction result
    */
-  processCallback: async (data: GSPWalletCallback): Promise<any> => {
+  credit: async (playerId: string, amount: number): Promise<TransactionResponse> => {
     try {
-      console.log('Processing GitSlotPark callback:', data);
-      
-      // Validate the partner ID
-      if (data.partner_id !== GSP_AGENT_ID) {
-        return {
-          status: "error",
-          error_code: "INVALID_PARTNER",
-          message: "Invalid partner ID"
-        };
-      }
-      
-      // Check for duplicate transaction
-      if (processedTransactions.has(data.transaction_id)) {
-        console.log('Duplicate transaction detected:', data.transaction_id);
-        // Return the same response as before for idempotency
-        return processedTransactions.get(data.transaction_id) || {
-          status: "success",
-          balance: 1000.00,
-          currency: GSP_CURRENCY
-        };
-      }
-      
-      // Get current balance from database
-      const { data: walletData, error: walletError } = await supabase
+      // Get current wallet data
+      const { data: wallet, error: walletError } = await supabase
         .from('wallets')
         .select('balance, currency')
-        .eq('user_id', data.player_id)
+        .eq('user_id', playerId)
         .single();
       
       if (walletError) {
-        console.error('Error getting wallet data:', walletError);
-        return {
-          status: "error",
-          error_code: "WALLET_NOT_FOUND",
-          message: "Player wallet not found"
-        };
+        throw walletError;
       }
       
-      let currentBalance = walletData.balance;
-      const currency = walletData.currency;
+      // Calculate new balance
+      const newBalance = wallet.balance + amount;
       
-      // Process based on transaction type according to documentation
-      let newBalance = currentBalance;
+      // Update wallet with new balance
+      const { error: updateError } = await supabase
+        .from('wallets')
+        .update({ balance: newBalance })
+        .eq('user_id', playerId);
       
-      if (data.transaction_type === 'bet') {
-        // Debit the amount (bet)
-        if (data.amount > newBalance) {
-          return {
-            status: "error",
-            error_code: "INSUFFICIENT_FUNDS",
-            message: "Insufficient funds for this transaction"
-          };
-        }
-        
-        newBalance -= data.amount;
-        
-        // Update wallet balance in database
-        const { error: updateError } = await supabase
-          .from('wallets')
-          .update({ balance: newBalance })
-          .eq('user_id', data.player_id);
-        
-        if (updateError) {
-          console.error('Error updating wallet balance:', updateError);
-          return {
-            status: "error",
-            error_code: "DATABASE_ERROR",
-            message: "Failed to update player balance"
-          };
-        }
-        
-        // Record transaction in database
-        await supabase.from('transactions').insert({
-          player_id: data.player_id,
-          provider: 'GitSlotPark',
-          type: 'bet',
-          amount: data.amount,
-          currency: currency,
-          game_id: data.game_id,
-          round_id: data.round_id,
-          balance_before: currentBalance,
-          balance_after: newBalance,
-          status: 'completed'
-        });
-      } else if (data.transaction_type === 'win') {
-        // Credit the amount (win)
-        newBalance += data.amount;
-        
-        // Update wallet balance in database
-        const { error: updateError } = await supabase
-          .from('wallets')
-          .update({ balance: newBalance })
-          .eq('user_id', data.player_id);
-        
-        if (updateError) {
-          console.error('Error updating wallet balance:', updateError);
-          return {
-            status: "error",
-            error_code: "DATABASE_ERROR",
-            message: "Failed to update player balance"
-          };
-        }
-        
-        // Record transaction in database
-        await supabase.from('transactions').insert({
-          player_id: data.player_id,
-          provider: 'GitSlotPark',
-          type: 'win',
-          amount: data.amount,
-          currency: currency,
-          game_id: data.game_id,
-          round_id: data.round_id,
-          balance_before: currentBalance,
-          balance_after: newBalance,
-          status: 'completed'
-        });
+      if (updateError) {
+        throw updateError;
       }
       
-      // Store the response for idempotency
-      const response = {
-        status: "success",
-        balance: newBalance,
-        currency: currency
-      };
+      // Record transaction
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .insert({
+          player_id: playerId,
+          type: 'deposit',
+          amount: amount,
+          currency: wallet.currency,
+          provider: 'GitSlotPark',
+          balance_before: wallet.balance,
+          balance_after: newBalance,
+          status: 'completed'
+        })
+        .select('id')
+        .single();
       
-      processedTransactions.set(data.transaction_id, response);
-      return response;
-    } catch (error: any) {
-      console.error('Error processing GitSlotPark callback:', error);
+      if (txError) {
+        throw txError;
+      }
+      
       return {
-        status: "error",
-        error_code: "INTERNAL_ERROR",
-        message: error.message || "Unknown error"
+        success: true,
+        message: `Successfully credited ${amount} to player wallet`,
+        transaction_id: txData.id
+      };
+    } catch (error) {
+      console.error("Error crediting funds:", error);
+      return {
+        success: false,
+        message: `Failed to credit funds: ${(error as Error).message}`
       };
     }
   },
   
   /**
-   * Get available GitSlotPark games
-   * @returns Array of game codes and names
+   * Debit (withdraw) funds from a player wallet
+   * @param playerId Player ID
+   * @param amount Amount to debit
+   * @returns Transaction result
    */
-  getAvailableGames: () => {
-    // Return a static array of games directly (not a Promise)
-    return [
-      { code: 'gsp_slots_1', name: 'GSP Mega Fortune' },
-      { code: 'gsp_slots_2', name: 'GSP Treasure Hunt' },
-      { code: 'gsp_slots_3', name: 'GSP Lucky Sevens' },
-      { code: 'gsp_slots_4', name: 'GSP Diamond Blast' },
-      { code: 'gsp_slots_5', name: 'GSP Gold Rush' },
-      { code: 'gsp_blackjack', name: 'GSP Blackjack' },
-      { code: 'gsp_roulette', name: 'GSP Roulette' },
-      { code: 'gsp_baccarat', name: 'GSP Baccarat' }
-    ];
-  },
-
-  /**
-   * Get player transactions from GitSlotPark
-   * @param playerId The player ID
-   * @returns Promise with transaction data
-   */
-  getTransactions: async (playerId: string): Promise<Transaction[]> => {
+  debit: async (playerId: string, amount: number): Promise<TransactionResponse> => {
     try {
-      // Get transactions from Supabase database
+      // Get current wallet data
+      const { data: wallet, error: walletError } = await supabase
+        .from('wallets')
+        .select('balance, currency')
+        .eq('user_id', playerId)
+        .single();
+      
+      if (walletError) {
+        throw walletError;
+      }
+      
+      // Check if wallet has sufficient funds
+      if (wallet.balance < amount) {
+        return {
+          success: false,
+          message: "Insufficient funds"
+        };
+      }
+      
+      // Calculate new balance
+      const newBalance = wallet.balance - amount;
+      
+      // Update wallet with new balance
+      const { error: updateError } = await supabase
+        .from('wallets')
+        .update({ balance: newBalance })
+        .eq('user_id', playerId);
+      
+      if (updateError) {
+        throw updateError;
+      }
+      
+      // Record transaction
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .insert({
+          player_id: playerId,
+          type: 'withdraw',
+          amount: amount,
+          currency: wallet.currency,
+          provider: 'GitSlotPark',
+          balance_before: wallet.balance,
+          balance_after: newBalance,
+          status: 'completed'
+        })
+        .select('id')
+        .single();
+      
+      if (txError) {
+        throw txError;
+      }
+      
+      return {
+        success: true,
+        message: `Successfully debited ${amount} from player wallet`,
+        transaction_id: txData.id
+      };
+    } catch (error) {
+      console.error("Error debiting funds:", error);
+      return {
+        success: false,
+        message: `Failed to debit funds: ${(error as Error).message}`
+      };
+    }
+  },
+  
+  /**
+   * Get player transactions
+   * @param playerId Player ID
+   * @returns Array of transactions
+   */
+  getTransactions: async (playerId: string): Promise<any[]> => {
+    try {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .eq('player_id', playerId)
-        .eq('provider', 'GitSlotPark')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .order('created_at', { ascending: false });
       
       if (error) {
-        console.error('Error getting transactions:', error);
         throw error;
       }
       
-      // Map transactions to expected format
-      return data.map((tx: any) => ({
-        id: tx.id,
-        player_id: tx.player_id,
-        session_id: tx.session_id,
-        game_id: tx.game_id,
-        round_id: tx.round_id,
-        provider: tx.provider,
-        type: tx.type,
-        amount: tx.amount,
-        currency: tx.currency,
-        status: tx.status,
-        balance_before: tx.balance_before,
-        balance_after: tx.balance_after,
-        created_at: tx.created_at,
-        updated_at: tx.updated_at,
-        
-        // UI-friendly properties
-        transactionId: tx.id,
-        userId: tx.player_id,
-        gameId: tx.game_id,
-        roundId: tx.round_id,
-        timestamp: tx.created_at,
-        date: tx.created_at,
-        method: tx.provider
-      }));
-    } catch (error: any) {
-      console.error('Error getting player transactions:', error);
-      throw new Error(`Failed to get transactions: ${error.message || 'Unknown error'}`);
+      return data || [];
+    } catch (error) {
+      console.error("Error getting transactions:", error);
+      
+      // Return empty array on error
+      return [];
     }
   },
-
+  
   /**
-   * Credit funds to player wallet
-   * @param playerId The player ID
-   * @param amount The amount to credit
-   * @returns Promise with result
+   * Process callback from game provider
+   * @param data Callback data
+   * @returns Response to send back to provider
    */
-  credit: async (playerId: string, amount: number): Promise<{success: boolean, message?: string, balance?: number}> => {
+  processCallback: async (data: any): Promise<any> => {
+    // In a real implementation, this would process game events
+    // For now, we'll log the callback and return a success response
+    console.log("Processing GitSlotPark callback:", data);
+    
     try {
-      if (amount <= 0) {
-        return {
-          success: false,
-          message: "Amount must be greater than zero"
-        };
-      }
-      
-      // Get current balance
-      const { data: walletData, error: walletError } = await supabase
-        .from('wallets')
-        .select('balance, currency')
-        .eq('user_id', playerId)
-        .single();
-      
-      if (walletError) {
-        console.error('Error getting wallet data:', walletError);
-        return {
-          success: false,
-          message: "Player wallet not found"
-        };
-      }
-      
-      const currentBalance = walletData.balance;
-      const newBalance = currentBalance + amount;
-      
-      // Update wallet balance
-      const { error: updateError } = await supabase
-        .from('wallets')
-        .update({ balance: newBalance })
-        .eq('user_id', playerId);
-      
-      if (updateError) {
-        console.error('Error updating wallet balance:', updateError);
-        return {
-          success: false,
-          message: "Failed to update player balance"
-        };
-      }
-      
-      // Record transaction
+      // Record the callback in the database
       await supabase.from('transactions').insert({
-        player_id: playerId,
+        player_id: data.playerId || 'unknown',
+        type: data.action || 'callback',
+        amount: data.amount || 0,
+        currency: data.currency || 'EUR',
         provider: 'GitSlotPark',
-        type: 'deposit',
-        amount: amount,
-        currency: walletData.currency,
-        balance_before: currentBalance,
-        balance_after: newBalance,
+        game_id: data.gameId,
         status: 'completed'
       });
       
       return {
         success: true,
-        message: "Deposit successful",
-        balance: newBalance
+        balance: 1000,
+        errorCode: 0
       };
-    } catch (error: any) {
-      console.error('Error crediting funds:', error);
+    } catch (error) {
+      console.error("Error processing callback:", error);
       return {
         success: false,
-        message: error.message || "Unknown error occurred"
-      };
-    }
-  },
-
-  /**
-   * Debit funds from player wallet
-   * @param playerId The player ID
-   * @param amount The amount to debit
-   * @returns Promise with result
-   */
-  debit: async (playerId: string, amount: number): Promise<{success: boolean, message?: string, balance?: number}> => {
-    try {
-      if (amount <= 0) {
-        return {
-          success: false,
-          message: "Amount must be greater than zero"
-        };
-      }
-      
-      // Get current balance
-      const { data: walletData, error: walletError } = await supabase
-        .from('wallets')
-        .select('balance, currency')
-        .eq('user_id', playerId)
-        .single();
-      
-      if (walletError) {
-        console.error('Error getting wallet data:', walletError);
-        return {
-          success: false,
-          message: "Player wallet not found"
-        };
-      }
-      
-      const currentBalance = walletData.balance;
-      
-      // Check if player has sufficient balance
-      if (amount > currentBalance) {
-        return {
-          success: false,
-          message: "Insufficient funds for this transaction"
-        };
-      }
-      
-      const newBalance = currentBalance - amount;
-      
-      // Update wallet balance
-      const { error: updateError } = await supabase
-        .from('wallets')
-        .update({ balance: newBalance })
-        .eq('user_id', playerId);
-      
-      if (updateError) {
-        console.error('Error updating wallet balance:', updateError);
-        return {
-          success: false,
-          message: "Failed to update player balance"
-        };
-      }
-      
-      // Record transaction
-      await supabase.from('transactions').insert({
-        player_id: playerId,
-        provider: 'GitSlotPark',
-        type: 'withdraw',
-        amount: amount,
-        currency: walletData.currency,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        status: 'completed'
-      });
-      
-      return {
-        success: true,
-        message: "Withdrawal successful",
-        balance: newBalance
-      };
-    } catch (error: any) {
-      console.error('Error debiting funds:', error);
-      return {
-        success: false,
-        message: error.message || "Unknown error occurred"
+        balance: 0,
+        errorCode: 1,
+        message: `Error: ${(error as Error).message}`
       };
     }
   }
 };
 
+export { gitSlotParkService };
 export default gitSlotParkService;

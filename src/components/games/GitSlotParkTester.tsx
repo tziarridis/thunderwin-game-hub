@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import gitSlotParkService from '@/services/gitSlotParkService';
+import { gitSlotParkService } from '@/services/gitSlotParkService';
 import { toast } from 'sonner';
 
 interface GameOption {
