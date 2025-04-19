@@ -25,6 +25,7 @@ export interface GSPGameLaunchOptions {
   language?: string;
   mode?: 'real' | 'demo';
   returnUrl?: string;
+  currency?: string; // Added the currency property to fix the type error
 }
 
 // Interface for wallet callback request based on documentation

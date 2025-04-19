@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
@@ -53,14 +54,14 @@ export const gameProviderService = {
           return await getAmaticLaunchUrl(providerConfig, gameId, playerId, mode, language, currency, options.returnUrl);
           
         case 'GSP':
-          // Use the GitSlotPark service for this provider
+          // Use the GitSlotPark service for this provider with the correct options
           return await gitSlotParkService.launchGame({
             playerId,
             gameCode: gameId,
             mode,
             returnUrl: options.returnUrl,
             language,
-            currency
+            currency // Make sure currency is passed to match the updated interface
           });
         
         default:
