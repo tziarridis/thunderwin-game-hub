@@ -7,7 +7,15 @@ import { supabase } from "@/integrations/supabase/client";
 // Initialize the database connection once at startup
 export const initializeDatabase = async () => {
   try {
-    console.log("Running with Supabase database");
+    console.log("Connecting to Supabase database...");
+    const { data, error } = await supabase.from('wallets').select('id').limit(1);
+    
+    if (error) {
+      console.error("Failed to connect to Supabase database:", error);
+      return false;
+    }
+    
+    console.log("Successfully connected to Supabase database");
     return true;
   } catch (error) {
     console.error("Failed to initialize database:", error);
@@ -41,7 +49,7 @@ export const db = {
   connect: initializeDatabase,
   status: getDatabaseStatus,
   disconnect: () => {
-    console.log("Disconnected from database");
+    console.log("Disconnected from Supabase database");
     return true;
   }
 };

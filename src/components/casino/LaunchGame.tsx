@@ -6,6 +6,7 @@ import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LaunchGameProps {
   game: Game;
@@ -43,6 +44,19 @@ const LaunchGame = ({
     try {
       setIsLaunching(true);
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      
+      // Log game launch attempt to database
+      if (isAuthenticated) {
+        await supabase.from('transactions').insert({
+          player_id: playerId,
+          provider: game.provider || providerId,
+          type: 'game_launch',
+          amount: 0,
+          currency: currency,
+          game_id: game.id,
+          status: 'completed'
+        });
+      }
       
       console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
         mode,
