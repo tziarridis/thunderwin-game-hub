@@ -15,6 +15,7 @@ import PPApiValidator from "@/components/admin/PPApiValidator";
 import PPIntegrationReport from "@/components/admin/PPIntegrationReport";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import CurrencyLanguageSelector from "@/components/admin/CurrencyLanguageSelector";
 
 const PPIntegrationTester = () => {
   const [activeTab, setActiveTab] = useState("game-tester");
@@ -23,6 +24,8 @@ const PPIntegrationTester = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [integrationStatus, setIntegrationStatus] = useState<'success' | 'warning' | 'error' | 'pending'>('pending');
   const { isAuthenticated, user } = useAuth();
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   useEffect(() => {
     // Add initial log entry
@@ -41,14 +44,16 @@ const PPIntegrationTester = () => {
     }
     
     setIsLoading(true);
-    addLog(`Launching game with code: ${gameCode}`);
+    addLog(`Launching game with code: ${gameCode}, currency: ${selectedCurrency}, language: ${selectedLanguage}`);
     
     try {
       const gameUrl = await pragmaticPlayService.launchGame({
         playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
         gameCode: gameCode,
         mode: 'demo',
-        returnUrl: window.location.href
+        returnUrl: window.location.href,
+        language: selectedLanguage,
+        currency: selectedCurrency
       });
       
       addLog(`Game launched successfully: ${gameUrl}`);
@@ -225,6 +230,14 @@ const PPIntegrationTester = () => {
                   ))}
                 </div>
               </div>
+              
+              <CurrencyLanguageSelector
+                selectedCurrency={selectedCurrency}
+                onCurrencyChange={setSelectedCurrency}
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={setSelectedLanguage}
+                className="pt-2"
+              />
               
               <Button 
                 onClick={handleLaunchGame} 

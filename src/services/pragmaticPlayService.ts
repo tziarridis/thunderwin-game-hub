@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { getProviderConfig } from '@/config/gameProviders';
 import { v4 as uuidv4 } from 'uuid';
+import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from '@/constants/integrationsData';
 
 // Get Pragmatic Play EUR configuration
 const ppConfig = getProviderConfig('ppeur');
@@ -25,6 +26,7 @@ export interface PPGameLaunchOptions {
   platform?: 'web' | 'mobile';
   mode?: 'real' | 'demo';
   returnUrl?: string;
+  currency?: string;
 }
 
 // Interface for wallet callback request based on PP documentation
@@ -60,8 +62,19 @@ export const pragmaticPlayService = {
       language = 'en', 
       platform = 'web',
       mode = 'demo',
-      returnUrl = window.location.origin + '/casino'
+      returnUrl = window.location.origin + '/casino',
+      currency = PP_CURRENCY
     } = options;
+
+    // Validate language is supported
+    if (!SUPPORTED_LANGUAGES.some(lang => lang.code === language)) {
+      throw new Error(`Unsupported language: ${language}`);
+    }
+
+    // Validate currency is supported
+    if (!SUPPORTED_CURRENCIES.some(curr => curr.code === currency)) {
+      throw new Error(`Unsupported currency: ${currency}`);
+    }
 
     try {
       // For demo mode, we can use a simpler approach since no real wallet is involved
@@ -77,7 +90,7 @@ export const pragmaticPlayService = {
         agentid: PP_AGENT_ID,
         playerid: playerId,
         language: language,
-        currency: PP_CURRENCY,
+        currency: currency,
         gamecode: gameCode,
         platform: platform,
         callbackurl: ppConfig?.credentials.callbackUrl || `${window.location.origin}/api/seamless/pragmatic`
@@ -99,8 +112,8 @@ export const pragmaticPlayService = {
       }
       */
       
-      // Simulate a successful response with a mock game URL based on documentation
-      const mockGameUrl = `${PP_API_BASE}/v1/game/real/${gameCode}?token=mock-token-${Date.now()}&lang=${language}&lobby=${encodeURIComponent(returnUrl)}`;
+      // Simulate a successful response with a mock game URL
+      const mockGameUrl = `${PP_API_BASE}/v1/game/real/${gameCode}?token=mock-token-${Date.now()}&lang=${language}&currency=${currency}&lobby=${encodeURIComponent(returnUrl)}`;
       
       console.log(`Mocked game URL (real money): ${mockGameUrl}`);
       return mockGameUrl;

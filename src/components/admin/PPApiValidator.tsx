@@ -2,171 +2,207 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
+import { Loader2, Check, X, AlertTriangle } from "lucide-react";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
-import { Loader2, Check, X, Play, Search } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from "@/constants/integrationsData";
+import CurrencyLanguageSelector from "./CurrencyLanguageSelector";
 
 interface PPApiValidatorProps {
   addLog?: (message: string) => void;
 }
 
-const PPApiValidator: React.FC<PPApiValidatorProps> = ({ addLog = () => {} }) => {
-  const [endpoint, setEndpoint] = useState("launchgame");
-  const [isLoading, setIsLoading] = useState(false);
-  const [testResults, setTestResults] = useState<{
-    success: boolean;
-    message: string;
-    data?: any;
-    timestamp: string;
-  }[]>([]);
+const PPApiValidator = ({ addLog = () => {} }: PPApiValidatorProps) => {
+  const [isValidating, setIsValidating] = useState(false);
+  const [results, setResults] = useState<{ test: string; success: boolean; message: string; }[]>([]);
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
-  const testEndpoint = async () => {
-    setIsLoading(true);
-    addLog(`Testing PP API endpoint: ${endpoint}`);
-
+  const runAllTests = async () => {
+    setIsValidating(true);
+    addLog("Starting API validation tests...");
+    setResults([]);
+    
     try {
-      let result;
-      switch (endpoint) {
-        case "launchgame":
-          result = await pragmaticPlayService.testLaunchGame();
-          break;
-        case "getbalance":
-          result = await pragmaticPlayService.testGetBalance();
-          break;
-        case "gameinfo":
-          result = await pragmaticPlayService.testGameInfo();
-          break;
-        case "wallet":
-          result = await pragmaticPlayService.testWalletCallback();
-          break;
-        default:
-          throw new Error(`Unknown endpoint: ${endpoint}`);
-      }
-
-      setTestResults(prev => [{
-        success: result.success,
-        message: result.message,
-        data: result.data,
-        timestamp: new Date().toISOString()
-      }, ...prev.slice(0, 9)]);
-
-      addLog(`API test ${result.success ? 'successful' : 'failed'}: ${result.message}`);
+      // Test API configuration
+      const configTest = await pragmaticPlayService.validateConfig();
+      setResults(prev => [...prev, { 
+        test: "API Configuration", 
+        success: configTest.success, 
+        message: configTest.message 
+      }]);
+      addLog(`API Configuration test: ${configTest.success ? 'Pass' : 'Fail'} - ${configTest.message}`);
       
-      if (result.success) {
-        toast.success(`API endpoint test successful: ${endpoint}`);
-      } else {
-        toast.error(`API endpoint test failed: ${result.message}`);
-      }
+      // Test API connectivity
+      const connectivityTest = await pragmaticPlayService.testApiConnection();
+      setResults(prev => [...prev, { 
+        test: "API Connectivity", 
+        success: connectivityTest.success, 
+        message: connectivityTest.message 
+      }]);
+      addLog(`API Connectivity test: ${connectivityTest.success ? 'Pass' : 'Fail'} - ${connectivityTest.message}`);
+      
+      // Test game launching
+      const launchTest = await pragmaticPlayService.testLaunchGame();
+      setResults(prev => [...prev, { 
+        test: "Game Launch", 
+        success: launchTest.success, 
+        message: launchTest.message 
+      }]);
+      addLog(`Game Launch test: ${launchTest.success ? 'Pass' : 'Fail'} - ${launchTest.message}`);
+      
+      // Test wallet callback
+      const walletTest = await pragmaticPlayService.testWalletCallback();
+      setResults(prev => [...prev, { 
+        test: "Wallet Callback", 
+        success: walletTest.success, 
+        message: walletTest.message 
+      }]);
+      addLog(`Wallet Callback test: ${walletTest.success ? 'Pass' : 'Fail'} - ${walletTest.message}`);
+      
+      // Test callback URL
+      const callbackTest = await pragmaticPlayService.validateCallbackUrl();
+      setResults(prev => [...prev, { 
+        test: "Callback URL", 
+        success: callbackTest.success, 
+        message: callbackTest.message 
+      }]);
+      addLog(`Callback URL test: ${callbackTest.success ? 'Pass' : 'Fail'} - ${callbackTest.message}`);
+      
+      // Test idempotency
+      const idempotencyTest = await pragmaticPlayService.testIdempotency();
+      setResults(prev => [...prev, { 
+        test: "Idempotency", 
+        success: idempotencyTest.success, 
+        message: idempotencyTest.message 
+      }]);
+      addLog(`Idempotency test: ${idempotencyTest.success ? 'Pass' : 'Fail'} - ${idempotencyTest.message}`);
+      
+      // Test currencies support
+      const currenciesTestResult = {
+        success: SUPPORTED_CURRENCIES.length > 0,
+        message: `${SUPPORTED_CURRENCIES.length} currencies supported`
+      };
+      setResults(prev => [...prev, {
+        test: "Currencies Support",
+        success: currenciesTestResult.success,
+        message: currenciesTestResult.message
+      }]);
+      addLog(`Currencies Support test: ${currenciesTestResult.success ? 'Pass' : 'Fail'} - ${currenciesTestResult.message}`);
+      
+      // Test languages support
+      const languagesTestResult = {
+        success: SUPPORTED_LANGUAGES.length > 0,
+        message: `${SUPPORTED_LANGUAGES.length} languages supported`
+      };
+      setResults(prev => [...prev, {
+        test: "Languages Support",
+        success: languagesTestResult.success,
+        message: languagesTestResult.message
+      }]);
+      addLog(`Languages Support test: ${languagesTestResult.success ? 'Pass' : 'Fail'} - ${languagesTestResult.message}`);
+      
     } catch (error: any) {
-      const errorMessage = `API test error: ${error.message}`;
-      setTestResults(prev => [{
-        success: false,
-        message: errorMessage,
-        timestamp: new Date().toISOString()
-      }, ...prev.slice(0, 9)]);
-      
-      addLog(`ERROR: ${errorMessage}`);
-      toast.error(errorMessage);
+      addLog(`Error during API validation: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setIsValidating(false);
+      addLog("API validation tests completed");
     }
   };
 
-  const getEndpointDescription = () => {
-    switch (endpoint) {
-      case "launchgame":
-        return "Tests the game launch API to verify URL generation";
-      case "getbalance":
-        return "Tests the player balance retrieval endpoint";
-      case "gameinfo":
-        return "Tests retrieving information about available games";
-      case "wallet":
-        return "Tests wallet callback functionality for bets and wins";
-      default:
-        return "Select an endpoint to test";
+  const getOverallStatus = () => {
+    if (results.length === 0) return null;
+    
+    const failedTests = results.filter(r => !r.success);
+    
+    if (failedTests.length === 0) {
+      return { status: 'success', message: 'All tests passed' };
+    } else if (failedTests.length <= 2) {
+      return { status: 'warning', message: `${failedTests.length} tests failed` };
+    } else {
+      return { status: 'error', message: `${failedTests.length} tests failed` };
     }
   };
+
+  const overallStatus = getOverallStatus();
 
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle>Pragmatic Play API Validator</CardTitle>
         <CardDescription>
-          Validate API endpoints and responses
+          Validate your Pragmatic Play API integration
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="endpoint-select">Select API Endpoint</Label>
-          <Select value={endpoint} onValueChange={setEndpoint}>
-            <SelectTrigger id="endpoint-select" className="bg-slate-700 border-slate-600">
-              <SelectValue placeholder="Select endpoint to test" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="launchgame">Launch Game API</SelectItem>
-              <SelectItem value="getbalance">Get Balance API</SelectItem>
-              <SelectItem value="gameinfo">Game Info API</SelectItem>
-              <SelectItem value="wallet">Wallet Callback</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-slate-400">{getEndpointDescription()}</p>
-        </div>
-
-        <Button 
-          onClick={testEndpoint} 
-          disabled={isLoading}
-          className="w-full"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Testing API...
-            </>
-          ) : (
-            <>
-              <Search className="mr-2 h-4 w-4" />
-              Test API Endpoint
-            </>
-          )}
-        </Button>
-
-        <div className="space-y-2 mt-4">
-          <Label>Test Results</Label>
-          {testResults.length === 0 ? (
-            <div className="bg-slate-900 rounded-md p-4 text-center text-slate-400 text-sm">
-              No tests have been run yet
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {testResults.map((result, index) => (
-                <div key={index} className="bg-slate-900 rounded-md p-3 border-l-4 text-sm overflow-hidden break-words"
-                  style={{ borderLeftColor: result.success ? '#10b981' : '#ef4444' }}
-                >
-                  <div className="flex items-center">
-                    {result.success ? (
-                      <Check className="h-4 w-4 text-green-500 mr-2" />
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-md font-medium">API Tests</h3>
+            <Button 
+              onClick={runAllTests} 
+              disabled={isValidating}
+              variant="outline"
+              size="sm"
+            >
+              {isValidating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Running Tests...
+                </>
+              ) : 'Run All Tests'}
+            </Button>
+          </div>
+          
+          <CurrencyLanguageSelector
+            selectedCurrency={selectedCurrency}
+            onCurrencyChange={setSelectedCurrency}
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+          />
+          
+          {results.length > 0 && (
+            <div className="mt-4 border-t border-slate-700 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-md font-medium">Test Results</h3>
+                {overallStatus && (
+                  <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${
+                    overallStatus.status === 'success' ? 'bg-green-500/20 text-green-500' :
+                    overallStatus.status === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
+                    'bg-red-500/20 text-red-500'
+                  }`}>
+                    {overallStatus.status === 'success' ? (
+                      <Check className="h-3 w-3 mr-1" />
+                    ) : overallStatus.status === 'warning' ? (
+                      <AlertTriangle className="h-3 w-3 mr-1" />
                     ) : (
-                      <X className="h-4 w-4 text-red-500 mr-2" />
+                      <X className="h-3 w-3 mr-1" />
                     )}
-                    <span className={result.success ? "text-green-400" : "text-red-400"}>
-                      {result.success ? "Success" : "Failed"}
-                    </span>
-                    <span className="text-xs text-slate-500 ml-auto">
-                      {new Date(result.timestamp).toLocaleTimeString()}
-                    </span>
+                    {overallStatus.message}
                   </div>
-                  <div className="mt-1 text-slate-300">{result.message}</div>
-                  {result.data && (
-                    <pre className="mt-2 p-2 bg-slate-950 rounded text-xs text-slate-300 font-mono overflow-x-auto">
-                      {JSON.stringify(result.data, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              ))}
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                {results.map((result, index) => (
+                  <div 
+                    key={index} 
+                    className={`p-3 rounded flex justify-between items-center ${
+                      result.success ? 'bg-green-500/10' : 'bg-red-500/10'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-medium">{result.test}</div>
+                      <div className="text-xs text-slate-400">{result.message}</div>
+                    </div>
+                    <div>
+                      {result.success ? (
+                        <Check className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <X className="h-5 w-5 text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
