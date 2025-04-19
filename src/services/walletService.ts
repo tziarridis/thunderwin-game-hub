@@ -34,35 +34,102 @@ export interface WalletTransaction {
   round_id?: string;
 }
 
+/**
+ * Get a user's wallet or create if it doesn't exist
+ * @param userId User ID
+ * @returns The user's wallet
+ */
+export const getWalletByUserId = async (userId: string): Promise<Wallet | null> => {
+  try {
+    // Try to get the existing wallet
+    const { data, error } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      // If no wallet exists, create one
+      if (error.code === 'PGRST116') {
+        return await createWallet(userId);
+      }
+      throw error;
+    }
+    
+    return data as Wallet;
+  } catch (error) {
+    console.error(`Error getting wallet for user ${userId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Create a new wallet for a user
+ * @param userId User ID
+ * @param currency Currency code (default: USD)
+ * @returns The newly created wallet
+ */
+export const createWallet = async (userId: string, currency = 'USD'): Promise<Wallet | null> => {
+  try {
+    const symbol = currency === 'USD' ? '$' : 
+                   currency === 'EUR' ? '€' : 
+                   currency === 'GBP' ? '£' : 
+                   currency;
+    
+    const newWallet = {
+      user_id: userId,
+      balance: 0,
+      currency,
+      symbol,
+      active: true
+    };
+    
+    const { data, error } = await supabase
+      .from('wallets')
+      .insert(newWallet)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    toast.success('Wallet created successfully');
+    return data as Wallet;
+  } catch (error) {
+    console.error(`Error creating wallet for user ${userId}:`, error);
+    toast.error('Failed to create wallet');
+    return null;
+  }
+};
+
+/**
+ * Update a wallet's balance
+ * @param userId User ID
+ * @param newBalance New balance value
+ * @returns Success status
+ */
+export const updateWalletBalance = async (userId: string, newBalance: number): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('wallets')
+      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    
+    return true;
+  } catch (error) {
+    console.error(`Error updating wallet balance for user ${userId}:`, error);
+    return false;
+  }
+};
+
 export const walletService = {
   /**
    * Get a user's wallet or create if it doesn't exist
    * @param userId User ID
    * @returns The user's wallet
    */
-  getWalletByUserId: async (userId: string): Promise<Wallet | null> => {
-    try {
-      // Try to get the existing wallet
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
-      if (error) {
-        // If no wallet exists, create one
-        if (error.code === 'PGRST116') {
-          return await walletService.createWallet(userId);
-        }
-        throw error;
-      }
-      
-      return data as Wallet;
-    } catch (error) {
-      console.error(`Error getting wallet for user ${userId}:`, error);
-      return null;
-    }
-  },
+  getWalletByUserId,
   
   /**
    * Create a new wallet for a user
@@ -70,37 +137,7 @@ export const walletService = {
    * @param currency Currency code (default: USD)
    * @returns The newly created wallet
    */
-  createWallet: async (userId: string, currency = 'USD'): Promise<Wallet | null> => {
-    try {
-      const symbol = currency === 'USD' ? '$' : 
-                     currency === 'EUR' ? '€' : 
-                     currency === 'GBP' ? '£' : 
-                     currency;
-      
-      const newWallet = {
-        user_id: userId,
-        balance: 0,
-        currency,
-        symbol,
-        active: true
-      };
-      
-      const { data, error } = await supabase
-        .from('wallets')
-        .insert(newWallet)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      toast.success('Wallet created successfully');
-      return data as Wallet;
-    } catch (error) {
-      console.error(`Error creating wallet for user ${userId}:`, error);
-      toast.error('Failed to create wallet');
-      return null;
-    }
-  },
+  createWallet,
   
   /**
    * Update a wallet's balance
@@ -108,21 +145,7 @@ export const walletService = {
    * @param newBalance New balance value
    * @returns Success status
    */
-  updateWalletBalance: async (userId: string, newBalance: number): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('wallets')
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
-      
-      if (error) throw error;
-      
-      return true;
-    } catch (error) {
-      console.error(`Error updating wallet balance for user ${userId}:`, error);
-      return false;
-    }
-  },
+  updateWalletBalance,
   
   /**
    * Credit (deposit) funds to a wallet
@@ -140,14 +163,14 @@ export const walletService = {
   ): Promise<boolean> => {
     try {
       // Get current wallet
-      const wallet = await walletService.getWalletByUserId(userId);
+      const wallet = await getWalletByUserId(userId);
       if (!wallet) throw new Error('Wallet not found');
       
       // Calculate new balance
       const newBalance = wallet.balance + amount;
       
       // Update wallet balance
-      const updated = await walletService.updateWalletBalance(userId, newBalance);
+      const updated = await updateWalletBalance(userId, newBalance);
       if (!updated) throw new Error('Failed to update wallet balance');
       
       // Create transaction record
@@ -189,7 +212,7 @@ export const walletService = {
   ): Promise<boolean> => {
     try {
       // Get current wallet
-      const wallet = await walletService.getWalletByUserId(userId);
+      const wallet = await getWalletByUserId(userId);
       if (!wallet) throw new Error('Wallet not found');
       
       // Check if sufficient funds
@@ -202,7 +225,7 @@ export const walletService = {
       const newBalance = wallet.balance - amount;
       
       // Update wallet balance
-      const updated = await walletService.updateWalletBalance(userId, newBalance);
+      const updated = await updateWalletBalance(userId, newBalance);
       if (!updated) throw new Error('Failed to update wallet balance');
       
       // Create transaction record
@@ -245,7 +268,21 @@ export const walletService = {
       
       if (error) throw error;
       
-      return data as WalletTransaction[];
+      // Transform the data to match WalletTransaction interface
+      const transactions: WalletTransaction[] = data.map(item => ({
+        id: item.id,
+        user_id: item.player_id, // Map player_id to user_id
+        amount: item.amount,
+        currency: item.currency,
+        type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
+        status: item.status as 'pending' | 'completed' | 'failed',
+        created_at: item.created_at,
+        provider: item.provider,
+        game_id: item.game_id,
+        round_id: item.round_id
+      }));
+      
+      return transactions;
     } catch (error) {
       console.error(`Error getting transactions for user ${userId}:`, error);
       return [];

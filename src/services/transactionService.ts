@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 import { getWalletByUserId, updateWalletBalance } from './walletService';
@@ -57,7 +56,7 @@ export const createTransaction = async (
     balance_before?: number;
     balance_after?: number;
   } = {}
-): Promise<Transaction> => {
+): Promise<Transaction | null> => {
   // Get the current wallet balance if not provided
   let balanceBefore = options.balance_before;
   let balanceAfter = options.balance_after;
