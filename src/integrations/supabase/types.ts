@@ -9,7 +9,207 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          affiliate_baseline: number
+          affiliate_cpa: number
+          affiliate_revenue_share: number
+          affiliate_revenue_share_fake: number | null
+          avatar: string | null
+          banned: boolean
+          cpf: string | null
+          created_at: string | null
+          email: string
+          id: string
+          inviter_code: string | null
+          inviter_id: string | null
+          is_demo_agent: boolean
+          language: string
+          last_name: string | null
+          phone: string | null
+          role_id: number
+          status: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          affiliate_baseline?: number
+          affiliate_cpa?: number
+          affiliate_revenue_share?: number
+          affiliate_revenue_share_fake?: number | null
+          avatar?: string | null
+          banned?: boolean
+          cpf?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          inviter_code?: string | null
+          inviter_id?: string | null
+          is_demo_agent?: boolean
+          language?: string
+          last_name?: string | null
+          phone?: string | null
+          role_id?: number
+          status?: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          affiliate_baseline?: number
+          affiliate_cpa?: number
+          affiliate_revenue_share?: number
+          affiliate_revenue_share_fake?: number | null
+          avatar?: string | null
+          banned?: boolean
+          cpf?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          inviter_code?: string | null
+          inviter_id?: string | null
+          is_demo_agent?: boolean
+          language?: string
+          last_name?: string | null
+          phone?: string | null
+          role_id?: number
+          status?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "users_inviter_id_fkey"
+            columns: ["inviter_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          active: boolean
+          balance: number
+          balance_bonus: number
+          balance_bonus_rollover: number | null
+          balance_cryptocurrency: number
+          balance_demo: number | null
+          balance_deposit_rollover: number | null
+          balance_withdrawal: number | null
+          created_at: string | null
+          currency: string
+          hide_balance: boolean
+          id: string
+          last_lose: number
+          last_won: number
+          refer_rewards: number
+          symbol: string
+          total_bet: number
+          total_lose: number
+          total_won: number
+          updated_at: string | null
+          user_id: string
+          vip_level: number | null
+          vip_points: number | null
+        }
+        Insert: {
+          active?: boolean
+          balance?: number
+          balance_bonus?: number
+          balance_bonus_rollover?: number | null
+          balance_cryptocurrency?: number
+          balance_demo?: number | null
+          balance_deposit_rollover?: number | null
+          balance_withdrawal?: number | null
+          created_at?: string | null
+          currency: string
+          hide_balance?: boolean
+          id?: string
+          last_lose?: number
+          last_won?: number
+          refer_rewards?: number
+          symbol: string
+          total_bet?: number
+          total_lose?: number
+          total_won?: number
+          updated_at?: string | null
+          user_id: string
+          vip_level?: number | null
+          vip_points?: number | null
+        }
+        Update: {
+          active?: boolean
+          balance?: number
+          balance_bonus?: number
+          balance_bonus_rollover?: number | null
+          balance_cryptocurrency?: number
+          balance_demo?: number | null
+          balance_deposit_rollover?: number | null
+          balance_withdrawal?: number | null
+          created_at?: string | null
+          currency?: string
+          hide_balance?: boolean
+          id?: string
+          last_lose?: number
+          last_won?: number
+          refer_rewards?: number
+          symbol?: string
+          total_bet?: number
+          total_lose?: number
+          total_won?: number
+          updated_at?: string | null
+          user_id?: string
+          vip_level?: number | null
+          vip_points?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

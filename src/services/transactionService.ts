@@ -1,6 +1,6 @@
 
 import { v4 as uuidv4 } from 'uuid';
-import { query } from './databaseService';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Transaction {
   id: string;
@@ -80,30 +80,13 @@ export const createTransaction = async (
     timestamp: now
   };
 
-  const sql = `
-    INSERT INTO transactions 
-    (id, player_id, session_id, game_id, round_id, provider, type, amount, currency, status, balance_before, balance_after, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+  // Store in Supabase
+  const { error } = await supabase
+    .from('transactions')
+    .insert(transaction);
 
-  const values = [
-    transaction.id,
-    transaction.player_id,
-    transaction.session_id,
-    transaction.game_id,
-    transaction.round_id,
-    transaction.provider,
-    transaction.type,
-    transaction.amount,
-    transaction.currency,
-    transaction.status,
-    transaction.balance_before,
-    transaction.balance_after,
-    transaction.created_at,
-    transaction.updated_at
-  ];
-
-  await query(sql, values);
+  if (error) throw error;
+  
   return transaction;
 };
 
@@ -111,12 +94,20 @@ export const createTransaction = async (
  * Get a transaction by ID
  */
 export const getTransaction = async (id: string): Promise<Transaction | null> => {
-  const sql = 'SELECT * FROM transactions WHERE id = ? LIMIT 1';
-  const result = await query(sql, [id]);
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('id', id)
+    .single();
   
-  if (result && result[0]) {
+  if (error) {
+    console.error('Error getting transaction:', error);
+    return null;
+  }
+  
+  if (data) {
     // Transform DB result to include UI properties
-    const transaction = result[0] as Transaction;
+    const transaction = data as Transaction;
     return {
       ...transaction,
       transactionId: transaction.id,
@@ -134,50 +125,47 @@ export const getTransaction = async (id: string): Promise<Transaction | null> =>
  * Get transactions with filters
  */
 export const getTransactions = async (filters: TransactionFilter = {}): Promise<Transaction[]> => {
-  let sql = 'SELECT * FROM transactions WHERE 1=1';
-  const values: any[] = [];
+  let query = supabase.from('transactions').select('*');
 
   if (filters.player_id) {
-    sql += ' AND player_id = ?';
-    values.push(filters.player_id);
+    query = query.eq('player_id', filters.player_id);
   }
 
   if (filters.provider) {
-    sql += ' AND provider = ?';
-    values.push(filters.provider);
+    query = query.eq('provider', filters.provider);
   }
 
   if (filters.type) {
-    sql += ' AND type = ?';
-    values.push(filters.type);
+    query = query.eq('type', filters.type);
   }
 
   if (filters.status) {
-    sql += ' AND status = ?';
-    values.push(filters.status);
+    query = query.eq('status', filters.status);
   }
 
   if (filters.startDate) {
-    sql += ' AND created_at >= ?';
-    values.push(filters.startDate);
+    query = query.gte('created_at', filters.startDate);
   }
 
   if (filters.endDate) {
-    sql += ' AND created_at <= ?';
-    values.push(filters.endDate);
+    query = query.lte('created_at', filters.endDate);
   }
 
-  sql += ' ORDER BY created_at DESC';
+  query = query.order('created_at', { ascending: false });
 
   if (filters.limit) {
-    sql += ' LIMIT ?';
-    values.push(filters.limit);
+    query = query.limit(filters.limit);
   }
 
-  const results = await query(sql, values);
+  const { data, error } = await query;
+  
+  if (error) {
+    console.error('Error getting transactions:', error);
+    return [];
+  }
   
   // Transform DB results to include UI properties
-  return results.map((transaction: Transaction) => ({
+  return (data || []).map((transaction: Transaction) => ({
     ...transaction,
     transactionId: transaction.id,
     userId: transaction.player_id,
@@ -195,14 +183,21 @@ export const updateTransactionStatus = async (
   status: 'pending' | 'completed' | 'failed',
   balanceAfter?: number
 ): Promise<Transaction | null> => {
-  const sql = `
-    UPDATE transactions 
-    SET status = ?, balance_after = ?, updated_at = ?
-    WHERE id = ?
-  `;
-
   const now = new Date().toISOString();
-  await query(sql, [status, balanceAfter, now, id]);
+  
+  const { error } = await supabase
+    .from('transactions')
+    .update({ 
+      status, 
+      balance_after: balanceAfter, 
+      updated_at: now 
+    })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating transaction:', error);
+    return null;
+  }
   
   return getTransaction(id);
 };
@@ -233,7 +228,7 @@ export const getPragmaticPlayTransactions = async (limit = 100): Promise<Transac
     }));
   }
   
-  // For server environment, query the database
+  // For server environment, query Supabase
   return getTransactions({ 
     provider: 'Pragmatic Play', 
     limit 

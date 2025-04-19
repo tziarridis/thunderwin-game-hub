@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
@@ -6,6 +7,7 @@ import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI }
 import { clientGamesApi } from "@/services/gamesService";
 import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
 import { availableProviders } from "@/config/gameProviders";
+import { supabase } from "@/integrations/supabase/client";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -21,6 +23,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
   const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
     try {
       setLoading(true);
+      // Use supabase to fetch games in the future
       const response = await clientGamesApi.getGames(queryParams);
       
       // Convert API game format to UI game format

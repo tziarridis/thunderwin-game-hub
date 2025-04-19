@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,12 +28,15 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const ContactPage = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
+    name: user?.name || "",
+    email: user?.email || "",
     topic: "",
     message: ""
   });
@@ -49,24 +51,36 @@ const ContactPage = () => {
     setFormData(prev => ({ ...prev, topic: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Simulate form submission
-    setTimeout(() => {
+    try {
+      // In a real app, we'd submit this to Supabase
+      // For now, we'll just simulate a successful submission
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       toast({
         title: "Message Sent",
         description: "Thank you for contacting us. We'll respond to your inquiry as soon as possible.",
       });
+      
       setFormData({
-        name: "",
-        email: "",
+        name: user?.name || "",
+        email: user?.email || "",
         topic: "",
         message: ""
       });
+    } catch (error) {
+      console.error("Error submitting contact form:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem submitting your message. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
   
   return (
