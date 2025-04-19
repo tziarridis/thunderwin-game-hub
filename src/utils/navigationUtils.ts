@@ -109,6 +109,9 @@ export const navigateByButtonName = (buttonName: string, navigate: NavigateFunct
     'admin login': '/admin/login',
     'admin access': '/admin/login',
     'shield admin access': '/admin/login',
+    'admin panel': '/admin',
+    'back office': '/admin',
+    'management': '/admin',
   };
   
   // First check for exact matches

@@ -77,6 +77,7 @@ function App() {
           
           {/* User pages */}
           <Route path="/transactions" element={<NotFound />} />
+          <Route path="/settings" element={<NotFound />} />
           
           {/* Auth routes */}
           <Route path="/auth/login" element={<Login />} />
