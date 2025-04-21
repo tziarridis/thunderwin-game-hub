@@ -1,10 +1,9 @@
-
-import { GameData, GameFilterOptions, GameQueryOptions } from '@/types/gameService';
+import { GameData, GameFilterOptions, GameQueryOptions, GameDataExtended } from '@/types/gameService';
 import gameDbService from './games/gameDbService';
 import gameSpecialQueriesService from './games/gameSpecialQueriesService';
 import gameFileSyncService from './games/gameFileSyncService';
 import { generateMockGames } from './games/gameMockGenerator';
-import { browserDb } from './games/browserDbAdapter';
+import browserDb from './games/browserDbAdapter';
 
 // Export the database services
 export const {

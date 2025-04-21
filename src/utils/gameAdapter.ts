@@ -1,15 +1,16 @@
 
 import { Game as APIGame, GameProvider as APIGameProvider } from '@/types/game';
 import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
+import { GameDataExtended } from '@/types/gameService';
 
-export const adaptGameForUI = (apiGame: APIGame): UIGame => {
+export const adaptGameForUI = (apiGame: APIGame | GameDataExtended): UIGame => {
   return {
-    id: apiGame.id?.toString() || '',
+    id: (apiGame.id?.toString() || ''),
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
-    category: apiGame.game_type || 'slots',
-    image: apiGame.cover || '',
+    category: apiGame.game_type || apiGame.type || 'slots',
+    image: apiGame.cover || apiGame.thumbnail || '',
     rtp: apiGame.rtp || 96,
     volatility: 'medium', // Default value as API doesn't have this
     minBet: 0.1, // Default value as API doesn't have this
@@ -23,15 +24,17 @@ export const adaptGameForUI = (apiGame: APIGame): UIGame => {
   };
 };
 
-export const adaptGameForAPI = (uiGame: UIGame): Omit<APIGame, 'id'> => {
+export const adaptGameForAPI = (uiGame: UIGame): GameDataExtended => {
   return {
-    provider_id: 1, // Default provider ID
+    provider_id: typeof uiGame.id === 'string' ? uiGame.id : '1', // Convert to string for compatibility
     game_id: uiGame.id || '',
     game_name: uiGame.title || '',
     game_code: uiGame.id ? uiGame.id.replace(/\D/g, '') : '',
     game_type: uiGame.category || 'slots',
+    type: uiGame.category || 'slots',
     description: uiGame.description || '',
     cover: uiGame.image || '',
+    thumbnail: uiGame.image || '',
     status: 'active',
     technology: 'HTML5',
     has_lobby: false,
@@ -49,7 +52,7 @@ export const adaptGameForAPI = (uiGame: UIGame): Omit<APIGame, 'id'> => {
   };
 };
 
-export const adaptGamesForUI = (apiGames: APIGame[]): UIGame[] => {
+export const adaptGamesForUI = (apiGames: (APIGame | GameDataExtended)[]): UIGame[] => {
   return apiGames.map(adaptGameForUI);
 };
 

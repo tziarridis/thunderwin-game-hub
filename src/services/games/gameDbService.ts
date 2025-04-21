@@ -1,10 +1,11 @@
 
-import { browserDb } from './browserDbAdapter';
+import browserDb from './browserDbAdapter'; // Updated import
 import { 
   GameData, 
   GameFilterOptions, 
   GameQueryOptions,
-  DatabaseQueryResult 
+  DatabaseQueryResult,
+  GameDataExtended 
 } from '@/types/gameService';
 
 // Check if we're running in a browser environment
