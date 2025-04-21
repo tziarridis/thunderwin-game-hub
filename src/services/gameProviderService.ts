@@ -1,9 +1,11 @@
 
-import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
-import { gitSlotParkService } from './gitSlotParkService';
 import { supabase } from '@/integrations/supabase/client';
+import * as pragmaticPlayService from './providers/pragmaticPlayService';
+import * as playGoService from './providers/playGoService';
+import * as amaticService from './providers/amaticService';
+import { gitSlotParkService } from './gitSlotParkService';
 
 // Interface for game launch options
 export interface GameLaunchOptions {
@@ -14,7 +16,7 @@ export interface GameLaunchOptions {
   language?: string;
   currency?: string;
   returnUrl?: string;
-  platform?: 'web' | 'mobile';  // Added platform option as per docs
+  platform?: 'web' | 'mobile';
 }
 
 // Interface for provider API response
@@ -80,15 +82,17 @@ export const gameProviderService = {
       
       switch(providerConfig.code) {
         case 'PP':
-          gameUrl = await getPragmaticPlayLaunchUrl(
+          gameUrl = await pragmaticPlayService.getLaunchUrl(
             providerConfig, 
-            gameId, 
-            playerId, 
-            mode, 
-            language, 
-            currency,
-            platform,
-            options.returnUrl
+            {
+              gameId,
+              playerId,
+              mode,
+              language,
+              currency,
+              platform,
+              returnUrl: options.returnUrl
+            }
           );
           break;
         
@@ -102,6 +106,34 @@ export const gameProviderService = {
             currency,
             platform
           });
+          break;
+          
+        case 'PG':
+          gameUrl = await playGoService.getLaunchUrl(
+            providerConfig,
+            {
+              gameId,
+              playerId,
+              mode,
+              language,
+              currency,
+              returnUrl: options.returnUrl
+            }
+          );
+          break;
+          
+        case 'AM':
+          gameUrl = await amaticService.getLaunchUrl(
+            providerConfig,
+            {
+              gameId,
+              playerId,
+              mode,
+              language,
+              currency,
+              returnUrl: options.returnUrl
+            }
+          );
           break;
         
         default:
@@ -180,22 +212,16 @@ export const gameProviderService = {
       // Handle different providers based on their code
       switch(providerConfig.code) {
         case 'PP':
-          // Process Pragmatic Play wallet callback
-          if (data.agentid !== providerConfig.credentials.agentId) {
-            return { errorcode: "1", balance: 0 };
-          }
-          
-          // Mock successful transaction
-          console.log(`Processing ${providerConfig.name} wallet callback:`, data);
-          
-          return {
-            errorcode: "0",  // 0 means success
-            balance: 100.00  // Mock balance
-          };
+          return await pragmaticPlayService.processWalletCallback(providerConfig, data);
           
         case 'GSP':
-          // Process GitSlotPark wallet callback
           return await gitSlotParkService.processCallback(data);
+          
+        case 'PG':
+          return await playGoService.processWalletCallback(providerConfig, data);
+          
+        case 'AM':
+          return await amaticService.processWalletCallback(providerConfig, data);
           
         default:
           throw new Error(`Wallet integration not implemented for provider: ${providerConfig.name}`);
@@ -241,134 +267,5 @@ export const gameProviderService = {
     return [];
   }
 };
-
-/**
- * Get a game launch URL from Pragmatic Play
- */
-async function getPragmaticPlayLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  platform: string,
-  returnUrl?: string
-): Promise<string> {
-  const apiBaseUrl = `https://${config.credentials.apiEndpoint}`;
-  
-  // For demo mode, use the documented demo endpoint
-  if (mode === 'demo') {
-    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?` + new URLSearchParams({
-      lang: language,
-      platform: platform,
-      currency: currency,
-      lobbyUrl: returnUrl || window.location.href
-    });
-    
-    console.log(`Launching demo game: ${demoUrl}`);
-    return demoUrl;
-  }
-  
-  // For real money mode
-  try {
-    console.log(`Preparing to launch real money game for player: ${playerId}`);
-    
-    const requestBody = {
-      agentid: config.credentials.agentId,
-      playerid: playerId,
-      language: language,
-      currency: currency,
-      gamecode: gameId,
-      platform: platform,
-      callbackurl: config.credentials.callbackUrl,
-      returnurl: returnUrl || window.location.href
-    };
-    
-    console.log('API Request:', requestBody);
-    
-    // In production, this would be a server-side API call
-    // For demo, return a mock URL with all parameters
-    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?` + new URLSearchParams({
-      token: `mock-token-${Date.now()}`,
-      lang: language,
-      currency: currency,
-      platform: platform,
-      lobby: encodeURIComponent(returnUrl || window.location.href)
-    });
-    
-    console.log(`Generated game URL (real money): ${mockGameUrl}`);
-    return mockGameUrl;
-    
-  } catch (error: any) {
-    console.error(`Error launching real money game:`, error);
-    toast.error(`Failed to launch real money game. Falling back to demo mode.`);
-    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, currency, platform, returnUrl);
-  }
-}
-
-/**
- * Get a game launch URL from Play'n GO
- */
-async function getPlayGoLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  returnUrl?: string
-): Promise<string> {
-  // This is the URL structure for Play'n GO games
-  const baseUrl = `https://${config.credentials.apiEndpoint}/launch`;
-  
-  // Create parameters for the game
-  const params = new URLSearchParams({
-    game: gameId,
-    token: config.credentials.apiToken,
-    player: playerId,
-    mode,
-    lang: language,
-    currency: currency,
-    home: returnUrl || 'https://captaingamble.com/casino'
-  });
-  
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
-  
-  // Return mock URL for demo
-  return `${baseUrl}?${params.toString()}`;
-}
-
-/**
- * Get a game launch URL from Amatic
- */
-async function getAmaticLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  returnUrl?: string
-): Promise<string> {
-  // This is the URL structure for Amatic games
-  const baseUrl = `https://${config.credentials.apiEndpoint}/game/launch`;
-  
-  // Create parameters for the game
-  const params = new URLSearchParams({
-    gameId,
-    apiKey: config.credentials.apiToken,
-    userId: playerId,
-    mode,
-    language,
-    currency,
-    returnUrl: returnUrl || 'https://captaingamble.com/casino'
-  });
-  
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
-  
-  // Return mock URL for demo
-  return `${baseUrl}?${params.toString()}`;
-}
 
 export default gameProviderService;
