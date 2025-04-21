@@ -3,6 +3,7 @@ import React from 'react';
 import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForAPI, adaptGameForUI } from '@/utils/gameAdapter';
+import { GameDataExtended } from '@/types/gameService';
 
 /**
  * A component to convert between UI and API game types
@@ -10,7 +11,7 @@ import { adaptGameForAPI, adaptGameForUI } from '@/utils/gameAdapter';
  */
 export const useGameAdapter = () => {
   // Convert UI Game to API Game format
-  const convertToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
+  const convertToAPIGame = (uiGame: UIGame): GameDataExtended => {
     return adaptGameForAPI(uiGame);
   };
   
@@ -22,7 +23,7 @@ export const useGameAdapter = () => {
   // Handle game operations with automatic type conversion
   const handleAddGame = async (
     gameData: Omit<UIGame, 'id'>, 
-    addGameFn: (gameData: Omit<APIGame, 'id'>) => Promise<APIGame>
+    addGameFn: (gameData: GameDataExtended) => Promise<APIGame>
   ): Promise<UIGame> => {
     const apiGame = convertToAPIGame(gameData as UIGame);
     const result = await addGameFn(apiGame);
@@ -36,8 +37,8 @@ export const useGameAdapter = () => {
     const apiGame = {
       id: parseInt(gameData.id),
       ...convertToAPIGame(gameData)
-    };
-    const result = await updateGameFn(apiGame as APIGame);
+    } as APIGame;
+    const result = await updateGameFn(apiGame);
     return convertToUIGame(result);
   };
   

@@ -3,6 +3,7 @@ import { Game as APIGame } from '@/types/game';
 import { Game as UIGame } from '@/types';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
+import { GameDataExtended } from '@/types/gameService';
 
 /**
  * This adapter specifically helps the CMS GamesManagement component
@@ -14,8 +15,10 @@ export const addGameAdapter = async (uiGame: Omit<UIGame, 'id'>): Promise<UIGame
   try {
     // Convert UI game format to API game format
     const apiGame = adaptGameForAPI(uiGame as UIGame);
+    // Cast to the expected API format
+    const apiGameData = { ...apiGame } as unknown as APIGame;
     // Send to API
-    const resultApiGame = await clientGamesApi.addGame(apiGame);
+    const resultApiGame = await clientGamesApi.addGame(apiGameData);
     // Convert back to UI format
     return adaptGameForUI(resultApiGame);
   } catch (err) {
@@ -27,14 +30,14 @@ export const addGameAdapter = async (uiGame: Omit<UIGame, 'id'>): Promise<UIGame
 // Update an existing game
 export const updateGameAdapter = async (uiGame: UIGame): Promise<UIGame> => {
   try {
-    // Convert UI game to API game format
-    const apiGame = {
+    // Convert UI game to API game format with proper typing
+    const apiGameData = {
       id: parseInt(uiGame.id),
       ...adaptGameForAPI(uiGame)
-    };
+    } as unknown as APIGame;
     
     // Send to API
-    const resultApiGame = await clientGamesApi.updateGame(apiGame);
+    const resultApiGame = await clientGamesApi.updateGame(apiGameData);
     // Convert back to UI format
     return adaptGameForUI(resultApiGame);
   } catch (err) {

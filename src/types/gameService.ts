@@ -1,3 +1,4 @@
+
 export interface GameData {
   id?: number;
   provider_id: string;
@@ -67,7 +68,7 @@ export interface GameCompatibility {
   thumbnail?: string;
   background?: string;
   cover?: string; // Compatibility with Game type
-  status?: string;
+  status: string; // Making this required to match Game type
   description?: string;
   is_featured?: boolean;
   show_home?: boolean;

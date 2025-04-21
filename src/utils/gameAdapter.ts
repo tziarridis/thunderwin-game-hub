@@ -35,7 +35,7 @@ export const adaptGameForAPI = (uiGame: UIGame): GameDataExtended => {
     description: uiGame.description || '',
     cover: uiGame.image || '',
     thumbnail: uiGame.image || '',
-    status: 'active',
+    status: 'active', // Add required status field
     technology: 'HTML5',
     has_lobby: false,
     is_mobile: true,

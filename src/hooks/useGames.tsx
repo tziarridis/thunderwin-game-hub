@@ -8,6 +8,7 @@ import { clientGamesApi } from "@/services/gamesService";
 import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
 import { availableProviders } from "@/config/gameProviders";
 import { supabase } from "@/integrations/supabase/client";
+import { GameDataExtended } from "@/types/gameService";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -75,7 +76,9 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       // Convert UI game to API game format
       const apiGame = adaptGameForAPI(gameData as UIGame);
-      const result = await clientGamesApi.addGame(apiGame);
+      // Cast to the expected API type
+      const apiGameData = { ...apiGame } as unknown as Game;
+      const result = await clientGamesApi.addGame(apiGameData);
       // Convert the result back to UI format
       const uiGame = adaptGameForUI(result);
       setGames(prev => [uiGame, ...prev]);
@@ -97,13 +100,13 @@ export const useGames = (initialParams: GameListParams = {}) => {
   
   const updateGame = async (game: UIGame) => {
     try {
-      // Convert UI game to API game format
-      const apiGame = {
+      // Convert UI game to API game format with proper casting
+      const apiGameData = {
         id: parseInt(game.id),
         ...adaptGameForAPI(game)
-      };
+      } as unknown as Game;
       
-      const result = await clientGamesApi.updateGame(apiGame);
+      const result = await clientGamesApi.updateGame(apiGameData);
       // Convert the result back to UI format
       const uiGame = adaptGameForUI(result);
       setGames(prev => prev.map(g => g.id === game.id ? uiGame : g));
