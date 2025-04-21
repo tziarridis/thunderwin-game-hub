@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -24,10 +25,10 @@ const TransactionsLayout: React.FC<TransactionsLayoutProps> = ({ children }) => 
 };
 
 const Transactions = () => {
-  const [transactions, useState<Transaction[]>([]);
-  const [loading, useState<boolean>(true);
-  const [error, useState<string | null>(null);
-  const [filters, useState<TransactionFilter>({});
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filters, setFilters] = useState<TransactionFilter>({});
   const { user } = useAuth();
 
   useEffect(() => {
