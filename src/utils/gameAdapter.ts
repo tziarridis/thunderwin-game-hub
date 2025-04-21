@@ -9,12 +9,12 @@ export const adaptGameForUI = (apiGame: APIGame | GameDataExtended): UIGame => {
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
-    category: apiGame.game_type || apiGame.type || 'slots',
-    image: apiGame.cover || apiGame.thumbnail || '',
+    category: ('game_type' in apiGame ? apiGame.game_type : apiGame.type) || 'slots',
+    image: apiGame.cover || ('thumbnail' in apiGame ? apiGame.thumbnail : '') || '',
     rtp: apiGame.rtp || 96,
-    volatility: 'medium', // Default value as API doesn't have this
-    minBet: 0.1, // Default value as API doesn't have this
-    maxBet: 100, // Default value as API doesn't have this 
+    volatility: 'medium',
+    minBet: 0.1,
+    maxBet: 100,
     isPopular: apiGame.is_featured || false,
     isNew: apiGame.show_home || false,
     isFavorite: false,

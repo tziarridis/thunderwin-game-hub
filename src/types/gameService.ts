@@ -54,7 +54,7 @@ export interface DatabaseQueryResult {
 
 // Add compatibility interface to bridge Game and GameData
 export interface GameCompatibility {
-  id?: number | string;
+  id?: string | number;
   provider_id: string | number;
   game_id: string;
   game_name: string;

@@ -1,6 +1,6 @@
 
-// Re-export transaction types and services
-export { 
+// Re-export transaction types
+export type { 
   Transaction, 
   TransactionFilter, 
   CreateTransactionParams,

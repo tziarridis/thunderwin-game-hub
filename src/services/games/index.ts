@@ -1,11 +1,12 @@
 
-// Re-export game types and services
-export { 
+// Re-export game types
+export type { 
   GameData, 
   GameFilterOptions, 
   GameQueryOptions,
   DatabaseQueryResult,
-  GameDataExtended
+  GameDataExtended,
+  GameCompatibility
 } from '@/types/gameService';
 
 // Re-export game DB services

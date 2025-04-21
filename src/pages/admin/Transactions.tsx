@@ -73,7 +73,7 @@ const Transactions = () => {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout collapsed={false} setCollapsed={() => {}}>
       <Card>
         <CardHeader>
           <CardTitle>Transactions</CardTitle>
@@ -130,7 +130,7 @@ const Transactions = () => {
                         <TableCell>{transaction.currency}</TableCell>
                         <TableCell>{transaction.method}</TableCell>
                         <TableCell>
-                          <Badge variant={transaction.status === 'completed' ? 'success' : 'default'}>
+                          <Badge variant={transaction.status === 'completed' ? 'secondary' : 'default'}>
                             {transaction.status}
                           </Badge>
                         </TableCell>
