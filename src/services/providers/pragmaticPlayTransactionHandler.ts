@@ -1,146 +1,99 @@
-
-import { getWalletByUserId, updateWalletBalance } from '../walletService';
-import { GameProviderConfig } from '@/config/gameProviders';
-import { PPWalletCallback } from '@/services/pragmaticPlayService';
 import { toast } from 'sonner';
+import { PPGameConfig, PRAGMATIC_PLAY_ERROR_CODES, validatePragmaticPlayResponse } from './pragmaticPlayConfig';
+import { generateSimpleHash } from '@/utils/browserHashUtils';
 
-// Map to store processed transactions for idempotency
+// Store processed transactions in memory for idempotency
 const processedTransactions = new Map<string, any>();
 
-export interface TransactionResponse {
+export interface PPTransactionData {
+  agentid: string;
+  playerid: string;
+  trxid: string;
+  type: 'debit' | 'credit';
+  amount: number;
+  gamecode?: string;
+  hash?: string;
+  currency?: string;
+  roundid?: string;
+}
+
+export interface PPTransactionResponse {
   errorcode: string;
   balance: number;
 }
 
-/**
- * Pragmatic Play Transaction Handler
- * Processes transactions from Pragmatic Play
- */
 export const pragmaticPlayTransactionHandler = {
-  /**
-   * Process a transaction from Pragmatic Play
-   * @param config Provider configuration
-   * @param transaction Transaction data
-   * @returns Response with error code and balance
-   */
   processTransaction: async (
-    config: GameProviderConfig,
-    transaction: PPWalletCallback
-  ): Promise<TransactionResponse> => {
+    config: PPGameConfig, 
+    transaction: PPTransactionData
+  ): Promise<PPTransactionResponse> => {
     try {
       console.log('Processing PP transaction:', transaction);
       
       // Validate transaction data
-      if (!config || !config.credentials || !pragmaticPlayTransactionHandler.validateTransaction(config, transaction)) {
-        console.error('Invalid transaction data:', transaction);
-        return { errorcode: "2", balance: 0 }; // Invalid transaction
+      if (!pragmaticPlayTransactionHandler.validateTransaction(config, transaction)) {
+        return {
+          errorcode: PRAGMATIC_PLAY_ERROR_CODES.INVALID_REQUEST,
+          balance: 0
+        };
       }
       
       // Check for duplicate transaction (idempotency)
       if (processedTransactions.has(transaction.trxid)) {
-        console.log('Duplicate transaction detected:', transaction.trxid);
         const existingTransaction = processedTransactions.get(transaction.trxid);
-        return existingTransaction || { errorcode: "0", balance: 100 };
-      }
-      
-      try {
-        // In a real implementation, this would interact with your wallet system
-        // 1. Get the user's wallet by playerId
-        // const wallet = await getWalletByUserId(transaction.playerid);
-        
-        // 2. Check if the user has enough balance (for debit operations)
-        let currentBalance = 100; // Mock balance
-        let errorCode = "0"; // Success
-        
-        // 3. Update the balance based on the transaction type
-        if (transaction.type === 'debit') {
-          if (currentBalance < transaction.amount) {
-            errorCode = "3"; // Insufficient balance
-          } else {
-            currentBalance -= transaction.amount;
-            // await updateWalletBalance(transaction.playerid, -transaction.amount);
-          }
-        } else if (transaction.type === 'credit') {
-          currentBalance += transaction.amount;
-          // await updateWalletBalance(transaction.playerid, transaction.amount);
-        }
-        
-        // 4. Create and store the response
-        const response: TransactionResponse = { 
-          errorcode: errorCode, 
-          balance: currentBalance 
+        return existingTransaction || { 
+          errorcode: PRAGMATIC_PLAY_ERROR_CODES.SUCCESS, 
+          balance: 100 
         };
-        
-        // Store in our idempotency map
-        processedTransactions.set(transaction.trxid, response);
-        
-        return response;
-      } catch (error) {
-        console.error('Error processing wallet operation:', error);
-        return { errorcode: "1", balance: 0 }; // General error
       }
+
+      // Mock wallet operation (replace with real implementation)
+      const response: PPTransactionResponse = {
+        errorcode: PRAGMATIC_PLAY_ERROR_CODES.SUCCESS,
+        balance: 100
+      };
       
+      // Store for idempotency
+      processedTransactions.set(transaction.trxid, response);
+      
+      return response;
     } catch (error: any) {
       console.error('Error processing transaction:', error);
       toast.error(`Transaction error: ${error.message}`);
-      return { errorcode: "1", balance: 0 };
+      return { 
+        errorcode: PRAGMATIC_PLAY_ERROR_CODES.GENERAL_ERROR, 
+        balance: 0 
+      };
     }
   },
-  
-  /**
-   * Validate a transaction before processing
-   * @param config Provider configuration
-   * @param transaction Transaction data
-   * @returns Whether the transaction is valid
-   */
-  validateTransaction: (
-    config: GameProviderConfig,
-    transaction: PPWalletCallback
-  ): boolean => {
-    // Check required fields
+
+  validateTransaction: (config: PPGameConfig, transaction: PPTransactionData): boolean => {
+    // Validate required fields
     if (!transaction.playerid || !transaction.trxid || !transaction.type || transaction.amount === undefined) {
-      console.error('Missing required transaction fields');
       return false;
     }
     
     // Validate agent ID
-    if (transaction.agentid !== config.credentials.agentId) {
-      console.error('Invalid agent ID', transaction.agentid);
+    if (transaction.agentid !== config.agentId) {
       return false;
     }
     
     // Validate transaction type
     if (transaction.type !== 'debit' && transaction.type !== 'credit') {
-      console.error('Invalid transaction type', transaction.type);
       return false;
     }
     
-    // In production, validate hash for security
-    if (transaction.hash && config.credentials.secretKey) {
-      try {
-        // Implementation using browser's Web Crypto API instead of Node's crypto
-        // This is a simplified MD5 hash validation - in production, use a proper MD5 implementation
-        const hashString = `${transaction.trxid}|${transaction.amount}|${config.credentials.secretKey}`;
-        
-        // Simple hash check (in production, use a proper MD5 implementation)
-        if (transaction.hash !== hashString) {
-          console.error('Invalid transaction hash');
-          return false;
-        }
-      } catch (error) {
-        console.error('Error validating hash:', error);
+    // Validate hash if provided
+    if (transaction.hash && config.secretKey) {
+      const computed = generateSimpleHash(`${transaction.trxid}|${transaction.amount}|${config.secretKey}`);
+      if (computed !== transaction.hash) {
         return false;
       }
     }
     
     return true;
   },
-  
-  /**
-   * Get transaction by ID
-   * @param id Transaction ID
-   * @returns Transaction data if found
-   */
+
   getTransaction: (id: string): any | null => {
     if (processedTransactions.has(id)) {
       return processedTransactions.get(id);
@@ -172,5 +125,3 @@ export const pragmaticPlayTransactionHandler = {
     return processedTransactions;
   }
 };
-
-export default pragmaticPlayTransactionHandler;

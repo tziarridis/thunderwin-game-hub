@@ -1,6 +1,6 @@
-
 import { toast } from 'sonner';
-import { createHash } from 'crypto';
+import { getPragmaticPlayConfig, PPGameConfig, PRAGMATIC_PLAY_ERROR_CODES } from './providers/pragmaticPlayConfig';
+import { pragmaticPlayTransactionHandler, PPTransactionData } from './providers/pragmaticPlayTransactionHandler';
 
 export interface PPGameLaunchOptions {
   playerId: string;
@@ -12,22 +12,86 @@ export interface PPGameLaunchOptions {
   platform?: 'web' | 'mobile';
 }
 
-export interface PPWalletCallback {
-  agentid: string;
-  playerid: string;
-  trxid: string;
-  type: 'debit' | 'credit';
-  amount: number;
-  gamecode?: string;
-  hash?: string;
-  currency?: string;
-  roundid?: string;
-}
-
-/**
- * Service for Pragmatic Play game provider integration
- */
 export const pragmaticPlayService = {
+  launchGame: async (options: PPGameLaunchOptions): Promise<string> => {
+    const {
+      playerId,
+      gameCode,
+      mode = 'demo',
+      returnUrl = window.location.href,
+      language = 'en',
+      currency = 'USD',
+      platform = 'web'
+    } = options;
+    
+    // Get provider configuration (in production, this would be from your backend)
+    const config: PPGameConfig = {
+      agentId: 'testpartner',
+      apiKey: 'testkey',
+      apiEndpoint: 'demo.pragmaticplay.net',
+      secretKey: 'testsecret',
+      currency,
+      language,
+      returnUrl,
+      platform
+    };
+    
+    const apiBaseUrl = `https://${config.apiEndpoint}`;
+    
+    if (mode === 'demo') {
+      return `${apiBaseUrl}/gs2c/openGame.do?${new URLSearchParams({
+        gameSymbol: gameCode,
+        lang: language,
+        cur: currency,
+        lobbyUrl: returnUrl,
+        stylename: 'thunderwin',
+        websiteUrl: window.location.origin,
+        platform
+      })}`;
+    }
+
+    try {
+      // For real money mode, generate mock game URL (replace with actual API call)
+      const gameUrl = `${apiBaseUrl}/gs2c/playGame.do?${new URLSearchParams({
+        gameSymbol: gameCode,
+        token: `mock-token-${playerId}-${Date.now()}`,
+        lang: language,
+        lobbyUrl: returnUrl,
+        stylename: 'thunderwin',
+        platform,
+        websiteUrl: window.location.origin,
+      })}`;
+      
+      return gameUrl;
+    } catch (error: any) {
+      console.error('Error launching game:', error);
+      toast.error('Failed to launch game. Falling back to demo mode.');
+      return pragmaticPlayService.launchGame({
+        ...options,
+        mode: 'demo'
+      });
+    }
+  },
+
+  processWalletCallback: async (data: PPTransactionData): Promise<{ errorcode: string; balance: number }> => {
+    try {
+      const config = getPragmaticPlayConfig({
+        credentials: {
+          agentId: 'testpartner',
+          secretKey: 'testsecret'
+        }
+      });
+      
+      return await pragmaticPlayTransactionHandler.processTransaction(config, data);
+    } catch (error: any) {
+      console.error('Error processing wallet callback:', error);
+      return {
+        errorcode: PRAGMATIC_PLAY_ERROR_CODES.GENERAL_ERROR,
+        balance: 0
+      };
+    }
+  },
+
   /**
    * Get available Pragmatic Play games
    */
@@ -41,112 +105,6 @@ export const pragmaticPlayService = {
       { code: 'vs25pyramid', name: 'Pyramid Bonanza' },
       { code: 'vs20fparty2', name: 'Fruit Party 2' }
     ];
-  },
-
-  /**
-   * Get a game launch URL from Pragmatic Play
-   */
-  launchGame: async (options: PPGameLaunchOptions): Promise<string> => {
-    const {
-      playerId,
-      gameCode,
-      mode = 'demo',
-      returnUrl = window.location.href,
-      language = 'en',
-      currency = 'USD',
-      platform = 'web'
-    } = options;
-    
-    // In production, this would be configured from environment variables
-    const config = {
-      credentials: {
-        apiEndpoint: 'demo.pragmaticplay.net',
-        agentId: 'testpartner',
-        secretKey: 'testsecret',
-        callbackUrl: `${window.location.origin}/casino/seamless`
-      }
-    };
-    
-    const apiBaseUrl = `https://${config.credentials.apiEndpoint}`;
-    
-    // For demo mode, use the documented demo endpoint
-    if (mode === 'demo') {
-      // Align with Pragmatic Play API documentation
-      const demoUrl = `${apiBaseUrl}/gs2c/openGame.do?` + new URLSearchParams({
-        gameSymbol: gameCode,
-        lang: language,
-        cur: currency,
-        lobbyUrl: returnUrl,
-        stylename: 'thunderwin', // Your casino's theme name
-        websiteUrl: window.location.origin,
-        teknopointChannel: platform
-      }).toString();
-      
-      console.log(`Launching demo game: ${demoUrl}`);
-      return demoUrl;
-    }
-    
-    // For real money mode
-    try {
-      console.log(`Preparing to launch real money game for player: ${playerId}`);
-      
-      // In a real implementation, we would request a token from your backend
-      // According to Pragmatic Play documentation, you'd need a server-side token generation
-      
-      // This is a mock implementation following API documentation structure
-      const realMoneyUrl = `${apiBaseUrl}/gs2c/playGame.do?` + new URLSearchParams({
-        gameSymbol: gameCode,
-        token: `mock-token-${playerId}-${Date.now()}`, // In production, this would be a real token from backend
-        lang: language,
-        lobbyUrl: returnUrl,
-        stylename: 'thunderwin',
-        platform,
-        websiteUrl: window.location.origin,
-      }).toString();
-      
-      console.log(`Generated game URL (real money): ${realMoneyUrl}`);
-      return realMoneyUrl;
-      
-    } catch (error: any) {
-      console.error(`Error launching real money game:`, error);
-      toast.error(`Failed to launch real money game. Falling back to demo mode.`);
-      return pragmaticPlayService.launchGame({
-        ...options,
-        mode: 'demo'
-      });
-    }
-  },
-  
-  /**
-   * Process a wallet callback from Pragmatic Play
-   */
-  processWalletCallback: async (callback: PPWalletCallback): Promise<{ errorcode: string; balance: number }> => {
-    // Validate the callback
-    const config = {
-      credentials: {
-        agentId: 'testpartner',
-        secretKey: 'testsecret'
-      }
-    };
-    
-    if (callback.agentid !== config.credentials.agentId) {
-      console.error('Invalid agent ID in wallet callback:', callback.agentid);
-      return { errorcode: "1", balance: 0 };
-    }
-    
-    // Process the callback based on the transaction type
-    console.log(`Processing wallet callback:`, callback);
-    
-    // In production, you would:
-    // 1. Verify the hash
-    // 2. Update the player's balance
-    // 3. Log the transaction
-    
-    // For now, we'll just return a mock success response
-    return {
-      errorcode: "0",  // 0 means success
-      balance: 100.00  // Mock balance
-    };
   },
   
   /**
@@ -181,7 +139,7 @@ export const pragmaticPlayService = {
   testTransactionVerification: async (): Promise<{ success: boolean; message: string }> => {
     try {
       // Create a test wallet callback
-      const testCallback: PPWalletCallback = {
+      const testCallback: PPTransactionData = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: `test-${Date.now()}`,
@@ -332,7 +290,7 @@ export const pragmaticPlayService = {
       const fixedId = `idempotency-test-${Date.now()}`;
       
       // Process the same transaction twice
-      const testCallback: PPWalletCallback = {
+      const testCallback: PPTransactionData = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: fixedId,
