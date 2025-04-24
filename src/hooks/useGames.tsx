@@ -8,7 +8,7 @@ import { clientGamesApi } from "@/services/gamesService";
 import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
 import { availableProviders } from "@/config/gameProviders";
 import { supabase } from "@/integrations/supabase/client";
-import { GameDataExtended, GameCompatibility } from "@/types/gameService";
+import { GameDataExtended } from "@/types/gameService";
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -28,7 +28,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
       const response = await clientGamesApi.getGames(queryParams);
       
       // Convert API game format to UI game format
-      const adaptedGames = adaptGamesForUI(response.data as (GameCompatibility | Game)[]);
+      const adaptedGames = adaptGamesForUI(response.data);
       setGames(adaptedGames);
       setTotalGames(response.total);
       setError(null);
@@ -76,7 +76,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       // Convert UI game to API game format
       const apiGame = adaptGameForAPI(gameData as UIGame);
-      // Cast to the expected API type with string provider_id
+      // Cast to the expected API type
       const apiGameData = { ...apiGame } as unknown as Game;
       const result = await clientGamesApi.addGame(apiGameData);
       // Convert the result back to UI format
@@ -102,7 +102,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       // Convert UI game to API game format with proper casting
       const apiGameData = {
-        id: typeof game.id === 'string' ? parseInt(game.id) : game.id,
+        id: parseInt(game.id),
         ...adaptGameForAPI(game)
       } as unknown as Game;
       

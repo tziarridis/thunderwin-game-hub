@@ -3,7 +3,7 @@ import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
-import { GameDataExtended, GameCompatibility } from '@/types/gameService';
+import { GameDataExtended } from '@/types/gameService';
 
 /**
  * Helper functions for the admin games management page
@@ -30,7 +30,7 @@ export const updateGameHelper = async (game: UIGame): Promise<UIGame> => {
   try {
     // Convert UI game to API game format with proper typing
     const apiGameData = {
-      id: typeof game.id === 'string' ? parseInt(game.id) : game.id,
+      id: parseInt(game.id),
       ...adaptGameForAPI(game)
     } as unknown as APIGame;
     
