@@ -1,18 +1,13 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { pragmaticPlayService, PPWalletCallback } from "@/services/providers/pragmaticPlayService";
-import { pragmaticPlayTransactionHandler } from "@/services/providers/pragmaticPlayTransactionHandler";
+import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, HelpCircle, Copy, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { getProviderConfig } from "@/config/gameProviders";
-
-// Get configuration for demonstration
-const ppConfig = getProviderConfig('ppeur');
 
 /**
  * This component demonstrates how a seamless wallet integration works with Pragmatic Play.
@@ -24,7 +19,6 @@ const Seamless = () => {
   const [activeTab, setActiveTab] = useState("logs");
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [integrationStatus, setIntegrationStatus] = useState<'ok' | 'warning' | 'error'>('ok');
   
   useEffect(() => {
     // This is purely for demonstration purposes
@@ -35,7 +29,7 @@ const Seamless = () => {
       "",
       "Example request from PP:",
       JSON.stringify({
-        agentid: ppConfig?.credentials.agentId || "captaingambleEUR",
+        agentid: "captaingambleEUR",
         playerid: "player123",
         amount: 5.00,
         type: "debit",
@@ -83,113 +77,13 @@ const Seamless = () => {
         timestamp: new Date(Date.now() - 600000).toISOString()
       }
     ]);
-    
-    // Verify integration status
-    checkIntegrationStatus();
   }, []);
-
-  const checkIntegrationStatus = async () => {
-    try {
-      if (!ppConfig) {
-        setIntegrationStatus('error');
-        addLog("ERROR: Pragmatic Play configuration not found");
-        return;
-      }
-      
-      const isValid = await pragmaticPlayService.verifyIntegration(ppConfig);
-      if (isValid) {
-        setIntegrationStatus('ok');
-        addLog("Integration status: OK");
-      } else {
-        setIntegrationStatus('warning');
-        addLog("Integration status: WARNING - Some parameters might be incorrect");
-      }
-    } catch (error) {
-      setIntegrationStatus('error');
-      addLog("ERROR: Failed to verify integration");
-    }
-  };
-
-  const addLog = (message: string) => {
-    setLogs(prev => [`[${new Date().toISOString()}] ${message}`, ...prev]);
-  };
 
   const toggleCollapsible = (id: string) => {
     if (openCollapsible === id) {
       setOpenCollapsible(null);
     } else {
       setOpenCollapsible(id);
-    }
-  };
-
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(id);
-    toast.success("Copied to clipboard");
-    
-    setTimeout(() => {
-      setCopied(null);
-    }, 2000);
-  };
-
-  const refreshData = () => {
-    // In a real implementation, this would fetch the latest data
-    toast.success("Data refreshed");
-    
-    // Add a new log entry
-    const newLog = `Endpoint accessed, refreshing data...`;
-    addLog(newLog);
-    
-    // Verify integration status
-    checkIntegrationStatus();
-  };
-
-  const simulateTransaction = async () => {
-    // Generate a mock transaction for testing
-    const mockTransaction: PPWalletCallback = {
-      agentid: ppConfig?.credentials.agentId || "captaingambleEUR",
-      playerid: "test_player",
-      amount: 10.00,
-      type: Math.random() > 0.5 ? 'debit' : 'credit',
-      trxid: `test_${Date.now()}`,
-      roundid: `round_${Math.floor(Math.random() * 1000000)}`
-    };
-    
-    // Log the request
-    addLog(`Simulating transaction: ${mockTransaction.type} of ${mockTransaction.amount} for player ${mockTransaction.playerid}`);
-    
-    try {
-      // Process the transaction
-      if (!ppConfig) {
-        throw new Error("PP configuration not found");
-      }
-      
-      const response = await pragmaticPlayTransactionHandler.processTransaction(
-        ppConfig, 
-        mockTransaction
-      );
-      
-      // Log the response
-      addLog(`Transaction response: ${JSON.stringify(response)}`);
-      
-      // Add to transactions list
-      const newTransaction = {
-        id: mockTransaction.trxid,
-        playerId: mockTransaction.playerid,
-        type: mockTransaction.type,
-        amount: mockTransaction.amount,
-        gameId: "vs20bonzanza",
-        roundId: mockTransaction.roundid,
-        status: response.errorcode === "0" ? "completed" : "failed",
-        timestamp: new Date().toISOString()
-      };
-      
-      setTransactions(prev => [newTransaction, ...prev]);
-      
-      toast.success("Transaction simulated successfully");
-    } catch (error: any) {
-      addLog(`ERROR: ${error.message || "Unknown error"}`);
-      toast.error(`Failed to simulate transaction: ${error.message || "Unknown error"}`);
     }
   };
 
@@ -219,34 +113,18 @@ const Seamless = () => {
           <h1 className="text-2xl font-bold">Pragmatic Play Seamless API</h1>
           <p className="text-white/70">Live wallet integration endpoint for Pragmatic Play games</p>
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={simulateTransaction}>
-            Simulate Transaction
-          </Button>
-          <Button variant="outline" onClick={refreshData}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" onClick={refreshData}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
       
       <Card className="bg-slate-900 border-slate-800 mb-6">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>API Endpoint</CardTitle>
-            <CardDescription>
-              This is the callback URL for the Pragmatic Play integration
-            </CardDescription>
-          </div>
-          <Badge className={
-            integrationStatus === 'ok' ? "bg-green-500" : 
-            integrationStatus === 'warning' ? "bg-yellow-500" : 
-            "bg-red-500"
-          }>
-            {integrationStatus === 'ok' ? "OK" : 
-             integrationStatus === 'warning' ? "Warning" : 
-             "Error"}
-          </Badge>
+        <CardHeader>
+          <CardTitle>API Endpoint</CardTitle>
+          <CardDescription>
+            This is the callback URL for the Pragmatic Play integration
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="bg-slate-800 p-3 rounded-md flex justify-between items-center">
