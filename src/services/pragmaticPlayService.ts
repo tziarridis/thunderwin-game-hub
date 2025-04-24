@@ -53,6 +53,39 @@ export interface TestResult {
 // Service for Pragmatic Play integration
 export const pragmaticPlayService = {
   /**
+   * Verify the integration with Pragmatic Play
+   * @param config Provider configuration
+   * @returns Promise with validation result
+   */
+  verifyIntegration: async (config: any): Promise<boolean> => {
+    try {
+      // Check if configuration has all required fields
+      const hasRequiredConfig = !!(
+        config &&
+        config.credentials.apiEndpoint &&
+        config.credentials.agentId &&
+        config.credentials.apiToken &&
+        config.credentials.secretKey &&
+        config.credentials.callbackUrl
+      );
+      
+      if (!hasRequiredConfig) {
+        console.error('Missing required configuration parameters');
+        return false;
+      }
+      
+      // For demo purposes, we'll just check the configuration
+      // In a production environment, you would make an API call to verify the integration
+      console.log(`Verifying integration with ${config.name} (${config.credentials.apiEndpoint})`);
+      
+      return true;
+    } catch (error) {
+      console.error('Error verifying integration:', error);
+      return false;
+    }
+  },
+
+  /**
    * Launch a Pragmatic Play game
    * @param options Game launch options
    * @returns Promise with game URL
