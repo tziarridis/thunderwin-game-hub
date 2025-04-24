@@ -25,6 +25,7 @@ export interface PPWalletCallback {
   // Additional fields based on the API documentation
   gameType?: string;
   gameName?: string;
+  gameref?: string;
   betType?: string;
   winAmount?: number;
   jackpotAmount?: number;

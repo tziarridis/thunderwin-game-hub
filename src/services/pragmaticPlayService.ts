@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import { getPragmaticPlayConfig, PPGameConfig, PPWalletCallback, generatePragmaticPlayHash } from './providers/pragmaticPlayConfig';
 import { pragmaticPlayTransactionHandler } from './providers/pragmaticPlayTransactionHandler';
 import { pragmaticPlaySessionService } from './providers/pragmaticPlaySessionService';
+import { pragmaticPlayRoundService } from './providers/pragmaticPlayRoundService';
 
 export interface PPGameLaunchOptions {
   playerId: string;
@@ -122,6 +123,29 @@ export const pragmaticPlayService = {
       // Update session activity if this is part of an active session
       if (data.session) {
         await pragmaticPlaySessionService.updateSessionActivity(data.session);
+      }
+
+      // Track the round information if present
+      if (data.roundid) {
+        if (data.type === 'debit') {
+          // This is a bet, start or update the round
+          await pragmaticPlayRoundService.trackRound({
+            roundId: data.roundid,
+            playerId: data.playerid,
+            gameCode: data.gameref || data.gamecode,
+            betAmount: data.amount,
+            status: 'in_progress',
+            sessionId: data.session,
+            currency: data.currency || config.currency
+          });
+        } else if (data.type === 'credit') {
+          // This is a win, update the round with win amount
+          await pragmaticPlayRoundService.updateRoundWithWin(
+            data.roundid,
+            data.amount,
+            data.winAmount || 0
+          );
+        }
       }
       
       return await pragmaticPlayTransactionHandler.processTransaction(config, data);
@@ -475,6 +499,98 @@ export const pragmaticPlayService = {
         success: false,
         message: `Session management test failed: ${error.message || 'Unknown error'}`
       };
+    }
+  },
+
+  /**
+   * Test round management
+   */
+  testRoundManagement: async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const roundId = `round_test_${Date.now()}`;
+      const playerId = 'test_player';
+      const gameCode = 'vs20bonzanza';
+      
+      // Create a round
+      await pragmaticPlayRoundService.trackRound({
+        roundId,
+        playerId,
+        gameCode,
+        betAmount: 10,
+        status: 'in_progress',
+        currency: 'USD'
+      });
+      
+      // Update with win
+      await pragmaticPlayRoundService.updateRoundWithWin(
+        roundId,
+        15, // Win amount
+        15  // Total win
+      );
+      
+      // Complete the round
+      await pragmaticPlayRoundService.completeRound(roundId, 'completed');
+      
+      // Retrieve the round
+      const round = await pragmaticPlayRoundService.getRound(roundId);
+      
+      if (!round) {
+        return {
+          success: false,
+          message: 'Round management test failed: Could not retrieve round'
+        };
+      }
+      
+      if (round.status !== 'completed' || round.winAmount !== 15) {
+        return {
+          success: false,
+          message: 'Round management test failed: Round data inconsistent'
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'Round management test passed'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Round management test failed: ${error.message || 'Unknown error'}`
+      };
+    }
+  },
+
+  /**
+   * Get round history for a player
+   */
+  getPlayerRoundHistory: async (playerId: string, limit = 20): Promise<any[]> => {
+    try {
+      return await pragmaticPlayRoundService.getPlayerRounds(playerId, limit);
+    } catch (error) {
+      console.error('Error retrieving player round history:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Handle incomplete rounds recovery
+   */
+  recoverIncompleteRounds: async (playerId: string): Promise<number> => {
+    try {
+      const incompleteRounds = await pragmaticPlayRoundService.getIncompleteRounds(playerId);
+      
+      let recoveredCount = 0;
+      for (const round of incompleteRounds) {
+        // In a real implementation, you would query the game provider's API
+        // to get the final status of these rounds
+        await pragmaticPlayRoundService.completeRound(round.roundId, 'recovered');
+        recoveredCount++;
+      }
+      
+      return recoveredCount;
+    } catch (error) {
+      console.error('Error recovering incomplete rounds:', error);
+      return 0;
     }
   }
 };

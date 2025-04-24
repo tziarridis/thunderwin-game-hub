@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { pragmaticPlayTransactionHandler } from "@/services/providers/pragmaticPlayTransactionHandler";
+import { pragmaticPlayRoundService } from "@/services/providers/pragmaticPlayRoundService";
 import { PPWalletCallback, getPragmaticPlayConfig } from "@/services/providers/pragmaticPlayConfig";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +11,7 @@ import { Check, HelpCircle, Copy, RefreshCw, ChevronDown, ChevronUp } from "luci
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { getProviderConfig, GameProviderConfig } from "@/config/gameProviders";
+import { getProviderConfig } from "@/config/gameProviders";
 
 // Get configuration for demonstration
 const ppConfig = getProviderConfig('ppeur');
@@ -22,6 +23,7 @@ const ppConfig = getProviderConfig('ppeur');
 const Seamless = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [rounds, setRounds] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("logs");
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
@@ -82,6 +84,38 @@ const Seamless = () => {
         roundId: "round_789014",
         status: "completed",
         timestamp: new Date(Date.now() - 600000).toISOString()
+      }
+    ]);
+
+    // Mock rounds for demonstration
+    setRounds([
+      {
+        roundId: "round_789012",
+        playerId: "player123",
+        gameCode: "vs20bonzanza",
+        betAmount: 5.00,
+        winAmount: 10.50,
+        status: "completed",
+        startTime: new Date(Date.now() - 600000).toISOString(),
+        endTime: new Date(Date.now() - 570000).toISOString()
+      },
+      {
+        roundId: "round_789013",
+        playerId: "player123",
+        gameCode: "vs20doghouse",
+        betAmount: 10.00,
+        winAmount: 0,
+        status: "completed",
+        startTime: new Date(Date.now() - 1200000).toISOString(),
+        endTime: new Date(Date.now() - 1170000).toISOString()
+      },
+      {
+        roundId: "round_789014",
+        playerId: "player456",
+        gameCode: "vs10wolfgold",
+        betAmount: 25.00,
+        status: "in_progress",
+        startTime: new Date(Date.now() - 120000).toISOString()
       }
     ]);
     
@@ -149,13 +183,15 @@ const Seamless = () => {
 
   const simulateTransaction = async () => {
     // Generate a mock transaction for testing
+    const roundId = `round_${Date.now()}`;
     const mockTransaction: PPWalletCallback = {
       agentid: ppConfig?.credentials.agentId || "captaingambleEUR",
       playerid: "test_player",
       amount: 10.00,
       type: Math.random() > 0.5 ? 'debit' : 'credit',
       trxid: `test_${Date.now()}`,
-      roundid: `round_${Math.floor(Math.random() * 1000000)}`
+      roundid: roundId,
+      gameref: "vs20bonzanza"
     };
     
     // Log the request
@@ -184,13 +220,42 @@ const Seamless = () => {
         playerId: mockTransaction.playerid,
         type: mockTransaction.type,
         amount: mockTransaction.amount,
-        gameId: "vs20bonzanza",
+        gameId: mockTransaction.gameref,
         roundId: mockTransaction.roundid,
         status: response.errorcode === "0" ? "completed" : "failed",
         timestamp: new Date().toISOString()
       };
       
       setTransactions(prev => [newTransaction, ...prev]);
+      
+      // If this is a new round (bet), add it to the rounds list
+      if (mockTransaction.type === 'debit') {
+        const newRound = {
+          roundId: mockTransaction.roundid,
+          playerId: mockTransaction.playerid,
+          gameCode: mockTransaction.gameref,
+          betAmount: mockTransaction.amount,
+          status: "in_progress",
+          startTime: new Date().toISOString()
+        };
+        
+        setRounds(prev => [newRound, ...prev]);
+      }
+      // If this is a win, update the round
+      else if (mockTransaction.type === 'credit') {
+        setRounds(prev => 
+          prev.map(round => 
+            round.roundId === mockTransaction.roundid
+              ? { 
+                  ...round, 
+                  winAmount: mockTransaction.amount,
+                  status: "completed",
+                  endTime: new Date().toISOString()
+                }
+              : round
+          )
+        );
+      }
       
       toast.success("Transaction simulated successfully");
     } catch (error: any) {
@@ -199,7 +264,39 @@ const Seamless = () => {
     }
   };
 
-  // Rest of the component remains the same
+  // Simulate round recovery function
+  const simulateRoundRecovery = async () => {
+    try {
+      // Find an in-progress round
+      const incompleteRound = rounds.find(r => r.status === 'in_progress');
+      
+      if (!incompleteRound) {
+        toast.info("No incomplete rounds to recover");
+        return;
+      }
+      
+      addLog(`Simulating recovery of round ${incompleteRound.roundId}`);
+      
+      // Update the round status
+      setRounds(prev => 
+        prev.map(round => 
+          round.roundId === incompleteRound.roundId
+            ? { 
+                ...round, 
+                status: "recovered",
+                endTime: new Date().toISOString()
+              }
+            : round
+        )
+      );
+      
+      toast.success("Round recovery simulated successfully");
+    } catch (error: any) {
+      addLog(`ERROR: ${error.message || "Unknown error"}`);
+      toast.error(`Failed to recover round: ${error.message || "Unknown error"}`);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-12 pt-24">
       {/* UI for API endpoint header */}
@@ -211,6 +308,9 @@ const Seamless = () => {
         <div className="flex space-x-2">
           <Button variant="outline" onClick={simulateTransaction}>
             Simulate Transaction
+          </Button>
+          <Button variant="outline" onClick={simulateRoundRecovery}>
+            Recover Round
           </Button>
           <Button variant="outline" onClick={refreshData}>
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -259,11 +359,10 @@ const Seamless = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="logs">API Logs</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="rounds">Game Rounds</TabsTrigger>
           <TabsTrigger value="docs">Documentation</TabsTrigger>
           <TabsTrigger value="testing">Testing</TabsTrigger>
         </TabsList>
-        
-        
         
         <TabsContent value="logs">
           <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
@@ -317,6 +416,51 @@ const Seamless = () => {
                         </Badge>
                       </td>
                       <td className="p-2">{new Date(transaction.timestamp).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="rounds">
+          <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
+            <h3 className="font-mono text-sm text-white mb-2">Game Rounds</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="text-left p-2">Round ID</th>
+                    <th className="text-left p-2">Player</th>
+                    <th className="text-left p-2">Game</th>
+                    <th className="text-left p-2">Bet</th>
+                    <th className="text-left p-2">Win</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Start Time</th>
+                    <th className="text-left p-2">End Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rounds.map(round => (
+                    <tr key={round.roundId} className="border-b border-slate-800">
+                      <td className="p-2 font-mono text-xs">{round.roundId}</td>
+                      <td className="p-2">{round.playerId}</td>
+                      <td className="p-2">{round.gameCode}</td>
+                      <td className="p-2">{round.betAmount.toFixed(2)} EUR</td>
+                      <td className="p-2">{round.winAmount ? round.winAmount.toFixed(2) : '-'} EUR</td>
+                      <td className="p-2">
+                        <Badge className={
+                          round.status === 'completed' ? 'bg-green-500/20 text-green-400' : 
+                          round.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                          round.status === 'recovered' ? 'bg-yellow-500/20 text-yellow-400' :
+                          'bg-red-500/20 text-red-400'
+                        }>
+                          {round.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2">{new Date(round.startTime).toLocaleString()}</td>
+                      <td className="p-2">{round.endTime ? new Date(round.endTime).toLocaleString() : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
