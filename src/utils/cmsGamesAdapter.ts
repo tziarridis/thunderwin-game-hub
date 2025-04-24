@@ -3,7 +3,7 @@ import { Game as APIGame } from '@/types/game';
 import { Game as UIGame } from '@/types';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
-import { GameDataExtended } from '@/types/gameService';
+import { GameDataExtended, GameCompatibility } from '@/types/gameService';
 
 /**
  * This adapter specifically helps the CMS GamesManagement component
@@ -32,7 +32,7 @@ export const updateGameAdapter = async (uiGame: UIGame): Promise<UIGame> => {
   try {
     // Convert UI game to API game format with proper typing
     const apiGameData = {
-      id: parseInt(uiGame.id),
+      id: typeof uiGame.id === 'string' ? parseInt(uiGame.id) : uiGame.id,
       ...adaptGameForAPI(uiGame)
     } as unknown as APIGame;
     

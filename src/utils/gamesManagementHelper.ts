@@ -3,7 +3,7 @@ import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
-import { GameDataExtended } from '@/types/gameService';
+import { GameDataExtended, GameCompatibility } from '@/types/gameService';
 
 /**
  * Helper functions specifically for the Games Management page
@@ -11,7 +11,7 @@ import { GameDataExtended } from '@/types/gameService';
  */
 
 // Convert an API game for admin display
-export const convertAPIGameToAdminFormat = (apiGame: APIGame): UIGame => {
+export const convertAPIGameToAdminFormat = (apiGame: APIGame | GameCompatibility): UIGame => {
   return adaptGameForUI(apiGame);
 };
 
@@ -35,7 +35,7 @@ export const adminAddGame = async (gameData: Omit<UIGame, 'id'>): Promise<UIGame
 export const adminUpdateGame = async (gameData: UIGame): Promise<UIGame> => {
   // Convert UI game to API game format with proper type casting
   const apiGameData = {
-    id: parseInt(gameData.id),
+    id: typeof gameData.id === 'string' ? parseInt(gameData.id) : gameData.id,
     ...adaptGameForAPI(gameData)
   } as unknown as APIGame;
   

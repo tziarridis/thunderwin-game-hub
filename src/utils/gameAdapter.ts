@@ -1,7 +1,7 @@
 
 import { Game as APIGame, GameProvider as APIGameProvider } from '@/types/game';
 import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
-import { GameDataExtended } from '@/types/gameService';
+import { GameDataExtended, GameCompatibility } from '@/types/gameService';
 
 export const adaptGameForUI = (apiGame: APIGame | GameDataExtended): UIGame => {
   return {
@@ -9,7 +9,7 @@ export const adaptGameForUI = (apiGame: APIGame | GameDataExtended): UIGame => {
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
-    category: ('game_type' in apiGame ? apiGame.game_type : apiGame.type) || 'slots',
+    category: ('game_type' in apiGame ? apiGame.game_type : 'type' in apiGame ? apiGame.type : '') || 'slots',
     image: apiGame.cover || ('thumbnail' in apiGame ? apiGame.thumbnail : '') || '',
     rtp: apiGame.rtp || 96,
     volatility: 'medium',
@@ -26,7 +26,7 @@ export const adaptGameForUI = (apiGame: APIGame | GameDataExtended): UIGame => {
 
 export const adaptGameForAPI = (uiGame: UIGame): GameDataExtended => {
   return {
-    provider_id: typeof uiGame.id === 'string' ? uiGame.id : '1', // Convert to string for compatibility
+    provider_id: typeof uiGame.provider === 'string' ? uiGame.provider : '1', // Convert to string for API compatibility
     game_id: uiGame.id || '',
     game_name: uiGame.title || '',
     game_code: uiGame.id ? uiGame.id.replace(/\D/g, '') : '',

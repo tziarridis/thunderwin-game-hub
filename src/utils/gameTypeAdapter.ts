@@ -1,6 +1,7 @@
 
 import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
+import { GameCompatibility } from '@/types/gameService';
 
 // Convert UI Game format to API Game format
 export const convertUIGameToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
@@ -30,14 +31,14 @@ export const convertUIGameToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
 };
 
 // Convert API Game format to UI Game format
-export const convertAPIGameToUIGame = (apiGame: APIGame): UIGame => {
+export const convertAPIGameToUIGame = (apiGame: APIGame | GameCompatibility): UIGame => {
   return {
-    id: apiGame.id.toString(),
+    id: apiGame.id?.toString() || '',
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
-    category: apiGame.game_type || 'slots',
-    image: apiGame.cover || '',
+    category: ('game_type' in apiGame ? apiGame.game_type : 'type' in apiGame ? apiGame.type : '') || 'slots',
+    image: ('cover' in apiGame ? apiGame.cover : 'thumbnail' in apiGame ? apiGame.thumbnail : '') || '',
     rtp: apiGame.rtp || 96,
     volatility: 'medium', // Default value as API doesn't have this
     minBet: 0.1, // Default value as API doesn't have this
