@@ -3,7 +3,7 @@ import axios from 'axios';
 import { getProviderConfig, GameProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { pragmaticPlayService } from './providers/pragmaticPlayService';
+import { pragmaticPlayService } from './pragmaticPlayService';
 import { gitSlotParkService } from './gitSlotParkService';
 
 // Interface for game launch options
@@ -79,6 +79,7 @@ export const gameProviderService = {
     try {
       let gameUrl = '';
       
+      // Use the provider code from the config
       switch(providerConfig.code) {
         case 'PP':
           gameUrl = await pragmaticPlayService.getLaunchUrl(

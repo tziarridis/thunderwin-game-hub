@@ -1,6 +1,6 @@
 
 import { toast } from 'sonner';
-import { gameProviderConfigs, GameProviderConfig } from '@/config/gameProviders';
+import { availableProviders, GameProviderConfig } from '@/config/gameProviders';
 import { gameAggregatorService } from './gameAggregatorService';
 
 interface GameInfo {
@@ -35,9 +35,9 @@ export const gameProviderSyncService = {
     toast.info("Starting game sync from all providers");
     
     // Process each provider
-    for (const [providerKey, config] of Object.entries(gameProviderConfigs)) {
+    for (const providerConfig of availableProviders) {
       try {
-        const providerConfig = config as GameProviderConfig;
+        const providerKey = providerConfig.id;
         console.log(`Syncing games from ${providerConfig.name} (${providerConfig.currency})...`);
         
         const providerResponse = await gameAggregatorService.fetchGamesFromProvider(providerKey);
@@ -85,20 +85,34 @@ export const gameProviderSyncService = {
           gamesUpdated
         };
         
-        const providerConfig = gameProviderConfigs.find(p => p.id === providerKey) as GameProviderConfig;
         toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${providerConfig.name}`);
 
       } catch (error: any) {
-        const providerConfig = gameProviderConfigs.find(p => p.id === providerKey) as GameProviderConfig;
-        console.error(`Error syncing ${providerConfig.name} (${providerConfig.currency}):`, error);
-        results[providerKey] = {
-          success: false,
-          gamesAdded: 0,
-          gamesUpdated: 0,
-          error: error.message || 'Unknown error'
-        };
+        // Find the provider config to get the name and currency
+        const providerConfig = availableProviders.find(p => p.id === error.providerKey);
         
-        toast.error(`Failed to sync games from ${providerConfig.name}`);
+        if (providerConfig) {
+          console.error(`Error syncing ${providerConfig.name} (${providerConfig.currency}):`, error);
+          results[providerConfig.id] = {
+            success: false,
+            gamesAdded: 0,
+            gamesUpdated: 0,
+            error: error.message || 'Unknown error'
+          };
+          
+          toast.error(`Failed to sync games from ${providerConfig.name}`);
+        } else {
+          // Handle case where provider config cannot be found
+          console.error("Error syncing unknown provider:", error);
+          results[error.providerKey || "unknown"] = {
+            success: false,
+            gamesAdded: 0,
+            gamesUpdated: 0,
+            error: error.message || 'Unknown error'
+          };
+          
+          toast.error("Failed to sync games from provider");
+        }
       }
     }
 

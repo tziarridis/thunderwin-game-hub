@@ -1,7 +1,6 @@
 
 import axios from 'axios';
-import { getProviderConfig, GameProviderConfig, gameProviderConfigs } from '@/config/gameProviders';
-import { createGame, getGameByGameId, updateGame } from './gamesService';
+import { availableProviders, GameProviderConfig, getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { generateMockGamesForProvider } from '@/utils/mockGameGenerator';
