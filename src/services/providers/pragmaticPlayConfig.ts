@@ -18,9 +18,9 @@ export interface PPWalletCallback {
   trxid: string;
   type: 'debit' | 'credit';
   amount: number;
+  currency: string;  // Making currency required to match our implementation
   gamecode?: string;
   hash?: string;
-  currency?: string;
   roundid?: string;
   // Additional fields based on the API documentation
   gameType?: string;

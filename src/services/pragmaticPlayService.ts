@@ -205,12 +205,13 @@ export const pragmaticPlayService = {
   testTransactionVerification: async (): Promise<{ success: boolean; message: string }> => {
     try {
       // Create a test wallet callback with a hash
-      const testData: Record<string, any> = {
+      const testData: PPWalletCallback = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: `test-${Date.now()}`,
         type: 'credit',
-        amount: 10.0
+        amount: 10.0,
+        currency: 'USD'
       };
       
       // Generate hash
@@ -371,7 +372,8 @@ export const pragmaticPlayService = {
         playerid: 'test_player',
         trxid: fixedId,
         type: 'credit',
-        amount: 10.0
+        amount: 10.0,
+        currency: 'USD'
       };
       
       // First call
@@ -408,12 +410,13 @@ export const pragmaticPlayService = {
   testHashValidation: async (): Promise<{ success: boolean; message: string }> => {
     try {
       // Create test data
-      const testData: Record<string, any> = {
+      const testData: PPWalletCallback = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: `test-${Date.now()}`,
         type: 'credit',
-        amount: 10.0
+        amount: 10.0,
+        currency: 'USD'
       };
       
       // Generate hash
