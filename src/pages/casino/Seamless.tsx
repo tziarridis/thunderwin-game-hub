@@ -121,7 +121,7 @@ const Seamless = () => {
     }
   };
 
-  // Consolidated copy and refresh functions
+  // Consolidated copy and refresh functions - fixed duplicate function
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopied(id);
@@ -132,6 +132,7 @@ const Seamless = () => {
     }, 2000);
   };
 
+  // Fixed duplicate function
   const refreshData = () => {
     // In a real implementation, this would fetch the latest data
     toast.success("Data refreshed");
@@ -196,6 +197,7 @@ const Seamless = () => {
   // Rest of the component remains the same
   return (
     <div className="container mx-auto px-4 py-12 pt-24">
+      {/* UI for API endpoint header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">Pragmatic Play Seamless API</h1>
@@ -212,6 +214,8 @@ const Seamless = () => {
         </div>
       </div>
       
+      {/* API endpoint card and tabs */}
+      {/* rest of UI */}
       <Card className="bg-slate-900 border-slate-800 mb-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>

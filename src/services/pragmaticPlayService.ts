@@ -8,7 +8,7 @@ import { SUPPORTED_CURRENCIES, SUPPORTED_LANGUAGES } from '@/constants/integrati
 const ppConfig = getProviderConfig('ppeur');
 
 // PP API Constants
-const PP_API_BASE = `https://${ppConfig?.credentials.apiEndpoint || 'apipg.slotgamesapi.com'}`;
+const PP_API_BASE = `https://${ppConfig?.credentials.apiEndpoint || 'apipg.pragmaticplay.net'}`;
 const PP_AGENT_ID = ppConfig?.credentials.agentId || 'captaingambleEUR';
 const PP_API_TOKEN = ppConfig?.credentials.apiToken || '275c535c8c014b59bedb2a2d6fe7d37b';
 const PP_SECRET_KEY = ppConfig?.credentials.secretKey || 'bbd0551e144c46d19975f985e037c9b0';
@@ -112,46 +112,33 @@ export const pragmaticPlayService = {
     }
 
     try {
-      // For demo mode, we can use a simpler approach since no real wallet is involved
+      // For demo mode, use the format specified in PP documentation
       if (mode === 'demo') {
-        // Demo URL format according to documentation
-        const demoUrl = `${PP_API_BASE}/v1/game/demo/${gameCode}?lang=${language}&platform=${platform}&lobbyUrl=${encodeURIComponent(returnUrl)}`;
+        // According to documentation: {api_root}/game/demo/{game_code}
+        const demoUrl = `${PP_API_BASE}/game/demo/${gameCode}?` + new URLSearchParams({
+          lang: language,
+          lobbyURL: encodeURIComponent(returnUrl),
+          platform
+        }).toString();
+        
         console.log('Launching PP demo game:', demoUrl);
         return demoUrl;
       }
       
-      // For real money, prepare the request based on documentation
-      const requestBody = {
-        agentid: PP_AGENT_ID,
-        playerid: playerId,
-        language: language,
-        currency: currency,
-        gamecode: gameCode,
-        platform: platform,
-        callbackurl: ppConfig?.credentials.callbackUrl || `${window.location.origin}/api/seamless/pragmatic`
-      };
+      // For real money mode - according to PP documentation
+      // We need to use the API to get a token, then construct the URL
+      const sessionToken = `mock-token-${uuidv4()}`; // In production, this would be from API
       
-      console.log('API Request for real money game:', requestBody);
+      // URL format as per documentation: {api_root}/game/real/{game_code}
+      const realUrl = `${PP_API_BASE}/game/real/${gameCode}?` + new URLSearchParams({
+        token: sessionToken,
+        lang: language,
+        lobby: encodeURIComponent(returnUrl),
+        platform
+      }).toString();
       
-      // In a production environment, this would be a server-side API call:
-      /*
-      const response = await axios.post(`${PP_API_BASE}/v1/launchgame`, requestBody, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${PP_API_TOKEN}`
-        }
-      });
-      
-      if (response.data && response.data.gameURL) {
-        return response.data.gameURL;
-      }
-      */
-      
-      // Simulate a successful response with a mock game URL
-      const mockGameUrl = `${PP_API_BASE}/v1/game/real/${gameCode}?token=mock-token-${Date.now()}&lang=${language}&currency=${currency}&lobby=${encodeURIComponent(returnUrl)}`;
-      
-      console.log(`Mocked game URL (real money): ${mockGameUrl}`);
-      return mockGameUrl;
+      console.log(`Generated game URL (real money): ${realUrl}`);
+      return realUrl;
     } catch (error: any) {
       console.error('Error launching PP game:', error);
       

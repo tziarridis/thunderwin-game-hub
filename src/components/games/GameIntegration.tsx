@@ -28,6 +28,7 @@ const GameIntegration = ({
   const [gameMode, setGameMode] = useState<'demo' | 'real'>('demo');
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [selectedPlatform, setPlatform] = useState("web");
   const { isAuthenticated, user } = useAuth();
   
   // Get available PP games
@@ -54,7 +55,8 @@ const GameIntegration = ({
         mode: gameMode,
         returnUrl: window.location.href,
         language: selectedLanguage,
-        currency: selectedCurrency
+        currency: selectedCurrency,
+        platform: selectedPlatform as 'web' | 'mobile'
       });
       
       console.log("Generated game URL:", gameUrl);
@@ -122,6 +124,19 @@ const GameIntegration = ({
               <SelectContent>
                 <SelectItem value="demo">Demo Mode</SelectItem>
                 <SelectItem value="real">Real Money</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="platform-select">Platform</Label>
+            <Select value={selectedPlatform} onValueChange={setPlatform}>
+              <SelectTrigger id="platform-select">
+                <SelectValue placeholder="Select platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="web">Desktop</SelectItem>
+                <SelectItem value="mobile">Mobile</SelectItem>
               </SelectContent>
             </Select>
           </div>
