@@ -32,7 +32,7 @@ export const pragmaticPlayTransactionHandler = {
       console.log('Processing PP transaction:', transaction);
       
       // Validate agent ID
-      if (!pragmaticPlayTransactionHandler.validateTransaction(config, transaction)) {
+      if (!config || !config.credentials || !pragmaticPlayTransactionHandler.validateTransaction(config, transaction)) {
         console.error('Invalid transaction data:', transaction);
         return { errorcode: "2", balance: 0 }; // Invalid transaction
       }

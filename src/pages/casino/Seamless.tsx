@@ -95,7 +95,7 @@ const Seamless = () => {
         return;
       }
       
-      const isValid = await pragmaticPlayService.verifyIntegration(ppConfig);
+      const isValid = await pragmaticPlayService.verifyIntegration();
       if (isValid) {
         setIntegrationStatus('ok');
         addLog("Integration status: OK");
@@ -121,7 +121,7 @@ const Seamless = () => {
     }
   };
 
-  // Consolidated copy and refresh functions - fixed duplicate function
+  // Copy function
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopied(id);
@@ -132,7 +132,7 @@ const Seamless = () => {
     }, 2000);
   };
 
-  // Fixed duplicate function
+  // Refresh data function
   const refreshData = () => {
     // In a real implementation, this would fetch the latest data
     toast.success("Data refreshed");
@@ -215,7 +215,6 @@ const Seamless = () => {
       </div>
       
       {/* API endpoint card and tabs */}
-      {/* rest of UI */}
       <Card className="bg-slate-900 border-slate-800 mb-6">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
@@ -258,6 +257,8 @@ const Seamless = () => {
           <TabsTrigger value="docs">Documentation</TabsTrigger>
           <TabsTrigger value="testing">Testing</TabsTrigger>
         </TabsList>
+        
+        
         
         <TabsContent value="logs">
           <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
@@ -320,9 +321,11 @@ const Seamless = () => {
         </TabsContent>
         
         <TabsContent value="docs">
+          
           <div className="bg-slate-950 p-4 rounded-md border border-slate-800">
             <h3 className="font-mono text-sm text-white mb-4">Integration Documentation</h3>
             <div className="space-y-4 text-sm">
+              
               <Collapsible 
                 open={openCollapsible === "endpoint"} 
                 onOpenChange={() => toggleCollapsible("endpoint")}
