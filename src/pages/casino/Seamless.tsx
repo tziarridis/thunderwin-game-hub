@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
@@ -191,7 +190,8 @@ const Seamless = () => {
       type: Math.random() > 0.5 ? 'debit' : 'credit',
       trxid: `test_${Date.now()}`,
       roundid: roundId,
-      gameref: "vs20bonzanza"
+      gameref: "vs20bonzanza",
+      currency: "USD" // Adding the required currency field
     };
     
     // Log the request
