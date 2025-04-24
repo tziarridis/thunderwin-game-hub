@@ -82,16 +82,16 @@ export const gameProviderService = {
       // Use the provider code from the config
       switch(providerConfig.code) {
         case 'PP':
-          gameUrl = await pragmaticPlayService.getLaunchUrl(
-            providerConfig, 
-            gameId, 
-            playerId, 
-            mode, 
-            language, 
+          // Update to use launchGame instead of getLaunchUrl
+          gameUrl = await pragmaticPlayService.launchGame({
+            playerId,
+            gameCode: gameId,
+            mode,
+            language,
             currency,
             platform,
-            options.returnUrl
-          );
+            returnUrl: options.returnUrl
+          });
           break;
         
         case 'GSP':
@@ -142,8 +142,8 @@ export const gameProviderService = {
       // Handle different providers based on their code
       switch(providerConfig.code) {
         case 'PP':
-          // Process Pragmatic Play wallet callback
-          return await pragmaticPlayService.processWalletCallback(providerConfig, data);
+          // Update to pass only one argument to processWalletCallback
+          return await pragmaticPlayService.processWalletCallback(data);
           
         case 'GSP':
           // Process GitSlotPark wallet callback
