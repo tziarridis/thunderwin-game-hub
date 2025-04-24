@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
-import { getPragmaticPlayConfig, PPGameConfig, PPWalletCallback } from './providers/pragmaticPlayConfig';
+import { getPragmaticPlayConfig, PPGameConfig, PPWalletCallback, generatePragmaticPlayHash } from './providers/pragmaticPlayConfig';
 import { pragmaticPlayTransactionHandler } from './providers/pragmaticPlayTransactionHandler';
+import { pragmaticPlaySessionService } from './providers/pragmaticPlaySessionService';
 
 export interface PPGameLaunchOptions {
   playerId: string;
@@ -38,7 +39,15 @@ export const pragmaticPlayService = {
     
     const apiBaseUrl = `https://${config.apiEndpoint}`;
     
+    // For demo mode, use the documented demo endpoint
     if (mode === 'demo') {
+      // Create a session for the demo player
+      await pragmaticPlaySessionService.createSession(
+        playerId,
+        gameCode,
+        currency
+      );
+      
       return `${apiBaseUrl}/gs2c/openGame.do?${new URLSearchParams({
         gameSymbol: gameCode,
         lang: language,
@@ -51,15 +60,35 @@ export const pragmaticPlayService = {
     }
 
     try {
-      // For real money mode, generate mock game URL (replace with actual API call)
+      // For real money mode
+      // Create a session for the player
+      const session = await pragmaticPlaySessionService.createSession(
+        playerId,
+        gameCode,
+        currency
+      );
+      
+      // Get player balance
+      const balance = await pragmaticPlayTransactionHandler.getPlayerBalance(
+        playerId,
+        currency
+      );
+      
+      // Update session with balance
+      session.balance = balance;
+      await pragmaticPlaySessionService.storeSession(session);
+      
+      // Generate game URL with token
       const gameUrl = `${apiBaseUrl}/gs2c/playGame.do?${new URLSearchParams({
         gameSymbol: gameCode,
-        token: `mock-token-${playerId}-${Date.now()}`,
+        token: session.token || `mock-token-${playerId}-${Date.now()}`,
         lang: language,
         lobbyUrl: returnUrl,
         stylename: 'thunderwin',
         platform,
         websiteUrl: window.location.origin,
+        balance: balance.toString(),
+        currency
       })}`;
       
       return gameUrl;
@@ -89,6 +118,11 @@ export const pragmaticPlayService = {
         id: 'ppeur',
         name: 'Pragmatic Play'
       });
+      
+      // Update session activity if this is part of an active session
+      if (data.session) {
+        await pragmaticPlaySessionService.updateSessionActivity(data.session);
+      }
       
       return await pragmaticPlayTransactionHandler.processTransaction(config, data);
     } catch (error: any) {
@@ -146,13 +180,23 @@ export const pragmaticPlayService = {
    */
   testTransactionVerification: async (): Promise<{ success: boolean; message: string }> => {
     try {
-      // Create a test wallet callback
-      const testCallback: PPWalletCallback = {
+      // Create a test wallet callback with a hash
+      const testData: Record<string, any> = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: `test-${Date.now()}`,
         type: 'credit',
         amount: 10.0
+      };
+      
+      // Generate hash
+      const secretKey = 'testsecret';
+      const hash = generatePragmaticPlayHash(testData, secretKey);
+      
+      // Add hash to test data
+      const testCallback: PPWalletCallback = {
+        ...testData,
+        hash
       };
       
       // Process the test callback
@@ -162,7 +206,7 @@ export const pragmaticPlayService = {
       if (response.errorcode === "0") {
         return {
           success: true,
-          message: 'Transaction verification successful'
+          message: 'Transaction verification successful with hash validation'
         };
       } else {
         return {
@@ -330,6 +374,106 @@ export const pragmaticPlayService = {
       return {
         success: false,
         message: `Idempotency test failed: ${error.message || 'Unknown error'}`
+      };
+    }
+  },
+  
+  /**
+   * Test hash generation and validation
+   */
+  testHashValidation: async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      // Create test data
+      const testData: Record<string, any> = {
+        agentid: 'testpartner',
+        playerid: 'test_player',
+        trxid: `test-${Date.now()}`,
+        type: 'credit',
+        amount: 10.0
+      };
+      
+      // Generate hash
+      const secretKey = 'testsecret';
+      const hash = generatePragmaticPlayHash(testData, secretKey);
+      
+      // Add hash to test data
+      const testCallback: PPWalletCallback = {
+        ...testData,
+        hash
+      };
+      
+      // Validate the hash
+      const isValid = pragmaticPlayTransactionHandler.validateHash(testCallback, secretKey);
+      
+      if (isValid) {
+        return {
+          success: true,
+          message: 'Hash validation test passed'
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Hash validation test failed'
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Hash validation test failed: ${error.message || 'Unknown error'}`
+      };
+    }
+  },
+  
+  /**
+   * Test session management
+   */
+  testSessionManagement: async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      // Create a test session
+      const testSession = await pragmaticPlaySessionService.createSession(
+        'test_player',
+        'vs20bonzanza',
+        'USD'
+      );
+      
+      // Get the session
+      const retrievedSession = await pragmaticPlaySessionService.getSession(testSession.sessionId);
+      
+      if (!retrievedSession) {
+        return {
+          success: false,
+          message: 'Session retrieval test failed'
+        };
+      }
+      
+      // Update session activity
+      const updated = await pragmaticPlaySessionService.updateSessionActivity(testSession.sessionId);
+      
+      if (!updated) {
+        return {
+          success: false,
+          message: 'Session activity update test failed'
+        };
+      }
+      
+      // End session
+      const ended = await pragmaticPlaySessionService.endSession(testSession.sessionId);
+      
+      if (!ended) {
+        return {
+          success: false,
+          message: 'Session ending test failed'
+        };
+      }
+      
+      return {
+        success: true,
+        message: 'Session management test passed'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Session management test failed: ${error.message || 'Unknown error'}`
       };
     }
   }
