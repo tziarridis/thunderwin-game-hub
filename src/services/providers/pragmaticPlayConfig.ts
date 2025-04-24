@@ -12,18 +12,30 @@ export interface PPGameConfig {
   platform: 'web' | 'mobile';
 }
 
+export interface PPWalletCallback {
+  agentid: string;
+  playerid: string;
+  trxid: string;
+  type: 'debit' | 'credit';
+  amount: number;
+  gamecode?: string;
+  hash?: string;
+  currency?: string;
+  roundid?: string;
+}
+
 export const getPragmaticPlayConfig = (config: GameProviderConfig): PPGameConfig => {
   if (!config.credentials) {
     throw new Error('Missing Pragmatic Play credentials');
   }
 
   return {
-    agentId: config.credentials.agentId || 'testpartner',
-    apiKey: config.credentials.apiKey || 'testkey',
-    apiEndpoint: config.credentials.apiEndpoint || 'demo.pragmaticplay.net',
-    secretKey: config.credentials.secretKey || 'testsecret',
+    agentId: config.credentials.agentId,
+    apiKey: config.credentials.agentId, // Using agentId as apiKey for demo
+    apiEndpoint: config.credentials.apiEndpoint,
+    secretKey: config.credentials.secretKey,
     currency: config.currency || 'USD',
-    language: config.language || 'en',
+    language: 'en', // Default language
     returnUrl: `${window.location.origin}/casino/seamless`,
     platform: 'web'
   };

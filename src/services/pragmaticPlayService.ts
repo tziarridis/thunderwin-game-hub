@@ -1,6 +1,6 @@
 import { toast } from 'sonner';
-import { getPragmaticPlayConfig, PPGameConfig, PRAGMATIC_PLAY_ERROR_CODES } from './providers/pragmaticPlayConfig';
-import { pragmaticPlayTransactionHandler, PPTransactionData } from './providers/pragmaticPlayTransactionHandler';
+import { getPragmaticPlayConfig, PPGameConfig, PPWalletCallback } from './providers/pragmaticPlayConfig';
+import { pragmaticPlayTransactionHandler } from './providers/pragmaticPlayTransactionHandler';
 
 export interface PPGameLaunchOptions {
   playerId: string;
@@ -73,20 +73,28 @@ export const pragmaticPlayService = {
     }
   },
 
-  processWalletCallback: async (data: PPTransactionData): Promise<{ errorcode: string; balance: number }> => {
+  processWalletCallback: async (data: PPWalletCallback): Promise<{ errorcode: string; balance: number }> => {
     try {
       const config = getPragmaticPlayConfig({
         credentials: {
           agentId: 'testpartner',
-          secretKey: 'testsecret'
-        }
+          secretKey: 'testsecret',
+          apiEndpoint: 'demo.pragmaticplay.net',
+          callbackUrl: `${window.location.origin}/casino/seamless`
+        },
+        currency: data.currency || 'USD',
+        type: 'slots',
+        enabled: true,
+        code: 'PP',
+        id: 'ppeur',
+        name: 'Pragmatic Play'
       });
       
       return await pragmaticPlayTransactionHandler.processTransaction(config, data);
     } catch (error: any) {
       console.error('Error processing wallet callback:', error);
       return {
-        errorcode: PRAGMATIC_PLAY_ERROR_CODES.GENERAL_ERROR,
+        errorcode: "1", // General error
         balance: 0
       };
     }
@@ -139,7 +147,7 @@ export const pragmaticPlayService = {
   testTransactionVerification: async (): Promise<{ success: boolean; message: string }> => {
     try {
       // Create a test wallet callback
-      const testCallback: PPTransactionData = {
+      const testCallback: PPWalletCallback = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: `test-${Date.now()}`,
@@ -290,7 +298,7 @@ export const pragmaticPlayService = {
       const fixedId = `idempotency-test-${Date.now()}`;
       
       // Process the same transaction twice
-      const testCallback: PPTransactionData = {
+      const testCallback: PPWalletCallback = {
         agentid: 'testpartner',
         playerid: 'test_player',
         trxid: fixedId,

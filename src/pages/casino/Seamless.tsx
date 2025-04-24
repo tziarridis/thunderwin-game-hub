@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { pragmaticPlayService, PPWalletCallback } from "@/services/pragmaticPlayService";
+import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { pragmaticPlayTransactionHandler } from "@/services/providers/pragmaticPlayTransactionHandler";
+import { PPWalletCallback } from "@/services/providers/pragmaticPlayConfig";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, HelpCircle, Copy, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { getProviderConfig } from "@/config/gameProviders";
+import { getProviderConfig, GameProviderConfig } from "@/config/gameProviders";
 
 // Get configuration for demonstration
 const ppConfig = getProviderConfig('ppeur');
