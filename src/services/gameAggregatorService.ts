@@ -4,6 +4,8 @@ import { getProviderConfig, gameProviderConfigs } from '@/config/gameProviders';
 import { createGame, getGameByGameId, updateGame } from './gamesService';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { generateMockGamesForProvider } from '@/utils/mockGameGenerator';
+import { gameProviderSyncService } from './gameProviderSyncService';
 
 interface GameInfo {
   game_id: string;
@@ -77,85 +79,7 @@ export const gameAggregatorService = {
    * @returns Promise with sync results
    */
   syncAllProviders: async () => {
-    const results: Record<string, {
-      success: boolean;
-      gamesAdded: number;
-      gamesUpdated: number;
-      error?: string;
-    }> = {};
-
-    toast.info("Starting game sync from all providers");
-    
-    // Process each provider
-    for (const [providerKey, config] of Object.entries(gameProviderConfigs)) {
-      try {
-        console.log(`Syncing games from ${config.name} (${config.currency})...`);
-        
-        const providerResponse = await gameAggregatorService.fetchGamesFromProvider(providerKey);
-        
-        if (!providerResponse.success || !providerResponse.games) {
-          results[providerKey] = {
-            success: false,
-            gamesAdded: 0,
-            gamesUpdated: 0,
-            error: providerResponse.errorMessage || 'Unknown error'
-          };
-          continue;
-        }
-
-        // Process each game from the provider
-        let gamesAdded = 0;
-        let gamesUpdated = 0;
-
-        for (const game of providerResponse.games) {
-          // Check if game already exists in our in-memory storage
-          const existingGames = inMemoryGames[providerKey] || [];
-          const existingGameIndex = existingGames.findIndex(g => g.game_id === game.game_id);
-          
-          if (existingGameIndex !== -1) {
-            // Update existing game
-            existingGames[existingGameIndex] = {
-              ...existingGames[existingGameIndex],
-              ...game,
-            };
-            gamesUpdated++;
-          } else {
-            // Add new game
-            if (!inMemoryGames[providerKey]) {
-              inMemoryGames[providerKey] = [];
-            }
-            inMemoryGames[providerKey].push(game);
-            gamesAdded++;
-          }
-        }
-
-        // Store results
-        results[providerKey] = {
-          success: true,
-          gamesAdded,
-          gamesUpdated
-        };
-        
-        toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${config.name}`);
-
-      } catch (error: any) {
-        console.error(`Error syncing ${config.name} (${config.currency}):`, error);
-        results[providerKey] = {
-          success: false,
-          gamesAdded: 0,
-          gamesUpdated: 0,
-          error: error.message || 'Unknown error'
-        };
-        
-        toast.error(`Failed to sync games from ${config.name}`);
-      }
-    }
-
-    return {
-      success: Object.values(results).some(r => r.success),
-      results,
-      timestamp: new Date().toISOString()
-    };
+    return await gameProviderSyncService.syncAllProviders(inMemoryGames);
   },
 
   /**
@@ -188,23 +112,14 @@ export const gameAggregatorService = {
    * Get scheduled sync status
    */
   getSyncStatus: async () => {
-    // This would connect to your database or cache to get the last sync status
-    // For browser environment, we'll return mock data
-    return {
-      lastSync: new Date().toISOString(),
-      nextScheduledSync: new Date(Date.now() + 3600000).toISOString(),
-      isRunning: false,
-      status: 'idle'
-    };
+    return gameProviderSyncService.getSyncStatus();
   },
 
   /**
    * Manually trigger a sync
    */
   triggerSync: async () => {
-    // This would trigger your cron job or background process
-    // For demonstration, we'll call the sync directly
-    return await gameAggregatorService.syncAllProviders();
+    return await gameProviderSyncService.syncAllProviders(inMemoryGames);
   },
   
   /**
@@ -245,62 +160,5 @@ export const gameAggregatorService = {
     }
   }
 };
-
-/**
- * Generate mock games for development
- */
-function generateMockGamesForProvider(providerCode: string, count: number): GameInfo[] {
-  const gameTypes = ['slots', 'table', 'live', 'jackpot', 'crash'];
-  const gameThemes = ['classic', 'adventure', 'fantasy', 'fruit', 'egypt', 'animal', 'space'];
-  
-  const mockGames: GameInfo[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    const type = gameTypes[Math.floor(Math.random() * gameTypes.length)];
-    const theme = gameThemes[Math.floor(Math.random() * gameThemes.length)];
-    
-    const game = {
-      game_id: `${providerCode.toLowerCase()}_game_${i}`,
-      game_name: `${providerCode} ${type.charAt(0).toUpperCase() + type.slice(1)} ${i}`,
-      game_code: `${providerCode.toLowerCase()}_${type}_${i}`,
-      type,
-      theme,
-      is_mobile: Math.random() > 0.1, // 90% mobile compatible
-      is_desktop: true,
-      thumbnail: `/games/${providerCode.toLowerCase()}/${type}_${i}.jpg`,
-      background: `/games/bg/${providerCode.toLowerCase()}_${i}.jpg`
-    };
-    
-    mockGames.push(game);
-  }
-  
-  return mockGames;
-}
-
-/**
- * Normalize games from various provider formats to our schema
- */
-function normalizeGames(games: any[], providerConfig: any): GameInfo[] {
-  if (!games || !Array.isArray(games)) {
-    return [];
-  }
-
-  // Different providers might use different field names
-  // This function handles the mapping
-  return games.map(game => {
-    // Default mappings for common provider formats
-    return {
-      game_id: game.id || game.game_id || game.gameId || '',
-      game_name: game.name || game.title || game.game_name || game.gameName || '',
-      game_code: game.code || game.game_code || game.gameCode || '',
-      type: game.category || game.type || game.gameType || 'slots',
-      theme: game.theme || game.genre || '',
-      is_mobile: game.mobile_support !== false && game.isMobile !== false,
-      is_desktop: game.desktop_support !== false && game.isDesktop !== false,
-      thumbnail: game.thumbnail || game.image || game.icon || '',
-      background: game.background || game.banner || game.bgImage || ''
-    };
-  });
-}
 
 export default gameAggregatorService;

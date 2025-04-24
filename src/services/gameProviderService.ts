@@ -2,8 +2,9 @@
 import axios from 'axios';
 import { getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
-import { gitSlotParkService } from './gitSlotParkService';
 import { supabase } from '@/integrations/supabase/client';
+import { pragmaticPlayService } from './providers/pragmaticPlayService';
+import { gitSlotParkService } from './gitSlotParkService';
 
 // Interface for game launch options
 export interface GameLaunchOptions {
@@ -14,7 +15,7 @@ export interface GameLaunchOptions {
   language?: string;
   currency?: string;
   returnUrl?: string;
-  platform?: 'web' | 'mobile';  // Added platform option as per docs
+  platform?: 'web' | 'mobile';
 }
 
 // Interface for provider API response
@@ -80,7 +81,7 @@ export const gameProviderService = {
       
       switch(providerConfig.code) {
         case 'PP':
-          gameUrl = await getPragmaticPlayLaunchUrl(
+          gameUrl = await pragmaticPlayService.getLaunchUrl(
             providerConfig, 
             gameId, 
             playerId, 
@@ -109,27 +110,7 @@ export const gameProviderService = {
       }
       
       // Update transaction status to completed
-      try {
-        const { data } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('player_id', playerId)
-          .eq('game_id', gameId)
-          .eq('type', 'game_launch')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-          
-        if (data?.id) {
-          await supabase
-            .from('transactions')
-            .update({ status: 'completed' })
-            .eq('id', data.id);
-        }
-      } catch (dbError) {
-        console.error("Failed to update transaction status:", dbError);
-      }
+      await updateTransactionStatus(playerId, gameId, 'completed');
       
       return gameUrl;
       
@@ -137,27 +118,7 @@ export const gameProviderService = {
       console.error(`Error getting launch URL for ${providerId}:`, error);
       
       // Update the transaction status to failed
-      try {
-        const { data } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('player_id', playerId)
-          .eq('game_id', gameId)
-          .eq('type', 'game_launch')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-          
-        if (data?.id) {
-          await supabase
-            .from('transactions')
-            .update({ status: 'failed' })
-            .eq('id', data.id);
-        }
-      } catch (dbError) {
-        console.error("Failed to update transaction status:", dbError);
-      }
+      await updateTransactionStatus(playerId, gameId, 'failed');
       
       throw new Error(`Failed to get game URL: ${error.message || 'Unknown error'}`);
     }
@@ -181,17 +142,7 @@ export const gameProviderService = {
       switch(providerConfig.code) {
         case 'PP':
           // Process Pragmatic Play wallet callback
-          if (data.agentid !== providerConfig.credentials.agentId) {
-            return { errorcode: "1", balance: 0 };
-          }
-          
-          // Mock successful transaction
-          console.log(`Processing ${providerConfig.name} wallet callback:`, data);
-          
-          return {
-            errorcode: "0",  // 0 means success
-            balance: 100.00  // Mock balance
-          };
+          return await pragmaticPlayService.processWalletCallback(providerConfig, data);
           
         case 'GSP':
           // Process GitSlotPark wallet callback
@@ -243,132 +194,30 @@ export const gameProviderService = {
 };
 
 /**
- * Get a game launch URL from Pragmatic Play
+ * Helper function to update transaction status
  */
-async function getPragmaticPlayLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  platform: string,
-  returnUrl?: string
-): Promise<string> {
-  const apiBaseUrl = `https://${config.credentials.apiEndpoint}`;
-  
-  // For demo mode, use the documented demo endpoint
-  if (mode === 'demo') {
-    const demoUrl = `${apiBaseUrl}/v1/game/demo/${gameId}?` + new URLSearchParams({
-      lang: language,
-      platform: platform,
-      currency: currency,
-      lobbyUrl: returnUrl || window.location.href
-    });
-    
-    console.log(`Launching demo game: ${demoUrl}`);
-    return demoUrl;
-  }
-  
-  // For real money mode
+async function updateTransactionStatus(playerId: string, gameId: string, status: string): Promise<void> {
   try {
-    console.log(`Preparing to launch real money game for player: ${playerId}`);
-    
-    const requestBody = {
-      agentid: config.credentials.agentId,
-      playerid: playerId,
-      language: language,
-      currency: currency,
-      gamecode: gameId,
-      platform: platform,
-      callbackurl: config.credentials.callbackUrl,
-      returnurl: returnUrl || window.location.href
-    };
-    
-    console.log('API Request:', requestBody);
-    
-    // In production, this would be a server-side API call
-    // For demo, return a mock URL with all parameters
-    const mockGameUrl = `${apiBaseUrl}/v1/game/real/${gameId}?` + new URLSearchParams({
-      token: `mock-token-${Date.now()}`,
-      lang: language,
-      currency: currency,
-      platform: platform,
-      lobby: encodeURIComponent(returnUrl || window.location.href)
-    });
-    
-    console.log(`Generated game URL (real money): ${mockGameUrl}`);
-    return mockGameUrl;
-    
-  } catch (error: any) {
-    console.error(`Error launching real money game:`, error);
-    toast.error(`Failed to launch real money game. Falling back to demo mode.`);
-    return getPragmaticPlayLaunchUrl(config, gameId, playerId, 'demo', language, currency, platform, returnUrl);
+    const { data } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('player_id', playerId)
+      .eq('game_id', gameId)
+      .eq('type', 'game_launch')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (data?.id) {
+      await supabase
+        .from('transactions')
+        .update({ status })
+        .eq('id', data.id);
+    }
+  } catch (dbError) {
+    console.error(`Failed to update transaction status to ${status}:`, dbError);
   }
-}
-
-/**
- * Get a game launch URL from Play'n GO
- */
-async function getPlayGoLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  returnUrl?: string
-): Promise<string> {
-  // This is the URL structure for Play'n GO games
-  const baseUrl = `https://${config.credentials.apiEndpoint}/launch`;
-  
-  // Create parameters for the game
-  const params = new URLSearchParams({
-    game: gameId,
-    token: config.credentials.apiToken,
-    player: playerId,
-    mode,
-    lang: language,
-    currency: currency,
-    home: returnUrl || 'https://captaingamble.com/casino'
-  });
-  
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
-  
-  // Return mock URL for demo
-  return `${baseUrl}?${params.toString()}`;
-}
-
-/**
- * Get a game launch URL from Amatic
- */
-async function getAmaticLaunchUrl(
-  config: any, 
-  gameId: string, 
-  playerId: string, 
-  mode: 'real' | 'demo',
-  language: string,
-  currency: string,
-  returnUrl?: string
-): Promise<string> {
-  // This is the URL structure for Amatic games
-  const baseUrl = `https://${config.credentials.apiEndpoint}/game/launch`;
-  
-  // Create parameters for the game
-  const params = new URLSearchParams({
-    gameId,
-    apiKey: config.credentials.apiToken,
-    userId: playerId,
-    mode,
-    language,
-    currency,
-    returnUrl: returnUrl || 'https://captaingamble.com/casino'
-  });
-  
-  console.log(`Launching ${config.name} game: ${gameId} for player: ${playerId} in ${mode} mode with currency: ${currency}`);
-  
-  // Return mock URL for demo
-  return `${baseUrl}?${params.toString()}`;
 }
 
 export default gameProviderService;
