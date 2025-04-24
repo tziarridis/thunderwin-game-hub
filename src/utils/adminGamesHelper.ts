@@ -3,7 +3,6 @@ import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
-import { GameDataExtended } from '@/types/gameService';
 
 /**
  * Helper functions for the admin games management page
@@ -14,9 +13,7 @@ export const addGameHelper = async (gameData: Omit<UIGame, 'id'>): Promise<UIGam
   try {
     // Convert UI game to API game format
     const apiGame = adaptGameForAPI(gameData as UIGame);
-    // Ensure this is cast properly for the API
-    const apiGameData = { ...apiGame } as unknown as APIGame;
-    const result = await clientGamesApi.addGame(apiGameData);
+    const result = await clientGamesApi.addGame(apiGame);
     // Convert the result back to UI format
     const uiGame = adaptGameForUI(result);
     return uiGame;
@@ -28,13 +25,13 @@ export const addGameHelper = async (gameData: Omit<UIGame, 'id'>): Promise<UIGam
 
 export const updateGameHelper = async (game: UIGame): Promise<UIGame> => {
   try {
-    // Convert UI game to API game format with proper typing
-    const apiGameData = {
+    // Convert UI game to API game format
+    const apiGame = {
       id: parseInt(game.id),
       ...adaptGameForAPI(game)
-    } as unknown as APIGame;
+    };
     
-    const result = await clientGamesApi.updateGame(apiGameData);
+    const result = await clientGamesApi.updateGame(apiGame);
     // Convert the result back to UI format
     const uiGame = adaptGameForUI(result);
     return uiGame;

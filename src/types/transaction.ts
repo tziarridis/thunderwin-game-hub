@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   player_id: string;
@@ -33,7 +34,6 @@ export interface TransactionFilter {
   startDate?: string;
   endDate?: string;
   limit?: number;
-  search?: string; // Add search field
 }
 
 export interface TransactionQueryOptions {

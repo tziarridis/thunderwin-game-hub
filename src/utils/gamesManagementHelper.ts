@@ -3,7 +3,6 @@ import { Game as UIGame } from '@/types';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForUI, adaptGameForAPI } from '@/utils/gameAdapter';
 import { clientGamesApi } from '@/services/gamesService';
-import { GameDataExtended } from '@/types/gameService';
 
 /**
  * Helper functions specifically for the Games Management page
@@ -24,22 +23,20 @@ export const convertAPIGamesForAdmin = (apiGames: APIGame[]): UIGame[] => {
 export const adminAddGame = async (gameData: Omit<UIGame, 'id'>): Promise<UIGame> => {
   // Convert UI game to API game format
   const apiGame = adaptGameForAPI(gameData as UIGame);
-  // Cast to the expected API format
-  const apiGameData = { ...apiGame } as unknown as APIGame;
-  const result = await clientGamesApi.addGame(apiGameData);
+  const result = await clientGamesApi.addGame(apiGame);
   // Convert the result back to UI format
   return convertAPIGameToAdminFormat(result);
 };
 
 // Update an existing game via the admin interface
 export const adminUpdateGame = async (gameData: UIGame): Promise<UIGame> => {
-  // Convert UI game to API game format with proper type casting
-  const apiGameData = {
+  // Convert UI game to API game format
+  const apiGame = {
     id: parseInt(gameData.id),
     ...adaptGameForAPI(gameData)
-  } as unknown as APIGame;
+  };
   
-  const result = await clientGamesApi.updateGame(apiGameData);
+  const result = await clientGamesApi.updateGame(apiGame);
   // Convert the result back to UI format
   return convertAPIGameToAdminFormat(result);
 };
