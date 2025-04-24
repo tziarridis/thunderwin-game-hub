@@ -40,7 +40,8 @@ export const pragmaticPlayTransactionHandler = {
       // Check for duplicate transaction (idempotency)
       if (processedTransactions.has(transaction.trxid)) {
         console.log('Duplicate transaction detected:', transaction.trxid);
-        return processedTransactions.get(transaction.trxid) || { errorcode: "0", balance: 100 };
+        const existingTransaction = processedTransactions.get(transaction.trxid);
+        return existingTransaction || { errorcode: "0", balance: 100 };
       }
       
       try {
