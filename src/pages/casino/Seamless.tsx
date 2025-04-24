@@ -1,8 +1,9 @@
+
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
 import { pragmaticPlayTransactionHandler } from "@/services/providers/pragmaticPlayTransactionHandler";
-import { PPWalletCallback } from "@/services/providers/pragmaticPlayConfig";
+import { PPWalletCallback, getPragmaticPlayConfig } from "@/services/providers/pragmaticPlayConfig";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, HelpCircle, Copy, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
@@ -166,8 +167,11 @@ const Seamless = () => {
         throw new Error("PP configuration not found");
       }
       
+      // Convert GameProviderConfig to PPGameConfig and then process transaction
+      const ppGameConfig = getPragmaticPlayConfig(ppConfig);
+      
       const response = await pragmaticPlayTransactionHandler.processTransaction(
-        ppConfig, 
+        ppGameConfig, 
         mockTransaction
       );
       
