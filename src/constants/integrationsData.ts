@@ -41,6 +41,16 @@ export const SUPPORTED_LANGUAGES: LanguageInfo[] = [
   { code: "pl", name: "Polish", native: "Polski" }
 ];
 
+export const TRANSACTION_STATUSES = [
+  { code: 0, description: "Success" },
+  { code: 1, description: "Generic Error" },
+  { code: 2, description: "Invalid Request" },
+  { code: 3, description: "Insufficient Funds" },
+  { code: 4, description: "Transaction Not Found" },
+  { code: 5, description: "Player Not Found" },
+  { code: 6, description: "Duplicate Transaction" }
+];
+
 export const findCurrencyByCode = (code: string): CurrencyInfo | undefined => {
   return SUPPORTED_CURRENCIES.find(currency => currency.code === code);
 };

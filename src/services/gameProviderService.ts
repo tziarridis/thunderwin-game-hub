@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-import { getProviderConfig } from '@/config/gameProviders';
+import { getProviderConfig, GameProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { pragmaticPlayService } from './providers/pragmaticPlayService';

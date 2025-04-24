@@ -12,6 +12,7 @@ export interface GameProviderConfig {
   currency: string;
   type: 'slots' | 'live' | 'table' | 'other';
   enabled: boolean;
+  code: string;
   credentials: GameProviderCredentials;
 }
 
@@ -23,6 +24,7 @@ export const availableProviders: GameProviderConfig[] = [
     currency: 'EUR',
     type: 'slots',
     enabled: true,
+    code: 'PP',
     credentials: {
       apiEndpoint: 'demo.pragmaticplay.net',
       agentId: 'testpartner',
@@ -36,6 +38,7 @@ export const availableProviders: GameProviderConfig[] = [
     currency: 'USD',
     type: 'slots',
     enabled: true,
+    code: 'PP',
     credentials: {
       apiEndpoint: 'demo.pragmaticplay.net',
       agentId: 'testpartner-usd',
@@ -49,6 +52,7 @@ export const availableProviders: GameProviderConfig[] = [
     currency: 'EUR',
     type: 'live',
     enabled: false,
+    code: 'EVO',
     credentials: {
       apiEndpoint: 'api.evolution.com',
       agentId: 'demo',
@@ -57,6 +61,9 @@ export const availableProviders: GameProviderConfig[] = [
     }
   }
 ];
+
+// Export provider configs for other services to use
+export const gameProviderConfigs = availableProviders;
 
 // Get a provider configuration by ID
 export const getProviderConfig = (providerId: string): GameProviderConfig | undefined => {

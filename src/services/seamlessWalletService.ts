@@ -984,12 +984,15 @@ export const seamlessWalletService = {
         };
       }
       
+      // Map status code to description
+      const statusDesc = TRANSACTION_STATUSES.find(s => s.code === response.status)?.description || 'Unknown status';
+      
       // Return standardized response
       return {
         status: response.status,
         balance: response.balance,
         transaction_id: response.transactionId || transaction_id,
-        message: response.message || TRANSACTION_STATUSES.find(s => s.code === response.status)?.description || 'Unknown status'
+        message: response.message || statusDesc
       };
     } catch (error: any) {
       console.error('Error processing generic callback:', error);

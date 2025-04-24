@@ -97,7 +97,7 @@ const CasinoAggregatorSettings = () => {
         </Button>
       </div>
 
-      <Alert variant="warning" className="bg-yellow-900/20 border-yellow-900/50 text-yellow-500">
+      <Alert className="bg-yellow-900/20 border-yellow-900/50 text-yellow-500">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
           These settings affect the integration with game providers. Incorrect settings may cause games to malfunction.

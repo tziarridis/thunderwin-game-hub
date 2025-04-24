@@ -1,6 +1,6 @@
 
 import { toast } from 'sonner';
-import { gameProviderConfigs } from '@/config/gameProviders';
+import { gameProviderConfigs, GameProviderConfig } from '@/config/gameProviders';
 import { gameAggregatorService } from './gameAggregatorService';
 
 interface GameInfo {
@@ -37,7 +37,8 @@ export const gameProviderSyncService = {
     // Process each provider
     for (const [providerKey, config] of Object.entries(gameProviderConfigs)) {
       try {
-        console.log(`Syncing games from ${config.name} (${config.currency})...`);
+        const providerConfig = config as GameProviderConfig;
+        console.log(`Syncing games from ${providerConfig.name} (${providerConfig.currency})...`);
         
         const providerResponse = await gameAggregatorService.fetchGamesFromProvider(providerKey);
         
@@ -84,10 +85,12 @@ export const gameProviderSyncService = {
           gamesUpdated
         };
         
-        toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${config.name}`);
+        const providerConfig = gameProviderConfigs.find(p => p.id === providerKey) as GameProviderConfig;
+        toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${providerConfig.name}`);
 
       } catch (error: any) {
-        console.error(`Error syncing ${config.name} (${config.currency}):`, error);
+        const providerConfig = gameProviderConfigs.find(p => p.id === providerKey) as GameProviderConfig;
+        console.error(`Error syncing ${providerConfig.name} (${providerConfig.currency}):`, error);
         results[providerKey] = {
           success: false,
           gamesAdded: 0,
@@ -95,7 +98,7 @@ export const gameProviderSyncService = {
           error: error.message || 'Unknown error'
         };
         
-        toast.error(`Failed to sync games from ${config.name}`);
+        toast.error(`Failed to sync games from ${providerConfig.name}`);
       }
     }
 
