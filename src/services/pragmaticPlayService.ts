@@ -1,5 +1,6 @@
 
 import { toast } from 'sonner';
+import { createHash } from 'crypto';
 
 export interface PPGameLaunchOptions {
   playerId: string;
@@ -70,12 +71,13 @@ export const pragmaticPlayService = {
     
     // For demo mode, use the documented demo endpoint
     if (mode === 'demo') {
+      // Align with Pragmatic Play API documentation
       const demoUrl = `${apiBaseUrl}/gs2c/openGame.do?` + new URLSearchParams({
         gameSymbol: gameCode,
         lang: language,
         cur: currency,
         lobbyUrl: returnUrl,
-        stylename: 'thunderwin',
+        stylename: 'thunderwin', // Your casino's theme name
         websiteUrl: window.location.origin,
         teknopointChannel: platform
       }).toString();
@@ -88,11 +90,13 @@ export const pragmaticPlayService = {
     try {
       console.log(`Preparing to launch real money game for player: ${playerId}`);
       
-      // In production, we would make a server-side API call to get a token
-      // For this demo, we'll construct a URL directly as if we received a token
+      // In a real implementation, we would request a token from your backend
+      // According to Pragmatic Play documentation, you'd need a server-side token generation
+      
+      // This is a mock implementation following API documentation structure
       const realMoneyUrl = `${apiBaseUrl}/gs2c/playGame.do?` + new URLSearchParams({
         gameSymbol: gameCode,
-        token: `mock-token-${playerId}-${Date.now()}`, // In production, this would be a real token
+        token: `mock-token-${playerId}-${Date.now()}`, // In production, this would be a real token from backend
         lang: language,
         lobbyUrl: returnUrl,
         stylename: 'thunderwin',
@@ -284,15 +288,8 @@ export const pragmaticPlayService = {
    * Test wallet callback
    */
   testWalletCallback: async (): Promise<{ success: boolean; message: string }> => {
-    try {
-      // This reuses the existing testTransactionVerification method
-      return await pragmaticPlayService.testTransactionVerification();
-    } catch (error: any) {
-      return {
-        success: false,
-        message: `Wallet callback test failed: ${error.message || 'Unknown error'}`
-      };
-    }
+    // This reuses the existing testTransactionVerification method
+    return await pragmaticPlayService.testTransactionVerification();
   },
 
   /**

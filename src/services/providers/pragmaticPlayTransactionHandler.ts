@@ -31,7 +31,7 @@ export const pragmaticPlayTransactionHandler = {
     try {
       console.log('Processing PP transaction:', transaction);
       
-      // Validate agent ID
+      // Validate transaction data
       if (!config || !config.credentials || !pragmaticPlayTransactionHandler.validateTransaction(config, transaction)) {
         console.error('Invalid transaction data:', transaction);
         return { errorcode: "2", balance: 0 }; // Invalid transaction
@@ -45,7 +45,7 @@ export const pragmaticPlayTransactionHandler = {
       }
       
       try {
-        // In a real implementation, you would:
+        // In a real implementation, this would interact with your wallet system
         // 1. Get the user's wallet by playerId
         // const wallet = await getWalletByUserId(transaction.playerid);
         
@@ -118,11 +118,20 @@ export const pragmaticPlayTransactionHandler = {
     
     // In production, validate hash for security
     if (transaction.hash && config.credentials.secretKey) {
-      // Implementation would look something like this:
-      // const computed = createHash('md5')
-      //   .update(`${transaction.trxid}|${transaction.amount}|${config.credentials.secretKey}`)
-      //   .digest('hex');
-      // return computed === transaction.hash;
+      try {
+        // Implementation based on Pragmatic Play documentation
+        const computed = createHash('md5')
+          .update(`${transaction.trxid}|${transaction.amount}|${config.credentials.secretKey}`)
+          .digest('hex');
+        
+        if (computed !== transaction.hash) {
+          console.error('Invalid transaction hash');
+          return false;
+        }
+      } catch (error) {
+        console.error('Error validating hash:', error);
+        return false;
+      }
     }
     
     return true;
@@ -147,6 +156,21 @@ export const pragmaticPlayTransactionHandler = {
    */
   isProcessed: (id: string): boolean => {
     return processedTransactions.has(id);
+  },
+  
+  /**
+   * Clear processed transactions (for testing)
+   */
+  clearTransactions: (): void => {
+    processedTransactions.clear();
+  },
+  
+  /**
+   * Get all processed transactions
+   * @returns Map of processed transactions
+   */
+  getAllTransactions: (): Map<string, any> => {
+    return processedTransactions;
   }
 };
 
