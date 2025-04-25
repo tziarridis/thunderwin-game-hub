@@ -1,283 +1,327 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ExternalLink, Play, Search, RotateCw, Database, AlertTriangle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { pragmaticPlayService } from "@/services/pragmaticPlayService";
-import PPTransactionLogger from "@/components/admin/PPTransactionLogger";
-import PPApiValidator from "@/components/admin/PPApiValidator";
-import PPIntegrationReport from "@/components/admin/PPIntegrationReport";
-import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
-import CurrencyLanguageSelector from "@/components/admin/CurrencyLanguageSelector";
+
+interface TestResult {
+  success: boolean;
+  message: string;
+  details?: string;
+  loading?: boolean;
+}
 
 const PPIntegrationTester = () => {
-  const [activeTab, setActiveTab] = useState("game-tester");
-  const [gameCode, setGameCode] = useState("vs20bonzanza");
-  const [isLoading, setIsLoading] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [integrationStatus, setIntegrationStatus] = useState<'success' | 'warning' | 'error' | 'pending'>('pending');
-  const { isAuthenticated, user } = useAuth();
-  const [selectedCurrency, setSelectedCurrency] = useState("USD");
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [apiResults, setApiResults] = useState<TestResult[]>([]);
+  const [transactionResults, setTransactionResults] = useState<TestResult[]>([]);
+  const [gameResults, setGameResults] = useState<TestResult[]>([]);
+  const [isTestingApi, setIsTestingApi] = useState(false);
+  const [isTestingTransactions, setIsTestingTransactions] = useState(false);
+  const [isTestingGames, setIsTestingGames] = useState(false);
 
-  useEffect(() => {
-    // Add initial log entry
-    addLog("PP Integration Tester initialized");
-    validateIntegration();
-  }, []);
-
-  const addLog = (message: string) => {
-    setLogs(prev => [`[${new Date().toISOString()}] ${message}`, ...prev]);
-  };
-
-  const handleLaunchGame = async () => {
-    if (!gameCode) {
-      toast.error("Please enter a game code");
-      return;
-    }
-    
-    setIsLoading(true);
-    addLog(`Launching game with code: ${gameCode}, currency: ${selectedCurrency}, language: ${selectedLanguage}`);
+  const runApiTests = async () => {
+    setIsTestingApi(true);
+    setApiResults([{ loading: true, success: false, message: "Running API tests..." }]);
     
     try {
-      const gameUrl = await pragmaticPlayService.launchGame({
-        playerId: isAuthenticated ? user?.id || 'guest' : 'guest',
-        gameCode: gameCode,
-        mode: 'demo',
-        returnUrl: window.location.href,
-        language: selectedLanguage,
-        currency: selectedCurrency
-      });
+      // Test 1: API Configuration validation
+      const configTest = await pragmaticPlayService.validateConfig();
+      setApiResults(prev => [configTest]);
       
-      addLog(`Game launched successfully: ${gameUrl}`);
+      // Test 2: API Connection
+      const connectionTest = await pragmaticPlayService.testApiConnection();
+      setApiResults(prev => [...prev, connectionTest]);
       
-      // Open game in new window
-      window.open(gameUrl, '_blank');
-      toast.success("Game launched successfully!");
-    } catch (error: any) {
-      const errorMessage = `Failed to launch game: ${error.message || 'Unknown error'}`;
-      addLog(`ERROR: ${errorMessage}`);
-      toast.error(errorMessage);
+      // Test 3: Callback URL validation
+      const callbackTest = await pragmaticPlayService.validateCallbackUrl();
+      setApiResults(prev => [...prev, callbackTest]);
+      
+      toast.success("API tests completed");
+    } catch (error) {
+      console.error("Error running API tests:", error);
+      setApiResults(prev => [...prev.filter(r => !r.loading), { 
+        success: false, 
+        message: "Error running tests",
+        details: error instanceof Error ? error.message : "Unknown error"
+      }]);
+      toast.error("Error running API tests");
     } finally {
-      setIsLoading(false);
+      setIsTestingApi(false);
     }
   };
 
-  const validateIntegration = async () => {
-    addLog("Validating PP integration...");
-    setIntegrationStatus('pending');
+  const runTransactionTests = async () => {
+    setIsTestingTransactions(true);
+    setTransactionResults([{ loading: true, success: false, message: "Running transaction tests..." }]);
     
     try {
-      // Check API configuration
-      const ppConfig = await pragmaticPlayService.validateConfig();
-      addLog(`Config validation: ${ppConfig.success ? 'Success' : 'Failed'}`);
-
-      // Check API connectivity
-      const apiStatus = await pragmaticPlayService.testApiConnection();
-      addLog(`API connection test: ${apiStatus.success ? 'Success' : 'Failed'} - ${apiStatus.message}`);
-
-      // Check for available games
-      const games = pragmaticPlayService.getAvailableGames();
-      addLog(`Found ${games.length} available games`);
-
-      // Validate callback URL
-      const callbackStatus = await pragmaticPlayService.validateCallbackUrl();
-      addLog(`Callback URL validation: ${callbackStatus.success ? 'Success' : 'Failed'} - ${callbackStatus.message}`);
-
-      // Determine overall status
-      if (ppConfig.success && apiStatus.success && games.length > 0 && callbackStatus.success) {
-        setIntegrationStatus('success');
-      } else if (!ppConfig.success || !apiStatus.success) {
-        setIntegrationStatus('error');
-      } else {
-        setIntegrationStatus('warning');
-      }
-    } catch (error: any) {
-      addLog(`ERROR during validation: ${error.message}`);
-      setIntegrationStatus('error');
+      // Test 1: Transaction verification
+      const verifyTest = await pragmaticPlayService.testTransactionVerification();
+      setTransactionResults(prev => [verifyTest]);
+      
+      // Test 2: Hash validation
+      const hashTest = await pragmaticPlayService.testHashValidation();
+      setTransactionResults(prev => [...prev, hashTest]);
+      
+      // Test 3: Test idempotency
+      const idempotencyTest = await pragmaticPlayService.testIdempotency();
+      setTransactionResults(prev => [...prev, idempotencyTest]);
+      
+      toast.success("Transaction tests completed");
+    } catch (error) {
+      console.error("Error running transaction tests:", error);
+      setTransactionResults(prev => [...prev.filter(r => !r.loading), { 
+        success: false, 
+        message: "Error running tests",
+        details: error instanceof Error ? error.message : "Unknown error"
+      }]);
+      toast.error("Error running transaction tests");
+    } finally {
+      setIsTestingTransactions(false);
     }
   };
 
-  // Popular PP games for quick selection
-  const popularGames = [
-    { code: 'vs20bonzanza', name: 'Sweet Bonanza' },
-    { code: 'vs20doghouse', name: 'The Dog House' },
-    { code: 'vs10wolfgold', name: 'Wolf Gold' },
-    { code: 'vs20fparty2', name: 'Fruit Party 2' }
-  ];
+  const runGameTests = async () => {
+    setIsTestingGames(true);
+    setGameResults([{ loading: true, success: false, message: "Running game tests..." }]);
+    
+    try {
+      // Test 1: Launch game test
+      const launchTest = await pragmaticPlayService.testLaunchGame();
+      setGameResults(prev => [launchTest]);
+      
+      // Test 2: Wallet callback test
+      const walletTest = await pragmaticPlayService.testWalletCallback();
+      setGameResults(prev => [...prev, walletTest]);
+      
+      // Test 3: Session management test
+      const sessionTest = await pragmaticPlayService.testSessionManagement();
+      setGameResults(prev => [...prev, sessionTest]);
+      
+      // Test 4: Round management test
+      const roundTest = await pragmaticPlayService.testRoundManagement();
+      setGameResults(prev => [...prev, roundTest]);
+      
+      toast.success("Game tests completed");
+    } catch (error) {
+      console.error("Error running game tests:", error);
+      setGameResults(prev => [...prev.filter(r => !r.loading), { 
+        success: false, 
+        message: "Error running tests",
+        details: error instanceof Error ? error.message : "Unknown error"
+      }]);
+      toast.error("Error running game tests");
+    } finally {
+      setIsTestingGames(false);
+    }
+  };
 
-  
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Pragmatic Play Integration Tester</h1>
-        <div className="flex space-x-2">
-          <Link to="/casino/seamless" target="_blank">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Seamless Wallet
-            </Button>
-          </Link>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={validateIntegration} 
-            disabled={integrationStatus === 'pending'}
-          >
-            {integrationStatus === 'pending' ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCw className="mr-2 h-4 w-4" />
+  const renderResults = (results: TestResult[]) => {
+    if (results.length === 0) {
+      return (
+        <Alert className="my-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No tests run</AlertTitle>
+          <AlertDescription>
+            Click the test button to run tests.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return results.map((result, index) => {
+      if (result.loading) {
+        return (
+          <Alert key={`loading-${index}`} className="mb-2 border-blue-200 bg-blue-50">
+            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+            <AlertTitle className="text-blue-800">Running tests...</AlertTitle>
+            <AlertDescription className="text-blue-600">
+              {result.message}
+            </AlertDescription>
+          </Alert>
+        );
+      }
+
+      return (
+        <Alert 
+          key={`result-${index}`} 
+          className={`mb-2 ${result.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+        >
+          {result.success ? 
+            <CheckCircle2 className="h-4 w-4 text-green-600" /> : 
+            <XCircle className="h-4 w-4 text-red-600" />
+          }
+          <AlertTitle className={result.success ? "text-green-800" : "text-red-800"}>
+            {result.success ? "Success" : "Failed"}
+          </AlertTitle>
+          <AlertDescription className={result.success ? "text-green-600" : "text-red-600"}>
+            {result.message}
+            {result.details && (
+              <div className="mt-2 text-sm text-gray-600">
+                {result.details}
+              </div>
             )}
-            Validate Integration
-          </Button>
-        </div>
-      </div>
+          </AlertDescription>
+        </Alert>
+      );
+    });
+  };
 
-      <div className="mb-6">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Integration Status</CardTitle>
-            <CardDescription>
-              Current status of your Pragmatic Play integration
+  return (
+    <div className="container mx-auto py-6">
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-bold text-white">Pragmatic Play Integration Tester</h1>
+        <p className="text-slate-300">
+          Use this tool to test and verify the integration with Pragmatic Play.
+        </p>
+        
+        <Card className="bg-slate-800 text-white border-slate-700">
+          <CardHeader>
+            <CardTitle>Integration Status</CardTitle>
+            <CardDescription className="text-slate-300">
+              Current status of the Pragmatic Play integration
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center space-x-4">
-              <Badge className={
-                integrationStatus === 'success' ? "bg-green-600 hover:bg-green-700" :
-                integrationStatus === 'warning' ? "bg-yellow-600 hover:bg-yellow-700" :
-                integrationStatus === 'error' ? "bg-red-600 hover:bg-red-700" :
-                "bg-slate-600 hover:bg-slate-700"
-              }>
-                {integrationStatus === 'success' ? 'Success' :
-                 integrationStatus === 'warning' ? 'Warning' :
-                 integrationStatus === 'error' ? 'Error' : 'Pending'}
-              </Badge>
-              <span className="text-sm">
-                {integrationStatus === 'success' ? 'Integration is working properly' :
-                 integrationStatus === 'warning' ? 'Integration is working but with some issues' :
-                 integrationStatus === 'error' ? 'Integration has critical issues' : 
-                 'Validating integration...'}
-              </span>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-green-800/20 text-green-400 hover:bg-green-800/30 border-green-700">
+                    Active
+                  </Badge>
+                  <span className="text-sm font-medium text-slate-300">Status</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-blue-800/20 text-blue-400 hover:bg-blue-800/30 border-blue-700">
+                    testpartner
+                  </Badge>
+                  <span className="text-sm font-medium text-slate-300">Agent ID</span>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-purple-800/20 text-purple-400 hover:bg-purple-800/30 border-purple-700">
+                    demo.pragmaticplay.net
+                  </Badge>
+                  <span className="text-sm font-medium text-slate-300">API Endpoint</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
+        
+        <Tabs defaultValue="api" className="w-full">
+          <TabsList className="bg-slate-700">
+            <TabsTrigger value="api" className="data-[state=active]:bg-slate-600">API Tests</TabsTrigger>
+            <TabsTrigger value="transactions" className="data-[state=active]:bg-slate-600">Transaction Tests</TabsTrigger>
+            <TabsTrigger value="games" className="data-[state=active]:bg-slate-600">Game Tests</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="api" className="mt-4">
+            <Card className="bg-slate-800 text-white border-slate-700">
+              <CardHeader>
+                <CardTitle>API Tests</CardTitle>
+                <CardDescription className="text-slate-300">
+                  Test Pragmatic Play API configuration and connections
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300">
+                    These tests verify that your API configuration is correct and that you can connect to the Pragmatic Play API.
+                  </p>
+                  
+                  <Separator className="bg-slate-700" />
+                  
+                  {renderResults(apiResults)}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={runApiTests} 
+                  disabled={isTestingApi}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isTestingApi && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Run API Tests
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="transactions" className="mt-4">
+            <Card className="bg-slate-800 text-white border-slate-700">
+              <CardHeader>
+                <CardTitle>Transaction Tests</CardTitle>
+                <CardDescription className="text-slate-300">
+                  Test wallet transactions and callbacks
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300">
+                    These tests verify that transaction callbacks, hash validation, and idempotency work correctly.
+                  </p>
+                  
+                  <Separator className="bg-slate-700" />
+                  
+                  {renderResults(transactionResults)}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={runTransactionTests} 
+                  disabled={isTestingTransactions}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isTestingTransactions && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Run Transaction Tests
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="games" className="mt-4">
+            <Card className="bg-slate-800 text-white border-slate-700">
+              <CardHeader>
+                <CardTitle>Game Tests</CardTitle>
+                <CardDescription className="text-slate-300">
+                  Test game launches, session management, and round tracking
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-300">
+                    These tests verify that you can launch games, manage sessions, track rounds, and process wallet callbacks.
+                  </p>
+                  
+                  <Separator className="bg-slate-700" />
+                  
+                  {renderResults(gameResults)}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  onClick={runGameTests} 
+                  disabled={isTestingGames}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isTestingGames && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Run Game Tests
+                </Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="game-tester">
-            <Play className="mr-2 h-4 w-4" />
-            Game Tester
-          </TabsTrigger>
-          <TabsTrigger value="api-validator">
-            <Search className="mr-2 h-4 w-4" />
-            API Validator
-          </TabsTrigger>
-          <TabsTrigger value="transaction-logger">
-            <Database className="mr-2 h-4 w-4" />
-            Transaction Logger
-          </TabsTrigger>
-          <TabsTrigger value="integration-report">
-            <AlertTriangle className="mr-2 h-4 w-4" />
-            Integration Report
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="game-tester">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Game Launch Tester</CardTitle>
-              <CardDescription>
-                Test the Pragmatic Play integration by launching games
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="game-code">Game Code</Label>
-                <Input 
-                  id="game-code" 
-                  placeholder="e.g. vs20bonzanza" 
-                  value={gameCode} 
-                  onChange={(e) => setGameCode(e.target.value)}
-                  className="bg-slate-700 border-slate-600"
-                />
-                <p className="text-xs text-slate-400">
-                  Enter a Pragmatic Play game code to launch the game
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Quick Select</Label>
-                <div className="flex flex-wrap gap-2">
-                  {popularGames.map(game => (
-                    <Button 
-                      key={game.code}
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setGameCode(game.code)}
-                      className={gameCode === game.code ? "bg-casino-thunder-green text-black" : ""}
-                    >
-                      {game.name}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <CurrencyLanguageSelector
-                selectedCurrency={selectedCurrency}
-                onCurrencyChange={setSelectedCurrency}
-                selectedLanguage={selectedLanguage}
-                onLanguageChange={setSelectedLanguage}
-                className="pt-2"
-              />
-              
-              <Button 
-                onClick={handleLaunchGame} 
-                disabled={isLoading}
-                className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Launching...
-                  </>
-                ) : "Launch Game"}
-              </Button>
-
-              <div className="mt-4 pt-4 border-t border-slate-700">
-                <Label>Test Logs</Label>
-                <div className="bg-slate-900 rounded-md p-2 mt-1 max-h-60 overflow-y-auto">
-                  {logs.map((log, index) => (
-                    <div key={index} className="text-xs text-slate-300 font-mono py-1">
-                      {log}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="api-validator">
-          <PPApiValidator addLog={addLog} />
-        </TabsContent>
-
-        <TabsContent value="transaction-logger">
-          <PPTransactionLogger />
-        </TabsContent>
-
-        <TabsContent value="integration-report">
-          <PPIntegrationReport status={integrationStatus} />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 };

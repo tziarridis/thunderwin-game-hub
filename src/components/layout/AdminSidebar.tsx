@@ -17,7 +17,9 @@ import {
   ChevronRight,
   Gamepad2,
   CircleDot,
-  LogOut
+  LogOut,
+  TestTube,
+  History
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -166,7 +168,7 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
             icon={<Gamepad2 className="h-5 w-5" />}
             title="Games"
             collapsed={collapsed}
-            active={pathname.includes("/admin/games") || pathname.includes("/admin/game-aggregator")}
+            active={pathname.includes("/admin/games") || pathname.includes("/admin/game-aggregator") || pathname.includes("/admin/pp-")}
           >
             <MenuItem
               icon={<CircleDot className="h-4 w-4" />}
@@ -190,6 +192,22 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
               collapsed={collapsed}
               active={pathname === "/admin/aggregator-settings"}
               onClick={() => navigate("/admin/aggregator-settings")}
+              isSubmenu
+            />
+            <MenuItem
+              icon={<TestTube className="h-4 w-4" />}
+              title="PP Integration Tester"
+              collapsed={collapsed}
+              active={pathname === "/admin/pp-integration-tester"}
+              onClick={() => navigate("/admin/pp-integration-tester")}
+              isSubmenu
+            />
+            <MenuItem
+              icon={<History className="h-4 w-4" />}
+              title="PP Transactions"
+              collapsed={collapsed}
+              active={pathname === "/admin/pp-transactions"}
+              onClick={() => navigate("/admin/pp-transactions")}
               isSubmenu
             />
           </MenuGroup>
