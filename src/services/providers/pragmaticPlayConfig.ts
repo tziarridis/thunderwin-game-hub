@@ -1,5 +1,6 @@
 
 import { GameProviderConfig } from '@/config/gameProviders';
+import { simpleMD5 } from '@/utils/browserHashUtils';
 
 export interface PPGameConfig {
   agentId: string;
@@ -103,12 +104,8 @@ export const generatePragmaticPlayHash = (params: Record<string, any>, secretKey
     // Append secret key
     hashString += secretKey;
 
-    // Generate MD5 hash
-    // Note: In the browser environment, we'll need to use a library for this
-    // or implement a custom MD5 function
-    // This is just a placeholder for the concept
-    const crypto = require('crypto');
-    return crypto.createHash('md5').update(hashString).digest('hex');
+    // Generate MD5 hash using browser-compatible function
+    return simpleMD5(hashString);
   } catch (error) {
     console.error('Error generating hash:', error);
     return '';

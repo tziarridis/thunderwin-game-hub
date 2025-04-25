@@ -1,6 +1,6 @@
 
 import { PPWalletCallback, PPGameConfig, PRAGMATIC_PLAY_ERROR_CODES, validatePragmaticPlayResponse } from './pragmaticPlayConfig';
-import { createHash } from 'crypto';
+import { simpleMD5 } from '@/utils/browserHashUtils';
 
 interface TransactionResponse {
   errorcode: string;
@@ -133,8 +133,8 @@ export const pragmaticPlayTransactionHandler = {
       // Append secret key
       hashString += secretKey;
       
-      // Generate MD5 hash
-      const generatedHash = createHash('md5').update(hashString).digest('hex');
+      // Generate MD5 hash using our browser-compatible function
+      const generatedHash = simpleMD5(hashString);
       
       return generatedHash === hash;
     } catch (error) {
