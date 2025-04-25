@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -21,6 +20,7 @@ import { User as UserType } from "@/types";
 import { getUsers, usersApi } from "@/services/apiService";
 import UserForm from "@/components/admin/UserForm";
 import { useToast } from "@/components/ui/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const AdminUsers = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -36,8 +36,8 @@ const AdminUsers = () => {
   const [showFilters, setShowFilters] = useState(false);
   const usersPerPage = 8;
   const { toast } = useToast();
+  const navigate = useNavigate();
   
-  // Fetch users on component mount
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
@@ -60,12 +60,15 @@ const AdminUsers = () => {
     fetchUsers();
   }, [toast]);
   
-  // Calculate pagination
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   
+  const handleViewUser = (userId: string) => {
+    navigate(`/admin/users/${userId}`);
+  };
+
   const handleSelectRow = (userId: string) => {
     if (selectedRows.includes(userId)) {
       setSelectedRows(selectedRows.filter(id => id !== userId));
@@ -360,7 +363,12 @@ const AdminUsers = () => {
                     <td className="px-4 py-4 whitespace-nowrap text-sm text-white/60">{user.joined}</td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleViewUser(user.id)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -383,7 +391,6 @@ const AdminUsers = () => {
           </div>
         )}
         
-        {/* Pagination */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
           <div className="flex-1 flex justify-between sm:hidden">
             <Button 
@@ -464,7 +471,6 @@ const AdminUsers = () => {
         </div>
       </div>
       
-      {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
