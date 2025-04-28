@@ -37,6 +37,7 @@ import UserProfile from "./pages/admin/UserProfile";
 import Games from "./pages/admin/Games";
 import GameAggregator from "./pages/admin/GameAggregator";
 import AggregatorSettings from "./pages/admin/AggregatorSettings";
+import CasinoAggregatorSettingsPage from "./pages/admin/CasinoAggregatorSettingsPage";
 import AdminTransactions from "./pages/admin/Transactions";
 import VipBonusManagement from "./pages/admin/VipBonusManagement";
 import Reports from "./pages/admin/Reports";
@@ -137,6 +138,7 @@ function App() {
           <Route path="games" element={<Games />} />
           <Route path="game-aggregator" element={<GameAggregator />} />
           <Route path="aggregator-settings" element={<AggregatorSettings />} />
+          <Route path="casino-aggregator-settings" element={<CasinoAggregatorSettingsPage />} />
           <Route path="transactions" element={<AdminTransactions />} />
           <Route path="vip-bonus" element={<VipBonusManagement />} />
           <Route path="reports" element={<Reports />} />

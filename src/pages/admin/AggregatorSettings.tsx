@@ -26,9 +26,9 @@ const AggregatorSettings = () => {
           .from('providers')
           .select('*')
           .eq('name', 'GitSlotPark')
-          .single();
+          .maybeSingle(); // Changed from single() to maybeSingle() to handle missing data
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error('Error loading provider settings:', error);
           return;
         }
@@ -42,6 +42,9 @@ const AggregatorSettings = () => {
           } catch (e) {
             console.error('Error parsing provider credentials:', e);
           }
+        } else {
+          // Create default provider settings if none exists
+          console.log('No provider settings found, using defaults');
         }
       } catch (err) {
         console.error('Error loading aggregator settings:', err);
@@ -64,7 +67,7 @@ const AggregatorSettings = () => {
         .eq('name', 'GitSlotPark')
         .maybeSingle();
       
-      if (checkError) {
+      if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking provider:', checkError);
         toast.error("Failed to save settings: Database error");
         return;
@@ -138,6 +141,12 @@ const AggregatorSettings = () => {
             <Button variant="outline" size="sm">
               <ExternalLink className="mr-2 h-4 w-4" />
               View Seamless Wallet
+            </Button>
+          </Link>
+          <Link to="/admin/casino-aggregator-settings">
+            <Button variant="outline" size="sm">
+              <Settings className="mr-2 h-4 w-4" />
+              Game Provider Settings
             </Button>
           </Link>
         </div>
