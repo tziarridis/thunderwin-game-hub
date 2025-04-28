@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,6 @@ import { Game, GameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { clientGamesApi } from "@/services/gamesService";
 import { adaptProvidersForUI } from "@/utils/gameAdapter";
-import { convertUIGameToAPIGame, convertAPIGameToUIGame } from "@/utils/gameTypeAdapter";
 
 export interface GameFormProps {
   onSubmit: (gameData: Game | Omit<Game, "id">) => void;
@@ -32,7 +30,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
   
   // Form state
   const [formData, setFormData] = useState({
-    title: initialData?.title || "",
+    title: initialData?.title || initialData?.name || "",
     description: initialData?.description || "",
     provider: getProviderValue(initialData?.provider),
     category: initialData?.category || "slots",
@@ -91,8 +89,9 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Create game object from form data
+    // Create game object from form data with required fields
     const gameData: Omit<Game, "id"> = {
+      name: formData.title, // Use title as name
       title: formData.title,
       description: formData.description,
       provider: formData.provider,
@@ -106,8 +105,9 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialData }) => {
       isNew: formData.isNew,
       jackpot: formData.jackpot,
       isFavorite: false,
+      features: [], // Add empty features array
+      tags: [],     // Add empty tags array
       releaseDate: new Date().toISOString(),
-      tags: [],
     };
     
     if (initialData) {

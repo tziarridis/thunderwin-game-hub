@@ -1,10 +1,10 @@
-
 import { Game } from "@/types";
 
 // Sample game data
 const games: Game[] = [
   {
     id: "1",
+    name: "Book of Dead",
     title: "Book of Dead",
     provider: "Play'n GO",
     category: "slots",
@@ -18,10 +18,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2016-01-14",
     jackpot: false,
-    description: "Join Rich Wilde on his adventure to discover the Book of Dead. This high volatility game offers exciting free spins with a special expanding symbol."
+    description: "Join Rich Wilde on his adventure to discover the Book of Dead. This high volatility game offers exciting free spins with a special expanding symbol.",
+    features: ["Free Spins", "Expanding Symbols", "Gamble Feature"],
+    tags: ["Egypt", "Adventure", "Rich Wilde"]
   },
   {
     id: "2",
+    name: "Starburst",
     title: "Starburst",
     provider: "NetEnt",
     category: "slots",
@@ -35,10 +38,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2012-01-23",
     jackpot: false,
-    description: "A classic slot with colorful jewels and expanding wilds. This low volatility game is perfect for beginners."
+    description: "A classic slot with colorful jewels and expanding wilds. This low volatility game is perfect for beginners.",
+    features: ["Wild Respin", "Both Ways Win", "Expanding Wilds"],
+    tags: ["Space", "Gems", "Classic"]
   },
   {
     id: "3",
+    name: "Sweet Bonanza",
     title: "Sweet Bonanza",
     provider: "Pragmatic Play",
     category: "slots",
@@ -52,10 +58,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2019-06-25",
     jackpot: false,
-    description: "A candy-filled paradise with tumbling reels and multipliers up to 100x. Land 8 or more matching symbols to win."
+    description: "A candy-filled paradise with tumbling reels and multipliers up to 100x. Land 8 or more matching symbols to win.",
+    features: ["Tumbling Reels", "Free Spins", "Multipliers"],
+    tags: ["Candy", "Colorful", "Sweet"]
   },
   {
     id: "4",
+    name: "Gonzo's Quest",
     title: "Gonzo's Quest",
     provider: "NetEnt",
     category: "slots",
@@ -69,10 +78,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2013-05-14",
     jackpot: false,
-    description: "Join Gonzo on his quest for Eldorado. Features avalanche multipliers and free falls bonus."
+    description: "Join Gonzo on his quest for Eldorado. Features avalanche multipliers and free falls bonus.",
+    features: ["Avalanche Multipliers", "Free Falls", "Wild Symbol"],
+    tags: ["Adventure", "Eldorado", "Gonzo"]
   },
   {
     id: "5",
+    name: "Lightning Roulette",
     title: "Lightning Roulette",
     provider: "Evolution Gaming",
     category: "live",
@@ -86,10 +98,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2018-02-27",
     jackpot: false,
-    description: "An electrifying version of live roulette with lucky numbers and multipliers up to 500x."
+    description: "An electrifying version of live roulette with lucky numbers and multipliers up to 500x.",
+    features: ["Lucky Numbers", "Multipliers", "Live Dealer"],
+    tags: ["Roulette", "Live Casino", "Multipliers"]
   },
   {
     id: "6",
+    name: "Mega Moolah",
     title: "Mega Moolah",
     provider: "Microgaming",
     category: "slots",
@@ -103,10 +118,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2006-11-28",
     jackpot: true,
-    description: "The millionaire maker with four progressive jackpots. The largest ever online jackpot was won on this game."
+    description: "The millionaire maker with four progressive jackpots. The largest ever online jackpot was won on this game.",
+    features: ["Progressive Jackpot", "Free Spins", "Wild Symbol"],
+    tags: ["Jackpot", "Safari", "Millionaire"]
   },
   {
     id: "7",
+    name: "Blackjack VIP",
     title: "Blackjack VIP",
     provider: "Evolution Gaming",
     category: "table",
@@ -120,10 +138,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2017-09-12",
     jackpot: false,
-    description: "VIP Blackjack tables with high limits and professional dealers."
+    description: "VIP Blackjack tables with high limits and professional dealers.",
+    features: ["High Limits", "Live Dealer", "VIP Tables"],
+    tags: ["Blackjack", "Table Game", "VIP"]
   },
   {
     id: "8",
+    name: "Gates of Olympus",
     title: "Gates of Olympus",
     provider: "Pragmatic Play",
     category: "slots",
@@ -137,10 +158,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2021-02-25",
     jackpot: false,
-    description: "Join Zeus in this high volatility game with multiplier symbols and free spins."
+    description: "Join Zeus in this high volatility game with multiplier symbols and free spins.",
+    features: ["Multipliers", "Free Spins", "Tumbling Reels"],
+    tags: ["Zeus", "Olympus", "Greek"]
   },
   {
     id: "9",
+    name: "Crazy Time",
     title: "Crazy Time",
     provider: "Evolution Gaming",
     category: "live",
@@ -154,10 +178,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2020-06-10",
     jackpot: false,
-    description: "A live game show with four exciting bonus games and multipliers up to 25,000x."
+    description: "A live game show with four exciting bonus games and multipliers up to 25,000x.",
+    features: ["Bonus Games", "Multipliers", "Live Game Show"],
+    tags: ["Live Casino", "Game Show", "Crazy"]
   },
   {
     id: "10",
+    name: "European Roulette",
     title: "European Roulette",
     provider: "Playtech",
     category: "table",
@@ -171,10 +198,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2011-04-20",
     jackpot: false,
-    description: "Classic European Roulette with a single zero and standard betting options."
+    description: "Classic European Roulette with a single zero and standard betting options.",
+    features: ["Single Zero", "Standard Bets", "Classic"],
+    tags: ["Roulette", "Table Game", "European"]
   },
   {
     id: "11",
+    name: "Immortal Romance",
     title: "Immortal Romance",
     provider: "Microgaming",
     category: "slots",
@@ -188,10 +218,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2011-12-01",
     jackpot: false,
-    description: "A vampire-themed slot with 243 ways to win and four different free spin features."
+    description: "A vampire-themed slot with 243 ways to win and four different free spin features.",
+    features: ["Free Spins", "243 Ways", "Vampires"],
+    tags: ["Romance", "Vampire", "Dark"]
   },
   {
     id: "12",
+    name: "Casino Holdem",
     title: "Casino Holdem",
     provider: "Evolution Gaming",
     category: "table",
@@ -205,10 +238,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2015-10-07",
     jackpot: false,
-    description: "A live poker game against the dealer with bonus and AA side bets."
+    description: "A live poker game against the dealer with bonus and AA side bets.",
+    features: ["Live Poker", "Bonus Bets", "Side Bets"],
+    tags: ["Poker", "Table Game", "Casino"]
   },
   {
     id: "13",
+    name: "Wolf Gold",
     title: "Wolf Gold",
     provider: "Pragmatic Play",
     category: "slots",
@@ -222,10 +258,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2017-04-18",
     jackpot: true,
-    description: "A wolf-themed slot with three fixed jackpots and a money respin feature."
+    description: "A wolf-themed slot with three fixed jackpots and a money respin feature.",
+    features: ["Fixed Jackpots", "Money Respin", "Free Spins"],
+    tags: ["Wolf", "Animal", "Jackpot"]
   },
   {
     id: "14",
+    name: "Fire Joker",
     title: "Fire Joker",
     provider: "Play'n GO",
     category: "slots",
@@ -239,10 +278,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2016-09-22",
     jackpot: false,
-    description: "A classic 3-reel slot with a multiplier wheel and stacked symbols."
+    description: "A classic 3-reel slot with a multiplier wheel and stacked symbols.",
+    features: ["Multiplier Wheel", "Stacked Symbols", "Classic"],
+    tags: ["Joker", "Classic", "Fire"]
   },
   {
     id: "15",
+    name: "Deal or No Deal Live",
     title: "Deal or No Deal Live",
     provider: "Evolution Gaming",
     category: "live",
@@ -256,10 +298,13 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2019-05-21",
     jackpot: false,
-    description: "Based on the hit TV show, play against the banker in this exciting live game."
+    description: "Based on the hit TV show, play against the banker in this exciting live game.",
+    features: ["Live Game Show", "Banker Offer", "Briefcases"],
+    tags: ["Live Casino", "Game Show", "Deal"]
   },
   {
     id: "16",
+    name: "Rise of Merlin",
     title: "Rise of Merlin",
     provider: "Play'n GO",
     category: "slots",
@@ -273,7 +318,9 @@ const games: Game[] = [
     isFavorite: false,
     releaseDate: "2019-06-20",
     jackpot: false,
-    description: "A magic-themed slot with expanding symbols and free spins."
+    description: "A magic-themed slot with expanding symbols and free spins.",
+    features: ["Free Spins", "Expanding Symbols", "Scatter Symbols"],
+    tags: ["Magic", "Fantasy", "Wizard"]
   }
 ];
 

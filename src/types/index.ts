@@ -2,7 +2,7 @@
 export interface Game {
   id: string;
   name: string;
-  title?: string; // Adding title as an alias to name for backward compatibility
+  title?: string; // For backward compatibility
   provider: string;
   category: string;
   image: string;
@@ -57,8 +57,7 @@ export interface AuthUser {
   isVerified: boolean;
 }
 
-// Missing type definitions that need to be added
-
+// Previously missing type definitions
 export interface GameProvider {
   id: string | number;
   name: string;
@@ -106,6 +105,11 @@ export interface VipLevel {
   };
   icon?: string;
   color?: string;
+  // Add missing properties used in VipLevelManager
+  personalManager?: boolean;
+  customGifts?: boolean;
+  specialPromotions?: boolean;
+  requirements?: string;
 }
 
 export interface Promotion {
@@ -136,12 +140,23 @@ export interface DashboardStats {
   avgBetSize: number;
   registrationConversion: number;
   depositConversion: number;
+  // Add missing properties used in Dashboard
+  ggr: number;
+  ngr: number;
+  volume: number;
+  bonusAmount: number;
+  taxes: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  availableBalance: number;
 }
 
 export interface GameStats {
   mostPlayed: { name: string; count: number }[];
   highestWin: { name: string; amount: number }[];
   popularCategories: { name: string; count: number }[];
+  // Add missing properties
+  totalBets: number;
 }
 
 export interface ProviderStats {
