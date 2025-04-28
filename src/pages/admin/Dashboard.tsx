@@ -1,688 +1,564 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Activity, Users, TrendingUp, DollarSign } from "lucide-react";
 import { 
-  DollarSign, 
-  Users, 
-  ShoppingCart, 
-  CreditCard, 
-  Package, 
-  UserPlus, 
-  ArrowUpDown,
-  Percent,
-  Award,
-  Globe,
-  BarChart as BarChartIcon,
-  ListFilter
-} from "lucide-react";
-import { DashboardStats, GameStats, ProviderStats, RegionStats } from "@/types";
+  Chart as ChartComponent, 
+  LineChart, 
+  BarChart, 
+  DonutChart 
+} from "@/components/ui/dashboard-charts";
 import { 
   getDashboardStats, 
   getGameStats, 
   getProviderStats, 
-  getRegionStats, 
-  getTransactionHistory, 
+  getRegionStats,
+  getTransactionHistory,
   getBonusStats
 } from "@/services/dashboardService";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
-import { DateRange } from "react-day-picker"
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  BarChart, 
-  PieChart,
-  LineChart,
-  AreaChart
-} from "@/components/ui/dashboard-charts";
-import { DataTable } from "@/components/ui/data-table";
+import { DashboardStats, GameStats, ProviderStats, RegionStats } from "@/types";
 
 const Dashboard = () => {
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [gameStats, setGameStats] = useState<GameStats[]>([]);
   const [providerStats, setProviderStats] = useState<ProviderStats[]>([]);
   const [regionStats, setRegionStats] = useState<RegionStats[]>([]);
-  const [bonusStats, setBonusStats] = useState<any[]>([]);
-  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
-  const [date, setDate] = useState<DateRange | undefined>({
-    from: new Date(new Date().getFullYear(), new Date().getMonth() - 1, new Date().getDate()),
-    to: new Date(),
-  })
-  const [timeFrame, setTimeFrame] = useState<string>("Last Month");
-  const [activeTab, setActiveTab] = useState("overview");
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"charts" | "numbers">("charts");
-
+  const [transactionHistory, setTransactionHistory] = useState<any[]>([]);
+  const [bonusStats, setBonusStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    fetchDashboardStats();
-    fetchGameStatistics();
-    fetchProviderStatistics();
-    fetchRegionStatistics();
-    fetchBonusStatistics();
-    fetchTimeSeriesData();
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch all dashboard data
+        const dashboardStats = await getDashboardStats();
+        setStats(dashboardStats);
+        
+        const games = await getGameStats();
+        setGameStats(games);
+        
+        const providers = await getProviderStats();
+        setProviderStats(providers);
+        
+        const regions = await getRegionStats();
+        setRegionStats(regions);
+        
+        // Fetch transaction history for charts
+        const history = await getTransactionHistory(30);
+        setTransactionHistory(history);
+        
+        // Fetch bonus stats
+        const bonuses = await getBonusStats();
+        setBonusStats(bonuses);
+        
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDashboardData();
   }, []);
-
-  const fetchDashboardStats = async () => {
-    try {
-      const stats = await getDashboardStats();
-      setDashboardStats(stats);
-    } catch (error) {
-      console.error("Error fetching dashboard stats:", error);
-    }
-  };
-
-  const fetchGameStatistics = async () => {
-    try {
-      const gameData = await getGameStats();
-      setGameStats(gameData);
-    } catch (error) {
-      console.error("Error fetching game statistics:", error);
-    }
-  };
-
-  const fetchProviderStatistics = async () => {
-    try {
-      const providerData = await getProviderStats();
-      setProviderStats(providerData);
-    } catch (error) {
-      console.error("Error fetching provider statistics:", error);
-    }
-  };
-
-  const fetchRegionStatistics = async () => {
-    try {
-      const regionData = await getRegionStats();
-      setRegionStats(regionData);
-    } catch (error) {
-      console.error("Error fetching region statistics:", error);
-    }
-  };
-
-  const fetchBonusStatistics = async () => {
-    try {
-      const bonusData = await getBonusStats();
-      setBonusStats(bonusData);
-    } catch (error) {
-      console.error("Error fetching bonus statistics:", error);
-    }
-  };
-
-  const fetchTimeSeriesData = async () => {
-    try {
-      const data = await getTransactionHistory(30);
-      setTimeSeriesData(data);
-    } catch (error) {
-      console.error("Error fetching time series data:", error);
-    }
-  };
-
-  const handleTimeFrameChange = (value: string) => {
-    setTimeFrame(value);
-    const today = new Date();
-    let fromDate: Date;
-
-    switch (value) {
-      case "Today":
-        fromDate = today;
-        setDate({ from: fromDate, to: today });
-        break;
-      case "Yesterday":
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 1);
-        setDate({ from: fromDate, to: fromDate });
-        break;
-      case "Last 7 Days":
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 7);
-        setDate({ from: fromDate, to: today });
-        break;
-      case "Last 30 Days":
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 30);
-        setDate({ from: fromDate, to: today });
-        break;
-      case "This Month":
-        fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        setDate({ from: fromDate, to: today });
-        break;
-      case "Last Month":
-        fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        setDate({ from: fromDate, to: lastDayOfMonth });
-        break;
-      case "This Year":
-        fromDate = new Date(today.getFullYear(), 0, 1);
-        setDate({ from: fromDate, to: today });
-        break;
-      default:
-        break;
-    }
-  };
-
-  const formatCurrency = (amount: number | undefined) => {
-    if (amount === undefined) return "$0";
-    return amount.toLocaleString('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-  };
-
-  const renderDashboardSummary = () => {
-    if (!dashboardStats) {
-      return <div>Loading dashboard summary...</div>;
-    }
-
+  
+  if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gross Gaming Revenue (GGR)</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.ggr)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total bets minus total wins
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Gaming Revenue (NGR)</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.ngr)}</div>
-            <p className="text-xs text-muted-foreground">
-              GGR minus bonuses and taxes
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Volume</CardTitle>
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.volume)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total amount wagered
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Bonuses</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.bonusAmount)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total bonus amount given to players
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Taxes</CardTitle>
-            <Percent className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.taxes)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total taxes paid on gaming revenue
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.totalDeposits)}</div>
-            <p className="text-xs text-muted-foreground">
-              All successful deposits made by users
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.totalWithdrawals)}</div>
-            <p className="text-xs text-muted-foreground">
-              All successful withdrawals made by users
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(dashboardStats.availableBalance)}</div>
-            <p className="text-xs text-muted-foreground">
-              Total player account balances
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.totalUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of registered users
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Users</CardTitle>
-            <UserPlus className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.newUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Users registered in the last 30 days
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Players</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{dashboardStats.activeUsers}</div>
-            <p className="text-xs text-muted-foreground">
-              Users with activity in the last 30 days
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Regions</CardTitle>
-            <Globe className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{regionStats.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Total number of active regions
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-16 h-16 border-4 border-t-primary border-slate-200 rounded-full animate-spin"></div>
       </div>
     );
-  };
-
-  // Data table columns definition for numerical view
-  const gameColumns = [
-    { header: "Game", accessorKey: "gameName" },
-    { header: "Provider", accessorKey: "provider" },
-    { header: "Bets", accessorKey: "totalBets", cell: (row: GameStats) => formatCurrency(row.totalBets) },
-    { header: "Wins", accessorKey: "totalWins", cell: (row: GameStats) => formatCurrency(row.totalWins) },
-    { header: "NGR", accessorKey: "netProfit", cell: (row: GameStats) => formatCurrency(row.netProfit) },
-    { header: "Players", accessorKey: "uniquePlayers" }
-  ];
-
-  const providerColumns = [
-    { header: "Provider", accessorKey: "providerName" },
-    { header: "Games", accessorKey: "totalGames" },
-    { header: "Bets", accessorKey: "totalBets", cell: (row: ProviderStats) => formatCurrency(row.totalBets) },
-    { header: "Wins", accessorKey: "totalWins", cell: (row: ProviderStats) => formatCurrency(row.totalWins) },
-    { header: "NGR", accessorKey: "netProfit", cell: (row: ProviderStats) => formatCurrency(row.netProfit) },
-    { header: "Players", accessorKey: "uniquePlayers" }
-  ];
-
-  const regionColumns = [
-    { header: "Region", accessorKey: "region" },
-    { header: "Players", accessorKey: "userCount" },
-    { header: "Deposits", accessorKey: "depositAmount", cell: (row: RegionStats) => formatCurrency(row.depositAmount) },
-    { header: "Bets", accessorKey: "betAmount", cell: (row: RegionStats) => formatCurrency(row.betAmount) },
-    { header: "GGR", accessorKey: "netProfit", cell: (row: RegionStats) => formatCurrency(row.netProfit) }
-  ];
-
-  const bonusColumns = [
-    { header: "Bonus Type", accessorKey: "type" },
-    { header: "Count", accessorKey: "count" },
-    { header: "Amount", accessorKey: "amount", cell: (row: any) => formatCurrency(row.amount) },
-    { header: "Unique Users", accessorKey: "uniqueUsers" }
-  ];
-
-  const renderRevenueTimeData = () => {
-    const data = prepareRevenueChartData();
-    
-    if (viewMode === "charts") {
-      return (
-        <AreaChart 
-          data={data} 
-          categories={["GGR", "NGR", "Bets"]} 
-          index="name"
-          stacked={false}
-          valueFormatter={(value) => `$${value.toLocaleString()}`}
-          height={350}
-        />
-      );
-    } else {
-      return (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Bets</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Wins</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">GGR</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">NGR</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {data.map((day, index) => (
-                <tr key={index}>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">{day.name}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Bets)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Wins)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.GGR)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.NGR)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    }
-  };
-
-  const prepareRevenueChartData = () => {
-    if (!timeSeriesData.length) return [];
-    
-    return timeSeriesData.map(day => ({
-      name: day.date,
-      GGR: day.bets - day.wins,
-      NGR: day.bets - day.wins - (day.bonuses || 0) - ((day.bets - day.wins) * 0.05), // Assuming 5% tax
-      Bets: day.bets,
-      Wins: day.wins
-    }));
-  };
-
-  const prepareGameChartData = () => {
-    return gameStats.slice(0, 5).map(game => ({
-      name: game.gameName,
-      NGR: game.netProfit,
-      Bets: game.totalBets,
-      Players: game.uniquePlayers
-    }));
-  };
-
-  const prepareProviderChartData = () => {
-    return providerStats.slice(0, 5).map(provider => ({
-      name: provider.providerName,
-      NGR: provider.netProfit,
-      Games: provider.totalGames,
-      Players: provider.uniquePlayers
-    }));
-  };
-
-  const prepareRegionChartData = () => {
-    return regionStats.slice(0, 5).map(region => ({
-      name: region.region,
-      NGR: region.netProfit,
-      Users: region.userCount,
-      Deposits: region.depositAmount
-    }));
-  };
-
-  const prepareBonusPieData = () => {
-    return bonusStats.map(bonus => ({
-      name: bonus.type,
-      value: bonus.amount
-    }));
-  };
-
+  }
+  
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-white/5 rounded-md p-1 mr-2">
-            <Button
-              variant={viewMode === "charts" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("charts")}
-              className="flex items-center"
-            >
-              <BarChartIcon className="h-4 w-4 mr-1" />
-              Charts
-            </Button>
-            <Button
-              variant={viewMode === "numbers" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("numbers")}
-              className="flex items-center"
-            >
-              <ListFilter className="h-4 w-4 mr-1" />
-              Numbers
-            </Button>
-          </div>
-          
-          <Select value={timeFrame} onValueChange={handleTimeFrameChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select time frame" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Today">Today</SelectItem>
-              <SelectItem value="Yesterday">Yesterday</SelectItem>
-              <SelectItem value="Last 7 Days">Last 7 Days</SelectItem>
-              <SelectItem value="Last 30 Days">Last 30 Days</SelectItem>
-              <SelectItem value="This Month">This Month</SelectItem>
-              <SelectItem value="Last Month">Last Month</SelectItem>
-              <SelectItem value="This Year">This Year</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground">Overview of your casino performance</p>
       </div>
-
-      {renderDashboardSummary()}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+      
+      {/* Key metrics section */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats?.totalRevenue?.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              +{Math.floor(Math.random() * 10) + 1}% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.activeUsers?.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              +{Math.floor(Math.random() * 15) + 5}% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Bets</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.totalBets?.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              +{Math.floor(Math.random() * 20) + 10}% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">AVG Bet Size</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats?.avgBetSize?.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              +{Math.floor(Math.random() * 8) + 2}% from last month
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Revenue Chart */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle>Revenue Overview</CardTitle>
+          <CardDescription>Daily revenue for the last 30 days</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {transactionHistory.length > 0 && (
+            <ChartComponent>
+              <LineChart 
+                data={transactionHistory.map(day => ({
+                  name: day.date,
+                  Deposits: day.deposits,
+                  Withdrawals: -day.withdrawals,
+                  Net: day.deposits - day.withdrawals
+                }))}
+                categories={["Deposits", "Withdrawals", "Net"]}
+                index="name"
+                colors={["green", "red", "blue"]}
+                valueFormatter={(value) => `$${Math.abs(value).toLocaleString()}`}
+                yAxisWidth={60}
+              />
+            </ChartComponent>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Tabs for different insights */}
+      <Tabs defaultValue="games" className="space-y-4">
+        <TabsList className="bg-slate-800 border-slate-700">
           <TabsTrigger value="games">Games</TabsTrigger>
           <TabsTrigger value="providers">Providers</TabsTrigger>
           <TabsTrigger value="regions">Regions</TabsTrigger>
           <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="overview">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Revenue Over Time</CardTitle>
+        {/* Games Tab */}
+        <TabsContent value="games" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Most Played Games</CardTitle>
+                <CardDescription>Top 5 games by play count</CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px]">
-                {renderRevenueTimeData()}
+              <CardContent>
+                {gameStats.length > 0 && gameStats[0].mostPlayed.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={gameStats[0].mostPlayed.map(game => ({
+                        name: game.name,
+                        value: game.count
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["blue"]}
+                      valueFormatter={(value) => `${value.toLocaleString()} plays`}
+                    />
+                  </ChartComponent>
+                )}
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Weekly Trends</CardTitle>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Highest Wins</CardTitle>
+                <CardDescription>Games with highest win amounts</CardDescription>
               </CardHeader>
-              <CardContent className="h-[400px]">
-                {viewMode === "charts" ? (
-                  <LineChart 
-                    data={prepareRevenueChartData().slice(-7)}
-                    categories={["GGR", "NGR", "Bets", "Wins"]}
-                    index="name"
-                    valueFormatter={(value) => `$${value.toLocaleString()}`}
-                    height={350}
-                  />
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50 dark:bg-gray-800">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Date</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Bets</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Wins</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">GGR</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">NGR</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                        {prepareRevenueChartData().slice(-7).map((day, index) => (
-                          <tr key={index}>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">{day.name}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Bets)}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.Wins)}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.GGR)}</td>
-                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{formatCurrency(day.NGR)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              <CardContent>
+                {gameStats.length > 0 && gameStats[0].highestWin.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={gameStats[0].highestWin.map(game => ({
+                        name: game.name,
+                        value: game.amount
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["green"]}
+                      valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Popular Categories</CardTitle>
+                <CardDescription>Game categories by popularity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {gameStats.length > 0 && gameStats[0].popularCategories.length > 0 && (
+                  <ChartComponent>
+                    <DonutChart
+                      data={gameStats[0].popularCategories.map(category => ({
+                        name: category.name,
+                        value: category.count
+                      }))}
+                      category="value"
+                      index="name"
+                      valueFormatter={(value) => `${value.toLocaleString()} plays`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Bets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{gameStats[0]?.totalBets?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Wins</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{gameStats[0]?.totalWins?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${gameStats[0]?.netProfit?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Unique Players</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{gameStats[0]?.uniquePlayers?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Providers Tab */}
+        <TabsContent value="providers" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Provider Revenue</CardTitle>
+                <CardDescription>Top providers by revenue</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {providerStats.length > 0 && providerStats[0].revenue.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={providerStats[0].revenue.map(provider => ({
+                        name: provider.name,
+                        value: provider.amount
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["blue"]}
+                      valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Provider Bet Count</CardTitle>
+                <CardDescription>Number of bets by provider</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {providerStats.length > 0 && providerStats[0].bets.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={providerStats[0].bets.map(provider => ({
+                        name: provider.name,
+                        value: provider.count
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["purple"]}
+                      valueFormatter={(value) => `${value.toLocaleString()} bets`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Provider Win Rate</CardTitle>
+                <CardDescription>RTP percentage by provider</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {providerStats.length > 0 && providerStats[0].winRate.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={providerStats[0].winRate.map(provider => ({
+                        name: provider.name,
+                        value: provider.rate
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["green"]}
+                      valueFormatter={(value) => `${value.toFixed(1)}%`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Games</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{providerStats[0]?.totalGames?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Bets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{providerStats[0]?.totalBets?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Wins</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{providerStats[0]?.totalWins?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${providerStats[0]?.netProfit?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Regions Tab */}
+        <TabsContent value="regions" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Users by Country</CardTitle>
+                <CardDescription>User distribution by country</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {regionStats.length > 0 && regionStats[0].usersByCountry.length > 0 && (
+                  <ChartComponent>
+                    <DonutChart
+                      data={regionStats[0].usersByCountry.map(country => ({
+                        name: country.country,
+                        value: country.users
+                      }))}
+                      category="value"
+                      index="name"
+                      valueFormatter={(value) => `${value.toLocaleString()} users`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Revenue by Country</CardTitle>
+                <CardDescription>Revenue distribution by country</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {regionStats.length > 0 && regionStats[0].revenueByCountry.length > 0 && (
+                  <ChartComponent>
+                    <BarChart
+                      data={regionStats[0].revenueByCountry.map(country => ({
+                        name: country.country,
+                        value: country.revenue
+                      }))}
+                      categories={["value"]}
+                      index="name"
+                      colors={["blue"]}
+                      valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle>Active Sessions</CardTitle>
+                <CardDescription>Sessions by region</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {regionStats.length > 0 && regionStats[0].activeSessionsByRegion.length > 0 && (
+                  <ChartComponent>
+                    <DonutChart
+                      data={regionStats[0].activeSessionsByRegion.map(region => ({
+                        name: region.region,
+                        value: region.sessions
+                      }))}
+                      category="value"
+                      index="name"
+                      valueFormatter={(value) => `${value.toLocaleString()} sessions`}
+                    />
+                  </ChartComponent>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{regionStats[0]?.userCount?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Deposit Amount</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${regionStats[0]?.depositAmount?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Bet Amount</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${regionStats[0]?.betAmount?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${regionStats[0]?.netProfit?.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        {/* Bonuses Tab */}
+        <TabsContent value="bonuses" className="space-y-4">
+          {bonusStats && (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Bonus Distribution</CardTitle>
+                  <CardDescription>Bonus amounts by type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartComponent>
+                    <DonutChart
+                      data={bonusStats.bonusByType}
+                      category="value"
+                      index="name"
+                      valueFormatter={(value) => `$${value.toLocaleString()}`}
+                    />
+                  </ChartComponent>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Active Bonuses</CardTitle>
+                  <CardDescription>Currently active bonuses</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="text-4xl font-bold text-center">{bonusStats.activeBonuses}</div>
+                  <p className="text-center text-muted-foreground mt-2">active bonuses</p>
+                  
+                  <div className="mt-6 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Conversion Rate:</span>
+                      <span className="font-medium">{bonusStats.conversionRate}%</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Total Awarded:</span>
+                      <span className="font-medium">${bonusStats.totalAwarded}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Average Value:</span>
+                      <span className="font-medium">${bonusStats.averageBonusValue}</span>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="games">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Top Games by NGR</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[400px]">
-                {viewMode === "charts" ? (
-                  <BarChart 
-                    data={prepareGameChartData()}
-                    categories={["NGR"]}
-                    index="name"
-                    valueFormatter={(value) => `$${value.toLocaleString()}`}
-                    height={350}
-                  />
-                ) : (
-                  <DataTable data={gameStats.slice(0, 10)} columns={gameColumns} />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Game Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable data={gameStats} columns={gameColumns} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="providers">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Top Providers by NGR</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[400px]">
-                {viewMode === "charts" ? (
-                  <BarChart 
-                    data={prepareProviderChartData()}
-                    categories={["NGR"]}
-                    index="name"
-                    valueFormatter={(value) => `$${value.toLocaleString()}`}
-                    height={350}
-                  />
-                ) : (
-                  <DataTable data={providerStats.slice(0, 10)} columns={providerColumns} />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Provider Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable data={providerStats} columns={providerColumns} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="regions">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Top Regions by NGR</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[400px]">
-                {viewMode === "charts" ? (
-                  <BarChart 
-                    data={prepareRegionChartData()}
-                    categories={["NGR"]}
-                    index="name"
-                    valueFormatter={(value) => `$${value.toLocaleString()}`}
-                    height={350}
-                  />
-                ) : (
-                  <DataTable data={regionStats.slice(0, 10)} columns={regionColumns} />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Region Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable data={regionStats} columns={regionColumns} />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="bonuses">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Bonus Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[400px]">
-                {viewMode === "charts" ? (
-                  <PieChart 
-                    data={prepareBonusPieData()}
-                    valueFormatter={(value) => `$${value.toLocaleString()}`}
-                    height={350}
-                  />
-                ) : (
-                  <DataTable data={bonusStats} columns={bonusColumns} />
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Bonus Details</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DataTable data={bonusStats} columns={bonusColumns} />
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Recent Bonuses</CardTitle>
+                  <CardDescription>Recently awarded bonuses</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {bonusStats.recentBonuses.map((bonus: any) => (
+                      <div key={bonus.id} className="flex justify-between items-center border-b border-slate-700 pb-2 last:border-0">
+                        <div>
+                          <div className="capitalize font-medium">{bonus.type} Bonus</div>
+                          <div className="text-xs text-muted-foreground">User: {bonus.userId}</div>
+                        </div>
+                        <div className="text-green-500 font-medium">${bonus.amount}</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

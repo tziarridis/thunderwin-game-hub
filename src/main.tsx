@@ -1,6 +1,7 @@
 
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router } from "react-router-dom";
+import { StrictMode } from 'react';
 import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
@@ -32,12 +33,14 @@ supabase.auth.onAuthStateChange((event, session) => {
 });
 
 createRoot(rootElement).render(
-  <QueryClientProvider client={queryClient}>
-    <Router>
-      <AuthProvider>
-        <App />
-        <Toaster />
-      </AuthProvider>
-    </Router>
-  </QueryClientProvider>
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <AuthProvider>
+          <App />
+          <Toaster />
+        </AuthProvider>
+      </Router>
+    </QueryClientProvider>
+  </StrictMode>
 );
