@@ -34,6 +34,13 @@ export interface Game {
   
   // Optional relation property
   provider?: GameProvider;
+  
+  // Properties for compatibility with the UI Game interface
+  title?: string;
+  name?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  jackpot?: boolean;
 }
 
 export interface GameListParams {

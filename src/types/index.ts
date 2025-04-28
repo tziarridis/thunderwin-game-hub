@@ -1,6 +1,8 @@
+
 export interface Game {
   id: string;
   name: string;
+  title?: string; // Adding title as an alias to name for backward compatibility
   provider: string;
   category: string;
   image: string;
@@ -12,6 +14,13 @@ export interface Game {
   tags: string[];
   isFavorite?: boolean;
   url?: string;
+  
+  // Additional properties needed by components
+  description?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  jackpot?: boolean;
+  releaseDate?: string;
 }
 
 export interface User {
@@ -46,4 +55,131 @@ export interface AuthUser {
   avatarUrl?: string;
   vipLevel: number;
   isVerified: boolean;
+}
+
+// Missing type definitions that need to be added
+
+export interface GameProvider {
+  id: string | number;
+  name: string;
+  logo?: string;
+  description?: string;
+  status?: string;
+  gamesCount?: number;
+  isPopular?: boolean;
+  featured?: boolean;
+}
+
+export interface Affiliate {
+  id: string;
+  userId: string;
+  userName: string;
+  name: string;
+  email: string;
+  website?: string;
+  code: string;
+  referredUsers: number;
+  totalCommissions: number;
+  commission: number;
+  signups: number;
+  totalRevenue: number;
+  joinedDate: string;
+  payoutMethod: string;
+  payoutDetails: string;
+  status: 'active' | 'pending' | 'suspended';
+  joined: string;
+  referralCode: string;
+}
+
+export interface VipLevel {
+  id: number | string;
+  level: number;
+  name: string;
+  pointsRequired: number;
+  benefits: string[];
+  cashbackRate: number;
+  withdrawalLimit: number;
+  bonuses: {
+    depositMatch: number;
+    freeSpins: number;
+    birthdayBonus: number;
+  };
+  icon?: string;
+  color?: string;
+}
+
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  terms: string;
+  bonusAmount?: number;
+  bonusType?: string;
+  targetAudience?: string[];
+  code?: string;
+  minDeposit?: number;
+  wageringRequirement?: number;
+}
+
+export interface DashboardStats {
+  totalUsers: number;
+  newUsers: number;
+  activeUsers: number;
+  totalRevenue: number;
+  dailyRevenue: number;
+  monthlyRevenue: number;
+  totalBets: number;
+  avgBetSize: number;
+  registrationConversion: number;
+  depositConversion: number;
+}
+
+export interface GameStats {
+  mostPlayed: { name: string; count: number }[];
+  highestWin: { name: string; amount: number }[];
+  popularCategories: { name: string; count: number }[];
+}
+
+export interface ProviderStats {
+  revenue: { name: string; amount: number }[];
+  bets: { name: string; count: number }[];
+  winRate: { name: string; rate: number }[];
+}
+
+export interface RegionStats {
+  usersByCountry: { country: string; users: number }[];
+  revenueByCountry: { country: string; revenue: number }[];
+  activeSessionsByRegion: { region: string; sessions: number }[];
+}
+
+export interface KycRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  documentType: string;
+  documentNumber: string;
+  submissionDate: string;
+  status: KycStatus;
+  verificationDate?: string;
+  rejectionReason?: string;
+  documentUrls: string[];
+}
+
+export type KycStatus = 'pending' | 'approved' | 'rejected' | 'additional_info_required';
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number; 
+  minDeposit?: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
 }
