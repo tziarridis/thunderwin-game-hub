@@ -43,9 +43,11 @@ import {
 } from "@/components/ui/tabs";
 import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
 import { BonusTemplate, BonusTemplateFormData, VipLevel } from "@/types";
-import { getVipLevels, updateVipLevel, createVipLevel } from "@/services/apiService";
+import { getVipLevels } from "@/services/apiService"; // Update imports
 import VipLevelManager from "@/components/admin/VipLevelManager";
 import { useToast } from "@/components/ui/use-toast";
+// Import missing functions
+import { updateVipLevel, createVipLevel } from "@/services/apiService";
 
 const VipBonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
@@ -182,7 +184,7 @@ const VipBonusManagement = () => {
 
   const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
     try {
-      await updateVipLevel(updatedLevel);
+      await updateVipLevel(updatedLevel.id, updatedLevel);
       setVipLevels(prevLevels => 
         prevLevels.map(level => 
           level.id === updatedLevel.id ? updatedLevel : level

@@ -1,464 +1,412 @@
-import React, { useState } from "react";
+
+import { useState } from 'react';
+import { VipLevel } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Plus, Edit, Trash, Award, Star, Trophy, Gift } from "lucide-react";
-import { VipLevel } from "@/types";
-import { useToast } from "@/components/ui/use-toast";
+} from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 
 interface VipLevelManagerProps {
-  vipLevels: VipLevel[];
-  onUpdateVipLevel: (vipLevel: VipLevel) => Promise<void>;
-  onCreateVipLevel: (vipLevel: Omit<VipLevel, "id">) => Promise<void>;
+  levels: VipLevel[];
+  onUpdate: (level: VipLevel) => Promise<void>;
+  onCreate: (level: Omit<VipLevel, 'id'>) => Promise<void>;
 }
 
-const VipLevelManager: React.FC<VipLevelManagerProps> = ({
-  vipLevels,
-  onUpdateVipLevel,
-  onCreateVipLevel,
-}) => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedVipLevel, setSelectedVipLevel] = useState<VipLevel | null>(null);
-  const { toast } = useToast();
-  
-  const [formData, setFormData] = useState<Omit<VipLevel, "id">>({
-    name: "",
-    requirements: "",
+const VipLevelManager = ({ levels, onUpdate, onCreate }: VipLevelManagerProps) => {
+  const [editingLevel, setEditingLevel] = useState<VipLevel | null>(null);
+  const [newLevel, setNewLevel] = useState<Omit<VipLevel, 'id'>>({
+    level: levels.length + 1,
+    name: '',
+    pointsRequired: 0,
+    requiredPoints: 0,
     benefits: [],
     cashbackRate: 0,
     withdrawalLimit: 0,
-    personalManager: false,
-    customGifts: false,
-    specialPromotions: false,
-    level: 0,
-    pointsRequired: 0,
-    color: "#000000",
     bonuses: {
       depositMatch: 0,
       freeSpins: 0,
       birthdayBonus: 0
-    }
+    },
+    color: '#000000'
   });
-
-  const handleFormChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value, type } = e.target;
-    const newValue = type === "number" ? parseFloat(value) : value;
+  const { toast } = useToast();
+  
+  const handleEditChange = (field: keyof VipLevel, value: any) => {
+    if (!editingLevel) return;
     
-    setFormData((prev) => ({
-      ...prev,
-      [name]: newValue,
-    }));
+    if (field === 'bonuses.depositMatch' || field === 'bonuses.freeSpins' || field === 'bonuses.birthdayBonus') {
+      const [parent, child] = field.split('.');
+      setEditingLevel({
+        ...editingLevel,
+        [parent]: {
+          ...editingLevel[parent as keyof VipLevel],
+          [child]: value
+        }
+      });
+    } else {
+      setEditingLevel({
+        ...editingLevel,
+        [field]: value
+      });
+    }
   };
-
-  const handleBenefitsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const benefitsArray = e.target.value.split('\n').filter(benefit => benefit.trim() !== '');
-    setFormData((prev) => ({
-      ...prev,
-      benefits: benefitsArray,
-    }));
+  
+  const handleNewChange = (field: string, value: any) => {
+    if (field === 'bonuses.depositMatch' || field === 'bonuses.freeSpins' || field === 'bonuses.birthdayBonus') {
+      const [parent, child] = field.split('.');
+      setNewLevel({
+        ...newLevel,
+        [parent]: {
+          ...newLevel[parent as keyof typeof newLevel],
+          [child]: value
+        }
+      });
+    } else {
+      setNewLevel({
+        ...newLevel,
+        [field]: value
+      });
+    }
   };
-
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prev) => ({
-      ...prev,
-      [name]: checked,
-    }));
-  };
-
-  const handleOpenDialog = () => {
-    setIsDialogOpen(true);
-    setIsEditMode(false);
-    setSelectedVipLevel(null);
-    setFormData({
-      name: "",
-      requirements: "",
-      benefits: [],
-      cashbackRate: 0,
-      withdrawalLimit: 0,
-      personalManager: false,
-      customGifts: false,
-      specialPromotions: false,
-      level: vipLevels.length + 1,
-      pointsRequired: 0,
-      color: "#000000",
-      bonuses: {
-        depositMatch: 0,
-        freeSpins: 0,
-        birthdayBonus: 0
-      }
-    });
-  };
-
-  const handleEdit = (vipLevel: VipLevel) => {
-    setSelectedVipLevel(vipLevel);
-    setIsEditMode(true);
-    setIsDialogOpen(true);
-    
-    setFormData({
-      name: vipLevel.name,
-      requirements: vipLevel.requirements || "",
-      benefits: vipLevel.benefits || [],
-      cashbackRate: vipLevel.cashbackRate,
-      withdrawalLimit: vipLevel.withdrawalLimit,
-      personalManager: vipLevel.personalManager || false,
-      customGifts: vipLevel.customGifts || false,
-      specialPromotions: vipLevel.specialPromotions || false,
-      level: vipLevel.level || 0,
-      pointsRequired: vipLevel.pointsRequired || 0,
-      color: vipLevel.color || "#000000",
-      bonuses: vipLevel.bonuses || {
-        depositMatch: 0,
-        freeSpins: 0,
-        birthdayBonus: 0
-      }
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  
+  const handleUpdateLevel = async () => {
+    if (!editingLevel) return;
     
     try {
-      if (isEditMode && selectedVipLevel) {
-        await onUpdateVipLevel({
-          ...formData,
-          id: selectedVipLevel.id,
-        });
-      } else {
-        await onCreateVipLevel(formData);
-      }
-      
-      setIsDialogOpen(false);
-      
+      await onUpdate(editingLevel);
+      toast({
+        title: "Success",
+        description: `VIP level "${editingLevel.name}" has been updated.`,
+      });
+      setEditingLevel(null);
     } catch (error) {
-      console.error("Error saving VIP level:", error);
       toast({
         title: "Error",
-        description: "Failed to save VIP level. Please try again.",
+        description: "Failed to update VIP level. Please try again.",
         variant: "destructive",
       });
     }
   };
-
-  const getBenefitsList = (vipLevel: VipLevel): string => {
-    if (!vipLevel.benefits || vipLevel.benefits.length === 0) {
-      return "None";
+  
+  const handleCreateLevel = async () => {
+    try {
+      await onCreate(newLevel);
+      toast({
+        title: "Success",
+        description: `VIP level "${newLevel.name}" has been created.`,
+      });
+      setNewLevel({
+        level: levels.length + 2,
+        name: '',
+        pointsRequired: 0,
+        requiredPoints: 0,
+        benefits: [],
+        cashbackRate: 0,
+        withdrawalLimit: 0,
+        bonuses: {
+          depositMatch: 0,
+          freeSpins: 0,
+          birthdayBonus: 0
+        },
+        color: '#000000'
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create VIP level. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    if (typeof vipLevel.benefits === 'string') {
-      return vipLevel.benefits;
-    }
-    
-    return vipLevel.benefits.join(", ");
   };
-
-  const getVipLevelColor = (vipLevel: VipLevel): string => {
-    return vipLevel.color || "#6B7280";
-  };
-
+  
   return (
-    <>
-      <Card className="shadow-md rounded-md">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-2xl font-bold">
-            VIP Levels Management
-          </CardTitle>
-          <Button onClick={handleOpenDialog}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add VIP Level
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableCaption>
-              A list of all VIP levels in the casino system.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Level</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Points Required</TableHead>
-                <TableHead>Cashback Rate</TableHead>
-                <TableHead>Withdrawal Limit</TableHead>
-                <TableHead>Benefits</TableHead>
-                <TableHead>Special Features</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {vipLevels.map((vipLevel) => (
-                <TableRow key={vipLevel.id}>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <div
-                        className="w-4 h-4 rounded-full mr-2"
-                        style={{ backgroundColor: getVipLevelColor(vipLevel) }}
-                      ></div>
-                      {vipLevel.level || 0}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{vipLevel.name}</TableCell>
-                  <TableCell>{vipLevel.pointsRequired || vipLevel.requiredPoints || 0}</TableCell>
-                  <TableCell>{(vipLevel.cashbackRate * 100).toFixed(1)}%</TableCell>
-                  <TableCell>${vipLevel.withdrawalLimit.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <div className="max-w-xs truncate" title={getBenefitsList(vipLevel)}>
-                      {getBenefitsList(vipLevel)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-1">
-                      {vipLevel.personalManager && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Trophy className="h-4 w-4 text-yellow-500" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Personal Manager</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {vipLevel.customGifts && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Gift className="h-4 w-4 text-purple-500" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Custom Gifts</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                      {vipLevel.specialPromotions && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Star className="h-4 w-4 text-blue-500" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Special Promotions</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(vipLevel)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Edit VIP Level" : "Create New VIP Level"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? "Update the VIP level details and benefits"
-                : "Create a new VIP level with custom benefits"}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {levels.map((level) => (
+          <Card key={level.id} className="overflow-hidden">
+            <div 
+              className="h-2"
+              style={{ backgroundColor: level.color }}
+            ></div>
+            <CardHeader>
+              <CardTitle className="flex justify-between">
+                <span>{level.name}</span>
+                <span>Level {level.level}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="text-sm">
+                  <span className="font-semibold">Points Required:</span> {level.pointsRequired}
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold">Cashback Rate:</span> {level.cashbackRate}%
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold">Withdrawal Limit:</span> ${level.withdrawalLimit}
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold">Bonuses:</span>
+                  <ul className="list-disc list-inside pl-2">
+                    <li>Deposit Match: {level.bonuses.depositMatch}%</li>
+                    <li>Free Spins: {level.bonuses.freeSpins}</li>
+                    <li>Birthday Bonus: ${level.bonuses.birthdayBonus}</li>
+                  </ul>
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold">Benefits:</span>
+                  <ul className="list-disc list-inside pl-2">
+                    {level.benefits.map((benefit, index) => (
+                      <li key={index}>{benefit}</li>
+                    ))}
+                  </ul>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => setEditingLevel(level)}
+                >
+                  Edit
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      {editingLevel && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Edit VIP Level</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="name">VIP Level Name</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                  required
+                <Label htmlFor="edit-name">Name</Label>
+                <Input 
+                  id="edit-name" 
+                  value={editingLevel.name} 
+                  onChange={(e) => handleEditChange('name', e.target.value)} 
                 />
               </div>
-              
               <div>
-                <Label htmlFor="level">Level Number</Label>
-                <Input
-                  id="level"
-                  name="level"
-                  type="number"
-                  value={formData.level || 0}
-                  onChange={handleFormChange}
-                  required
+                <Label htmlFor="edit-level">Level</Label>
+                <Input 
+                  id="edit-level" 
+                  type="number" 
+                  value={editingLevel.level} 
+                  onChange={(e) => handleEditChange('level', parseInt(e.target.value))} 
                 />
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="pointsRequired">Points Required</Label>
-                <Input
-                  id="pointsRequired"
-                  name="pointsRequired"
-                  type="number"
-                  value={formData.pointsRequired || 0}
-                  onChange={handleFormChange}
-                  required
+                <Label htmlFor="edit-points">Points Required</Label>
+                <Input 
+                  id="edit-points" 
+                  type="number" 
+                  value={editingLevel.pointsRequired} 
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    handleEditChange('pointsRequired', value);
+                    handleEditChange('requiredPoints', value);
+                  }} 
                 />
               </div>
-              
               <div>
-                <Label htmlFor="color">Level Color</Label>
-                <div className="flex space-x-2">
-                  <Input
-                    id="color"
-                    name="color"
-                    type="color"
-                    value={formData.color || "#000000"}
-                    onChange={handleFormChange}
-                    className="w-16"
+                <Label htmlFor="edit-cashback">Cashback Rate (%)</Label>
+                <Input 
+                  id="edit-cashback" 
+                  type="number" 
+                  step="0.5" 
+                  value={editingLevel.cashbackRate} 
+                  onChange={(e) => handleEditChange('cashbackRate', parseFloat(e.target.value))} 
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-withdrawal">Withdrawal Limit ($)</Label>
+                <Input 
+                  id="edit-withdrawal" 
+                  type="number" 
+                  value={editingLevel.withdrawalLimit} 
+                  onChange={(e) => handleEditChange('withdrawalLimit', parseInt(e.target.value))} 
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-color">Color</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="edit-color" 
+                    value={editingLevel.color} 
+                    onChange={(e) => handleEditChange('color', e.target.value)} 
                   />
-                  <Input
-                    type="text"
-                    value={formData.color || "#000000"}
-                    onChange={handleFormChange}
-                    name="color"
-                    className="flex-1"
-                  />
+                  <div 
+                    className="w-10 h-10 rounded" 
+                    style={{ backgroundColor: editingLevel.color }}
+                  ></div>
                 </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="cashbackRate">Cashback Rate (%)</Label>
-                <Input
-                  id="cashbackRate"
-                  name="cashbackRate"
-                  type="number"
-                  step="0.1"
-                  max="100"
-                  value={formData.cashbackRate * 100}
-                  onChange={(e) => {
-                    setFormData(prev => ({
-                      ...prev,
-                      cashbackRate: parseFloat(e.target.value) / 100
-                    }));
-                  }}
-                  required
+                <Label htmlFor="edit-deposit-match">Deposit Match (%)</Label>
+                <Input 
+                  id="edit-deposit-match" 
+                  type="number" 
+                  value={editingLevel.bonuses.depositMatch} 
+                  onChange={(e) => handleEditChange('bonuses.depositMatch', parseInt(e.target.value))} 
                 />
               </div>
-              
               <div>
-                <Label htmlFor="withdrawalLimit">Withdrawal Limit ($)</Label>
-                <Input
-                  id="withdrawalLimit"
-                  name="withdrawalLimit"
-                  type="number"
-                  step="1000"
-                  value={formData.withdrawalLimit}
-                  onChange={handleFormChange}
-                  required
+                <Label htmlFor="edit-free-spins">Free Spins</Label>
+                <Input 
+                  id="edit-free-spins" 
+                  type="number" 
+                  value={editingLevel.bonuses.freeSpins} 
+                  onChange={(e) => handleEditChange('bonuses.freeSpins', parseInt(e.target.value))} 
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-birthday-bonus">Birthday Bonus ($)</Label>
+                <Input 
+                  id="edit-birthday-bonus" 
+                  type="number" 
+                  value={editingLevel.bonuses.birthdayBonus} 
+                  onChange={(e) => handleEditChange('bonuses.birthdayBonus', parseInt(e.target.value))} 
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="edit-benefits">Benefits (comma separated)</Label>
+                <Input 
+                  id="edit-benefits" 
+                  value={editingLevel.benefits.join(', ')} 
+                  onChange={(e) => handleEditChange('benefits', e.target.value.split(',').map(b => b.trim()))} 
                 />
               </div>
             </div>
             
+            <div className="flex justify-end mt-4 space-x-2">
+              <Button variant="outline" onClick={() => setEditingLevel(null)}>Cancel</Button>
+              <Button onClick={handleUpdateLevel}>Save Changes</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Add New VIP Level</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="requirements">Requirements</Label>
-              <Input
-                id="requirements"
-                name="requirements"
-                value={formData.requirements || ""}
-                onChange={handleFormChange}
+              <Label htmlFor="new-name">Name</Label>
+              <Input 
+                id="new-name" 
+                value={newLevel.name} 
+                onChange={(e) => handleNewChange('name', e.target.value)} 
               />
             </div>
-            
             <div>
-              <Label htmlFor="benefits">Benefits (one per line)</Label>
-              <textarea
-                id="benefits"
-                className="w-full min-h-24 p-2 border rounded-md"
-                value={Array.isArray(formData.benefits) ? formData.benefits.join('\n') : formData.benefits}
-                onChange={handleBenefitsChange}
+              <Label htmlFor="new-level">Level</Label>
+              <Input 
+                id="new-level" 
+                type="number" 
+                value={newLevel.level} 
+                onChange={(e) => handleNewChange('level', parseInt(e.target.value))} 
               />
             </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="personalManager"
-                  checked={formData.personalManager || false}
-                  onCheckedChange={(checked) => handleSwitchChange("personalManager", checked)}
+            <div>
+              <Label htmlFor="new-points">Points Required</Label>
+              <Input 
+                id="new-points" 
+                type="number" 
+                value={newLevel.pointsRequired} 
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  handleNewChange('pointsRequired', value);
+                  handleNewChange('requiredPoints', value);
+                }} 
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-cashback">Cashback Rate (%)</Label>
+              <Input 
+                id="new-cashback" 
+                type="number" 
+                step="0.5" 
+                value={newLevel.cashbackRate} 
+                onChange={(e) => handleNewChange('cashbackRate', parseFloat(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-withdrawal">Withdrawal Limit ($)</Label>
+              <Input 
+                id="new-withdrawal" 
+                type="number" 
+                value={newLevel.withdrawalLimit} 
+                onChange={(e) => handleNewChange('withdrawalLimit', parseInt(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-color">Color</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="new-color" 
+                  value={newLevel.color} 
+                  onChange={(e) => handleNewChange('color', e.target.value)} 
                 />
-                <Label htmlFor="personalManager">Personal Manager</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="customGifts"
-                  checked={formData.customGifts || false}
-                  onCheckedChange={(checked) => handleSwitchChange("customGifts", checked)}
-                />
-                <Label htmlFor="customGifts">Custom Gifts</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="specialPromotions"
-                  checked={formData.specialPromotions || false}
-                  onCheckedChange={(checked) => handleSwitchChange("specialPromotions", checked)}
-                />
-                <Label htmlFor="specialPromotions">Special Promotions</Label>
+                <div 
+                  className="w-10 h-10 rounded" 
+                  style={{ backgroundColor: newLevel.color }}
+                ></div>
               </div>
             </div>
-            
-            <div className="flex justify-end">
-              <Button type="submit">
-                {isEditMode ? "Update VIP Level" : "Create VIP Level"}
-              </Button>
+            <div>
+              <Label htmlFor="new-deposit-match">Deposit Match (%)</Label>
+              <Input 
+                id="new-deposit-match" 
+                type="number" 
+                value={newLevel.bonuses.depositMatch} 
+                onChange={(e) => handleNewChange('bonuses.depositMatch', parseInt(e.target.value))} 
+              />
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+            <div>
+              <Label htmlFor="new-free-spins">Free Spins</Label>
+              <Input 
+                id="new-free-spins" 
+                type="number" 
+                value={newLevel.bonuses.freeSpins} 
+                onChange={(e) => handleNewChange('bonuses.freeSpins', parseInt(e.target.value))} 
+              />
+            </div>
+            <div>
+              <Label htmlFor="new-birthday-bonus">Birthday Bonus ($)</Label>
+              <Input 
+                id="new-birthday-bonus" 
+                type="number" 
+                value={newLevel.bonuses.birthdayBonus} 
+                onChange={(e) => handleNewChange('bonuses.birthdayBonus', parseInt(e.target.value))} 
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Label htmlFor="new-benefits">Benefits (comma separated)</Label>
+              <Input 
+                id="new-benefits" 
+                value={newLevel.benefits.join(', ')} 
+                onChange={(e) => handleNewChange('benefits', e.target.value.split(',').map(b => b.trim()))} 
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end mt-4">
+            <Button onClick={handleCreateLevel}>Add VIP Level</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

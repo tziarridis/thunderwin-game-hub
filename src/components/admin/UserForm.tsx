@@ -1,187 +1,121 @@
 
-import { useState } from "react";
-import { User } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useState } from 'react';
+import { User } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 interface UserFormProps {
   initialValues?: User;
-  onSubmit: (values: User | Omit<User, 'id'>) => void;
+  onSubmit: (data: any) => void;
 }
 
 const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
-  const [formData, setFormData] = useState<any>({
-    name: initialValues?.name || "",
-    username: initialValues?.username || "",
-    email: initialValues?.email || "",
-    status: initialValues?.status || "Active",
-    balance: initialValues?.balance || 0,
-    joined: initialValues?.joined || new Date().toISOString().split('T')[0],
-    role: initialValues?.role || "user",
-    vipLevel: initialValues?.vipLevel || 0,
-    isVerified: initialValues?.isVerified || false,
-    avatar: initialValues?.avatar || "/placeholder.svg"
-  });
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const { toast } = useToast();
-  
-  const handleChange = (field: string, value: any) => {
-    setFormData({
-      ...formData,
-      [field]: value
-    });
-    
-    // Clear error for this field
-    if (errors[field]) {
-      const newErrors = { ...errors };
-      delete newErrors[field];
-      setErrors(newErrors);
+  const [formData, setFormData] = useState<Partial<User>>(
+    initialValues || {
+      name: '',
+      username: '',
+      email: '',
+      balance: 0,
+      isAdmin: false,
+      vipLevel: 1,
+      isVerified: false,
+      status: 'Active' as const,
+      joined: new Date().toISOString().split('T')[0],
+      favoriteGames: [],
+      role: 'user' as const,
     }
+  );
+
+  const handleChange = (field: keyof User, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
-  
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    }
-    
-    if (!formData.username.trim()) {
-      newErrors.username = "Username is required";
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
-    }
-    
-    if (formData.balance < 0) {
-      newErrors.balance = "Balance cannot be negative";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    // Format data for submission
-    const userData = {
-      ...(initialValues?.id ? { id: initialValues.id } : {}),
-      name: formData.name,
-      username: formData.username,
-      email: formData.email,
-      status: formData.status as User['status'],
-      balance: parseFloat(formData.balance),
-      joined: formData.joined,
-      favoriteGames: initialValues?.favoriteGames || [],
-      role: formData.role,
-      vipLevel: parseInt(formData.vipLevel.toString()),
-      isVerified: formData.isVerified,
-      avatar: formData.avatar
-    };
-    
-    // If this is an update to an existing user, also update the auth system if applicable
-    if (initialValues?.id) {
-      // Check if we need to update the current auth user
-      const currentUser = JSON.parse(localStorage.getItem("thunderwin_user") || "null");
-      if (currentUser && currentUser.id === initialValues.id) {
-        currentUser.balance = parseFloat(formData.balance);
-        currentUser.name = formData.name;
-        currentUser.username = formData.username;
-        currentUser.vipLevel = parseInt(formData.vipLevel.toString());
-        currentUser.isVerified = formData.isVerified;
-        localStorage.setItem("thunderwin_user", JSON.stringify(currentUser));
-        
-        toast({
-          title: "Current User Updated",
-          description: "The logged in user has been updated with the new information."
-        });
-      }
-      
-      // Also update the mock users array for future logins
-      try {
-        const mockUsers = JSON.parse(localStorage.getItem("mockUsers") || "[]");
-        const userIndex = mockUsers.findIndex((u: any) => u.id === initialValues.id);
-        if (userIndex !== -1) {
-          mockUsers[userIndex] = {
-            ...mockUsers[userIndex],
-            balance: parseFloat(formData.balance),
-            name: formData.name,
-            username: formData.username,
-            email: formData.email,
-            role: formData.role,
-            vipLevel: parseInt(formData.vipLevel.toString()),
-            isVerified: formData.isVerified,
-            avatar: formData.avatar
-          };
-          localStorage.setItem("mockUsers", JSON.stringify(mockUsers));
-        }
-      } catch (error) {
-        console.error("Failed to update mock users:", error);
-      }
-    }
-    
-    onSubmit(userData as User);
+    onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Full Name</Label>
-          <Input 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Name</Label>
+          <Input
             id="name"
-            value={formData.name}
+            value={formData.name || ''}
             onChange={(e) => handleChange('name', e.target.value)}
-            className={errors.name ? "border-red-500" : ""}
+            required
           />
-          {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
         </div>
         
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="username">Username</Label>
-          <Input 
+          <Input
             id="username"
-            value={formData.username}
+            value={formData.username || ''}
             onChange={(e) => handleChange('username', e.target.value)}
-            className={errors.username ? "border-red-500" : ""}
+            required
           />
-          {errors.username && <p className="text-red-500 text-xs">{errors.username}</p>}
         </div>
         
-        <div className="space-y-2">
+        <div>
           <Label htmlFor="email">Email</Label>
-          <Input 
+          <Input
             id="email"
             type="email"
-            value={formData.email}
+            value={formData.email || ''}
             onChange={(e) => handleChange('email', e.target.value)}
-            className={errors.email ? "border-red-500" : ""}
+            required
           />
-          {errors.email && <p className="text-red-500 text-xs">{errors.email}</p>}
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="status">Account Status</Label>
-          <Select 
-            value={formData.status} 
-            onValueChange={(value) => handleChange('status', value)}
+        
+        <div>
+          <Label htmlFor="balance">Balance</Label>
+          <Input
+            id="balance"
+            type="number"
+            step="0.01"
+            value={formData.balance || 0}
+            onChange={(e) => handleChange('balance', parseFloat(e.target.value))}
+          />
+        </div>
+        
+        <div>
+          <Label htmlFor="vipLevel">VIP Level</Label>
+          <Select
+            value={String(formData.vipLevel || 1)}
+            onValueChange={(value) => handleChange('vipLevel', parseInt(value))}
+          >
+            <SelectTrigger id="vipLevel">
+              <SelectValue placeholder="Select VIP Level" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Level 1</SelectItem>
+              <SelectItem value="2">Level 2</SelectItem>
+              <SelectItem value="3">Level 3</SelectItem>
+              <SelectItem value="4">Level 4</SelectItem>
+              <SelectItem value="5">Level 5</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="status">Status</Label>
+          <Select
+            value={formData.status || 'Active'}
+            onValueChange={(value) => handleChange('status', value as "Active" | "Pending" | "Inactive")}
           >
             <SelectTrigger id="status">
-              <SelectValue placeholder="Select status" />
+              <SelectValue placeholder="Select Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="Active">Active</SelectItem>
@@ -191,80 +125,48 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
           </Select>
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="role">User Role</Label>
-          <Select 
-            value={formData.role} 
-            onValueChange={(value) => handleChange('role', value)}
+        <div>
+          <Label htmlFor="role">Role</Label>
+          <Select
+            value={formData.role || 'user'}
+            onValueChange={(value) => handleChange('role', value as "admin" | "user")}
           >
             <SelectTrigger id="role">
-              <SelectValue placeholder="Select role" />
+              <SelectValue placeholder="Select Role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="user">Regular User</SelectItem>
-              <SelectItem value="admin">Administrator</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="user">User</SelectItem>
             </SelectContent>
           </Select>
         </div>
         
-        <div className="space-y-2">
-          <Label htmlFor="balance">Balance ($)</Label>
-          <Input 
-            id="balance"
-            type="number"
-            min="0"
-            step="0.01"
-            value={formData.balance}
-            onChange={(e) => handleChange('balance', e.target.value)}
-            className={errors.balance ? "border-red-500" : ""}
-          />
-          {errors.balance && <p className="text-red-500 text-xs">{errors.balance}</p>}
+        <div>
+          <div className="flex items-center space-x-2 h-full">
+            <Switch
+              id="isAdmin"
+              checked={formData.isAdmin || false}
+              onCheckedChange={(checked) => handleChange('isAdmin', checked)}
+            />
+            <Label htmlFor="isAdmin">Administrator</Label>
+          </div>
+        </div>
+        
+        <div>
+          <div className="flex items-center space-x-2 h-full">
+            <Switch
+              id="isVerified"
+              checked={formData.isVerified || false}
+              onCheckedChange={(checked) => handleChange('isVerified', checked)}
+            />
+            <Label htmlFor="isVerified">Verified</Label>
+          </div>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="joined">Join Date</Label>
-          <Input 
-            id="joined"
-            type="date"
-            value={formData.joined}
-            onChange={(e) => handleChange('joined', e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="vipLevel">VIP Level (0-10)</Label>
-          <Input 
-            id="vipLevel"
-            type="number"
-            min="0"
-            max="10"
-            value={formData.vipLevel}
-            onChange={(e) => handleChange('vipLevel', e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="isVerified">Verified Status</Label>
-          <Select 
-            value={formData.isVerified.toString()} 
-            onValueChange={(value) => handleChange('isVerified', value === "true")}
-          >
-            <SelectTrigger id="isVerified">
-              <SelectValue placeholder="Select verification status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="true">Verified</SelectItem>
-              <SelectItem value="false">Not Verified</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      
-      <div className="flex justify-end space-x-3 pt-4">
-        <Button type="submit" className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-          {initialValues ? "Update User" : "Add User"}
+      <div className="flex justify-end">
+        <Button type="submit">
+          {initialValues ? 'Update User' : 'Create User'}
         </Button>
       </div>
     </form>

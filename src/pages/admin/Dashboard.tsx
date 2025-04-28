@@ -1,13 +1,12 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, Users, TrendingUp, DollarSign } from "lucide-react";
 import { 
-  Chart as ChartComponent, 
+  Chart, 
   LineChart, 
   BarChart, 
-  DonutChart 
+  PieChart 
 } from "@/components/ui/dashboard-charts";
 import { 
   getDashboardStats, 
@@ -139,7 +138,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           {transactionHistory.length > 0 && (
-            <ChartComponent>
+            <Chart>
               <LineChart 
                 data={transactionHistory.map(day => ({
                   name: day.date,
@@ -151,9 +150,8 @@ const Dashboard = () => {
                 index="name"
                 colors={["green", "red", "blue"]}
                 valueFormatter={(value) => `$${Math.abs(value).toLocaleString()}`}
-                yAxisWidth={60}
               />
-            </ChartComponent>
+            </Chart>
           )}
         </CardContent>
       </Card>
@@ -177,7 +175,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {gameStats.length > 0 && gameStats[0].mostPlayed.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={gameStats[0].mostPlayed.map(game => ({
                         name: game.name,
@@ -188,7 +186,7 @@ const Dashboard = () => {
                       colors={["blue"]}
                       valueFormatter={(value) => `${value.toLocaleString()} plays`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -200,7 +198,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {gameStats.length > 0 && gameStats[0].highestWin.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={gameStats[0].highestWin.map(game => ({
                         name: game.name,
@@ -211,7 +209,7 @@ const Dashboard = () => {
                       colors={["green"]}
                       valueFormatter={(value) => `$${value.toLocaleString()}`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -223,17 +221,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {gameStats.length > 0 && gameStats[0].popularCategories.length > 0 && (
-                  <ChartComponent>
-                    <DonutChart
+                  <Chart>
+                    <PieChart
                       data={gameStats[0].popularCategories.map(category => ({
                         name: category.name,
                         value: category.count
                       }))}
-                      category="value"
-                      index="name"
-                      valueFormatter={(value) => `${value.toLocaleString()} plays`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -285,7 +280,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {providerStats.length > 0 && providerStats[0].revenue.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={providerStats[0].revenue.map(provider => ({
                         name: provider.name,
@@ -296,7 +291,7 @@ const Dashboard = () => {
                       colors={["blue"]}
                       valueFormatter={(value) => `$${value.toLocaleString()}`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -308,7 +303,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {providerStats.length > 0 && providerStats[0].bets.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={providerStats[0].bets.map(provider => ({
                         name: provider.name,
@@ -319,7 +314,7 @@ const Dashboard = () => {
                       colors={["purple"]}
                       valueFormatter={(value) => `${value.toLocaleString()} bets`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -331,7 +326,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {providerStats.length > 0 && providerStats[0].winRate.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={providerStats[0].winRate.map(provider => ({
                         name: provider.name,
@@ -342,7 +337,7 @@ const Dashboard = () => {
                       colors={["green"]}
                       valueFormatter={(value) => `${value.toFixed(1)}%`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -394,17 +389,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {regionStats.length > 0 && regionStats[0].usersByCountry.length > 0 && (
-                  <ChartComponent>
-                    <DonutChart
+                  <Chart>
+                    <PieChart
                       data={regionStats[0].usersByCountry.map(country => ({
                         name: country.country,
                         value: country.users
                       }))}
-                      category="value"
-                      index="name"
-                      valueFormatter={(value) => `${value.toLocaleString()} users`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -416,7 +408,7 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {regionStats.length > 0 && regionStats[0].revenueByCountry.length > 0 && (
-                  <ChartComponent>
+                  <Chart>
                     <BarChart
                       data={regionStats[0].revenueByCountry.map(country => ({
                         name: country.country,
@@ -427,7 +419,7 @@ const Dashboard = () => {
                       colors={["blue"]}
                       valueFormatter={(value) => `$${value.toLocaleString()}`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -439,17 +431,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 {regionStats.length > 0 && regionStats[0].activeSessionsByRegion.length > 0 && (
-                  <ChartComponent>
-                    <DonutChart
+                  <Chart>
+                    <PieChart
                       data={regionStats[0].activeSessionsByRegion.map(region => ({
                         name: region.region,
                         value: region.sessions
                       }))}
-                      category="value"
-                      index="name"
-                      valueFormatter={(value) => `${value.toLocaleString()} sessions`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 )}
               </CardContent>
             </Card>
@@ -501,14 +490,14 @@ const Dashboard = () => {
                   <CardDescription>Bonus amounts by type</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ChartComponent>
-                    <DonutChart
+                  <Chart>
+                    <PieChart
                       data={bonusStats.bonusByType}
                       category="value"
                       index="name"
                       valueFormatter={(value) => `$${value.toLocaleString()}`}
                     />
-                  </ChartComponent>
+                  </Chart>
                 </CardContent>
               </Card>
               

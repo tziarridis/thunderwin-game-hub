@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   BarChart as RechartsBarChart,
@@ -18,6 +17,11 @@ import {
   AreaChart as RechartsAreaChart
 } from 'recharts';
 
+// Add Chart component wrapper (was missing)
+export const Chart = ({ children }: { children: React.ReactNode }) => {
+  return <>{children}</>;
+};
+
 export interface BarChartProps {
   data: any[];
   categories: string[];
@@ -26,6 +30,7 @@ export interface BarChartProps {
   valueFormatter?: (value: any) => string;
   className?: string;
   height?: number | string;
+  yAxisWidth?: number;
 }
 
 export const BarChart = ({
@@ -35,7 +40,8 @@ export const BarChart = ({
   colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE'],
   valueFormatter = (value) => `${value}`,
   className = 'h-[300px]',
-  height = 300
+  height = 300,
+  yAxisWidth
 }: BarChartProps) => {
   return (
     <div className={className} style={{ height }}>
@@ -80,6 +86,7 @@ export interface LineChartProps {
   valueFormatter?: (value: any) => string;
   className?: string;
   height?: number | string;
+  yAxisWidth?: number; // Add yAxisWidth prop
 }
 
 export const LineChart = ({
@@ -89,7 +96,8 @@ export const LineChart = ({
   colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE'],
   valueFormatter = (value) => `${value}`,
   className = 'h-[300px]',
-  height = 300
+  height = 300,
+  yAxisWidth
 }: LineChartProps) => {
   return (
     <div className={className} style={{ height }}>
@@ -137,6 +145,7 @@ export interface AreaChartProps {
   valueFormatter?: (value: any) => string;
   className?: string;
   height?: number | string;
+  yAxisWidth?: number; // Add yAxisWidth prop
 }
 
 export const AreaChart = ({
@@ -147,7 +156,8 @@ export const AreaChart = ({
   stacked = false,
   valueFormatter = (value) => `${value}`,
   className = 'h-[300px]',
-  height = 300
+  height = 300,
+  yAxisWidth
 }: AreaChartProps) => {
   return (
     <div className={className} style={{ height }}>
@@ -230,3 +240,6 @@ export const PieChart = ({
     </div>
   );
 };
+
+// Add DonutChart (was missing)
+export const DonutChart = PieChart;
