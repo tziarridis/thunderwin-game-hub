@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -43,12 +42,10 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
-import { BonusTemplate, VipLevel } from "@/types";
+import { BonusTemplate, BonusTemplateFormData, VipLevel } from "@/types";
 import { getVipLevels, updateVipLevel, createVipLevel } from "@/services/apiService";
 import VipLevelManager from "@/components/admin/VipLevelManager";
 import { useToast } from "@/components/ui/use-toast";
-
-type BonusTemplateFormData = Omit<BonusTemplate, "id">;
 
 const VipBonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
@@ -62,11 +59,16 @@ const VipBonusManagement = () => {
   const [formData, setFormData] = useState<BonusTemplateFormData>({
     name: "",
     description: "",
+    type: "",
+    value: 0,
+    wageringRequirement: 0,
+    durationDays: 0,
+    forVipLevels: [],
+    isActive: true,
     bonusType: "deposit",
     amount: 0,
     wagering: 0,
     expiryDays: 0,
-    isActive: true,
     percentage: 0,
     minDeposit: 0,
     maxBonus: 0,
@@ -163,8 +165,8 @@ const VipBonusManagement = () => {
   const handleAllowedGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const allowedGames = e.target.value.split(",").map((game) => game.trim());
     setFormData((prevData) => ({
+      allowedGames: e.target.value,
       ...prevData,
-      allowedGames: allowedGames.join(","),
     }));
   };
 
@@ -282,11 +284,16 @@ const VipBonusManagement = () => {
     setFormData({
       name: "",
       description: "",
+      type: "",
+      value: 0,
+      wageringRequirement: 0,
+      durationDays: 0,
+      forVipLevels: [],
+      isActive: true,
       bonusType: "deposit",
       amount: 0,
       wagering: 0,
       expiryDays: 0,
-      isActive: true,
       percentage: 0,
       minDeposit: 0,
       maxBonus: 0,
@@ -306,11 +313,16 @@ const VipBonusManagement = () => {
     setFormData({
       name: bonusTemplate.name,
       description: bonusTemplate.description,
-      bonusType: bonusTemplate.bonusType || "deposit",
-      amount: bonusTemplate.amount,
-      wagering: bonusTemplate.wagering,
-      expiryDays: bonusTemplate.expiryDays,
+      type: bonusTemplate.type || "",
+      value: bonusTemplate.value,
+      wageringRequirement: bonusTemplate.wageringRequirement,
+      durationDays: bonusTemplate.durationDays,
+      forVipLevels: bonusTemplate.forVipLevels,
       isActive: bonusTemplate.isActive,
+      bonusType: bonusTemplate.bonusType || "deposit",
+      amount: bonusTemplate.amount || 0,
+      wagering: bonusTemplate.wagering || 0,
+      expiryDays: bonusTemplate.expiryDays || 0,
       percentage: bonusTemplate.percentage || 0,
       minDeposit: bonusTemplate.minDeposit || 0,
       maxBonus: bonusTemplate.maxBonus || 0,
@@ -338,11 +350,16 @@ const VipBonusManagement = () => {
     setFormData({
       name: "",
       description: "",
+      type: "",
+      value: 0,
+      wageringRequirement: 0,
+      durationDays: 0,
+      forVipLevels: [],
+      isActive: true,
       bonusType: "deposit",
       amount: 0,
       wagering: 0,
       expiryDays: 0,
-      isActive: true,
       percentage: 0,
       minDeposit: 0,
       maxBonus: 0,

@@ -1,7 +1,8 @@
+
 export interface Game {
   id: string;
   name: string;
-  title: string; // Making this required
+  title: string;
   provider: string;
   category: string;
   image: string;
@@ -93,6 +94,7 @@ export interface VipLevel {
   level: number;
   name: string;
   pointsRequired: number;
+  requiredPoints?: number; // Add for backward compatibility
   benefits: string[];
   cashbackRate: number;
   withdrawalLimit: number;
@@ -188,6 +190,13 @@ export interface RegionStats {
   userCount?: number;
 }
 
+export enum KycStatus {
+  NOT_SUBMITTED = "not_submitted",
+  PENDING = "pending",
+  VERIFIED = "verified",
+  REJECTED = "rejected"
+}
+
 export interface KycRequest {
   id: string;
   userId: string;
@@ -206,8 +215,6 @@ export interface KycRequest {
   documentFiles?: string[];
 }
 
-export type KycStatus = 'pending' | 'approved' | 'rejected' | 'additional_info_required';
-
 export interface BonusTemplate {
   id: string;
   name: string;
@@ -220,6 +227,56 @@ export interface BonusTemplate {
   forVipLevels: number[];
   isActive: boolean;
   bonusType?: string;
+  
+  // Additional properties for VipBonusManagement
+  amount?: number;
+  wagering?: number;
+  expiryDays?: number;
+  percentage?: number;
+  maxBonus?: number;
+  vipLevelRequired?: number | string;
+  allowedGames?: string;
+  code?: string;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  date: string;
+  description?: string;
+  referenceId?: string;
+  paymentMethod?: string;
+  balance?: number;
+  gameId?: string;
+  bonusId?: string;
+}
+
+export enum BonusType {
+  WELCOME = "welcome",
+  DEPOSIT = "deposit",
+  RELOAD = "reload",
+  CASHBACK = "cashback",
+  FREE_SPINS = "free_spins",
+  VIP = "vip",
+  REFERRAL = "referral"
+}
+
+export interface Bonus {
+  id: string;
+  userId: string;
+  type: BonusType;
+  amount: number;
+  status: "active" | "used" | "expired";
+  expiryDate: string;
+  createdAt: string;
+  wageringRequirement: number;
+  progress: number;
+  code?: string;
+  description?: string;
 }
 
 // Type for VipBonusManagement
@@ -241,4 +298,7 @@ export interface BonusTemplateFormData {
   wagering?: number;
   expiryDays?: number;
   maxBonus?: number;
+  vipLevelRequired?: number | string;
+  allowedGames?: string;
+  code?: string;
 }
