@@ -33,7 +33,7 @@ const Index = () => {
   };
 
   // Direct navigation handlers
-  const handleNavigate = (path: string) => {
+  const handleNavigation = (path: string) => {
     navigate(path);
     scrollToTop();
   };

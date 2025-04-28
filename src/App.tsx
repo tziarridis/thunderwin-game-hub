@@ -80,7 +80,7 @@ function App() {
           <Route path="casino">
             <Route index element={<Navigate to="/casino/main" replace />} />
             <Route path="main" element={<CasinoMain />} />
-            <Route path="live" element={<LiveCasino />} />
+            <Route path="live-casino" element={<LiveCasino />} />
             <Route path="slots" element={<Slots />} />
             <Route path="table-games" element={<TableGames />} />
             <Route path="jackpots" element={<Jackpots />} />
@@ -104,7 +104,7 @@ function App() {
           {/* Promotions */}
           <Route path="promotions" element={<Promotions />} />
           {/* Bonus Hub */}
-          <Route path="bonus-hub" element={<BonusHub />} />
+          <Route path="bonuses" element={<BonusHub />} />
           {/* VIP */}
           <Route path="vip" element={<VIP />} />
           {/* User Profile */}
@@ -113,13 +113,17 @@ function App() {
           <Route path="transactions" element={<Transactions />} />
           <Route path="kyc" element={<KycStatus />} />
           {/* Support */}
-          <Route path="help" element={<Help />} />
-          <Route path="contact" element={<Contact />} />
-          <Route path="faq" element={<Faq />} />
-          <Route path="responsible-gaming" element={<ResponsibleGaming />} />
+          <Route path="support">
+            <Route path="help" element={<Help />} />
+            <Route path="contact" element={<Contact />} />
+            <Route path="faq" element={<Faq />} />
+            <Route path="responsible-gaming" element={<ResponsibleGaming />} />
+          </Route>
           {/* Legal */}
-          <Route path="terms" element={<Terms />} />
-          <Route path="privacy" element={<Privacy />} />
+          <Route path="legal">
+            <Route path="terms" element={<Terms />} />
+            <Route path="privacy" element={<Privacy />} />
+          </Route>
           {/* Auth */}
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
