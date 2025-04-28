@@ -5,6 +5,7 @@ import { Game as UIGame, GameProvider as UIGameProvider } from '@/types';
 export const adaptGameForUI = (apiGame: APIGame): UIGame => {
   return {
     id: apiGame.id?.toString() || '',
+    name: apiGame.game_name || '',
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
@@ -19,7 +20,8 @@ export const adaptGameForUI = (apiGame: APIGame): UIGame => {
     isFavorite: false,
     jackpot: false,
     releaseDate: apiGame.created_at || new Date().toISOString(),
-    tags: []
+    tags: [],
+    features: [] // Initialize with empty array to satisfy type
   };
 };
 

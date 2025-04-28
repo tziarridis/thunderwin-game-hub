@@ -1,104 +1,150 @@
 
 import { User } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
-const users: User[] = [
-  {
-    id: "1",
-    username: "admin",
-    email: "admin@thunderwin.com",
-    password: "admin", // Updated to match the admin demo credentials
-    balance: 10000,
-    isAdmin: true,
-    vipLevel: 10,
-    avatar: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    isVerified: true,
-    name: "Admin User",
-    status: "Active",
-    joined: "2023-01-01",
-    role: "admin",
-  },
-  {
-    id: "2",
-    username: "player1",
-    email: "player1@example.com",
-    password: "player123",
-    balance: 500,
-    isAdmin: false,
-    vipLevel: 2,
-    avatar: "/placeholder.svg",
-    isVerified: true,
-    name: "Regular Player",
-    status: "Active",
-    joined: "2023-02-15",
-    role: "user",
-  },
-  {
-    id: "3",
-    username: "newuser",
-    email: "newuser@example.com",
-    password: "newuser123",
-    balance: 50,
-    isAdmin: false,
-    vipLevel: 0,
-    avatar: "/placeholder.svg",
-    isVerified: false,
-    name: "New User",
-    status: "Pending",
-    joined: "2023-04-10",
-    role: "user",
-  },
-  {
-    id: "4",
-    username: "demouser",
-    email: "demo@example.com",
-    password: "password123",
-    balance: 1000,
-    isAdmin: false,
-    vipLevel: 3,
-    avatar: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
-    isVerified: true,
-    name: "Demo User",
-    status: "Active",
-    joined: "2023-03-01",
-    role: "user",
+// This function initializes the database with mock data
+export async function initializeDatabase() {
+  console.log("Initializing database with mock data...");
+  
+  const users = await setupUsers();
+  
+  console.log("Database initialization complete");
+  
+  return { users };
+}
+
+async function setupUsers() {
+  console.log("Setting up users...");
+  try {
+    // Check if we already have users
+    const { data: existingUsers, error } = await supabase
+      .from('users')
+      .select('*')
+      .limit(1);
+      
+    // If we already have users, don't create more
+    if (existingUsers && existingUsers.length > 0) {
+      console.log("Users already exist, skipping creation");
+      return existingUsers;
+    }
+    
+    // Create demo users
+    const users = [
+      {
+        id: "1",
+        name: "Admin User",
+        username: "admin",
+        email: "admin@example.com",
+        balance: 10000,
+        isAdmin: true,
+        vipLevel: 5,
+        isVerified: true,
+        status: "Active" as const,
+        joined: new Date().toISOString(),
+        role: "admin" as const,
+        favoriteGames: []
+      },
+      {
+        id: "2",
+        name: "John Doe",
+        username: "johndoe",
+        email: "john@example.com",
+        balance: 1500,
+        isAdmin: false,
+        vipLevel: 2,
+        isVerified: true,
+        status: "Active" as const,
+        joined: new Date().toISOString(),
+        role: "user" as const,
+        favoriteGames: ["game-1", "game-2"]
+      },
+      {
+        id: "3",
+        name: "Jane Smith",
+        username: "janesmith",
+        email: "jane@example.com",
+        balance: 2500,
+        isAdmin: false,
+        vipLevel: 3,
+        isVerified: true,
+        status: "Active" as const,
+        joined: new Date().toISOString(),
+        role: "user" as const,
+        favoriteGames: ["game-3"]
+      },
+      {
+        id: "4",
+        name: "Bob Johnson",
+        username: "bobjohnson",
+        email: "bob@example.com",
+        balance: 500,
+        isAdmin: false,
+        vipLevel: 1,
+        isVerified: true,
+        status: "Pending" as const,
+        joined: new Date().toISOString(),
+        role: "user" as const,
+        favoriteGames: []
+      }
+    ];
+    
+    // Create users in Supabase
+    for (const user of users) {
+      // Create the user in auth
+      const { data: authUser, error: authError } = await supabase.auth.signUp({
+        email: user.email,
+        password: 'tempPassword123', // We won't store this in the User object
+        options: {
+          data: {
+            name: user.name
+          }
+        }
+      });
+      
+      if (authError) {
+        console.error("Error creating auth user:", authError);
+        continue;
+      }
+      
+      // Create the user in our custom users table
+      // Note: This would normally happen through a database trigger
+      const { error: userError } = await supabase
+        .from('users')
+        .insert({
+          id: authUser.user?.id,
+          username: user.username,
+          email: user.email,
+          role_id: user.isAdmin ? 1 : 3, // 1 for admin, 3 for regular user
+          status: user.status.toLowerCase(),
+          created_at: user.joined
+        });
+        
+      if (userError) {
+        console.error("Error creating user:", userError);
+        continue;
+      }
+      
+      // Create a wallet for the user
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .insert({
+          user_id: authUser.user?.id,
+          balance: user.balance,
+          currency: 'USD',
+          symbol: '$',
+          active: true,
+          vip_level: user.vipLevel
+        });
+        
+      if (walletError) {
+        console.error("Error creating wallet:", walletError);
+      }
+    }
+    
+    return users;
+    
+  } catch (error) {
+    console.error("Error setting up users:", error);
+    return [];
   }
-];
-
-// Initialize the default admin account for the security page
-const initialAdminAccounts = [
-  {
-    username: "admin",
-    email: "admin@thunderwin.com",
-    password: "admin",
-    role: "Super Admin",
-    lastLogin: new Date().toISOString(),
-    twoFactorEnabled: false
-  }
-];
-
-// Import mockGames as a default import if needed
-import mockGames from "@/data/mock-games";
-
-const initializeDatabase = () => {
-  // Initialize users
-  if (!localStorage.getItem("users")) {
-    localStorage.setItem("users", JSON.stringify(users));
-  }
-
-  // Initialize mockUsers for authentication
-  if (!localStorage.getItem("mockUsers")) {
-    localStorage.setItem("mockUsers", JSON.stringify(users));
-  }
-
-  // Initialize the admin accounts for the Security page
-  if (!localStorage.getItem("adminAccounts")) {
-    localStorage.setItem("adminAccounts", JSON.stringify(initialAdminAccounts));
-  }
-
-  // Initialize games
-  if (!localStorage.getItem("games")) {
-    localStorage.setItem("games", JSON.stringify(mockGames));
-  }
-};
-
-export default initializeDatabase;
+}

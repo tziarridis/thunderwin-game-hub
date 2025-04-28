@@ -32,7 +32,8 @@ export const convertUIGameToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
 // Convert API Game format to UI Game format
 export const convertAPIGameToUIGame = (apiGame: APIGame): UIGame => {
   return {
-    id: apiGame.id.toString(),
+    id: apiGame.id?.toString() || '',
+    name: apiGame.game_name || '',
     title: apiGame.game_name || '',
     description: apiGame.description || '',
     provider: apiGame.distribution || '',
@@ -47,6 +48,7 @@ export const convertAPIGameToUIGame = (apiGame: APIGame): UIGame => {
     isFavorite: false,
     jackpot: false,
     releaseDate: apiGame.created_at || new Date().toISOString(),
-    tags: []
+    tags: [],
+    features: [] // Initialize with empty array to satisfy type
   };
 };

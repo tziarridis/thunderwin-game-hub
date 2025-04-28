@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,11 +84,16 @@ const VipBonusManagement = () => {
         id: "1",
         name: "VIP Welcome Bonus",
         description: "Exclusive welcome bonus for VIP members",
+        type: "deposit",
+        value: 200,
+        wageringRequirement: 30,
+        durationDays: 30,
+        forVipLevels: [5],
+        isActive: true,
         bonusType: "deposit",
         amount: 200,
         wagering: 30,
         expiryDays: 30,
-        isActive: true,
         percentage: 100,
         minDeposit: 50,
         maxBonus: 500,
@@ -100,11 +105,16 @@ const VipBonusManagement = () => {
         id: "2",
         name: "VIP Reload Bonus",
         description: "Weekly reload bonus for VIP members",
+        type: "reload",
+        value: 50,
+        wageringRequirement: 25,
+        durationDays: 7,
+        forVipLevels: [3],
+        isActive: true,
         bonusType: "reload",
         amount: 50,
         wagering: 25,
         expiryDays: 7,
-        isActive: true,
         percentage: 50,
         minDeposit: 20,
         maxBonus: 200,
@@ -165,8 +175,8 @@ const VipBonusManagement = () => {
   const handleAllowedGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const allowedGames = e.target.value.split(",").map((game) => game.trim());
     setFormData((prevData) => ({
-      allowedGames: e.target.value,
       ...prevData,
+      allowedGames: e.target.value,
     }));
   };
 
@@ -255,11 +265,34 @@ const VipBonusManagement = () => {
     }
 
     // Create or update bonus template
+    const bonusTemplate: BonusTemplate = {
+      id: isEditMode && selectedBonusTemplate ? selectedBonusTemplate.id : Date.now().toString(),
+      name: formData.name,
+      description: formData.description,
+      type: formData.type || formData.bonusType || "deposit",
+      value: formData.value || formData.amount || 0,
+      wageringRequirement: formData.wageringRequirement || formData.wagering || 0,
+      durationDays: formData.durationDays || formData.expiryDays || 0,
+      forVipLevels: formData.forVipLevels || [Number(formData.vipLevelRequired) || 0],
+      isActive: formData.isActive,
+      bonusType: formData.bonusType,
+      amount: formData.amount,
+      wagering: formData.wagering,
+      expiryDays: formData.expiryDays,
+      percentage: formData.percentage,
+      minDeposit: formData.minDeposit,
+      maxBonus: formData.maxBonus,
+      vipLevelRequired: formData.vipLevelRequired,
+      allowedGames: formData.allowedGames,
+      code: formData.code
+    };
+
+    // Create or update bonus template
     if (isEditMode && selectedBonusTemplate) {
       // Update existing bonus template
       const updatedBonusTemplates = bonusTemplates.map((template) =>
         template.id === selectedBonusTemplate.id
-          ? { ...template, ...formData }
+          ? bonusTemplate
           : template
       );
       setBonusTemplates(updatedBonusTemplates);
@@ -269,11 +302,7 @@ const VipBonusManagement = () => {
       });
     } else {
       // Create new bonus template
-      const newBonusTemplate: BonusTemplate = {
-        id: Date.now().toString(),
-        ...formData,
-      };
-      setBonusTemplates([...bonusTemplates, newBonusTemplate]);
+      setBonusTemplates([...bonusTemplates, bonusTemplate]);
       toast({
         title: "Success",
         description: `Bonus template "${formData.name}" has been created.`,
@@ -370,6 +399,7 @@ const VipBonusManagement = () => {
   };
 
   return (
+    
     <div className="container mx-auto py-10">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex items-center justify-between mb-4">
@@ -474,6 +504,7 @@ const VipBonusManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            
             <div>
               <Label htmlFor="name">Name</Label>
               <Input

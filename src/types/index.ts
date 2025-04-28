@@ -159,10 +159,10 @@ export interface GameStats {
   popularCategories: { name: string; count: number }[];
   // Add missing properties
   totalBets: number;
-  totalWins?: number;
-  netProfit?: number;
+  totalWins: number;
+  netProfit: number;
   gameName?: string;
-  uniquePlayers?: number;
+  uniquePlayers: number;
 }
 
 export interface ProviderStats {
@@ -170,12 +170,12 @@ export interface ProviderStats {
   bets: { name: string; count: number }[];
   winRate: { name: string; rate: number }[];
   // Add missing properties
-  totalBets?: number;
-  totalWins?: number;
-  netProfit?: number;
+  totalBets: number;
+  totalWins: number;
+  netProfit: number;
   providerName?: string;
-  totalGames?: number;
-  uniquePlayers?: number;
+  totalGames: number;
+  uniquePlayers: number;
 }
 
 export interface RegionStats {
@@ -183,11 +183,12 @@ export interface RegionStats {
   revenueByCountry: { country: string; revenue: number }[];
   activeSessionsByRegion: { region: string; sessions: number }[];
   // Add missing properties
-  depositAmount?: number;
-  betAmount?: number;
-  netProfit?: number;
+  depositAmount: number;
+  betAmount: number;
+  netProfit: number;
   region?: string;
-  userCount?: number;
+  userCount: number;
+  winAmount?: number;
 }
 
 export enum KycStatus {
