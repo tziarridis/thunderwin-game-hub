@@ -64,6 +64,11 @@ const VipLevelManager: React.FC<VipLevelManagerProps> = ({
     level: 0,
     pointsRequired: 0,
     color: "#000000",
+    bonuses: {
+      depositMatch: 0,
+      freeSpins: 0,
+      birthdayBonus: 0
+    }
   });
 
   const handleFormChange = (
@@ -109,6 +114,11 @@ const VipLevelManager: React.FC<VipLevelManagerProps> = ({
       level: vipLevels.length + 1,
       pointsRequired: 0,
       color: "#000000",
+      bonuses: {
+        depositMatch: 0,
+        freeSpins: 0,
+        birthdayBonus: 0
+      }
     });
   };
 
@@ -127,8 +137,13 @@ const VipLevelManager: React.FC<VipLevelManagerProps> = ({
       customGifts: vipLevel.customGifts || false,
       specialPromotions: vipLevel.specialPromotions || false,
       level: vipLevel.level || 0,
-      pointsRequired: vipLevel.pointsRequired || vipLevel.requiredPoints || 0,
+      pointsRequired: vipLevel.pointsRequired || 0,
       color: vipLevel.color || "#000000",
+      bonuses: vipLevel.bonuses || {
+        depositMatch: 0,
+        freeSpins: 0,
+        birthdayBonus: 0
+      }
     });
   };
 

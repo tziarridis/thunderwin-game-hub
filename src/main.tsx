@@ -4,10 +4,7 @@ import { BrowserRouter as Router } from "react-router-dom";
 import App from './App.tsx';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
-
-// No need to initialize database directly in the browser
-// Import only frontend data
-import './data/mock-games';
+import { Toaster } from './components/ui/toaster';
 
 // Create a root
 const rootElement = document.getElementById("root");
@@ -17,6 +14,7 @@ createRoot(rootElement).render(
   <Router>
     <AuthProvider>
       <App />
+      <Toaster />
     </AuthProvider>
   </Router>
 );

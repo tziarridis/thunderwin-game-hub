@@ -8,7 +8,7 @@ export interface GameProvider {
 }
 
 export interface Game {
-  id?: number;
+  id?: number | string;
   provider_id: number;
   game_server_url?: string;
   game_id: string;
@@ -41,6 +41,15 @@ export interface Game {
   isPopular?: boolean;
   isNew?: boolean;
   jackpot?: boolean;
+  volatility?: string;
+  minBet?: number;
+  maxBet?: number;
+  isFavorite?: boolean;
+  image?: string;
+  category?: string;
+  features?: string[];
+  tags?: string[];
+  releaseDate?: string;
 }
 
 export interface GameListParams {

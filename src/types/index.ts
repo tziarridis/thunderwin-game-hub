@@ -1,8 +1,7 @@
-
 export interface Game {
   id: string;
   name: string;
-  title?: string; // For backward compatibility
+  title: string; // Making this required
   provider: string;
   category: string;
   image: string;
@@ -57,7 +56,6 @@ export interface AuthUser {
   isVerified: boolean;
 }
 
-// Previously missing type definitions
 export interface GameProvider {
   id: string | number;
   name: string;
@@ -105,7 +103,7 @@ export interface VipLevel {
   };
   icon?: string;
   color?: string;
-  // Add missing properties used in VipLevelManager
+  // Additional properties
   personalManager?: boolean;
   customGifts?: boolean;
   specialPromotions?: boolean;
@@ -127,6 +125,8 @@ export interface Promotion {
   code?: string;
   minDeposit?: number;
   wageringRequirement?: number;
+  promotionType?: string;
+  category?: string;
 }
 
 export interface DashboardStats {
@@ -140,7 +140,7 @@ export interface DashboardStats {
   avgBetSize: number;
   registrationConversion: number;
   depositConversion: number;
-  // Add missing properties used in Dashboard
+  // Add missing properties
   ggr: number;
   ngr: number;
   volume: number;
@@ -157,18 +157,35 @@ export interface GameStats {
   popularCategories: { name: string; count: number }[];
   // Add missing properties
   totalBets: number;
+  totalWins?: number;
+  netProfit?: number;
+  gameName?: string;
+  uniquePlayers?: number;
 }
 
 export interface ProviderStats {
   revenue: { name: string; amount: number }[];
   bets: { name: string; count: number }[];
   winRate: { name: string; rate: number }[];
+  // Add missing properties
+  totalBets?: number;
+  totalWins?: number;
+  netProfit?: number;
+  providerName?: string;
+  totalGames?: number;
+  uniquePlayers?: number;
 }
 
 export interface RegionStats {
   usersByCountry: { country: string; users: number }[];
   revenueByCountry: { country: string; revenue: number }[];
   activeSessionsByRegion: { region: string; sessions: number }[];
+  // Add missing properties
+  depositAmount?: number;
+  betAmount?: number;
+  netProfit?: number;
+  region?: string;
+  userCount?: number;
 }
 
 export interface KycRequest {
@@ -182,6 +199,11 @@ export interface KycRequest {
   verificationDate?: string;
   rejectionReason?: string;
   documentUrls: string[];
+  // Add for backward compatibility
+  email?: string;
+  submittedDate?: string;
+  documentImage?: string;
+  documentFiles?: string[];
 }
 
 export type KycStatus = 'pending' | 'approved' | 'rejected' | 'additional_info_required';
@@ -197,4 +219,26 @@ export interface BonusTemplate {
   durationDays: number;
   forVipLevels: number[];
   isActive: boolean;
+  bonusType?: string;
+}
+
+// Type for VipBonusManagement
+export interface BonusTemplateFormData {
+  id?: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number;
+  minDeposit?: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
+  bonusType?: string;
+  // Additional properties
+  amount?: number;
+  percentage?: number;
+  wagering?: number;
+  expiryDays?: number;
+  maxBonus?: number;
 }
