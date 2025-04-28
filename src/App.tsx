@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/layout/Layout";
@@ -25,7 +24,7 @@ import Faq from "./pages/support/Faq";
 import ResponsibleGaming from "./pages/support/ResponsibleGaming";
 import VIP from "./pages/vip/VIP";
 import Profile from "./pages/user/Profile";
-import Settings from "./pages/user/Settings";
+import UserSettings from "./pages/user/Settings";
 import Transactions from "./pages/user/Transactions";
 import KycStatus from "./pages/kyc/KycStatus";
 import NotFound from "./pages/NotFound";
@@ -45,7 +44,7 @@ import KycManagement from "./pages/admin/KycManagement";
 import Affiliates from "./pages/admin/Affiliates";
 import AdminPromotions from "./pages/admin/Promotions";
 import Security from "./pages/admin/Security";
-import Settings as AdminSettings from "./pages/admin/Settings";
+import AdminSettings from "./pages/admin/Settings";
 import Logs from "./pages/admin/Logs";
 import Support from "./pages/admin/Support";
 import Terms from "./pages/legal/Terms";
@@ -109,7 +108,7 @@ function App() {
           <Route path="vip" element={<VIP />} />
           {/* User Profile */}
           <Route path="profile" element={<Profile />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="settings" element={<UserSettings />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="kyc" element={<KycStatus />} />
           {/* Support */}
