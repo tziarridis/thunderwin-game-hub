@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   BarChart as RechartsBarChart,
@@ -17,7 +18,7 @@ import {
   AreaChart as RechartsAreaChart
 } from 'recharts';
 
-// Add Chart component wrapper (was missing)
+// Chart component wrapper
 export const Chart = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
@@ -86,7 +87,7 @@ export interface LineChartProps {
   valueFormatter?: (value: any) => string;
   className?: string;
   height?: number | string;
-  yAxisWidth?: number; // Add yAxisWidth prop
+  yAxisWidth?: number;
 }
 
 export const LineChart = ({
@@ -145,7 +146,7 @@ export interface AreaChartProps {
   valueFormatter?: (value: any) => string;
   className?: string;
   height?: number | string;
-  yAxisWidth?: number; // Add yAxisWidth prop
+  yAxisWidth?: number;
 }
 
 export const AreaChart = ({
@@ -241,5 +242,34 @@ export const PieChart = ({
   );
 };
 
-// Add DonutChart (was missing)
-export const DonutChart = PieChart;
+// Add DonutChart
+export const DonutChart = ({ data, colors, valueFormatter, className, height }: PieChartProps) => {
+  return (
+    <div className={className} style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <RechartsPieChart>
+          <Pie
+            dataKey="value"
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={40}
+            outerRadius={80}
+            fill="#8884d8"
+            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors?.[index % (colors?.length || 1)] || '#8884d8'} />
+            ))}
+          </Pie>
+          <Tooltip 
+            formatter={valueFormatter} 
+            contentStyle={{ backgroundColor: '#1A1F2C', border: '1px solid #333', borderRadius: '4px' }}
+            labelStyle={{ color: '#fff' }}
+          />
+          <Legend wrapperStyle={{ color: '#ccc' }} />
+        </RechartsPieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};

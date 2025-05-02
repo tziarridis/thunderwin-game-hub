@@ -37,15 +37,15 @@ const VipLevelManager = ({ levels, onUpdate, onCreate }: VipLevelManagerProps) =
   });
   const { toast } = useToast();
   
-  const handleEditChange = (field: keyof VipLevel, value: any) => {
+  const handleEditChange = (field: string, value: any) => {
     if (!editingLevel) return;
     
     if (field === 'bonuses.depositMatch' || field === 'bonuses.freeSpins' || field === 'bonuses.birthdayBonus') {
       const [parent, child] = field.split('.');
       setEditingLevel({
         ...editingLevel,
-        [parent]: {
-          ...editingLevel[parent as keyof VipLevel],
+        bonuses: {
+          ...editingLevel.bonuses,
           [child]: value
         }
       });
@@ -53,7 +53,7 @@ const VipLevelManager = ({ levels, onUpdate, onCreate }: VipLevelManagerProps) =
       setEditingLevel({
         ...editingLevel,
         [field]: value
-      });
+      } as VipLevel);
     }
   };
   
@@ -62,8 +62,8 @@ const VipLevelManager = ({ levels, onUpdate, onCreate }: VipLevelManagerProps) =
       const [parent, child] = field.split('.');
       setNewLevel({
         ...newLevel,
-        [parent]: {
-          ...newLevel[parent as keyof typeof newLevel],
+        bonuses: {
+          ...newLevel.bonuses,
           [child]: value
         }
       });
@@ -71,7 +71,7 @@ const VipLevelManager = ({ levels, onUpdate, onCreate }: VipLevelManagerProps) =
       setNewLevel({
         ...newLevel,
         [field]: value
-      });
+      } as Omit<VipLevel, 'id'>);
     }
   };
   

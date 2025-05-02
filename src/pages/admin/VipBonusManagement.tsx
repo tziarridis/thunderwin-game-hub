@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card, 
@@ -43,11 +44,10 @@ import {
 } from "@/components/ui/tabs";
 import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
 import { BonusTemplate, BonusTemplateFormData, VipLevel } from "@/types";
-import { getVipLevels } from "@/services/apiService"; // Update imports
+import { getVipLevels } from "@/services/apiService";
 import VipLevelManager from "@/components/admin/VipLevelManager";
 import { useToast } from "@/components/ui/use-toast";
-// Import missing functions
-import { updateVipLevel, createVipLevel } from "@/services/apiService";
+import { vipLevelsApi } from "@/services/apiService";
 
 const VipBonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
@@ -184,7 +184,7 @@ const VipBonusManagement = () => {
 
   const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
     try {
-      await updateVipLevel(updatedLevel.id, updatedLevel);
+      await vipLevelsApi.updateVipLevel(updatedLevel.id, updatedLevel);
       setVipLevels(prevLevels => 
         prevLevels.map(level => 
           level.id === updatedLevel.id ? updatedLevel : level
@@ -206,7 +206,7 @@ const VipBonusManagement = () => {
 
   const handleVipLevelCreate = async (newLevel: Omit<VipLevel, "id">) => {
     try {
-      const createdLevel = await createVipLevel(newLevel);
+      const createdLevel = await vipLevelsApi.createVipLevel(newLevel);
       setVipLevels(prevLevels => [...prevLevels, createdLevel]);
       toast({
         title: "Success",
@@ -486,9 +486,9 @@ const VipBonusManagement = () => {
 
         <TabsContent value="vip-levels">
           <VipLevelManager 
-            vipLevels={vipLevels} 
-            onUpdateVipLevel={handleVipLevelUpdate}
-            onCreateVipLevel={handleVipLevelCreate}
+            levels={vipLevels} 
+            onUpdate={handleVipLevelUpdate}
+            onCreate={handleVipLevelCreate}
           />
         </TabsContent>
       </Tabs>
@@ -621,7 +621,7 @@ const VipBonusManagement = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {vipLevels.map((level) => (
-                    <SelectItem key={String(level.id)} value={String(level.id)}>
+                    <SelectItem key={level.id} value={String(level.level)}>
                       {level.name}
                     </SelectItem>
                   ))}

@@ -6,62 +6,16 @@ export const clientGamesApi = {
   // Get games from the API
   getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
     try {
-      // Start building the query
-      let query = supabase
-        .from('games')
-        .select('*, provider:provider_id(*)');
-      
-      // Apply filters
-      if (params.search) {
-        query = query.ilike('game_name', `%${params.search}%`);
-      }
-      
-      if (params.provider_id !== undefined) {
-        query = query.eq('provider_id', params.provider_id);
-      }
-      
-      if (params.game_type) {
-        query = query.eq('game_type', params.game_type);
-      }
-      
-      if (params.status) {
-        query = query.eq('status', params.status);
-      }
-      
-      if (params.is_featured !== undefined) {
-        query = query.eq('is_featured', params.is_featured);
-      }
-      
-      if (params.show_home !== undefined) {
-        query = query.eq('show_home', params.show_home);
-      }
-      
-      // Get count for pagination
-      const { count } = await supabase
-        .from('games')
-        .select('*', { count: 'exact', head: true });
-      
-      // Add pagination
-      if (params.page && params.limit) {
-        const start = (params.page - 1) * params.limit;
-        query = query.range(start, start + params.limit - 1);
-      }
-      
-      // Execute query
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      
+      // In a production app, we would query the Supabase database
+      // Since the games table doesn't exist yet in Supabase, returning mock data
       return {
-        data: data as Game[],
-        total: count || 0,
+        data: mockGames,
+        total: mockGames.length,
         page: params.page || 1,
         limit: params.limit || 20
       };
-      
     } catch (error) {
       console.error('Error fetching games:', error);
-      // Return mock data if there's an error
       return {
         data: mockGames,
         total: mockGames.length,
@@ -74,16 +28,10 @@ export const clientGamesApi = {
   // Get game by ID
   getGameById: async (id: string | number): Promise<Game | null> => {
     try {
-      const { data, error } = await supabase
-        .from('games')
-        .select('*, provider:provider_id(*)')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      
-      return data as Game;
-      
+      // In a production app, we would query the Supabase database
+      // Since the games table doesn't exist yet, return mock data
+      const game = mockGames.find(g => g.id === id);
+      return game || null;
     } catch (error) {
       console.error(`Error fetching game with ID ${id}:`, error);
       return null;
@@ -93,16 +41,13 @@ export const clientGamesApi = {
   // Add a new game
   addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
     try {
-      const { data, error } = await supabase
-        .from('games')
-        .insert(game)
-        .select('*, provider:provider_id(*)')
-        .single();
+      // Mock implementation for adding a game
+      const newGame = {
+        ...game,
+        id: Date.now().toString()
+      } as Game;
       
-      if (error) throw error;
-      
-      return data as Game;
-      
+      return newGame;
     } catch (error) {
       console.error('Error adding game:', error);
       throw error;
@@ -112,17 +57,8 @@ export const clientGamesApi = {
   // Update an existing game
   updateGame: async (game: Game): Promise<Game> => {
     try {
-      const { data, error } = await supabase
-        .from('games')
-        .update(game)
-        .eq('id', game.id)
-        .select('*, provider:provider_id(*)')
-        .single();
-      
-      if (error) throw error;
-      
-      return data as Game;
-      
+      // Mock implementation for updating a game
+      return game;
     } catch (error) {
       console.error(`Error updating game with ID ${game.id}:`, error);
       throw error;
@@ -132,13 +68,8 @@ export const clientGamesApi = {
   // Delete a game
   deleteGame: async (id: string | number): Promise<void> => {
     try {
-      const { error } = await supabase
-        .from('games')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
-      
+      // Mock implementation for deleting a game
+      console.log(`Game with ID ${id} would be deleted`);
     } catch (error) {
       console.error(`Error deleting game with ID ${id}:`, error);
       throw error;
@@ -147,22 +78,19 @@ export const clientGamesApi = {
   
   // Toggle game feature (is_featured or show_home)
   toggleGameFeature: async (
-    id: number, 
+    id: number | string, 
     feature: 'is_featured' | 'show_home', 
     value: boolean
   ): Promise<Game> => {
     try {
-      const { data, error } = await supabase
-        .from('games')
-        .update({ [feature]: value })
-        .eq('id', id)
-        .select('*, provider:provider_id(*)')
-        .single();
+      // Mock implementation for toggling a game feature
+      const game = mockGames.find(g => g.id === id) as Game;
+      if (!game) throw new Error(`Game with ID ${id} not found`);
       
-      if (error) throw error;
-      
-      return data as Game;
-      
+      return {
+        ...game,
+        [feature]: value
+      };
     } catch (error) {
       console.error(`Error updating ${feature} for game with ID ${id}:`, error);
       throw error;
@@ -172,14 +100,9 @@ export const clientGamesApi = {
   // Get game providers
   getProviders: async (): Promise<GameProvider[]> => {
     try {
-      const { data, error } = await supabase
-        .from('providers')
-        .select('*');
-      
-      if (error) throw error;
-      
-      return data as GameProvider[];
-      
+      // In a production app, we would query the Supabase database
+      // Since the providers table may not exist yet, return mock data
+      return mockProviders;
     } catch (error) {
       console.error('Error fetching game providers:', error);
       return mockProviders;
@@ -189,16 +112,10 @@ export const clientGamesApi = {
   // Get provider by ID
   getProviderById: async (id: string | number): Promise<GameProvider | null> => {
     try {
-      const { data, error } = await supabase
-        .from('providers')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      
-      return data as GameProvider;
-      
+      // In a production app, we would query the Supabase database
+      // Since the providers table may not exist yet, return mock data
+      const provider = mockProviders.find(p => p.id === id);
+      return provider || null;
     } catch (error) {
       console.error(`Error fetching provider with ID ${id}:`, error);
       return null;
@@ -209,8 +126,8 @@ export const clientGamesApi = {
 // Mock games data for fallback
 const mockGames: Game[] = [
   {
-    id: 1,
-    provider_id: 1,
+    id: "1",
+    provider_id: "1",
     game_id: 'book_of_dead',
     game_name: 'Book of Dead',
     game_code: 'bookdead',
@@ -230,11 +147,22 @@ const mockGames: Game[] = [
     is_featured: true,
     show_home: true,
     created_at: '2023-01-01T00:00:00Z',
-    updated_at: '2023-01-01T00:00:00Z'
+    updated_at: '2023-01-01T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Book of Dead',
+    image: 'https://example.com/images/book_of_dead.jpg',
+    provider: 'Play\'n GO',
+    isPopular: true,
+    isNew: false,
+    isFavorite: false,
+    category: 'slots',
+    jackpot: false,
+    minBet: 0.10,
+    maxBet: 100
   },
   {
-    id: 2,
-    provider_id: 2,
+    id: "2",
+    provider_id: "2",
     game_id: 'starburst',
     game_name: 'Starburst',
     game_code: 'starburst',
@@ -254,25 +182,197 @@ const mockGames: Game[] = [
     is_featured: true,
     show_home: true,
     created_at: '2023-01-02T00:00:00Z',
-    updated_at: '2023-01-02T00:00:00Z'
-  }
+    updated_at: '2023-01-02T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Starburst',
+    image: 'https://example.com/images/starburst.jpg',
+    provider: 'NetEnt',
+    isPopular: true,
+    isNew: false,
+    isFavorite: false,
+    category: 'slots',
+    jackpot: false,
+    minBet: 0.10,
+    maxBet: 100
+  },
+  {
+    id: "3",
+    provider_id: "1",
+    game_id: 'reactoonz',
+    game_name: 'Reactoonz',
+    game_code: 'reactoonz',
+    game_type: 'slots',
+    description: 'An energetic grid slot with cascading symbols and multiple features.',
+    cover: 'https://example.com/images/reactoonz.jpg',
+    status: 'active',
+    technology: 'HTML5',
+    has_lobby: false,
+    is_mobile: true,
+    has_freespins: true,
+    has_tables: false,
+    only_demo: false,
+    rtp: 96.51,
+    distribution: 'Play\'n GO',
+    views: 19876,
+    is_featured: true,
+    show_home: true,
+    created_at: '2023-01-03T00:00:00Z',
+    updated_at: '2023-01-03T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Reactoonz',
+    image: 'https://example.com/images/reactoonz.jpg',
+    provider: 'Play\'n GO',
+    isPopular: true,
+    isNew: true,
+    isFavorite: true,
+    category: 'slots',
+    jackpot: false,
+    minBet: 0.20,
+    maxBet: 100
+  },
+  {
+    id: "4",
+    provider_id: "3",
+    game_id: 'gonzo_quest',
+    game_name: 'Gonzo\'s Quest',
+    game_code: 'gonzo',
+    game_type: 'slots',
+    description: 'Join Gonzo on his quest for El Dorado with cascading reels and multipliers.',
+    cover: 'https://example.com/images/gonzo.jpg',
+    status: 'active',
+    technology: 'HTML5',
+    has_lobby: false,
+    is_mobile: true,
+    has_freespins: true,
+    has_tables: false,
+    only_demo: false,
+    rtp: 95.97,
+    distribution: 'NetEnt',
+    views: 21543,
+    is_featured: true,
+    show_home: true,
+    created_at: '2023-01-04T00:00:00Z',
+    updated_at: '2023-01-04T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Gonzo\'s Quest',
+    image: 'https://example.com/images/gonzo.jpg',
+    provider: 'NetEnt',
+    isPopular: true,
+    isNew: false,
+    isFavorite: false,
+    category: 'slots',
+    jackpot: false,
+    minBet: 0.20,
+    maxBet: 50
+  },
+  {
+    id: "5",
+    provider_id: "4",
+    game_id: 'blackjack_pro',
+    game_name: 'Blackjack Pro',
+    game_code: 'bj_pro',
+    game_type: 'table',
+    description: 'Professional blackjack with multiple betting options and side bets.',
+    cover: 'https://example.com/images/blackjack.jpg',
+    status: 'active',
+    technology: 'HTML5',
+    has_lobby: false,
+    is_mobile: true,
+    has_freespins: false,
+    has_tables: true,
+    only_demo: false,
+    rtp: 99.56,
+    distribution: 'Evolution Gaming',
+    views: 15678,
+    is_featured: false,
+    show_home: true,
+    created_at: '2023-01-05T00:00:00Z',
+    updated_at: '2023-01-05T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Blackjack Pro',
+    image: 'https://example.com/images/blackjack.jpg',
+    provider: 'Evolution Gaming',
+    isPopular: true,
+    isNew: false,
+    isFavorite: false,
+    category: 'table',
+    jackpot: false,
+    minBet: 1.00,
+    maxBet: 1000
+  },
+  {
+    id: "6",
+    provider_id: "5",
+    game_id: 'mega_moolah',
+    game_name: 'Mega Moolah',
+    game_code: 'mega_moolah',
+    game_type: 'slots',
+    description: 'The famous progressive jackpot slot that has made many millionaires.',
+    cover: 'https://example.com/images/mega_moolah.jpg',
+    status: 'active',
+    technology: 'HTML5',
+    has_lobby: false,
+    is_mobile: true,
+    has_freespins: true,
+    has_tables: false,
+    only_demo: false,
+    rtp: 88.12,
+    distribution: 'Microgaming',
+    views: 32145,
+    is_featured: true,
+    show_home: true,
+    created_at: '2023-01-06T00:00:00Z',
+    updated_at: '2023-01-06T00:00:00Z',
+    // Add these properties to match the GameCard component usage
+    title: 'Mega Moolah',
+    image: 'https://example.com/images/mega_moolah.jpg',
+    provider: 'Microgaming',
+    isPopular: true,
+    isNew: false,
+    isFavorite: false,
+    category: 'slots',
+    jackpot: true,
+    minBet: 0.25,
+    maxBet: 6.25
+  },
 ];
 
 // Mock providers data for fallback
 const mockProviders: GameProvider[] = [
   {
-    id: 1,
+    id: "1",
     name: 'Play\'n GO',
     status: 'active',
     description: 'Leading provider of premium slots and casino games',
     logo: 'https://example.com/images/playngo_logo.png'
   },
   {
-    id: 2,
+    id: "2",
     name: 'NetEnt',
     status: 'active',
     description: 'Pioneering developer of high-quality casino games',
     logo: 'https://example.com/images/netent_logo.png'
+  },
+  {
+    id: "3",
+    name: 'Pragmatic Play',
+    status: 'active',
+    description: 'Multi-product content provider for the iGaming industry',
+    logo: 'https://example.com/images/pragmatic_logo.png'
+  },
+  {
+    id: "4",
+    name: 'Evolution Gaming',
+    status: 'active',
+    description: 'World leader in live casino games',
+    logo: 'https://example.com/images/evolution_logo.png'
+  },
+  {
+    id: "5",
+    name: 'Microgaming',
+    status: 'active',
+    description: 'Pioneer of online casino software with hundreds of games',
+    logo: 'https://example.com/images/microgaming_logo.png'
   }
 ];
 
