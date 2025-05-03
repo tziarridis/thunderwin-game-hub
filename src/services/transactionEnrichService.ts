@@ -25,7 +25,7 @@ export const transactionEnrichService = {
       console.error('Error fetching user data for transaction:', error);
     }
 
-    // Return enriched transaction
+    // Return enriched transaction with proper type checking
     return {
       ...transaction,
       type: transaction.type as 'bet' | 'win' | 'deposit' | 'withdraw',
@@ -35,10 +35,14 @@ export const transactionEnrichService = {
       userId: transaction.player_id,
       userName: userName,
       gameId: transaction.game_id,
-      roundId: transaction.round_id,
+      roundId: transaction.round_id || null,
       timestamp: transaction.created_at,
       date: transaction.created_at,
-      method: transaction.provider
+      method: transaction.provider,
+      description: transaction.description || null,
+      paymentMethod: transaction.payment_method || null,
+      bonusId: transaction.bonus_id || null,
+      referenceId: transaction.reference_id || null
     };
   },
 

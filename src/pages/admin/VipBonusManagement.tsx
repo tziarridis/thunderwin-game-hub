@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Card, 
@@ -182,9 +181,10 @@ const VipBonusManagement = () => {
     }));
   };
 
+  // Fix the type error by ensuring we convert to string before passing to updateVipLevel
   const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
     try {
-      await vipLevelsApi.updateVipLevel(updatedLevel.id, updatedLevel);
+      await vipLevelsApi.updateVipLevel(String(updatedLevel.id), updatedLevel);
       setVipLevels(prevLevels => 
         prevLevels.map(level => 
           level.id === updatedLevel.id ? updatedLevel : level

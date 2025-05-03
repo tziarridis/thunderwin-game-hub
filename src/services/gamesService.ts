@@ -127,7 +127,7 @@ export const clientGamesApi = {
 const mockGames: Game[] = [
   {
     id: "1",
-    provider_id: "1",
+    provider_id: 1, // Change from string to number
     game_id: 'book_of_dead',
     game_name: 'Book of Dead',
     game_code: 'bookdead',
@@ -148,10 +148,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-01T00:00:00Z',
     updated_at: '2023-01-01T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 1,
+      name: 'Play\'n GO',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Book of Dead',
     image: 'https://example.com/images/book_of_dead.jpg',
-    provider: 'Play\'n GO',
     isPopular: true,
     isNew: false,
     isFavorite: false,
@@ -162,7 +167,7 @@ const mockGames: Game[] = [
   },
   {
     id: "2",
-    provider_id: "2",
+    provider_id: 2, // Change from string to number
     game_id: 'starburst',
     game_name: 'Starburst',
     game_code: 'starburst',
@@ -183,10 +188,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-02T00:00:00Z',
     updated_at: '2023-01-02T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 2,
+      name: 'NetEnt',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Starburst',
     image: 'https://example.com/images/starburst.jpg',
-    provider: 'NetEnt',
     isPopular: true,
     isNew: false,
     isFavorite: false,
@@ -197,7 +207,7 @@ const mockGames: Game[] = [
   },
   {
     id: "3",
-    provider_id: "1",
+    provider_id: 1, // Change from string to number
     game_id: 'reactoonz',
     game_name: 'Reactoonz',
     game_code: 'reactoonz',
@@ -218,10 +228,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-03T00:00:00Z',
     updated_at: '2023-01-03T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 1,
+      name: 'Play\'n GO',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Reactoonz',
     image: 'https://example.com/images/reactoonz.jpg',
-    provider: 'Play\'n GO',
     isPopular: true,
     isNew: true,
     isFavorite: true,
@@ -232,7 +247,7 @@ const mockGames: Game[] = [
   },
   {
     id: "4",
-    provider_id: "3",
+    provider_id: 3, // Change from string to number
     game_id: 'gonzo_quest',
     game_name: 'Gonzo\'s Quest',
     game_code: 'gonzo',
@@ -253,10 +268,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-04T00:00:00Z',
     updated_at: '2023-01-04T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 3,
+      name: 'NetEnt',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Gonzo\'s Quest',
     image: 'https://example.com/images/gonzo.jpg',
-    provider: 'NetEnt',
     isPopular: true,
     isNew: false,
     isFavorite: false,
@@ -267,7 +287,7 @@ const mockGames: Game[] = [
   },
   {
     id: "5",
-    provider_id: "4",
+    provider_id: 4, // Change from string to number
     game_id: 'blackjack_pro',
     game_name: 'Blackjack Pro',
     game_code: 'bj_pro',
@@ -288,10 +308,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-05T00:00:00Z',
     updated_at: '2023-01-05T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 4,
+      name: 'Evolution Gaming',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Blackjack Pro',
     image: 'https://example.com/images/blackjack.jpg',
-    provider: 'Evolution Gaming',
     isPopular: true,
     isNew: false,
     isFavorite: false,
@@ -302,7 +327,7 @@ const mockGames: Game[] = [
   },
   {
     id: "6",
-    provider_id: "5",
+    provider_id: 5, // Change from string to number
     game_id: 'mega_moolah',
     game_name: 'Mega Moolah',
     game_code: 'mega_moolah',
@@ -323,10 +348,15 @@ const mockGames: Game[] = [
     show_home: true,
     created_at: '2023-01-06T00:00:00Z',
     updated_at: '2023-01-06T00:00:00Z',
+    // Add mock provider object instead of string
+    provider: {
+      id: 5,
+      name: 'Microgaming',
+      status: 'active'
+    },
     // Add these properties to match the GameCard component usage
     title: 'Mega Moolah',
     image: 'https://example.com/images/mega_moolah.jpg',
-    provider: 'Microgaming',
     isPopular: true,
     isNew: false,
     isFavorite: false,
@@ -340,35 +370,35 @@ const mockGames: Game[] = [
 // Mock providers data for fallback
 const mockProviders: GameProvider[] = [
   {
-    id: "1",
+    id: 1, // Change from string to number
     name: 'Play\'n GO',
     status: 'active',
     description: 'Leading provider of premium slots and casino games',
     logo: 'https://example.com/images/playngo_logo.png'
   },
   {
-    id: "2",
+    id: 2, // Change from string to number
     name: 'NetEnt',
     status: 'active',
     description: 'Pioneering developer of high-quality casino games',
     logo: 'https://example.com/images/netent_logo.png'
   },
   {
-    id: "3",
+    id: 3, // Change from string to number
     name: 'Pragmatic Play',
     status: 'active',
     description: 'Multi-product content provider for the iGaming industry',
     logo: 'https://example.com/images/pragmatic_logo.png'
   },
   {
-    id: "4",
+    id: 4, // Change from string to number
     name: 'Evolution Gaming',
     status: 'active',
     description: 'World leader in live casino games',
     logo: 'https://example.com/images/evolution_logo.png'
   },
   {
-    id: "5",
+    id: 5, // Change from string to number
     name: 'Microgaming',
     status: 'active',
     description: 'Pioneer of online casino software with hundreds of games',

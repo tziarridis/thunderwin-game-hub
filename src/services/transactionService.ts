@@ -13,6 +13,12 @@ export interface TransactionFilter {
   minAmount?: number;
   maxAmount?: number;
   paymentMethod?: string;
+  // Add missing properties that are being used
+  player_id?: string;
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
 }
 
 // Get transactions for a specific user
