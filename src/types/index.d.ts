@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -13,3 +14,4 @@ export interface Transaction {
   balance?: number;
   referenceId?: string;
 }
+

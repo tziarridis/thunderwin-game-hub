@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { User, Transaction } from '@/types';
+import { Transaction } from '@/types';
 import { getTransactionsByPlayerId } from '@/services/transactionService';
 import { getUserById } from '@/services/userService';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -9,6 +9,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import UserInfoForm from '@/components/admin/UserInfoForm';
 import { Separator } from '@/components/ui/separator';
+
+// Define a User interface to match the data structure
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  ipAddress?: string;
+  balance: number;
+  vipLevel: number;
+  status: string;
+  isVerified: boolean;
+  isAdmin?: boolean;
+  role?: string;
+  lastLogin?: string;
+  created_at?: string;
+  updated_at?: string;
+}
 
 const UserProfile = () => {
   const { userId } = useParams();
@@ -30,13 +49,29 @@ const UserProfile = () => {
         
         // Fetch user data
         const userData = await getUserById(userId);
-        setUser(userData);
         
-        // Fetch transactions
         if (userData) {
-          // Use userId directly as the player_id parameter - exact match required by Supabase
+          // Transform userData to match our User interface
+          const transformedUser: User = {
+            id: userData.id,
+            username: userData.username,
+            email: userData.email,
+            name: userData.last_name ? `${userData.first_name || ''} ${userData.last_name}` : userData.first_name,
+            phone: userData.phone,
+            balance: userData.balance || 0,
+            vipLevel: userData.vipLevel || 0,
+            status: userData.status || 'active',
+            isVerified: !!userData.is_verified,
+            ipAddress: userData.ipAddress
+          };
+          
+          setUser(transformedUser);
+          
+          // Fetch transactions
           const transactionsData = await getTransactionsByPlayerId(userId, 10);
           setTransactions(transactionsData);
+        } else {
+          setError("User not found");
         }
         
       } catch (err) {
@@ -69,7 +104,7 @@ const UserProfile = () => {
   
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">User Profile: {user.username}</h1>
+      <h1 className="text-2xl font-bold mb-6">User Profile: {user?.username}</h1>
       
       <Tabs defaultValue="details">
         <TabsList className="mb-6">
@@ -81,7 +116,7 @@ const UserProfile = () => {
         </TabsList>
         
         <TabsContent value="details">
-          <UserInfoForm user={user} />
+          {user && <UserInfoForm user={user} />}
         </TabsContent>
         
         <TabsContent value="wallet">
@@ -93,15 +128,15 @@ const UserProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-slate-800 p-4 rounded-lg">
                   <div className="text-gray-400 mb-1">Balance</div>
-                  <div className="text-2xl font-bold">${user.balance.toFixed(2)}</div>
+                  <div className="text-2xl font-bold">${user?.balance.toFixed(2)}</div>
                 </div>
                 <div className="bg-slate-800 p-4 rounded-lg">
                   <div className="text-gray-400 mb-1">VIP Level</div>
-                  <div className="text-2xl font-bold">{user.vipLevel}</div>
+                  <div className="text-2xl font-bold">{user?.vipLevel}</div>
                 </div>
                 <div className="bg-slate-800 p-4 rounded-lg">
                   <div className="text-gray-400 mb-1">Status</div>
-                  <div className="text-2xl font-bold">{user.status}</div>
+                  <div className="text-2xl font-bold">{user?.status}</div>
                 </div>
               </div>
             </CardContent>
@@ -184,10 +219,10 @@ const UserProfile = () => {
             <CardContent>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="font-medium">{user.isVerified ? 'Verified' : 'Not Verified'}</span>
+                <span className="font-medium">{user?.isVerified ? 'Verified' : 'Not Verified'}</span>
               </div>
               
-              {!user.isVerified && (
+              {!user?.isVerified && (
                 <div className="mt-6">
                   <h3 className="text-lg font-medium mb-3">KYC Verification</h3>
                   <p className="text-gray-400 mb-4">User has not submitted KYC documents yet.</p>
@@ -201,19 +236,19 @@ const UserProfile = () => {
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <p className="text-gray-400">Name</p>
-                    <p>{user.name || 'Not provided'}</p>
+                    <p>{user?.name || 'Not provided'}</p>
                   </div>
                   <div>
                     <p className="text-gray-400">Email</p>
-                    <p>{user.email}</p>
+                    <p>{user?.email}</p>
                   </div>
                   <div>
                     <p className="text-gray-400">Phone</p>
-                    <p>{user.phone || 'Not provided'}</p>
+                    <p>{user?.phone || 'Not provided'}</p>
                   </div>
                   <div>
                     <p className="text-gray-400">IP Address</p>
-                    <p>{user.ipAddress || 'Not available'}</p>
+                    <p>{user?.ipAddress || 'Not available'}</p>
                   </div>
                 </div>
               </div>

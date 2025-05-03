@@ -8,13 +8,15 @@ import LaunchGame from '@/components/casino/LaunchGame';
 import { Game } from '@/types';
 
 const HomePage = () => {
-  const { games, loading, error } = useGames({ limit: 6, featured: true });
+  // Remove the 'featured' parameter as it's not in the GameListParams type
+  const { games, loading, error } = useGames({ limit: 6 });
   const [featuredGame, setFeaturedGame] = useState<Game | null>(null);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     // Set a featured game from the loaded games
     if (games.length > 0) {
+      // Let's select the first game as featured
       setFeaturedGame(games[0]);
     }
   }, [games]);

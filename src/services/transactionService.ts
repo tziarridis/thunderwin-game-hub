@@ -1,3 +1,4 @@
+
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -62,7 +63,6 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        // Handle potentially missing properties with undefined
         description: transaction.description,
         paymentMethod: transaction.payment_method || transaction.provider,
         gameId: transaction.game_id,
