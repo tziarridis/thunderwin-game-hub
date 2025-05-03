@@ -39,11 +39,11 @@ export const transactionEnrichService = {
       timestamp: transaction.created_at,
       date: transaction.created_at,
       method: transaction.provider || null,
-      // Handle potentially missing properties
-      description: null, // Default to null if not present
-      paymentMethod: null, // Default to null if not present
-      bonusId: null, // Default to null if not present
-      referenceId: null // Default to null if not present
+      // Handle potentially missing properties with null defaults
+      description: transaction.description || null,
+      paymentMethod: transaction.payment_method || transaction.provider || null,
+      bonusId: transaction.bonus_id || null,
+      referenceId: transaction.reference_id || transaction.round_id || null
     };
   },
 

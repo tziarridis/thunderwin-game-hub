@@ -1,3 +1,4 @@
+
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,7 +13,7 @@ export interface TransactionFilter {
   minAmount?: number;
   maxAmount?: number;
   paymentMethod?: string;
-  // Additional properties being used
+  // Additional properties being used in transactionQueryService
   player_id?: string;
   provider?: string;
   startDate?: string;
@@ -41,12 +42,12 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
         status: transaction.status,
         date: transaction.created_at,
         // Handle potentially missing properties with undefined
-        description: undefined,
-        paymentMethod: undefined,
+        description: transaction.description || undefined,
+        paymentMethod: transaction.payment_method || transaction.provider || undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: undefined,
+        bonusId: transaction.bonus_id || undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: undefined
+        referenceId: transaction.reference_id || transaction.round_id || undefined
       }));
     }
     
@@ -198,12 +199,12 @@ export const getPragmaticPlayTransactions = async (filter?: Partial<TransactionF
         status: transaction.status,
         date: transaction.created_at,
         // Handle potentially missing properties with undefined
-        description: undefined,
-        paymentMethod: undefined,
+        description: transaction.description || undefined,
+        paymentMethod: transaction.payment_method || transaction.provider || undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: undefined,
+        bonusId: transaction.bonus_id || undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: undefined
+        referenceId: transaction.reference_id || transaction.round_id || undefined
       }));
     }
     
@@ -334,12 +335,12 @@ export const getTransactionsByPlayerId = async (player_id: string, limit: number
         status: transaction.status,
         date: transaction.created_at,
         // Handle potentially missing properties with undefined
-        description: undefined,
-        paymentMethod: undefined,
+        description: transaction.description || undefined,
+        paymentMethod: transaction.payment_method || transaction.provider || undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: undefined,
+        bonusId: transaction.bonus_id || undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: undefined
+        referenceId: transaction.reference_id || transaction.round_id || undefined
       }));
     }
     
