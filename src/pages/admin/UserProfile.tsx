@@ -27,6 +27,25 @@ interface User {
   lastLogin?: string;
   created_at?: string;
   updated_at?: string;
+  joined: string;
+  favoriteGames: string[];
+}
+
+// Interface to define the shape of user data coming from Supabase
+interface SupabaseUser {
+  id: string;
+  username: string;
+  email: string;
+  last_name?: string;
+  first_name?: string;
+  phone?: string;
+  ipAddress?: string;
+  status?: string;
+  is_verified?: boolean;
+  balance?: number;
+  vipLevel?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const UserProfile = () => {
@@ -56,13 +75,15 @@ const UserProfile = () => {
             id: userData.id,
             username: userData.username,
             email: userData.email,
-            name: userData.last_name ? `${userData.first_name || ''} ${userData.last_name}` : userData.first_name,
+            name: userData.last_name ? `${userData.first_name || ''} ${userData.last_name}` : userData.first_name || '',
             phone: userData.phone,
             balance: userData.balance || 0,
             vipLevel: userData.vipLevel || 0,
             status: userData.status || 'active',
             isVerified: !!userData.is_verified,
-            ipAddress: userData.ipAddress
+            ipAddress: userData.ipAddress || '',
+            joined: userData.created_at || new Date().toISOString(),
+            favoriteGames: []
           };
           
           setUser(transformedUser);

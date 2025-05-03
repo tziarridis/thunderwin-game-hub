@@ -14,4 +14,3 @@ export interface Transaction {
   balance?: number;
   referenceId?: string;
 }
-
