@@ -2,6 +2,28 @@
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define a type for the raw transaction data from the database
+interface RawTransaction {
+  id: string;
+  player_id: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  provider: string;
+  game_id?: string;
+  round_id?: string;
+  session_id?: string;
+  balance_before?: number;
+  balance_after?: number;
+  description?: string;
+  payment_method?: string;
+  bonus_id?: string;
+  reference_id?: string;
+}
+
 // Define the TransactionFilter type needed by components
 export interface TransactionFilter {
   type?: string;
@@ -33,7 +55,7 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
     if (error) throw error;
     
     if (data && data.length > 0) {
-      return data.map(transaction => ({
+      return data.map((transaction: RawTransaction) => ({
         id: transaction.id,
         userId: transaction.player_id,
         type: transaction.type,
@@ -42,12 +64,12 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
         status: transaction.status,
         date: transaction.created_at,
         // Handle potentially missing properties with undefined
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || transaction.provider || undefined,
-        gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
-        balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || transaction.round_id || undefined
+        description: transaction.description,
+        paymentMethod: transaction.payment_method || transaction.provider,
+        gameId: transaction.game_id,
+        bonusId: transaction.bonus_id,
+        balance: transaction.balance_after,
+        referenceId: transaction.reference_id || transaction.round_id
       }));
     }
     
@@ -73,7 +95,11 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
         game_id: transaction.gameId,
         provider: transaction.type === 'bet' || transaction.type === 'win' ? 'internal' : 'payment',
         round_id: transaction.type === 'bet' || transaction.type === 'win' ? `round-${Date.now()}` : undefined,
-        balance_after: transaction.balance
+        balance_after: transaction.balance,
+        description: transaction.description,
+        payment_method: transaction.paymentMethod,
+        bonus_id: transaction.bonusId,
+        reference_id: transaction.referenceId
       })
       .select()
       .single();
@@ -88,13 +114,12 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
       currency: data.currency,
       status: data.status,
       date: data.created_at,
-      // Handle potentially missing properties with undefined
-      description: undefined,
-      paymentMethod: undefined,
-      gameId: data.game_id || undefined,
-      bonusId: undefined,
-      balance: data.balance_after || undefined,
-      referenceId: undefined
+      description: data.description,
+      paymentMethod: data.payment_method || data.provider,
+      gameId: data.game_id,
+      bonusId: data.bonus_id,
+      balance: data.balance_after,
+      referenceId: data.reference_id || data.round_id
     };
     
   } catch (error) {
@@ -137,21 +162,21 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
     if (error) throw error;
     
     if (data) {
+      const transaction = data as RawTransaction;
       return {
-        id: data.id,
-        userId: data.player_id,
-        type: data.type,
-        amount: data.amount,
-        currency: data.currency,
-        status: data.status,
-        date: data.created_at,
-        // Handle potentially missing properties with undefined
-        description: undefined,
-        paymentMethod: undefined,
-        gameId: data.game_id || undefined,
-        bonusId: undefined,
-        balance: data.balance_after || undefined,
-        referenceId: undefined
+        id: transaction.id,
+        userId: transaction.player_id,
+        type: transaction.type,
+        amount: transaction.amount,
+        currency: transaction.currency,
+        status: transaction.status,
+        date: transaction.created_at,
+        description: transaction.description,
+        paymentMethod: transaction.payment_method || transaction.provider,
+        gameId: transaction.game_id,
+        bonusId: transaction.bonus_id,
+        balance: transaction.balance_after,
+        referenceId: transaction.reference_id || transaction.round_id
       };
     }
     
@@ -190,7 +215,7 @@ export const getPragmaticPlayTransactions = async (filter?: Partial<TransactionF
     if (error) throw error;
     
     if (data && data.length > 0) {
-      return data.map(transaction => ({
+      return data.map((transaction: RawTransaction) => ({
         id: transaction.id,
         userId: transaction.player_id,
         type: transaction.type,
@@ -198,13 +223,12 @@ export const getPragmaticPlayTransactions = async (filter?: Partial<TransactionF
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        // Handle potentially missing properties with undefined
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || transaction.provider || undefined,
-        gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
-        balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || transaction.round_id || undefined
+        description: transaction.description,
+        paymentMethod: transaction.payment_method || transaction.provider,
+        gameId: transaction.game_id,
+        bonusId: transaction.bonus_id,
+        balance: transaction.balance_after,
+        referenceId: transaction.reference_id || transaction.round_id
       }));
     }
     
@@ -326,7 +350,7 @@ export const getTransactionsByPlayerId = async (player_id: string, limit: number
     if (error) throw error;
     
     if (data && data.length > 0) {
-      return data.map(transaction => ({
+      return data.map((transaction: RawTransaction) => ({
         id: transaction.id,
         userId: transaction.player_id,
         type: transaction.type,
@@ -334,13 +358,12 @@ export const getTransactionsByPlayerId = async (player_id: string, limit: number
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        // Handle potentially missing properties with undefined
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || transaction.provider || undefined,
-        gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
-        balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || transaction.round_id || undefined
+        description: transaction.description,
+        paymentMethod: transaction.payment_method || transaction.provider,
+        gameId: transaction.game_id,
+        bonusId: transaction.bonus_id,
+        balance: transaction.balance_after,
+        referenceId: transaction.reference_id || transaction.round_id
       }));
     }
     

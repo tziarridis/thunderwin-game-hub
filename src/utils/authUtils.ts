@@ -165,8 +165,7 @@ export const updateUserProfile = async (
 ): Promise<{ user: User | null; error: string | null }> => {
   try {
     // Ensure that status is of the correct type
-    const userStatus: "Active" | "Pending" | "Inactive" = 
-      (updates.status as "Active" | "Pending" | "Inactive") || "Active";
+    const userStatus = updates.status as "Active" | "Pending" | "Inactive" || "Active";
       
     const { data, error } = await supabase
       .from('users')
