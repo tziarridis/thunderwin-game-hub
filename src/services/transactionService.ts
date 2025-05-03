@@ -1,4 +1,3 @@
-
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,7 +12,7 @@ export interface TransactionFilter {
   minAmount?: number;
   maxAmount?: number;
   paymentMethod?: string;
-  // Add missing properties that are being used
+  // Additional properties being used
   player_id?: string;
   provider?: string;
   startDate?: string;

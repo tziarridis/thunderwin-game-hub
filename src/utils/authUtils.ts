@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { User, AuthUser } from "@/types";
 
@@ -165,13 +164,17 @@ export const updateUserProfile = async (
   updates: Partial<User>
 ): Promise<{ user: User | null; error: string | null }> => {
   try {
+    // Ensure that status is of the correct type
+    const userStatus: "Active" | "Pending" | "Inactive" = 
+      (updates.status as "Active" | "Pending" | "Inactive") || "Active";
+      
     const { data, error } = await supabase
       .from('users')
       .update({
         username: updates.username,
         avatar: updates.avatar,
         phone: updates.phone,
-        status: updates.status
+        status: userStatus
       })
       .eq('id', userId)
       .select()
@@ -217,7 +220,7 @@ export const updateUserProfile = async (
       avatar: userData.avatar,
       vipLevel: userData.wallets?.[0]?.vip_level || 0,
       isVerified: true,
-      status: userData.status,
+      status: userStatus,
       joined: userData.created_at,
       role: userData.role_id === 1 ? "admin" : "user",
       favoriteGames: [],
