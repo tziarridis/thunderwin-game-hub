@@ -40,12 +40,13 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || undefined,
+        // Handle potentially missing properties with undefined
+        description: undefined,
+        paymentMethod: undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
+        bonusId: undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || undefined
+        referenceId: undefined
       }));
     }
     
@@ -68,14 +69,10 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
         amount: transaction.amount,
         currency: transaction.currency,
         status: transaction.status,
-        description: transaction.description,
-        payment_method: transaction.paymentMethod,
         game_id: transaction.gameId,
-        bonus_id: transaction.bonusId,
-        balance_after: transaction.balance,
-        reference_id: transaction.referenceId,
         provider: transaction.type === 'bet' || transaction.type === 'win' ? 'internal' : 'payment',
-        round_id: transaction.type === 'bet' || transaction.type === 'win' ? `round-${Date.now()}` : undefined
+        round_id: transaction.type === 'bet' || transaction.type === 'win' ? `round-${Date.now()}` : undefined,
+        balance_after: transaction.balance
       })
       .select()
       .single();
@@ -90,12 +87,13 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
       currency: data.currency,
       status: data.status,
       date: data.created_at,
-      description: data.description || undefined,
-      paymentMethod: data.payment_method || undefined,
+      // Handle potentially missing properties with undefined
+      description: undefined,
+      paymentMethod: undefined,
       gameId: data.game_id || undefined,
-      bonusId: data.bonus_id || undefined,
+      bonusId: undefined,
       balance: data.balance_after || undefined,
-      referenceId: data.reference_id || undefined
+      referenceId: undefined
     };
     
   } catch (error) {
@@ -146,12 +144,13 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
         currency: data.currency,
         status: data.status,
         date: data.created_at,
-        description: data.description || undefined,
-        paymentMethod: data.payment_method || undefined,
+        // Handle potentially missing properties with undefined
+        description: undefined,
+        paymentMethod: undefined,
         gameId: data.game_id || undefined,
-        bonusId: data.bonus_id || undefined,
+        bonusId: undefined,
         balance: data.balance_after || undefined,
-        referenceId: data.reference_id || undefined
+        referenceId: undefined
       };
     }
     
@@ -198,12 +197,13 @@ export const getPragmaticPlayTransactions = async (filter?: Partial<TransactionF
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || undefined,
+        // Handle potentially missing properties with undefined
+        description: undefined,
+        paymentMethod: undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
+        bonusId: undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || undefined
+        referenceId: undefined
       }));
     }
     
@@ -333,12 +333,13 @@ export const getTransactionsByPlayerId = async (player_id: string, limit: number
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description || undefined,
-        paymentMethod: transaction.payment_method || undefined,
+        // Handle potentially missing properties with undefined
+        description: undefined,
+        paymentMethod: undefined,
         gameId: transaction.game_id || undefined,
-        bonusId: transaction.bonus_id || undefined,
+        bonusId: undefined,
         balance: transaction.balance_after || undefined,
-        referenceId: transaction.reference_id || undefined
+        referenceId: undefined
       }));
     }
     

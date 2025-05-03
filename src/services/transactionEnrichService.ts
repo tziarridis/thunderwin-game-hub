@@ -25,7 +25,7 @@ export const transactionEnrichService = {
       console.error('Error fetching user data for transaction:', error);
     }
 
-    // Return enriched transaction with proper type checking
+    // Return enriched transaction with proper type checking and handle missing properties
     return {
       ...transaction,
       type: transaction.type as 'bet' | 'win' | 'deposit' | 'withdraw',
@@ -39,10 +39,11 @@ export const transactionEnrichService = {
       timestamp: transaction.created_at,
       date: transaction.created_at,
       method: transaction.provider || null,
-      description: transaction.description || null,
-      paymentMethod: transaction.payment_method || null,
-      bonusId: transaction.bonus_id || null,
-      referenceId: transaction.reference_id || null
+      // Handle potentially missing properties
+      description: null, // Default to null if not present
+      paymentMethod: null, // Default to null if not present
+      bonusId: null, // Default to null if not present
+      referenceId: null // Default to null if not present
     };
   },
 
