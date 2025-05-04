@@ -39,13 +39,18 @@ interface SupabaseUser {
   last_name?: string;
   first_name?: string;
   phone?: string;
-  ipAddress?: string;
   status?: string;
-  is_verified?: boolean;
-  balance?: number;
-  vipLevel?: number;
+  banned?: boolean;
   created_at?: string;
   updated_at?: string;
+  role_id?: number;
+  avatar?: string;
+  cpf?: string;
+  language?: string;
+  is_demo_agent?: boolean;
+  affiliate_baseline?: number;
+  affiliate_cpa?: number;
+  affiliate_revenue_share?: number;
 }
 
 const UserProfile = () => {
@@ -75,13 +80,15 @@ const UserProfile = () => {
             id: userData.id,
             username: userData.username,
             email: userData.email,
-            name: userData.last_name ? `${userData.first_name || ''} ${userData.last_name}` : (userData.first_name || ''),
+            name: userData.first_name || userData.last_name ? 
+                  `${userData.first_name || ''} ${userData.last_name || ''}`.trim() : 
+                  '',
             phone: userData.phone || '',
-            balance: userData.balance || 0,
-            vipLevel: userData.vipLevel || 0,
+            balance: 0, // We'll need to get this from a wallet service later
+            vipLevel: 0, // This should also come from a wallet or user_settings table
             status: userData.status || 'active',
-            isVerified: !!userData.is_verified,
-            ipAddress: userData.ipAddress || '',
+            isVerified: false, // This should come from a verification table
+            ipAddress: '', // This might come from a login_history table
             joined: userData.created_at || new Date().toISOString(),
             favoriteGames: []
           };
