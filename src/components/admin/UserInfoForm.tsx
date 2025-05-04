@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +43,6 @@ const UserInfoForm = ({ user, onSubmit }: UserInfoFormProps) => {
   const [userData, setUserData] = useState<User>({...user});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  
   
   const handleChange = (field: keyof User, value: any) => {
     setUserData((prev) => ({ ...prev, [field]: value }));
@@ -122,7 +122,7 @@ const UserInfoForm = ({ user, onSubmit }: UserInfoFormProps) => {
               <SelectValue placeholder="Select VIP Level" />
             </SelectTrigger>
             <SelectContent>
-              {[1, 2, 3, 4, 5].map((level) => (
+              {[0, 1, 2, 3, 4, 5].map((level) => (
                 <SelectItem key={level} value={level.toString()}>
                   Level {level}
                 </SelectItem>
@@ -135,15 +135,16 @@ const UserInfoForm = ({ user, onSubmit }: UserInfoFormProps) => {
           <Label htmlFor="status">Status</Label>
           <Select 
             value={userData.status} 
-            onValueChange={(value) => handleChange('status', value as "Active" | "Pending" | "Inactive")}
+            onValueChange={(value) => handleChange('status', value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="banned">Banned</SelectItem>
             </SelectContent>
           </Select>
         </div>

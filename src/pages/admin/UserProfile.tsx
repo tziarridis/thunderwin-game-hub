@@ -9,6 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import UserInfoForm from '@/components/admin/UserInfoForm';
 import { Separator } from '@/components/ui/separator';
+import { getWalletByUserId } from '@/services/walletService';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 // Define a User interface to match the data structure
 interface User {
@@ -36,8 +39,8 @@ interface SupabaseUser {
   id: string;
   username: string;
   email: string;
-  last_name?: string;
   first_name?: string;
+  last_name?: string;
   phone?: string;
   status?: string;
   banned?: boolean;
@@ -51,11 +54,24 @@ interface SupabaseUser {
   affiliate_baseline?: number;
   affiliate_cpa?: number;
   affiliate_revenue_share?: number;
+  affiliate_revenue_share_fake?: number;
+}
+
+// Interface for wallet data
+interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vip_level: number | null;
+  active: boolean;
 }
 
 const UserProfile = () => {
   const { userId } = useParams();
   const [user, setUser] = useState<User | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,9 +88,16 @@ const UserProfile = () => {
         setLoading(true);
         
         // Fetch user data
-        const userData = await getUserById(userId);
+        const userData: SupabaseUser = await getUserById(userId);
         
         if (userData) {
+          // Get wallet data for this user
+          const walletData = await getWalletByUserId(userId);
+          
+          if (walletData) {
+            setWallet(walletData);
+          }
+          
           // Transform userData to match our User interface
           const transformedUser: User = {
             id: userData.id,
@@ -84,11 +107,13 @@ const UserProfile = () => {
                   `${userData.first_name || ''} ${userData.last_name || ''}`.trim() : 
                   '',
             phone: userData.phone || '',
-            balance: 0, // We'll need to get this from a wallet service later
-            vipLevel: 0, // This should also come from a wallet or user_settings table
+            balance: walletData?.balance || 0,
+            vipLevel: walletData?.vip_level || 0,
             status: userData.status || 'active',
-            isVerified: false, // This should come from a verification table
-            ipAddress: '', // This might come from a login_history table
+            isVerified: userData.role_id === 2, // Assuming role_id 2 is for verified users
+            isAdmin: userData.role_id === 1, // Assuming role_id 1 is for admins
+            role: getRoleFromId(userData.role_id),
+            ipAddress: '', // Not stored in our current model
             joined: userData.created_at || new Date().toISOString(),
             favoriteGames: []
           };
@@ -113,6 +138,71 @@ const UserProfile = () => {
     fetchUserAndTransactions();
   }, [userId]);
   
+  // Helper function to convert role_id to a human-readable role
+  const getRoleFromId = (roleId?: number): string => {
+    switch (roleId) {
+      case 1:
+        return 'Admin';
+      case 2:
+        return 'Verified User';
+      case 3:
+        return 'User';
+      default:
+        return 'User';
+    }
+  };
+  
+  // Handle form submission
+  const handleUpdateUser = async (updatedUser: User) => {
+    try {
+      // Update user data in Supabase
+      // Split the name field into first_name and last_name
+      const nameParts = updatedUser.name ? updatedUser.name.split(' ') : ['', ''];
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      const updatedData = {
+        username: updatedUser.username,
+        email: updatedUser.email,
+        first_name: firstName,
+        last_name: lastName,
+        phone: updatedUser.phone || null,
+        status: updatedUser.status,
+      };
+      
+      // Update the user in Supabase
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { error } = await supabase
+        .from('users')
+        .update(updatedData)
+        .eq('id', updatedUser.id);
+      
+      if (error) throw error;
+      
+      // Update wallet if balance or vipLevel has changed
+      if (wallet && (updatedUser.balance !== wallet.balance || updatedUser.vipLevel !== wallet.vip_level)) {
+        const { error: walletError } = await supabase
+          .from('wallets')
+          .update({
+            balance: updatedUser.balance,
+            vip_level: updatedUser.vipLevel
+          })
+          .eq('user_id', updatedUser.id);
+        
+        if (walletError) throw walletError;
+      }
+      
+      // Update the local user state
+      setUser(updatedUser);
+      
+      toast.success("User profile updated successfully");
+    } catch (err) {
+      console.error("Error updating user:", err);
+      toast.error("Failed to update user profile");
+      throw err;
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -132,7 +222,17 @@ const UserProfile = () => {
   
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">User Profile: {user?.username}</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">User Profile: {user?.username}</h1>
+        <div className="flex space-x-2">
+          <Badge variant={user.isAdmin ? "default" : "outline"}>
+            {user.role || "User"}
+          </Badge>
+          <Badge variant={user.status === 'active' ? "success" : "destructive"}>
+            {user.status}
+          </Badge>
+        </div>
+      </div>
       
       <Tabs defaultValue="details">
         <TabsList className="mb-6">
@@ -144,7 +244,7 @@ const UserProfile = () => {
         </TabsList>
         
         <TabsContent value="details">
-          {user && <UserInfoForm user={user} />}
+          {user && <UserInfoForm user={user} onSubmit={handleUpdateUser} />}
         </TabsContent>
         
         <TabsContent value="wallet">
@@ -167,6 +267,22 @@ const UserProfile = () => {
                   <div className="text-2xl font-bold">{user?.status}</div>
                 </div>
               </div>
+              
+              {wallet && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Additional Wallet Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-800 p-4 rounded-lg">
+                    <div>
+                      <div className="text-gray-400 mb-1">Wallet ID</div>
+                      <div className="font-mono text-sm">{wallet.id}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-400 mb-1">Currency</div>
+                      <div>{wallet.currency} ({wallet.symbol})</div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -185,7 +301,7 @@ const UserProfile = () => {
                       <tr className="border-b border-slate-700">
                         <th className="text-left py-3 px-4">Date</th>
                         <th className="text-left py-3 px-4">Type</th>
-                        <th className="text-left py-3 px-4">Amount</th>
+                        <th className="text-right py-3 px-4">Amount</th>
                         <th className="text-left py-3 px-4">Status</th>
                         <th className="text-left py-3 px-4">Description</th>
                       </tr>
@@ -195,7 +311,7 @@ const UserProfile = () => {
                         <tr key={transaction.id} className="border-b border-slate-800 hover:bg-slate-800/50">
                           <td className="py-3 px-4">{new Date(transaction.date).toLocaleString()}</td>
                           <td className="py-3 px-4 capitalize">{transaction.type}</td>
-                          <td className={`py-3 px-4 ${transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' ? 'text-green-500' : 'text-red-500'}`}>
+                          <td className={`py-3 px-4 text-right ${transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' ? 'text-green-500' : 'text-red-500'}`}>
                             {transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' ? '+' : '-'}
                             {transaction.amount} {transaction.currency}
                           </td>
@@ -246,7 +362,7 @@ const UserProfile = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className={`w-3 h-3 rounded-full ${user?.isVerified ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
                 <span className="font-medium">{user?.isVerified ? 'Verified' : 'Not Verified'}</span>
               </div>
               

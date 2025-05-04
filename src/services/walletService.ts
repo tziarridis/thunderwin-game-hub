@@ -14,11 +14,13 @@ export interface Wallet {
   symbol: string;
   active: boolean;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   balance_bonus?: number;
   total_won?: number;
   total_bet?: number;
   total_lose?: number;
+  vip_level?: number | null;
+  vip_points?: number | null;
 }
 
 export interface WalletTransaction {
@@ -81,7 +83,9 @@ export const createWallet = async (userId: string, currency = 'USD'): Promise<Wa
       balance: 0,
       currency,
       symbol,
-      active: true
+      active: true,
+      vip_level: 0,
+      vip_points: 0
     };
     
     const { data, error } = await supabase
@@ -111,7 +115,10 @@ export const updateWalletBalance = async (userId: string, newBalance: number): P
   try {
     const { error } = await supabase
       .from('wallets')
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .update({ 
+        balance: newBalance, 
+        updated_at: new Date().toISOString() 
+      })
       .eq('user_id', userId);
     
     if (error) throw error;
@@ -123,171 +130,134 @@ export const updateWalletBalance = async (userId: string, newBalance: number): P
   }
 };
 
-export const walletService = {
-  /**
-   * Get a user's wallet or create if it doesn't exist
-   * @param userId User ID
-   * @returns The user's wallet
-   */
-  getWalletByUserId,
-  
-  /**
-   * Create a new wallet for a user
-   * @param userId User ID
-   * @param currency Currency code (default: USD)
-   * @returns The newly created wallet
-   */
-  createWallet,
-  
-  /**
-   * Update a wallet's balance
-   * @param userId User ID
-   * @param newBalance New balance value
-   * @returns Success status
-   */
-  updateWalletBalance,
-  
-  /**
-   * Credit (deposit) funds to a wallet
-   * @param userId User ID
-   * @param amount Amount to credit
-   * @param type Transaction type
-   * @param provider Provider name
-   * @returns Success status
-   */
-  creditWallet: async (
-    userId: string, 
-    amount: number, 
-    type: 'deposit' | 'win' | 'bonus' = 'deposit',
-    provider = 'system'
-  ): Promise<boolean> => {
-    try {
-      // Get current wallet
-      const wallet = await getWalletByUserId(userId);
-      if (!wallet) throw new Error('Wallet not found');
-      
-      // Calculate new balance
-      const newBalance = wallet.balance + amount;
-      
-      // Update wallet balance
-      const updated = await updateWalletBalance(userId, newBalance);
-      if (!updated) throw new Error('Failed to update wallet balance');
-      
-      // Create transaction record
-      const { error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          player_id: userId,
-          amount,
-          currency: wallet.currency,
-          type,
-          provider,
-          status: 'completed',
-          balance_before: wallet.balance,
-          balance_after: newBalance
-        });
-      
-      if (txError) throw txError;
-      
-      return true;
-    } catch (error) {
-      console.error(`Error crediting wallet for user ${userId}:`, error);
-      return false;
-    }
-  },
-  
-  /**
-   * Debit (withdraw) funds from a wallet
-   * @param userId User ID
-   * @param amount Amount to debit
-   * @param type Transaction type
-   * @param provider Provider name
-   * @returns Success status
-   */
-  debitWallet: async (
-    userId: string, 
-    amount: number, 
-    type: 'withdraw' | 'bet' = 'withdraw',
-    provider = 'system'
-  ): Promise<boolean> => {
-    try {
-      // Get current wallet
-      const wallet = await getWalletByUserId(userId);
-      if (!wallet) throw new Error('Wallet not found');
-      
-      // Check if sufficient funds
-      if (wallet.balance < amount) {
-        toast.error('Insufficient funds');
-        return false;
-      }
-      
-      // Calculate new balance
-      const newBalance = wallet.balance - amount;
-      
-      // Update wallet balance
-      const updated = await updateWalletBalance(userId, newBalance);
-      if (!updated) throw new Error('Failed to update wallet balance');
-      
-      // Create transaction record
-      const { error: txError } = await supabase
-        .from('transactions')
-        .insert({
-          player_id: userId,
-          amount,
-          currency: wallet.currency,
-          type,
-          provider,
-          status: 'completed',
-          balance_before: wallet.balance,
-          balance_after: newBalance
-        });
-      
-      if (txError) throw txError;
-      
-      return true;
-    } catch (error) {
-      console.error(`Error debiting wallet for user ${userId}:`, error);
-      return false;
-    }
-  },
-  
-  /**
-   * Get wallet transactions for a user
-   * @param userId User ID
-   * @param limit Maximum number of transactions to return
-   * @returns List of transactions
-   */
-  getWalletTransactions: async (userId: string, limit = 20): Promise<WalletTransaction[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('player_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      
-      if (error) throw error;
-      
-      // Transform the data to match WalletTransaction interface
-      const transactions: WalletTransaction[] = data.map(item => ({
-        id: item.id,
-        user_id: item.player_id, // Map player_id to user_id
-        amount: item.amount,
-        currency: item.currency,
-        type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
-        status: item.status as 'pending' | 'completed' | 'failed',
-        created_at: item.created_at,
-        provider: item.provider,
-        game_id: item.game_id,
-        round_id: item.round_id
-      }));
-      
-      return transactions;
-    } catch (error) {
-      console.error(`Error getting transactions for user ${userId}:`, error);
-      return [];
-    }
+/**
+ * Credit (deposit) funds to a wallet
+ * @param userId User ID
+ * @param amount Amount to credit
+ * @param type Transaction type
+ * @param provider Provider name
+ * @returns Success status
+ */
+export const creditWallet = async (
+  userId: string, 
+  amount: number, 
+  type: 'deposit' | 'win' | 'bonus' = 'deposit',
+  provider = 'system'
+): Promise<boolean> => {
+  try {
+    // Get current wallet
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) throw new Error('Wallet not found');
+    
+    // Calculate new balance
+    const newBalance = wallet.balance + amount;
+    
+    // Start a Supabase transaction
+    const { data, error } = await supabase.rpc('credit_wallet', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_type: type,
+      p_provider: provider,
+      p_currency: wallet.currency
+    });
+    
+    if (error) throw error;
+    
+    return true;
+  } catch (error) {
+    console.error(`Error crediting wallet for user ${userId}:`, error);
+    return false;
   }
+};
+
+/**
+ * Debit (withdraw) funds from a wallet
+ * @param userId User ID
+ * @param amount Amount to debit
+ * @param type Transaction type
+ * @param provider Provider name
+ * @returns Success status
+ */
+export const debitWallet = async (
+  userId: string, 
+  amount: number, 
+  type: 'withdraw' | 'bet' = 'withdraw',
+  provider = 'system'
+): Promise<boolean> => {
+  try {
+    // Get current wallet
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) throw new Error('Wallet not found');
+    
+    // Check if sufficient funds
+    if (wallet.balance < amount) {
+      toast.error('Insufficient funds');
+      return false;
+    }
+    
+    // Start a Supabase transaction
+    const { data, error } = await supabase.rpc('debit_wallet', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_type: type,
+      p_provider: provider,
+      p_currency: wallet.currency
+    });
+    
+    if (error) throw error;
+    
+    return true;
+  } catch (error) {
+    console.error(`Error debiting wallet for user ${userId}:`, error);
+    return false;
+  }
+};
+
+/**
+ * Get wallet transactions for a user
+ * @param userId User ID
+ * @param limit Maximum number of transactions to return
+ * @returns List of transactions
+ */
+export const getWalletTransactions = async (userId: string, limit = 20): Promise<WalletTransaction[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('player_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) throw error;
+    
+    // Transform the data to match WalletTransaction interface
+    const transactions: WalletTransaction[] = (data || []).map(item => ({
+      id: item.id,
+      user_id: item.player_id, // Map player_id to user_id
+      amount: item.amount,
+      currency: item.currency,
+      type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
+      status: item.status as 'pending' | 'completed' | 'failed',
+      created_at: item.created_at,
+      provider: item.provider,
+      game_id: item.game_id,
+      round_id: item.round_id
+    }));
+    
+    return transactions;
+  } catch (error) {
+    console.error(`Error getting transactions for user ${userId}:`, error);
+    return [];
+  }
+};
+
+export const walletService = {
+  getWalletByUserId,
+  createWallet,
+  updateWalletBalance,
+  creditWallet,
+  debitWallet,
+  getWalletTransactions
 };
 
 export default walletService;
