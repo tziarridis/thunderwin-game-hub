@@ -3,6 +3,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WalletTransaction } from "@/types/wallet";
+import { Transaction, TransactionFilter } from "@/types/transaction";
 
 export interface TransactionInput {
   userId: string;
@@ -18,16 +19,6 @@ export interface TransactionInput {
   provider?: string;
   bonusId?: string;
   referenceId?: string;
-}
-
-export interface TransactionFilter {
-  player_id?: string;
-  type?: string;
-  status?: string;
-  provider?: string;
-  startDate?: string;
-  endDate?: string;
-  limit?: number;
 }
 
 /**
@@ -161,7 +152,7 @@ export const getUserTransactions = async (
     // Transform the data to match WalletTransaction interface
     const transactions: WalletTransaction[] = (data || []).map(item => ({
       id: item.id,
-      user_id: item.player_id, // Map player_id to user_id
+      user_id: item.player_id,
       amount: item.amount,
       currency: item.currency,
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
@@ -256,15 +247,46 @@ export const getPragmaticPlayTransactions = async (
   }
 };
 
-// Alias function to maintain compatibility with existing code
-export const getTransactions = getUserTransactions;
+// Helper function to convert WalletTransaction to Transaction type (for legacy components)
+export const convertToTransaction = (walletTx: WalletTransaction): Transaction => {
+  return {
+    id: walletTx.id,
+    userId: walletTx.user_id,
+    amount: walletTx.amount,
+    currency: walletTx.currency,
+    type: walletTx.type,
+    status: walletTx.status,
+    date: walletTx.created_at,
+    provider: walletTx.provider,
+    gameId: walletTx.game_id,
+    roundId: walletTx.round_id,
+    description: walletTx.description,
+    paymentMethod: walletTx.payment_method,
+    bonusId: walletTx.bonus_id,
+    referenceId: walletTx.reference_id
+  };
+};
+
+// Alias function for backward compatibility
+export const getTransactions = async (
+  userId: string,
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ data: Transaction[], total: number }> => {
+  const result = await getUserTransactions(userId, limit, offset);
+  return {
+    data: result.data.map(convertToTransaction),
+    total: result.total
+  };
+};
 
 export const transactionService = {
   addTransaction,
   getTransactionById,
   getUserTransactions,
   getPragmaticPlayTransactions,
-  getTransactions: getUserTransactions
+  getTransactions,
+  convertToTransaction
 };
 
 export default transactionService;

@@ -14,7 +14,7 @@ interface WalletBalanceProps {
 }
 
 const WalletBalance = ({ className = "", showRefresh = false, variant = "default" }: WalletBalanceProps) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshWalletBalance } = useAuth();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,8 +44,8 @@ const WalletBalance = ({ className = "", showRefresh = false, variant = "default
     
     try {
       setRefreshing(true);
-      const walletData = await walletService.getWalletByUserId(user.id);
-      setWallet(walletData);
+      await refreshWalletBalance(); // Use the context method to update the user state
+      fetchWallet(); // Also update our local wallet state
       toast.success("Wallet balance updated");
     } catch (error) {
       console.error("Error refreshing wallet data:", error);
@@ -67,6 +67,17 @@ const WalletBalance = ({ className = "", showRefresh = false, variant = "default
             `${wallet?.symbol || '$'}${wallet?.balance?.toFixed(2) || user?.balance?.toFixed(2) || '0.00'}`
           }
         </span>
+        {showRefresh && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="ml-1 p-0 h-auto"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
       </div>
     );
   }

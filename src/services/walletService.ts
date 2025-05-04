@@ -121,9 +121,6 @@ export const creditWallet = async (
     const wallet = await getWalletByUserId(userId);
     if (!wallet) throw new Error('Wallet not found');
     
-    // Calculate new balance
-    const newBalance = wallet.balance + amount;
-    
     // Start a Supabase transaction
     const { data, error } = await supabase.rpc('credit_wallet', {
       p_user_id: userId,
@@ -214,10 +211,10 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
       provider: item.provider,
       game_id: item.game_id,
       round_id: item.round_id,
-      description: item.description,
-      payment_method: item.payment_method,
-      bonus_id: item.bonus_id,
-      reference_id: item.reference_id
+      description: item.description || undefined,
+      payment_method: item.payment_method || undefined,
+      bonus_id: item.bonus_id || undefined,
+      reference_id: item.reference_id || undefined
     }));
     
     return transactions;

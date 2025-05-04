@@ -12,13 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut } from "lucide-react";
+import { User, LogOut, RefreshCw } from "lucide-react";
 import WalletBalance from "../user/WalletBalance";
 import DepositButton from "../user/DepositButton";
 
 const Header = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, refreshWalletBalance } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,6 +32,16 @@ const Header = () => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [scrolled]);
+  
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await refreshWalletBalance();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   
   return (
     <header
@@ -51,7 +62,18 @@ const Header = () => {
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <WalletBalance variant="compact" className="hidden md:flex" />
+              <div className="hidden md:flex items-center gap-2">
+                <WalletBalance variant="compact" showRefresh />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
               <DepositButton variant="small" />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -12,8 +12,9 @@ import {
   Edit,
   Upload,
   Gift,
-  Wallet as WalletIcon
+  RefreshCw
 } from "lucide-react";
+import { Wallet as WalletIcon } from "lucide-react"; // Import as WalletIcon to avoid conflict
 import DepositButton from "@/components/user/DepositButton";
 import WalletBalance from "@/components/user/WalletBalance";
 import MetaMaskWallet from "@/components/user/MetaMaskWallet";
