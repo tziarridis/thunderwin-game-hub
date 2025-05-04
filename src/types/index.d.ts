@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -72,4 +73,32 @@ export interface GameAnalytics {
   playerCount: number;
   averageBet: number;
   rtp: number;
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  type: BonusType;
+  value: number;
+  isPercentage: boolean;
+  minDepositAmount?: number;
+  maxBonusAmount?: number;
+  wageringRequirements: number;
+  validityDays: number;
+  description: string;
+  isActive: boolean;
+}
+
+export interface UserBonus {
+  id: string;
+  userId: string;
+  templateId: string;
+  type: BonusType;
+  value: number;
+  wageringRequired: number;
+  wageringCompleted: number;
+  expiresAt: string;
+  createdAt: string;
+  status: 'ACTIVE' | 'COMPLETED' | 'EXPIRED' | 'CANCELED';
+  balance: number;
 }
