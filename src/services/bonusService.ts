@@ -6,11 +6,11 @@ interface CreateBonusTemplateParams {
   name: string;
   type: BonusType;
   value: number;
-  percentage: boolean; // Changed from isPercentage
+  percentage: boolean;
   minDepositAmount?: number;
   maxBonusAmount?: number;
   wageringRequirement: number;
-  durationDays: number;  // Changed from validityDays
+  durationDays: number;
   description: string;
 }
 
@@ -27,7 +27,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     name: "Welcome Bonus 100%",
     type: BonusType.WELCOME,
     value: 100,
-    percentage: true,  // Changed from isPercentage
+    percentage: true,
     minDepositAmount: 10,
     maxBonusAmount: 200,
     wageringRequirement: 35,
@@ -41,7 +41,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     name: "Free Spins",
     type: BonusType.FREE_SPINS,
     value: 50,
-    percentage: false,  // Changed from isPercentage
+    percentage: false,
     wageringRequirement: 40,
     durationDays: 7,
     description: "50 free spins on selected slots",

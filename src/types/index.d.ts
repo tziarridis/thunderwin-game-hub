@@ -79,7 +79,7 @@ export interface BonusTemplate {
   name: string;
   type: BonusType;
   value: number;
-  percentage?: boolean; // Changed from isPercentage
+  percentage: boolean; // Changed from isPercentage
   minDepositAmount?: number;
   maxBonusAmount?: number;
   wageringRequirement: number;

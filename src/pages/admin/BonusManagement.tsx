@@ -1,6 +1,3 @@
-// Fix the duplicate property error on line 145
-// We need to update the create bonus function to use the correct parameter names
-
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -25,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -364,9 +360,7 @@ const BonusManagement = () => {
                 />
                 
                 <DialogFooter>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">Cancel</Button>
-                  </DialogClose>
+                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                   <Button type="submit">Create Bonus</Button>
                 </DialogFooter>
               </form>

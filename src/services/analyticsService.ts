@@ -62,3 +62,13 @@ export const getTopGames = async () => {
     { id: "2", name: "Starburst", provider: "NetEnt", bets: 9876, wins: 8765 }
   ];
 };
+
+// Export as analytics service object
+export const analyticsService = {
+  getAnalyticsData,
+  getGameAnalytics,
+  getAnalyticsSummary,
+  getTopGames
+};
+
+export default analyticsService;
