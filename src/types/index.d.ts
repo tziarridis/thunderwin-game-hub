@@ -1,4 +1,3 @@
-
 export interface Transaction {
   id: string;
   userId: string;
@@ -13,4 +12,38 @@ export interface Transaction {
   bonusId?: string;
   balance?: number;
   referenceId?: string;
+}
+
+export interface AnalyticsData {
+  date: string;
+  revenue: number;
+  activeUsers: number;
+  newUsers: number;
+  deposits: number;
+  withdrawals: number;
+  bets: number;
+  wins: number;
+  totalUsers?: number;
+}
+
+export interface GameAnalytics {
+  gameName: string;
+  totalBets: number;
+  totalWins: number;
+  uniquePlayers: number;
+  avgBetSize: number;
+  profitMargin: number;
+}
+
+export interface UserBonus {
+  id: string;
+  userId: string;
+  bonusId: string;
+  status: 'active' | 'used' | 'expired';
+  dateIssued: string;
+  expiryDate: string;
+  amount: number;
+  wageringRequirement: number;
+  wageringCompleted: number;
+  type: string;
 }
