@@ -63,12 +63,57 @@ export const getTopGames = async () => {
   ];
 };
 
+// Add missing functions needed by AnalyticsDashboard
+export const getUserActivityData = async () => {
+  return [
+    { date: "2023-01", active: 1200, new: 450 },
+    { date: "2023-02", active: 1450, new: 520 },
+    { date: "2023-03", active: 1320, new: 480 },
+    { date: "2023-04", active: 1500, new: 590 },
+    { date: "2023-05", active: 1650, new: 630 },
+    { date: "2023-06", active: 1800, new: 720 }
+  ];
+};
+
+export const getBonusAnalytics = async () => {
+  return {
+    totalBonusesIssued: 1245,
+    bonusAmountAwarded: 45670,
+    bonusTurnoverGenerated: 245890,
+    wageringCompleted: 68.5
+  };
+};
+
+export const getPlayerRetentionData = async () => {
+  return [
+    { month: "Jan", retention: 68 },
+    { month: "Feb", retention: 72 },
+    { month: "Mar", retention: 65 },
+    { month: "Apr", retention: 70 },
+    { month: "May", retention: 74 },
+    { month: "Jun", retention: 78 }
+  ];
+};
+
+export const getPaymentMethodDistribution = async () => {
+  return [
+    { name: "Credit Card", value: 40 },
+    { name: "E-Wallet", value: 30 },
+    { name: "Bank Transfer", value: 20 },
+    { name: "Crypto", value: 10 }
+  ];
+};
+
 // Export as analytics service object
 export const analyticsService = {
   getAnalyticsData,
   getGameAnalytics,
   getAnalyticsSummary,
-  getTopGames
+  getTopGames,
+  getUserActivityData,
+  getBonusAnalytics,
+  getPlayerRetentionData,
+  getPaymentMethodDistribution
 };
 
 export default analyticsService;

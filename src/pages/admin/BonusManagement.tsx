@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Card,
@@ -55,6 +56,7 @@ import { BonusTemplate, BonusType } from '@/types';
 const BonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   // Form schema for creating/editing bonus templates
   const formSchema = z.object({
@@ -127,8 +129,7 @@ const BonusManagement = () => {
         minDepositAmount: data.minDeposit,
         maxBonusAmount: data.maxBonus,
         wageringRequirement: data.wageringRequirement,
-        durationDays: data.durationDays,
-        forVipLevels: data.vipLevels
+        durationDays: data.durationDays
       };
       
       const newTemplate = await bonusService.createBonusTemplate(templateData);
@@ -137,6 +138,7 @@ const BonusManagement = () => {
         setBonusTemplates(prev => [...prev, newTemplate]);
         toast.success('Bonus template created successfully');
         form.reset();
+        setIsDialogOpen(false);
       } else {
         toast.error('Failed to create bonus template');
       }
@@ -172,7 +174,7 @@ const BonusManagement = () => {
           <p className="text-muted-foreground">Create and manage bonus offers for your players.</p>
         </div>
         
-        <Dialog>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-1">
               <Plus size={16} />

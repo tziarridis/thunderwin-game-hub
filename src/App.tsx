@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
@@ -21,6 +20,11 @@ import BonusHub from '@/pages/bonuses/BonusHub';
 import { AdminProtected } from '@/components/auth/AdminProtected';
 import BonusManagement from '@/pages/admin/BonusManagement';
 import AnalyticsDashboard from '@/pages/admin/AnalyticsDashboard';
+
+// Define the props interface for ProtectedRoute
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
 
 const App = () => {
   const session: Session | null = useSession();
@@ -66,7 +70,8 @@ const App = () => {
     user 
   };
 
-  const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  // Properly define the ProtectedRoute component with props
+  const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     if (isLoading) {
       return <div>Loading...</div>;
     }
@@ -80,166 +85,164 @@ const App = () => {
 
   return (
     <AuthContext.Provider value={authContextValue}>
-      <Router>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <div className="flex justify-center items-center h-screen bg-gray-100">
-                <div className="bg-white p-8 rounded shadow-md w-96">
-                  <h2 className="text-2xl font-semibold mb-4">Login</h2>
-                  <Auth
-                    supabaseClient={supabase}
-                    appearance={{ theme: ThemeSupa }}
-                    providers={['google', 'github']}
-                  />
-                </div>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+              <div className="bg-white p-8 rounded shadow-md w-96">
+                <h2 className="text-2xl font-semibold mb-4">Login</h2>
+                <Auth
+                  supabaseClient={supabase}
+                  appearance={{ theme: ThemeSupa }}
+                  providers={['google', 'github']}
+                />
               </div>
-            }
-          />
-          
-          <Route
-            path="/register"
-            element={
-              <div className="flex justify-center items-center h-screen bg-gray-100">
-                <div className="bg-white p-8 rounded shadow-md w-96">
-                  <h2 className="text-2xl font-semibold mb-4">Register</h2>
-                  <Auth
-                    supabaseClient={supabase}
-                    appearance={{ theme: ThemeSupa }}
-                    providers={['google', 'github']}
-                    redirectTo="http://localhost:3000/profile"
-                  />
-                </div>
+            </div>
+          }
+        />
+        
+        <Route
+          path="/register"
+          element={
+            <div className="flex justify-center items-center h-screen bg-gray-100">
+              <div className="bg-white p-8 rounded shadow-md w-96">
+                <h2 className="text-2xl font-semibold mb-4">Register</h2>
+                <Auth
+                  supabaseClient={supabase}
+                  appearance={{ theme: ThemeSupa }}
+                  providers={['google', 'github']}
+                  redirectTo="http://localhost:3000/profile"
+                />
               </div>
-            }
-          />
+            </div>
+          }
+        />
 
-          <Route
-            path="/"
-            element={
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <Home />
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
               <Layout>
-                <Home />
+                <Profile />
               </Layout>
-            }
-          />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Profile />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/games"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Games />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/transactions"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Transactions />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/promotions"
-            element={
+        <Route
+          path="/games"
+          element={
+            <ProtectedRoute>
               <Layout>
-                <Promotions />
+                <Games />
               </Layout>
-            }
-          />
+            </ProtectedRoute>
+          }
+        />
 
-          <Route
-            path="/bonuses"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <BonusHub />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Transactions />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin"
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <Dashboard />
-                </AdminLayout>
-              </AdminProtected>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <Users />
-                </AdminLayout>
-              </AdminProtected>
-            }
-          />
-          <Route
-            path="/admin/games"
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <GamesAdmin />
-                </AdminLayout>
-              </AdminProtected>
-            }
-          />
-          <Route
-            path="/admin/reports"
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <ReportsPage />
-                </AdminLayout>
-              </AdminProtected>
-            }
-          />
-          <Route 
-            path="/admin/bonus-management" 
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <BonusManagement />
-                </AdminLayout>
-              </AdminProtected>
-            } 
-          />
-          <Route 
-            path="/admin/analytics" 
-            element={
-              <AdminProtected>
-                <AdminLayout>
-                  <AnalyticsDashboard />
-                </AdminLayout>
-              </AdminProtected>
-            } 
-          />
-        </Routes>
-      </Router>
+        <Route
+          path="/promotions"
+          element={
+            <Layout>
+              <Promotions />
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/bonuses"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <BonusHub />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <Dashboard />
+              </AdminLayout>
+            </AdminProtected>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <Users />
+              </AdminLayout>
+            </AdminProtected>
+          }
+        />
+        <Route
+          path="/admin/games"
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <GamesAdmin />
+              </AdminLayout>
+            </AdminProtected>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <ReportsPage />
+              </AdminLayout>
+            </AdminProtected>
+          }
+        />
+        <Route 
+          path="/admin/bonus-management" 
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <BonusManagement />
+              </AdminLayout>
+            </AdminProtected>
+          } 
+        />
+        <Route 
+          path="/admin/analytics" 
+          element={
+            <AdminProtected>
+              <AdminLayout>
+                <AnalyticsDashboard />
+              </AdminLayout>
+            </AdminProtected>
+          } 
+        />
+      </Routes>
     </AuthContext.Provider>
   );
 };
