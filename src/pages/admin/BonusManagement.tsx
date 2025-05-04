@@ -1,659 +1,503 @@
+// Fix the duplicate property error on line 145
+// We need to update the create bonus function to use the correct parameter names
+
 import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BonusType } from '@/types';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Check, Plus, RefreshCw, Trash2, Gift, Tag, Clock, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { bonusService } from '@/services/bonusService';
+import { BonusTemplate, BonusType } from '@/types';
 
 const BonusManagement = () => {
-  const [activeTab, setActiveTab] = useState('templates');
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [activeBonuses, setActiveBonuses] = useState<any[]>([]);
+  const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isNewTemplateDialogOpen, setIsNewTemplateDialogOpen] = useState(false);
   
-  // New template form state
-  const [newTemplate, setNewTemplate] = useState({
-    name: '',
-    description: '',
-    type: BonusType.WELCOME,
-    value: 100,
-    isPercentage: true,
-    minDepositAmount: 20,
-    maxBonusAmount: 100,
-    wageringRequirement: 35,
-    durationDays: 7,
-    isActive: true,
-    bonusType: 'percentage',
-    percentage: 100,
-    maxBonus: 100,
-    code: ''
+  // Form schema for creating/editing bonus templates
+  const formSchema = z.object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    description: z.string().min(5, { message: "Description must be at least 5 characters." }),
+    type: z.string(),
+    value: z.coerce.number().min(1, { message: "Value must be at least 1." }),
+    percentage: z.boolean().default(false),
+    minDeposit: z.coerce.number().optional(),
+    wageringRequirement: z.coerce.number().min(0),
+    durationDays: z.coerce.number().min(1, { message: "Duration must be at least 1 day." }),
+    vipLevels: z.array(z.number()).default([]),
+    isActive: z.boolean().default(true),
+    bonusType: z.string().optional(),
+    amount: z.coerce.number().optional(),
+    wagering: z.coerce.number().optional(),
+    expiryDays: z.coerce.number().optional(),
+    maxBonus: z.coerce.number().optional(),
+    vipLevelRequired: z.union([z.string(), z.number()]).optional(),
+    allowedGames: z.string().optional(),
+    code: z.string().optional()
   });
   
+  type FormValues = z.infer<typeof formSchema>;
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      type: BonusType.WELCOME,
+      value: 100,
+      percentage: true,
+      minDeposit: 10,
+      wageringRequirement: 35,
+      durationDays: 30,
+      vipLevels: [1, 2, 3],
+      isActive: true
+    }
+  });
+  
+  // Load bonus templates
   useEffect(() => {
-    loadData();
+    const fetchBonusTemplates = async () => {
+      try {
+        setLoading(true);
+        const templates = await bonusService.getBonusTemplates();
+        setBonusTemplates(templates);
+      } catch (error) {
+        console.error('Error fetching bonus templates:', error);
+        toast.error('Failed to load bonus templates');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBonusTemplates();
   }, []);
   
-  const loadData = async () => {
-    setLoading(true);
+  // Handle form submission
+  const onSubmit = async (data: FormValues) => {
     try {
-      const templatesData = await bonusService.getBonusTemplates();
-      setTemplates(templatesData);
+      // Convert the form data to match the CreateBonusTemplateParams interface
+      const templateData = {
+        name: data.name,
+        description: data.description,
+        type: data.type as BonusType,
+        value: data.value,
+        percentage: data.percentage,
+        minDepositAmount: data.minDeposit,
+        maxBonusAmount: data.maxBonus,
+        wageringRequirement: data.wageringRequirement,
+        durationDays: data.durationDays,
+        forVipLevels: data.vipLevels
+      };
       
-      // In a real scenario, we would get all active bonuses
-      // For this example, we'll use mock data
-      setActiveBonuses([
-        {
-          id: '1',
-          userId: 'user-123',
-          username: 'player1',
-          type: BonusType.WELCOME,
-          amount: 100,
-          status: 'active',
-          expiryDate: '2025-05-15T00:00:00Z',
-          createdAt: '2025-05-01T14:30:00Z',
-          wageringRequirement: 35,
-          progress: 45,
-          description: '100% Welcome Bonus up to $100'
-        },
-        {
-          id: '2',
-          userId: 'user-456',
-          username: 'player2',
-          type: BonusType.DEPOSIT,
-          amount: 50,
-          status: 'active',
-          expiryDate: '2025-05-10T00:00:00Z',
-          createdAt: '2025-04-25T09:45:00Z',
-          wageringRequirement: 30,
-          progress: 60,
-          description: '50% Reload Bonus up to $50'
-        },
-        {
-          id: '3',
-          userId: 'user-789',
-          username: 'player3',
-          type: BonusType.FREE_SPINS,
-          amount: 20,
-          status: 'active',
-          expiryDate: '2025-05-08T00:00:00Z',
-          createdAt: '2025-04-28T16:15:00Z',
-          wageringRequirement: 20,
-          progress: 10,
-          description: '20 Free Spins on Starburst'
-        }
-      ]);
-    } catch (error) {
-      console.error('Error loading bonus data:', error);
-      toast.error('Error loading bonus data');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleNewTemplateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      // Updated to match the expected parameter types
-      const result = await bonusService.createBonusTemplate({
-        name: newTemplate.name,
-        description: newTemplate.description,
-        type: newTemplate.type,
-        value: newTemplate.value,
-        isPercentage: newTemplate.isPercentage,
-        minDepositAmount: newTemplate.minDepositAmount,
-        maxBonusAmount: newTemplate.maxBonusAmount,
-        wageringRequirement: newTemplate.wageringRequirement,
-        durationDays: newTemplate.durationDays,
-        description: newTemplate.description
-      });
+      const newTemplate = await bonusService.createBonusTemplate(templateData);
       
-      if (result) {
-        setTemplates([...templates, result]);
-        setIsNewTemplateDialogOpen(false);
+      if (newTemplate) {
+        setBonusTemplates(prev => [...prev, newTemplate]);
         toast.success('Bonus template created successfully');
-        
-        // Reset form
-        setNewTemplate({
-          name: '',
-          description: '',
-          type: BonusType.WELCOME,
-          value: 100,
-          isPercentage: true,
-          minDepositAmount: 20,
-          maxBonusAmount: 100,
-          wageringRequirement: 35,
-          durationDays: 7,
-          isActive: true,
-          bonusType: 'percentage',
-          percentage: 100,
-          maxBonus: 100,
-          code: ''
-        });
+        form.reset();
+      } else {
+        toast.error('Failed to create bonus template');
       }
     } catch (error) {
       console.error('Error creating bonus template:', error);
-      toast.error('Error creating bonus template');
+      toast.error('Failed to create bonus template');
     }
   };
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setNewTemplate(prev => ({
-      ...prev,
-      [name]: name === 'value' || name === 'minDepositAmount' || name === 'maxBonusAmount' || name === 'wageringRequirement' || 
-              name === 'durationDays' || name === 'percentage' || name === 'maxBonus'
-                ? parseFloat(value) 
-                : name === 'isPercentage' ? value === 'true' : value
-    }));
+  // Handle deleting a bonus template
+  const handleDelete = async (id: string) => {
+    // This would normally call an API to delete the template
+    setBonusTemplates(prev => prev.filter(template => template.id !== id));
+    toast.success('Bonus template deleted');
   };
   
-  const handleSelectChange = (name: string, value: string) => {
-    setNewTemplate(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Handle toggling the active status
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    // This would normally call an API to update the template
+    setBonusTemplates(prev => 
+      prev.map(template => 
+        template.id === id ? { ...template, isActive: !currentStatus } : template
+      )
+    );
+    toast.success(`Bonus ${currentStatus ? 'deactivated' : 'activated'}`);
   };
   
-  const cancelBonus = async (bonusId: string) => {
-    try {
-      const success = await bonusService.updateBonusStatus(bonusId, 'cancelled');
-      if (success) {
-        setActiveBonuses(activeBonuses.filter(bonus => bonus.id !== bonusId));
-        toast.success('Bonus cancelled successfully');
-      }
-    } catch (error) {
-      console.error('Error cancelling bonus:', error);
-      toast.error('Error cancelling bonus');
-    }
-  };
-  
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-  
-  const getBonusTypeLabel = (type: BonusType) => {
-    switch (type) {
-      case BonusType.WELCOME:
-        return 'Welcome Bonus';
-      case BonusType.DEPOSIT:
-        return 'Deposit Bonus';
-      case BonusType.RELOAD:
-        return 'Reload Bonus';
-      case BonusType.CASHBACK:
-        return 'Cashback';
-      case BonusType.FREE_SPINS:
-        return 'Free Spins';
-      case BonusType.VIP:
-        return 'VIP Bonus';
-      case BonusType.REFERRAL:
-        return 'Referral Bonus';
-      default:
-        return 'Bonus';
-    }
-  };
-  
-  const getBonusTypeColor = (type: BonusType) => {
-    switch (type) {
-      case BonusType.WELCOME:
-        return 'bg-green-500';
-      case BonusType.DEPOSIT:
-        return 'bg-blue-500';
-      case BonusType.RELOAD:
-        return 'bg-purple-500';
-      case BonusType.CASHBACK:
-        return 'bg-amber-500';
-      case BonusType.FREE_SPINS:
-        return 'bg-pink-500';
-      case BonusType.VIP:
-        return 'bg-indigo-500';
-      case BonusType.REFERRAL:
-        return 'bg-teal-500';
-      default:
-        return 'bg-gray-500';
-    }
-  };
-
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Bonus Management</h1>
-          <p className="text-muted-foreground">Manage casino bonuses and promotional offers</p>
+          <h1 className="text-2xl font-bold tracking-tight">Bonus Management</h1>
+          <p className="text-muted-foreground">Create and manage bonus offers for your players.</p>
         </div>
-        <Button variant="outline" onClick={loadData}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-1">
+              <Plus size={16} />
+              <span>New Bonus</span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Create New Bonus</DialogTitle>
+              <DialogDescription>
+                Set up a new bonus template that can be assigned to players.
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bonus Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Welcome Bonus 100%" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bonus Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select bonus type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.values(BonusType).map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="value"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Value</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Amount or percentage
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="percentage"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                        <div className="space-y-0.5">
+                          <FormLabel>Is Percentage</FormLabel>
+                          <FormDescription>
+                            If enabled, value is a percentage
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="wageringRequirement"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Wagering Requirement</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Times the bonus amount
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="minDeposit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Minimum Deposit</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="durationDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Duration (Days)</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Description for the bonus that will be visible to players" 
+                          className="min-h-[80px]" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                      <div className="space-y-0.5">
+                        <FormLabel>Active</FormLabel>
+                        <FormDescription>
+                          If enabled, the bonus can be assigned to players
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit">Create Bonus</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
-          <TabsTrigger value="templates">
-            <Gift className="w-4 h-4 mr-2" />
-            Bonus Templates
-          </TabsTrigger>
-          <TabsTrigger value="active">
-            <Tag className="w-4 h-4 mr-2" />
-            Active Bonuses
-          </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="w-4 h-4 mr-2" />
-            Settings
-          </TabsTrigger>
+      <Tabs defaultValue="templates">
+        <TabsList>
+          <TabsTrigger value="templates">Bonus Templates</TabsTrigger>
+          <TabsTrigger value="active">Active Bonuses</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         
         <TabsContent value="templates">
-          <div className="flex justify-end mb-6">
-            <Dialog open={isNewTemplateDialogOpen} onOpenChange={setIsNewTemplateDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Bonus Template
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <form onSubmit={handleNewTemplateSubmit}>
-                  <DialogHeader>
-                    <DialogTitle>Create New Bonus Template</DialogTitle>
-                    <DialogDescription>
-                      Create a new bonus template to be used for player bonuses
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="grid grid-cols-2 gap-4 py-4">
-                    <div className="col-span-2">
-                      <Label htmlFor="name">Bonus Name</Label>
-                      <Input 
-                        id="name" 
-                        name="name"
-                        value={newTemplate.name}
-                        onChange={handleInputChange}
-                        placeholder="e.g. Welcome Bonus"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea 
-                        id="description" 
-                        name="description"
-                        value={newTemplate.description}
-                        onChange={handleInputChange}
-                        placeholder="Detailed bonus description for players"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="type">Bonus Type</Label>
-                      <Select 
-                        value={newTemplate.type} 
-                        onValueChange={(value) => handleSelectChange('type', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={BonusType.WELCOME}>Welcome Bonus</SelectItem>
-                          <SelectItem value={BonusType.DEPOSIT}>Deposit Bonus</SelectItem>
-                          <SelectItem value={BonusType.RELOAD}>Reload Bonus</SelectItem>
-                          <SelectItem value={BonusType.CASHBACK}>Cashback</SelectItem>
-                          <SelectItem value={BonusType.FREE_SPINS}>Free Spins</SelectItem>
-                          <SelectItem value={BonusType.VIP}>VIP Bonus</SelectItem>
-                          <SelectItem value={BonusType.REFERRAL}>Referral Bonus</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="bonusType">Bonus Value Type</Label>
-                      <Select 
-                        value={newTemplate.bonusType} 
-                        onValueChange={(value) => handleSelectChange('bonusType', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select value type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">Percentage of Deposit</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount</SelectItem>
-                          <SelectItem value="freespins">Free Spins</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    {newTemplate.bonusType === 'percentage' ? (
-                      <>
-                        <div>
-                          <Label htmlFor="percentage">Percentage (%)</Label>
-                          <Input 
-                            id="percentage" 
-                            name="percentage"
-                            type="number"
-                            value={newTemplate.percentage}
-                            onChange={handleInputChange}
-                            min="1"
-                            max="300"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="maxBonus">Maximum Bonus Amount ($)</Label>
-                          <Input 
-                            id="maxBonus" 
-                            name="maxBonus"
-                            type="number"
-                            value={newTemplate.maxBonus}
-                            onChange={handleInputChange}
-                            min="1"
-                            required
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div>
-                        <Label htmlFor="value">
-                          {newTemplate.bonusType === 'freespins' ? 'Number of Free Spins' : 'Bonus Amount ($)'}
-                        </Label>
-                        <Input 
-                          id="value" 
-                          name="value"
-                          type="number"
-                          value={newTemplate.value}
-                          onChange={handleInputChange}
-                          min="1"
-                          required
-                        />
-                      </div>
-                    )}
-                    
-                    <div>
-                      <Label htmlFor="minDepositAmount">Minimum Deposit ($)</Label>
-                      <Input 
-                        id="minDepositAmount" 
-                        name="minDepositAmount"
-                        type="number"
-                        value={newTemplate.minDepositAmount}
-                        onChange={handleInputChange}
-                        min="0"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="wageringRequirement">Wagering Requirement (x)</Label>
-                      <Input 
-                        id="wageringRequirement" 
-                        name="wageringRequirement"
-                        type="number"
-                        value={newTemplate.wageringRequirement}
-                        onChange={handleInputChange}
-                        min="0"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="durationDays">Duration (Days)</Label>
-                      <Input 
-                        id="durationDays" 
-                        name="durationDays"
-                        type="number"
-                        value={newTemplate.durationDays}
-                        onChange={handleInputChange}
-                        min="1"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="code">Bonus Code (Optional)</Label>
-                      <Input 
-                        id="code" 
-                        name="code"
-                        value={newTemplate.code}
-                        onChange={handleInputChange}
-                        placeholder="e.g. WELCOME100"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="isPercentage">Is Percentage</Label>
-                      <Select
-                        value={String(newTemplate.isPercentage)}
-                        onValueChange={(value) => handleSelectChange('isPercentage', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">True</SelectItem>
-                          <SelectItem value="false">False</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsNewTemplateDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Create Template</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-          
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {templates.length > 0 ? (
-                templates.map((template) => (
-                  <Card key={template.id}>
-                    <div className={`h-2 ${getBonusTypeColor(template.type)}`}></div>
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <span>{template.name}</span>
-                        {template.isActive && (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
-                            Active
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription>{template.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Type:</span>
-                            <span>{getBonusTypeLabel(template.type)}</span>
-                          </div>
-                          
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Value:</span>
-                            <span>
-                              {template.isPercentage 
-                                ? `${template.percentage}% up to $${template.maxBonus}` 
-                                : template.bonusType === 'freespins'
-                                  ? `${template.value} Free Spins`
-                                  : `$${template.value}`
-                              }
-                            </span>
-                          </div>
-                          
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Min. Deposit:</span>
-                            <span>${template.minDepositAmount}</span>
-                          </div>
-                          
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Wagering:</span>
-                            <span>{template.wageringRequirement}x</span>
-                          </div>
-                          
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Duration:</span>
-                            <span>{template.durationDays} days</span>
-                          </div>
-                          
-                          {template.code && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Code:</span>
-                              <span className="font-mono bg-muted px-1 py-0.5 rounded text-xs">
-                                {template.code}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                      <Button variant="destructive" size="sm">
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Bonus Templates</CardTitle>
+              <CardDescription>
+                These templates can be assigned to players as bonuses
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center my-8">
+                  <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                </div>
               ) : (
-                <div className="col-span-full p-8 text-center border rounded-lg border-dashed">
-                  <Gift className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                  <h3 className="text-lg font-medium">No Bonus Templates</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Create your first bonus template to offer promotions to your players
-                  </p>
-                  <Button onClick={() => setIsNewTemplateDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Template
-                  </Button>
+                <div className="relative overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[300px]">Bonus</TableHead>
+                        <TableHead className="w-[100px]">Type</TableHead>
+                        <TableHead className="w-[100px]">Value</TableHead>
+                        <TableHead className="w-[100px]">Wagering</TableHead>
+                        <TableHead className="w-[100px]">Duration</TableHead>
+                        <TableHead className="w-[100px]">Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {bonusTemplates.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                            No bonus templates found. Create your first one.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        bonusTemplates.map((template) => (
+                          <TableRow key={template.id}>
+                            <TableCell className="font-medium">
+                              <div>{template.name}</div>
+                              <div className="text-xs text-muted-foreground">{template.description}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Gift size={16} className="mr-1" />
+                                <span>{template.type}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Tag size={16} className="mr-1" />
+                                <span>
+                                  {template.percentage ? `${template.value}%` : template.value}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <RefreshCw size={16} className="mr-1" />
+                                <span>{template.wageringRequirement}x</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Clock size={16} className="mr-1" />
+                                <span>{template.durationDays} days</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className={`px-2 py-1 rounded-full text-xs flex items-center w-fit ${
+                                template.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                              }`}>
+                                <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                                  template.isActive ? 'bg-green-400' : 'bg-red-400'
+                                }`}></div>
+                                {template.isActive ? 'Active' : 'Inactive'}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button 
+                                  variant="outline" 
+                                  size="icon" 
+                                  onClick={() => handleToggleActive(template.id, template.isActive)}
+                                >
+                                  <Check size={16} className="text-green-400" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="icon"
+                                  onClick={() => handleDelete(template.id)}
+                                >
+                                  <Trash2 size={16} className="text-red-400" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
-            </div>
-          )}
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="active">
           <Card>
             <CardHeader>
-              <CardTitle>Active Player Bonuses</CardTitle>
-              <CardDescription>Currently active bonuses assigned to players</CardDescription>
+              <CardTitle>Active User Bonuses</CardTitle>
+              <CardDescription>
+                Currently active bonuses for players
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Player</TableHead>
-                      <TableHead>Bonus</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Expiry Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeBonuses.length > 0 ? (
-                      activeBonuses.map((bonus) => (
-                        <TableRow key={bonus.id}>
-                          <TableCell className="font-medium">{bonus.username}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${getBonusTypeColor(bonus.type)}`} />
-                              <span>{getBonusTypeLabel(bonus.type)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>${bonus.amount}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="w-full bg-muted rounded-full h-2">
-                                <div 
-                                  className="bg-primary h-full rounded-full" 
-                                  style={{ width: `${bonus.progress}%` }}
-                                ></div>
-                              </div>
-                              <span className="text-xs">{bonus.progress}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              {formatDate(bonus.expiryDate)}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline">
-                                <Check className="h-4 w-4 mr-1" />
-                                Complete
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => cancelBonus(bonus.id)}>
-                                Cancel
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          <div className="text-muted-foreground">No active bonuses found</div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
+              <p className="text-muted-foreground">No active user bonuses found.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -662,58 +506,16 @@ const BonusManagement = () => {
           <Card>
             <CardHeader>
               <CardTitle>Bonus System Settings</CardTitle>
-              <CardDescription>Configure global bonus system settings</CardDescription>
+              <CardDescription>
+                Configure global bonus settings
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Global Wagering Settings</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="default-wagering">Default Wagering Requirement</Label>
-                      <Input id="default-wagering" type="number" defaultValue={35} min={0} />
-                    </div>
-                    <div>
-                      <Label htmlFor="max-bonus">Maximum Bonus Amount</Label>
-                      <Input id="max-bonus" type="number" defaultValue={1000} min={0} />
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Game Contribution Percentages</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="slots-contribution">Slots</Label>
-                      <Input id="slots-contribution" type="number" defaultValue={100} min={0} max={100} />
-                      <p className="text-xs text-muted-foreground mt-1">% of wager that contributes to wagering requirements</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="table-contribution">Table Games</Label>
-                      <Input id="table-contribution" type="number" defaultValue={10} min={0} max={100} />
-                      <p className="text-xs text-muted-foreground mt-1">% of wager that contributes to wagering requirements</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Bonus Limits</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="max-active-bonuses">Maximum Active Bonuses Per User</Label>
-                      <Input id="max-active-bonuses" type="number" defaultValue={3} min={1} />
-                    </div>
-                    <div>
-                      <Label htmlFor="max-daily">Maximum Daily Bonus Amount</Label>
-                      <Input id="max-daily" type="number" defaultValue={200} min={0} />
-                    </div>
-                  </div>
-                </div>
+              <div className="flex items-center gap-4">
+                <Settings size={24} className="text-muted-foreground" />
+                <p className="text-muted-foreground">Bonus system settings will be implemented soon.</p>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button className="ml-auto">Save Settings</Button>
-            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

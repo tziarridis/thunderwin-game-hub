@@ -79,14 +79,14 @@ export interface BonusTemplate {
   name: string;
   type: BonusType;
   value: number;
-  isPercentage: boolean;
+  percentage?: boolean; // Changed from isPercentage
   minDepositAmount?: number;
   maxBonusAmount?: number;
   wageringRequirement: number;
   durationDays: number;
   description: string;
   isActive: boolean;
-  forVipLevels?: number[];
+  forVipLevels: number[];
 }
 
 export interface UserBonus {

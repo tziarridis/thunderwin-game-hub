@@ -6,11 +6,11 @@ interface CreateBonusTemplateParams {
   name: string;
   type: BonusType;
   value: number;
-  isPercentage: boolean;
+  percentage: boolean; // Changed from isPercentage
   minDepositAmount?: number;
   maxBonusAmount?: number;
   wageringRequirement: number;
-  durationDays: number;
+  durationDays: number;  // Changed from validityDays
   description: string;
 }
 
@@ -27,24 +27,26 @@ const mockBonusTemplates: BonusTemplate[] = [
     name: "Welcome Bonus 100%",
     type: BonusType.WELCOME,
     value: 100,
-    isPercentage: true,
+    percentage: true,  // Changed from isPercentage
     minDepositAmount: 10,
     maxBonusAmount: 200,
     wageringRequirement: 35,
     durationDays: 30,
     description: "100% bonus on your first deposit up to $200",
-    isActive: true
+    isActive: true,
+    forVipLevels: [1, 2, 3]
   },
   {
     id: "2",
     name: "Free Spins",
     type: BonusType.FREE_SPINS,
     value: 50,
-    isPercentage: false,
+    percentage: false,  // Changed from isPercentage
     wageringRequirement: 40,
     durationDays: 7,
     description: "50 free spins on selected slots",
-    isActive: true
+    isActive: true,
+    forVipLevels: [1, 2, 3, 4, 5]
   }
 ];
 
@@ -76,7 +78,7 @@ export const createBonusTemplate = async (params: CreateBonusTemplateParams): Pr
       id: `template-${Date.now()}`,
       ...params,
       isActive: true,
-      // No need to add durationDays explicitly as it's already in params
+      forVipLevels: [1, 2, 3] // Default VIP levels if not provided
     };
     
     mockBonusTemplates.push(newTemplate);
