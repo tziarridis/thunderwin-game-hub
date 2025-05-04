@@ -1,6 +1,4 @@
-
 import { useState } from 'react';
-import { User } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +10,28 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+
+// Update User interface to match the one in UserProfile.tsx
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  name?: string;
+  phone?: string;
+  ipAddress?: string;
+  balance: number;
+  vipLevel: number;
+  status: string;
+  isVerified: boolean;
+  isAdmin?: boolean;
+  role?: string;
+  lastLogin?: string;
+  created_at?: string;
+  updated_at?: string;
+  joined: string;
+  favoriteGames: string[];
+}
 
 export interface UserInfoFormProps {
   user: User;
@@ -23,6 +42,7 @@ const UserInfoForm = ({ user, onSubmit }: UserInfoFormProps) => {
   const [userData, setUserData] = useState<User>({...user});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  
   
   const handleChange = (field: keyof User, value: any) => {
     setUserData((prev) => ({ ...prev, [field]: value }));
@@ -59,7 +79,7 @@ const UserInfoForm = ({ user, onSubmit }: UserInfoFormProps) => {
           <Label htmlFor="name">Name</Label>
           <Input 
             id="name" 
-            value={userData.name} 
+            value={userData.name || ''} 
             onChange={(e) => handleChange('name', e.target.value)} 
           />
         </div>

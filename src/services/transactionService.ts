@@ -62,12 +62,12 @@ export const getTransactions = async (userId: string): Promise<Transaction[]> =>
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description,
-        paymentMethod: transaction.payment_method || transaction.provider,
-        gameId: transaction.game_id,
-        bonusId: transaction.bonus_id,
-        balance: transaction.balance_after,
-        referenceId: transaction.reference_id || transaction.round_id
+        description: transaction.description || undefined,
+        paymentMethod: transaction.payment_method || transaction.provider || undefined,
+        gameId: transaction.game_id || undefined,
+        bonusId: transaction.bonus_id || undefined,
+        balance: transaction.balance_after || undefined,
+        referenceId: transaction.reference_id || transaction.round_id || undefined
       }));
     }
     
@@ -356,12 +356,12 @@ export const getTransactionsByPlayerId = async (player_id: string, limit: number
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description,
-        paymentMethod: transaction.payment_method || transaction.provider,
-        gameId: transaction.game_id,
-        bonusId: transaction.bonus_id,
-        balance: transaction.balance_after,
-        referenceId: transaction.reference_id || transaction.round_id
+        description: transaction.description || undefined,
+        paymentMethod: transaction.payment_method || transaction.provider || undefined,
+        gameId: transaction.game_id || undefined,
+        bonusId: transaction.bonus_id || undefined,
+        balance: transaction.balance_after || undefined,
+        referenceId: transaction.reference_id || transaction.round_id || undefined
       }));
     }
     
