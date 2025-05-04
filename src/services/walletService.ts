@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,7 +18,7 @@ export interface Wallet {
   total_won?: number;
   total_bet?: number;
   total_lose?: number;
-  vip_level?: number | null;
+  vip_level: number | null;
   vip_points?: number | null;
 }
 

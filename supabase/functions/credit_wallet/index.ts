@@ -35,7 +35,11 @@ serve(async (req) => {
     }
 
     // Get the request body
-    const { userId, amount, type, provider, gameId } = await req.json();
+    const requestData = await req.json();
+    const { userId, amount, type, provider, gameId } = requestData;
+
+    // Log the incoming request for debugging
+    console.log("Credit wallet request:", { userId, amount, type, provider, gameId });
 
     // Validate inputs
     if (!userId || !amount || amount <= 0 || !type) {
@@ -69,12 +73,13 @@ serve(async (req) => {
       .update({
         balance: newBalance,
         updated_at: new Date().toISOString(),
-        total_won: type === 'win' ? wallet.total_won + amount : wallet.total_won,
+        total_won: type === 'win' ? (wallet.total_won || 0) + amount : (wallet.total_won || 0),
         last_won: type === 'win' ? amount : wallet.last_won
       })
       .eq('id', wallet.id);
 
     if (updateError) {
+      console.error("Error updating wallet:", updateError);
       throw updateError;
     }
 
@@ -90,14 +95,21 @@ serve(async (req) => {
         game_id: gameId,
         status: 'completed',
         balance_before: wallet.balance,
-        balance_after: newBalance
+        balance_after: newBalance,
+        description: `${type.charAt(0).toUpperCase() + type.slice(1)} of ${amount} ${wallet.currency}`
       })
       .select()
       .single();
 
     if (transactionError) {
+      console.error("Error creating transaction:", transactionError);
       throw transactionError;
     }
+
+    console.log("Credit wallet successful:", { 
+      newBalance, 
+      transactionId: transaction.id 
+    });
 
     // Return success response
     return new Response(

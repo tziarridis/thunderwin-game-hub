@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Transaction } from '@/types';
@@ -9,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import UserInfoForm from '@/components/admin/UserInfoForm';
 import { Separator } from '@/components/ui/separator';
-import { getWalletByUserId } from '@/services/walletService';
+import { getWalletByUserId, Wallet } from '@/services/walletService';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -57,17 +56,6 @@ interface SupabaseUser {
   affiliate_revenue_share_fake?: number;
 }
 
-// Interface for wallet data
-interface Wallet {
-  id: string;
-  user_id: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  vip_level: number | null;
-  active: boolean;
-}
-
 const UserProfile = () => {
   const { userId } = useParams();
   const [user, setUser] = useState<User | null>(null);
@@ -95,6 +83,7 @@ const UserProfile = () => {
           const walletData = await getWalletByUserId(userId);
           
           if (walletData) {
+            // Fix: Use the setState function correctly
             setWallet(walletData);
           }
           
@@ -225,11 +214,11 @@ const UserProfile = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">User Profile: {user?.username}</h1>
         <div className="flex space-x-2">
-          <Badge variant={user.isAdmin ? "default" : "outline"}>
-            {user.role || "User"}
+          <Badge variant={user?.isAdmin ? "default" : "outline"}>
+            {user?.role || "User"}
           </Badge>
-          <Badge variant={user.status === 'active' ? "success" : "destructive"}>
-            {user.status}
+          <Badge variant={user?.status === 'active' ? "success" : "destructive"}>
+            {user?.status}
           </Badge>
         </div>
       </div>

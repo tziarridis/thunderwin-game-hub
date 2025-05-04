@@ -150,12 +150,12 @@ export const getTransactionById = async (id: string): Promise<Transaction | null
         currency: transaction.currency,
         status: transaction.status,
         date: transaction.created_at,
-        description: transaction.description,
-        paymentMethod: transaction.payment_method || transaction.provider,
-        gameId: transaction.game_id,
-        bonusId: transaction.bonus_id,
-        balance: transaction.balance_after,
-        referenceId: transaction.reference_id || transaction.round_id
+        description: transaction.description || "",
+        paymentMethod: transaction.payment_method || transaction.provider || "",
+        gameId: transaction.game_id || "",
+        bonusId: transaction.bonus_id || "",
+        balance: transaction.balance_after || 0,
+        referenceId: transaction.reference_id || transaction.round_id || ""
       };
     }
     
@@ -215,12 +215,12 @@ function mapTransactionsFromDb(transactions: RawTransaction[]): Transaction[] {
     currency: transaction.currency,
     status: transaction.status,
     date: transaction.created_at,
-    description: transaction.description,
-    paymentMethod: transaction.payment_method || transaction.provider,
-    gameId: transaction.game_id,
-    bonusId: transaction.bonus_id,
-    balance: transaction.balance_after,
-    referenceId: transaction.reference_id || transaction.round_id
+    description: transaction.description || "",
+    paymentMethod: transaction.payment_method || transaction.provider || "",
+    gameId: transaction.game_id || "",
+    bonusId: transaction.bonus_id || "",
+    balance: transaction.balance_after || 0,
+    referenceId: transaction.reference_id || transaction.round_id || ""
   }));
 }
 
