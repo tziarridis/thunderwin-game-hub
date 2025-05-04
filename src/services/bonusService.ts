@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { BonusType, BonusTemplate, UserBonus } from "@/types";
+import { BonusType, UserBonus } from "@/types/bonus";
+import { BonusTemplate } from "@/types";
 import { toast } from "sonner";
 
 // Mock data for bonus templates (since the Supabase table doesn't exist yet)

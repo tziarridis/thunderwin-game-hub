@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,17 +10,19 @@ import {
   Calendar,
   Edit,
   Upload,
-  Gift
+  Gift,
+  Wallet
 } from "lucide-react";
 import DepositButton from "@/components/user/DepositButton";
 import WalletBalance from "@/components/user/WalletBalance";
-import { walletService, Wallet } from "@/services/walletService";
+import { walletService } from "@/services/walletService";
+import { Wallet as WalletType } from "@/types/wallet";
 
 const Profile = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [wallet, setWallet] = useState<WalletType | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {

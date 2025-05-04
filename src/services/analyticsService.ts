@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { AnalyticsData, GameAnalytics } from "@/types";
+import { AnalyticsData, GameAnalytics, UserGrowthData } from "@/types/analytics";
 
 export const fetchDailyAnalytics = async (): Promise<AnalyticsData[]> => {
   try {
@@ -68,7 +68,7 @@ export const fetchGameAnalytics = async (): Promise<GameAnalytics[]> => {
   }
 };
 
-export const fetchUserGrowthData = async () => {
+export const fetchUserGrowthData = async (): Promise<UserGrowthData[]> => {
   try {
     // Mock user growth data
     return [

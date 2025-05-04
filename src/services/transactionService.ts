@@ -1,4 +1,3 @@
-
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -296,7 +295,10 @@ export const getTransactionsWithFilters = async (
     }
     
     // Get count
-    const { count } = await query.select('id', { count: 'exact', head: true });
+    const { data: countData, error: countError } = await query.count();
+
+    if (countError) throw countError;
+    const total = countData || 0;
     
     // Get data with range
     const { data, error } = await query
@@ -309,7 +311,7 @@ export const getTransactionsWithFilters = async (
     
     return {
       transactions,
-      total: count || 0
+      total
     };
     
   } catch (error) {

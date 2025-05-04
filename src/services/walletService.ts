@@ -1,39 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Wallet, WalletTransaction } from '@/types/wallet';
 
 /**
  * Wallet Service
  * Handles all wallet-related operations for the casino
  */
-export interface Wallet {
-  id: string;
-  user_id: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  active: boolean;
-  created_at: string;
-  updated_at?: string;
-  balance_bonus?: number;
-  total_won?: number;
-  total_bet?: number;
-  total_lose?: number;
-  vip_level: number | null;
-  vip_points?: number | null;
-}
-
-export interface WalletTransaction {
-  id: string;
-  user_id: string;
-  amount: number;
-  currency: string;
-  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
-  status: 'pending' | 'completed' | 'failed';
-  created_at: string;
-  provider?: string;
-  game_id?: string;
-  round_id?: string;
-}
 
 /**
  * Get a user's wallet or create if it doesn't exist

@@ -1,16 +1,15 @@
-
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import analyticsService from "@/services/analyticsService";
-import { AnalyticsData, GameAnalytics } from "@/types";
+import { AnalyticsData, GameAnalytics, UserGrowthData } from "@/types/analytics";
 
 const AnalyticsDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [dailyStats, setDailyStats] = useState<AnalyticsData[]>([]);
   const [gameStats, setGameStats] = useState<GameAnalytics[]>([]);
-  const [userGrowth, setUserGrowth] = useState<{ date: string; active: number; new: number; }[]>([]);
+  const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
   const [bonusStats, setBonusStats] = useState({
     totalBonusesIssued: 0,
     bonusAmountAwarded: 0,
