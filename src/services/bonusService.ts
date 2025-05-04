@@ -30,7 +30,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     isPercentage: true,
     minDepositAmount: 10,
     maxBonusAmount: 200,
-    wageringRequirements: 35,
+    wageringRequirement: 35,
     validityDays: 30,
     description: "100% bonus on your first deposit up to $200",
     isActive: true
@@ -41,7 +41,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     type: BonusType.FREE_SPINS,
     value: 50,
     isPercentage: false,
-    wageringRequirements: 40,
+    wageringRequirement: 40,
     validityDays: 7,
     description: "50 free spins on selected slots",
     isActive: true
@@ -75,7 +75,9 @@ export const createBonusTemplate = async (params: CreateBonusTemplateParams): Pr
     const newTemplate: BonusTemplate = {
       id: `template-${Date.now()}`,
       ...params,
-      isActive: true
+      isActive: true,
+      wageringRequirement: params.wageringRequirements,
+      // No need to add validityDays explicitly as it's already in params
     };
     
     mockBonusTemplates.push(newTemplate);
@@ -103,7 +105,7 @@ export const assignBonusToUser = async (params: AssignBonusParams): Promise<User
       templateId,
       type: template.type,
       value: value || template.value,
-      wageringRequired: template.wageringRequirements * (value || template.value),
+      wageringRequired: template.wageringRequirement * (value || template.value),
       wageringCompleted: 0,
       expiresAt: new Date(Date.now() + template.validityDays * 24 * 60 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
@@ -145,10 +147,36 @@ export const updateUserBonusWagering = async (
   }
 };
 
+// Mock function for BonusManagement.tsx
+export const updateBonusStatus = async (bonusId: string, status: string): Promise<boolean> => {
+  try {
+    const index = mockUserBonuses.findIndex(b => b.id === bonusId);
+    if (index !== -1) {
+      mockUserBonuses[index].status = status as 'ACTIVE' | 'COMPLETED' | 'EXPIRED' | 'CANCELED';
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error updating bonus status:', error);
+    return false;
+  }
+};
+
+// Export as bonusService object for BonusManagement.tsx
+export const bonusService = {
+  getBonusTemplates,
+  getUserBonuses,
+  createBonusTemplate,
+  assignBonusToUser,
+  updateUserBonusWagering,
+  updateBonusStatus
+};
+
 export default {
   getBonusTemplates,
   getUserBonuses,
   createBonusTemplate,
   assignBonusToUser,
-  updateUserBonusWagering
+  updateUserBonusWagering,
+  updateBonusStatus
 };

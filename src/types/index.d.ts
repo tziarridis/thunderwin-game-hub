@@ -83,7 +83,7 @@ export interface BonusTemplate {
   isPercentage: boolean;
   minDepositAmount?: number;
   maxBonusAmount?: number;
-  wageringRequirements: number;
+  wageringRequirement: number;
   validityDays: number;
   description: string;
   isActive: boolean;

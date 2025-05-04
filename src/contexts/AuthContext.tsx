@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
       
-      return data;
+      // Explicitly returning void
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -96,7 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
       
-      return data;
+      // Explicitly returning void
     } catch (error) {
       console.error("Register error:", error);
       throw error;
@@ -137,7 +137,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error("Not an admin");
       }
       
-      return data;
+      // Explicitly returning void
     } catch (error) {
       console.error("Admin login error:", error);
       throw error;
@@ -194,6 +194,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               .eq('id', session.user.id)
               .single();
               
+            // Add a fallback for is_admin property
             setIsAdmin(!!data?.is_admin);
             setUser(session.user);
             setIsLoading(false);
@@ -216,6 +217,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .eq('id', session.user.id)
           .single()
           .then(({ data }) => {
+            // Add a fallback for is_admin property
             setIsAdmin(!!data?.is_admin);
             setUser(session.user);
             setIsLoading(false);

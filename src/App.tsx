@@ -4,22 +4,22 @@ import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { Session } from '@supabase/supabase-js';
-import { Layout } from '@/components/layout/Layout';
-import { Home } from '@/pages/Home';
-import { Profile } from '@/pages/Profile';
-import { Games } from '@/pages/Games';
-import { Transactions } from '@/pages/Transactions';
+import Layout from '@/components/layout/Layout';
+import Home from '@/pages/Home';
+import Profile from '@/pages/Profile';
+import Games from '@/pages/Games';
+import Transactions from '@/pages/Transactions';
 import { AuthContext } from '@/contexts/AuthContext';
-import { AdminLayout } from '@/components/layout/AdminLayout';
-import { Dashboard } from '@/pages/admin/Dashboard';
-import { Users } from '@/pages/admin/Users';
-import { GamesAdmin } from '@/pages/admin/GamesAdmin';
-import { ReportsPage } from '@/pages/admin/Reports';
-import { Promotions } from '@/pages/promotions/Promotions';
-import { BonusHub } from '@/pages/bonuses/BonusHub';
+import AdminLayout from '@/components/layout/AdminLayout';
+import Dashboard from '@/pages/admin/Dashboard';
+import Users from '@/pages/admin/Users';
+import GamesAdmin from '@/pages/admin/GamesAdmin';
+import ReportsPage from '@/pages/admin/Reports';
+import Promotions from '@/pages/promotions/Promotions';
+import BonusHub from '@/pages/bonuses/BonusHub';
 import { AdminProtected } from '@/components/auth/AdminProtected';
-import { BonusManagement } from '@/pages/admin/BonusManagement';
-import { AnalyticsDashboard } from '@/pages/admin/AnalyticsDashboard';
+import BonusManagement from '@/pages/admin/BonusManagement';
+import AnalyticsDashboard from '@/pages/admin/AnalyticsDashboard';
 
 const App = () => {
   const session: Session | null = useSession();
@@ -27,6 +27,7 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -45,8 +46,10 @@ const App = () => {
         } else {
           setIsAdmin(data?.is_admin || false);
         }
+        setUser(session.user);
       } else {
         setIsAdmin(false);
+        setUser(null);
       }
       setIsLoading(false);
     };
@@ -56,7 +59,7 @@ const App = () => {
 
   const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return (
-      <AuthContext.Provider value={{ isAuthenticated, isAdmin, isLoading }}>
+      <AuthContext.Provider value={{ isAuthenticated, isAdmin, isLoading, user }}>
         {children}
       </AuthContext.Provider>
     );
@@ -93,6 +96,7 @@ const App = () => {
               </div>
             }
           />
+          
           <Route
             path="/register"
             element={
@@ -213,8 +217,8 @@ const App = () => {
               </AdminProtected>
             }
           />
-          <Route path="/admin/bonus-management" element={<AdminProtected><BonusManagement /></AdminProtected>} />
-          <Route path="/admin/analytics" element={<AdminProtected><AnalyticsDashboard /></AdminProtected>} />
+          <Route path="/admin/bonus-management" element={<AdminProtected><AdminLayout><BonusManagement /></AdminLayout></AdminProtected>} />
+          <Route path="/admin/analytics" element={<AdminProtected><AdminLayout><AnalyticsDashboard /></AdminLayout></AdminProtected>} />
         </Routes>
       </Router>
     </AuthProvider>
