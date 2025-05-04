@@ -99,7 +99,7 @@ export const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date
       currency: data.currency,
       status: data.status,
       date: data.created_at,
-      description: data.description,
+      description: data.description || "",
       paymentMethod: data.payment_method || data.provider,
       gameId: data.game_id,
       bonusId: data.bonus_id,
@@ -268,15 +268,15 @@ export const getTransactionsWithFilters = async (
     }
     
     if (filters?.type) {
-      query = query.eq('type', filters.type);
+      query = query.eq('type', filter.type);
     }
     
     if (filters?.status) {
-      query = query.eq('status', filters.status);
+      query = query.eq('status', filter.status);
     }
     
     if (filters?.provider) {
-      query = query.eq('provider', filters.provider);
+      query = query.eq('provider', filter.provider);
     }
     
     if (filters?.startDate) {
