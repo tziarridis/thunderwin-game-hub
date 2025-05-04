@@ -1,3 +1,4 @@
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -46,4 +47,25 @@ export interface UserBonus {
   wageringRequirement: number;
   wageringCompleted: number;
   type: string;
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number;
+  minDeposit: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
+}
+
+export type BonusType = 'deposit' | 'free_spins' | 'cashback' | 'loyalty' | 'welcome';
+
+export interface MetaMaskDepositProps {
+  amount: number;
+  onSuccess: () => void;
+  onError: (error: Error) => void;
 }

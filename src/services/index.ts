@@ -5,3 +5,4 @@ export { default as bonusService } from './bonusService';
 export { default as walletService } from './walletService';
 export { default as transactionService } from './transactionService';
 export { default as transactionEnrichService } from './transactionEnrichService';
+export { default as metamaskService } from './metamaskService';
