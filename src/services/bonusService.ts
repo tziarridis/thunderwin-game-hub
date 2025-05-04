@@ -9,8 +9,8 @@ interface CreateBonusTemplateParams {
   isPercentage: boolean;
   minDepositAmount?: number;
   maxBonusAmount?: number;
-  wageringRequirements: number;
-  validityDays: number;
+  wageringRequirement: number;
+  durationDays: number;
   description: string;
 }
 
@@ -31,7 +31,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     minDepositAmount: 10,
     maxBonusAmount: 200,
     wageringRequirement: 35,
-    validityDays: 30,
+    durationDays: 30,
     description: "100% bonus on your first deposit up to $200",
     isActive: true
   },
@@ -42,7 +42,7 @@ const mockBonusTemplates: BonusTemplate[] = [
     value: 50,
     isPercentage: false,
     wageringRequirement: 40,
-    validityDays: 7,
+    durationDays: 7,
     description: "50 free spins on selected slots",
     isActive: true
   }
@@ -76,8 +76,7 @@ export const createBonusTemplate = async (params: CreateBonusTemplateParams): Pr
       id: `template-${Date.now()}`,
       ...params,
       isActive: true,
-      wageringRequirement: params.wageringRequirements,
-      // No need to add validityDays explicitly as it's already in params
+      // No need to add durationDays explicitly as it's already in params
     };
     
     mockBonusTemplates.push(newTemplate);
@@ -107,7 +106,7 @@ export const assignBonusToUser = async (params: AssignBonusParams): Promise<User
       value: value || template.value,
       wageringRequired: template.wageringRequirement * (value || template.value),
       wageringCompleted: 0,
-      expiresAt: new Date(Date.now() + template.validityDays * 24 * 60 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + template.durationDays * 24 * 60 * 60 * 1000).toISOString(),
       createdAt: new Date().toISOString(),
       status: 'ACTIVE',
       balance: value || template.value
@@ -172,11 +171,4 @@ export const bonusService = {
   updateBonusStatus
 };
 
-export default {
-  getBonusTemplates,
-  getUserBonuses,
-  createBonusTemplate,
-  assignBonusToUser,
-  updateUserBonusWagering,
-  updateBonusStatus
-};
+export default bonusService;

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { Auth } from '@supabase/auth-ui-react';
@@ -57,12 +58,12 @@ const App = () => {
     checkAuth();
   }, [session, supabase]);
 
-  const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-    return (
-      <AuthContext.Provider value={{ isAuthenticated, isAdmin, isLoading, user }}>
-        {children}
-      </AuthContext.Provider>
-    );
+  // TypeScript fix - explicitly pass user to avoid type errors
+  const authContextValue = { 
+    isAuthenticated, 
+    isAdmin, 
+    isLoading, 
+    user 
   };
 
   const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -78,7 +79,7 @@ const App = () => {
   };
 
   return (
-    <AuthProvider>
+    <AuthContext.Provider value={authContextValue}>
       <Router>
         <Routes>
           <Route
@@ -217,11 +218,29 @@ const App = () => {
               </AdminProtected>
             }
           />
-          <Route path="/admin/bonus-management" element={<AdminProtected><AdminLayout><BonusManagement /></AdminLayout></AdminProtected>} />
-          <Route path="/admin/analytics" element={<AdminProtected><AdminLayout><AnalyticsDashboard /></AdminLayout></AdminProtected>} />
+          <Route 
+            path="/admin/bonus-management" 
+            element={
+              <AdminProtected>
+                <AdminLayout>
+                  <BonusManagement />
+                </AdminLayout>
+              </AdminProtected>
+            } 
+          />
+          <Route 
+            path="/admin/analytics" 
+            element={
+              <AdminProtected>
+                <AdminLayout>
+                  <AnalyticsDashboard />
+                </AdminLayout>
+              </AdminProtected>
+            } 
+          />
         </Routes>
       </Router>
-    </AuthProvider>
+    </AuthContext.Provider>
   );
 };
 

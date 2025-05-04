@@ -127,7 +127,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', data.user?.id)
         .single();
       
-      if (!profileData?.is_admin) {
+      // Check for is_admin property - handle case when it might not exist
+      if (!(profileData && 'is_admin' in profileData && profileData.is_admin)) {
         toast({
           variant: "destructive",
           title: "Access denied",
@@ -194,8 +195,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               .eq('id', session.user.id)
               .single();
               
-            // Add a fallback for is_admin property
-            setIsAdmin(!!data?.is_admin);
+            // Safely check for is_admin property
+            setIsAdmin(!!(data && 'is_admin' in data && data.is_admin));
             setUser(session.user);
             setIsLoading(false);
           }, 0);
@@ -217,8 +218,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .eq('id', session.user.id)
           .single()
           .then(({ data }) => {
-            // Add a fallback for is_admin property
-            setIsAdmin(!!data?.is_admin);
+            // Safely check for is_admin property
+            setIsAdmin(!!(data && 'is_admin' in data && data.is_admin));
             setUser(session.user);
             setIsLoading(false);
           });

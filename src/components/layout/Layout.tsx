@@ -1,9 +1,13 @@
 
-import { Outlet } from "react-router-dom";
+import React from 'react';
 import AppHeader from "./AppHeader";
 import Footer from "./Footer";
 
-const Layout = () => {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex flex-col min-h-screen bg-casino-thunder-darker text-white relative">
       {/* Background pattern overlay */}
@@ -15,7 +19,7 @@ const Layout = () => {
       
       <AppHeader />
       <main className="flex-1 relative z-10">
-        <Outlet />
+        {children}
       </main>
       <Footer />
     </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Card, 
@@ -56,16 +55,15 @@ const BonusManagement = () => {
     description: '',
     type: BonusType.WELCOME,
     value: 100,
-    minDeposit: 20,
+    isPercentage: true,
+    minDepositAmount: 20,
+    maxBonusAmount: 100,
     wageringRequirement: 35,
     durationDays: 7,
-    vipLevels: [],
     isActive: true,
     bonusType: 'percentage',
     percentage: 100,
     maxBonus: 100,
-    vipLevelRequired: 0,
-    allowedGames: 'all',
     code: ''
   });
   
@@ -133,7 +131,20 @@ const BonusManagement = () => {
   const handleNewTemplateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const result = await bonusService.createBonusTemplate(newTemplate);
+      // Updated to match the expected parameter types
+      const result = await bonusService.createBonusTemplate({
+        name: newTemplate.name,
+        description: newTemplate.description,
+        type: newTemplate.type,
+        value: newTemplate.value,
+        isPercentage: newTemplate.isPercentage,
+        minDepositAmount: newTemplate.minDepositAmount,
+        maxBonusAmount: newTemplate.maxBonusAmount,
+        wageringRequirement: newTemplate.wageringRequirement,
+        durationDays: newTemplate.durationDays,
+        description: newTemplate.description
+      });
+      
       if (result) {
         setTemplates([...templates, result]);
         setIsNewTemplateDialogOpen(false);
@@ -145,16 +156,15 @@ const BonusManagement = () => {
           description: '',
           type: BonusType.WELCOME,
           value: 100,
-          minDeposit: 20,
+          isPercentage: true,
+          minDepositAmount: 20,
+          maxBonusAmount: 100,
           wageringRequirement: 35,
           durationDays: 7,
-          vipLevels: [],
           isActive: true,
           bonusType: 'percentage',
           percentage: 100,
           maxBonus: 100,
-          vipLevelRequired: 0,
-          allowedGames: 'all',
           code: ''
         });
       }
@@ -168,11 +178,10 @@ const BonusManagement = () => {
     const { name, value } = e.target;
     setNewTemplate(prev => ({
       ...prev,
-      [name]: name === 'value' || name === 'minDeposit' || name === 'wageringRequirement' || 
-              name === 'durationDays' || name === 'percentage' || name === 'maxBonus' || 
-              name === 'vipLevelRequired' 
+      [name]: name === 'value' || name === 'minDepositAmount' || name === 'maxBonusAmount' || name === 'wageringRequirement' || 
+              name === 'durationDays' || name === 'percentage' || name === 'maxBonus'
                 ? parseFloat(value) 
-                : value
+                : name === 'isPercentage' ? value === 'true' : value
     }));
   };
   
@@ -398,12 +407,12 @@ const BonusManagement = () => {
                     )}
                     
                     <div>
-                      <Label htmlFor="minDeposit">Minimum Deposit ($)</Label>
+                      <Label htmlFor="minDepositAmount">Minimum Deposit ($)</Label>
                       <Input 
-                        id="minDeposit" 
-                        name="minDeposit"
+                        id="minDepositAmount" 
+                        name="minDepositAmount"
                         type="number"
-                        value={newTemplate.minDeposit}
+                        value={newTemplate.minDepositAmount}
                         onChange={handleInputChange}
                         min="0"
                         required
@@ -448,28 +457,19 @@ const BonusManagement = () => {
                     </div>
                     
                     <div>
-                      <Label htmlFor="vipLevelRequired">Minimum VIP Level</Label>
-                      <Input 
-                        id="vipLevelRequired" 
-                        name="vipLevelRequired"
-                        type="number"
-                        value={newTemplate.vipLevelRequired}
-                        onChange={handleInputChange}
-                        min="0"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="allowedGames">Allowed Games</Label>
-                      <Input 
-                        id="allowedGames" 
-                        name="allowedGames"
-                        value={newTemplate.allowedGames}
-                        onChange={handleInputChange}
-                        placeholder="e.g. all, slots, table games"
-                        required
-                      />
+                      <Label htmlFor="isPercentage">Is Percentage</Label>
+                      <Select
+                        value={String(newTemplate.isPercentage)}
+                        onValueChange={(value) => handleSelectChange('isPercentage', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="true">True</SelectItem>
+                          <SelectItem value="false">False</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   
@@ -516,7 +516,7 @@ const BonusManagement = () => {
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Value:</span>
                             <span>
-                              {template.bonusType === 'percentage' 
+                              {template.isPercentage 
                                 ? `${template.percentage}% up to $${template.maxBonus}` 
                                 : template.bonusType === 'freespins'
                                   ? `${template.value} Free Spins`
@@ -527,7 +527,7 @@ const BonusManagement = () => {
                           
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">Min. Deposit:</span>
-                            <span>${template.minDeposit}</span>
+                            <span>${template.minDepositAmount}</span>
                           </div>
                           
                           <div className="flex justify-between text-sm">
@@ -548,11 +548,6 @@ const BonusManagement = () => {
                               </span>
                             </div>
                           )}
-                          
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Min. VIP Level:</span>
-                            <span>{template.vipLevelRequired}</span>
-                          </div>
                         </div>
                       </div>
                     </CardContent>

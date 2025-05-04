@@ -1,4 +1,3 @@
-
 export interface Transaction {
   id: string;
   userId: string;
@@ -84,9 +83,10 @@ export interface BonusTemplate {
   minDepositAmount?: number;
   maxBonusAmount?: number;
   wageringRequirement: number;
-  validityDays: number;
+  durationDays: number;
   description: string;
   isActive: boolean;
+  forVipLevels?: number[];
 }
 
 export interface UserBonus {
