@@ -1,250 +1,167 @@
-import React, { useState, useEffect } from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
-import { Session } from '@supabase/supabase-js';
-import Layout from '@/components/layout/Layout';
-import Home from '@/pages/Home';
-import Profile from '@/pages/Profile';
-import Games from '@/pages/Games';
-import Transactions from '@/pages/Transactions';
-import { AuthContext } from '@/contexts/AuthContext';
-import AdminLayout from '@/components/layout/AdminLayout';
-import Dashboard from '@/pages/admin/Dashboard';
-import Users from '@/pages/admin/Users';
-import GamesAdmin from '@/pages/admin/GamesAdmin';
-import ReportsPage from '@/pages/admin/Reports';
-import Promotions from '@/pages/promotions/Promotions';
-import BonusHub from '@/pages/bonuses/BonusHub';
-import { AdminProtected } from '@/components/auth/AdminProtected';
-import BonusManagement from '@/pages/admin/BonusManagement';
-import AnalyticsDashboard from '@/pages/admin/AnalyticsDashboard';
 
-// Define the props interface for ProtectedRoute
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
+import { useEffect, useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import Layout from "./components/layout/Layout";
+import AdminLayout from "./components/layout/AdminLayout";
+import ScrollToTop from "./components/layout/ScrollToTop";
+import CasinoMain from "./pages/casino/CasinoMain";
+import LiveCasino from "./pages/casino/LiveCasino";
+import Slots from "./pages/casino/Slots";
+import TableGames from "./pages/casino/TableGames";
+import Jackpots from "./pages/casino/Jackpots";
+import NewGames from "./pages/casino/NewGames";
+import Favorites from "./pages/casino/Favorites";
+import Promotions from "./pages/promotions/Promotions";
+import Index from "./pages/Index";
+import Sports from "./pages/sports/Sports";
+import Football from "./pages/sports/Football";
+import Basketball from "./pages/sports/Basketball";
+import Tennis from "./pages/sports/Tennis";
+import Hockey from "./pages/sports/Hockey";
+import Esports from "./pages/sports/Esports";
+import Help from "./pages/support/Help";
+import Contact from "./pages/support/Contact";
+import Faq from "./pages/support/Faq";
+import ResponsibleGaming from "./pages/support/ResponsibleGaming";
+import VIP from "./pages/vip/VIP";
+import Profile from "./pages/user/Profile";
+import UserSettings from "./pages/user/Settings";
+import Transactions from "./pages/user/Transactions";
+import KycStatus from "./pages/kyc/KycStatus";
+import NotFound from "./pages/NotFound";
+import BonusHub from "./pages/bonuses/BonusHub";
+import AdminLogin from "./pages/auth/AdminLogin";
+import Dashboard from "./pages/admin/Dashboard";
+import AdminUsers from "./pages/admin/Users";
+import UserProfile from "./pages/admin/UserProfile";
+import Games from "./pages/admin/Games";
+import GameAggregator from "./pages/admin/GameAggregator";
+import AggregatorSettings from "./pages/admin/AggregatorSettings";
+import CasinoAggregatorSettingsPage from "./pages/admin/CasinoAggregatorSettingsPage";
+import AdminTransactions from "./pages/admin/Transactions";
+import VipBonusManagement from "./pages/admin/VipBonusManagement";
+import Reports from "./pages/admin/Reports";
+import KycManagement from "./pages/admin/KycManagement";
+import Affiliates from "./pages/admin/Affiliates";
+import AdminPromotions from "./pages/admin/Promotions";
+import Security from "./pages/admin/Security";
+import AdminSettings from "./pages/admin/Settings";
+import Logs from "./pages/admin/Logs";
+import Support from "./pages/admin/Support";
+import Terms from "./pages/legal/Terms";
+import Privacy from "./pages/legal/Privacy";
+import Providers from "./pages/casino/Providers";
+import GameDetails from "./pages/casino/GameDetails";
+import Seamless from "./pages/casino/Seamless";
+import GitSlotParkSeamless from "./pages/casino/GitSlotParkSeamless";
+import PPIntegrationTester from "@/pages/admin/PPIntegrationTester";
+import PPTransactions from "@/pages/admin/PPTransactions";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import Crash from "./pages/casino/Crash";
 
-const App = () => {
-  const session: Session | null = useSession();
-  const supabase = useSupabaseClient();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
+function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      setIsLoading(true);
-      setIsAuthenticated(!!session);
-      if (session?.user?.id) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(data?.is_admin || false);
-        }
-        setUser(session.user);
-      } else {
-        setIsAdmin(false);
-        setUser(null);
-      }
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, [session, supabase]);
-
-  // TypeScript fix - explicitly pass user to avoid type errors
-  const authContextValue = { 
-    isAuthenticated, 
-    isAdmin, 
-    isLoading, 
-    user 
-  };
-
-  // Properly define the ProtectedRoute component with props
-  const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-    if (isLoading) {
-      return <div>Loading...</div>;
-    }
-
-    if (!isAuthenticated) {
-      return <Navigate to="/login" />;
-    }
-
-    return <>{children}</>;
-  };
+    // Initialize theme from localStorage or default to dark
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    document.documentElement.classList.toggle("dark", savedTheme === "dark");
+  }, []);
 
   return (
-    <AuthContext.Provider value={authContextValue}>
+    <>
+      <ScrollToTop />
       <Routes>
-        <Route
-          path="/login"
-          element={
-            <div className="flex justify-center items-center h-screen bg-gray-100">
-              <div className="bg-white p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-semibold mb-4">Login</h2>
-                <Auth
-                  supabaseClient={supabase}
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['google', 'github']}
-                />
-              </div>
-            </div>
-          }
-        />
-        
-        <Route
-          path="/register"
-          element={
-            <div className="flex justify-center items-center h-screen bg-gray-100">
-              <div className="bg-white p-8 rounded shadow-md w-96">
-                <h2 className="text-2xl font-semibold mb-4">Register</h2>
-                <Auth
-                  supabaseClient={supabase}
-                  appearance={{ theme: ThemeSupa }}
-                  providers={['google', 'github']}
-                  redirectTo="http://localhost:3000/profile"
-                />
-              </div>
-            </div>
-          }
-        />
-
-        <Route
-          path="/"
-          element={
-            <Layout>
-              <Home />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Profile />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/games"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Games />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/transactions"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Transactions />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/promotions"
-          element={
-            <Layout>
-              <Promotions />
-            </Layout>
-          }
-        />
-
-        <Route
-          path="/bonuses"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <BonusHub />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
+        {/* Main App Routes */}
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Index />} />
+          {/* Casino Routes */}
+          <Route path="casino">
+            <Route index element={<Navigate to="/casino/main" replace />} />
+            <Route path="main" element={<CasinoMain />} />
+            <Route path="live-casino" element={<LiveCasino />} />
+            <Route path="slots" element={<Slots />} />
+            <Route path="table-games" element={<TableGames />} />
+            <Route path="jackpots" element={<Jackpots />} />
+            <Route path="new" element={<NewGames />} />
+            <Route path="favorites" element={<Favorites />} />
+            <Route path="providers" element={<Providers />} />
+            <Route path="game/:gameId" element={<GameDetails />} />
+            <Route path="seamless" element={<Seamless />} />
+            <Route path="gitslotpark-seamless" element={<GitSlotParkSeamless />} />
+            <Route path="crash" element={<Crash />} />
+          </Route>
+          {/* Sports Routes */}
+          <Route path="sports">
+            <Route index element={<Sports />} />
+            <Route path="football" element={<Football />} />
+            <Route path="basketball" element={<Basketball />} />
+            <Route path="tennis" element={<Tennis />} />
+            <Route path="hockey" element={<Hockey />} />
+            <Route path="esports" element={<Esports />} />
+          </Route>
+          {/* Promotions */}
+          <Route path="promotions" element={<Promotions />} />
+          {/* Bonus Hub */}
+          <Route path="bonuses" element={<BonusHub />} />
+          {/* VIP */}
+          <Route path="vip" element={<VIP />} />
+          {/* User Profile */}
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<UserSettings />} />
+          <Route path="transactions" element={<Transactions />} />
+          <Route path="kyc" element={<KycStatus />} />
+          {/* Support */}
+          <Route path="support">
+            <Route path="help" element={<Help />} />
+            <Route path="contact" element={<Contact />} />
+            <Route path="faq" element={<Faq />} />
+            <Route path="responsible-gaming" element={<ResponsibleGaming />} />
+          </Route>
+          {/* Legal */}
+          <Route path="legal">
+            <Route path="terms" element={<Terms />} />
+            <Route path="privacy" element={<Privacy />} />
+          </Route>
+          {/* Auth */}
+          <Route path="login" element={<Login />} />
+          <Route path="register" element={<Register />} />
+        </Route>
 
         {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <Dashboard />
-              </AdminLayout>
-            </AdminProtected>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <Users />
-              </AdminLayout>
-            </AdminProtected>
-          }
-        />
-        <Route
-          path="/admin/games"
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <GamesAdmin />
-              </AdminLayout>
-            </AdminProtected>
-          }
-        />
-        <Route
-          path="/admin/reports"
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <ReportsPage />
-              </AdminLayout>
-            </AdminProtected>
-          }
-        />
-        <Route 
-          path="/admin/bonus-management" 
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <BonusManagement />
-              </AdminLayout>
-            </AdminProtected>
-          } 
-        />
-        <Route 
-          path="/admin/analytics" 
-          element={
-            <AdminProtected>
-              <AdminLayout>
-                <AnalyticsDashboard />
-              </AdminLayout>
-            </AdminProtected>
-          } 
-        />
+          element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
+        >
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="users/:userId" element={<UserProfile />} />
+          <Route path="games" element={<Games />} />
+          <Route path="game-aggregator" element={<GameAggregator />} />
+          <Route path="aggregator-settings" element={<AggregatorSettings />} />
+          <Route path="casino-aggregator-settings" element={<CasinoAggregatorSettingsPage />} />
+          <Route path="transactions" element={<AdminTransactions />} />
+          <Route path="vip-bonus" element={<VipBonusManagement />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="kyc" element={<KycManagement />} />
+          <Route path="affiliates" element={<Affiliates />} />
+          <Route path="promotions" element={<AdminPromotions />} />
+          <Route path="pp-integration-tester" element={<PPIntegrationTester />} />
+          <Route path="pp-transactions" element={<PPTransactions />} />
+          <Route path="security" element={<Security />} />
+          <Route path="settings" element={<AdminSettings />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="support" element={<Support />} />
+        </Route>
+
+        {/* 404 route */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
-    </AuthContext.Provider>
+    </>
   );
-};
+}
 
 export default App;

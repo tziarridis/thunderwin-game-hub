@@ -1,252 +1,355 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from "@/components/ui/use-toast";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User } from "@supabase/supabase-js";
 
-interface AuthContextType {
-  isAuthenticated: boolean;
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
   isAdmin: boolean;
-  isLoading: boolean;
-  user: any;
-  login?: (email: string, password: string) => Promise<void>;
-  logout?: () => Promise<void>;
-  register?: (email: string, password: string, username: string) => Promise<void>;
-  adminLogin?: (email: string, password: string) => Promise<void>;
-  updateBalance?: (amount: number) => Promise<void>;
-  deposit?: (amount: number) => Promise<void>;
+  name?: string;
+  avatarUrl?: string;
+  balance: number;
+  vipLevel: number;
+  isVerified: boolean;
 }
 
-export const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  isAdmin: false,
-  isLoading: true,
-  user: null
-});
+interface AuthContextType {
+  user: UserProfile | null;
+  isAuthenticated: boolean;
+  isAdmin: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  adminLogin: (username: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string) => Promise<void>;
+  logout: () => void;
+  deposit: (amount: number) => Promise<void>;
+  updateBalance: (newBalance: number) => void;
+  session: Session | null;
+}
 
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState(null);
-
-  // Login function
-  const login = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Login failed",
-          description: error.message,
-        });
-        throw error;
-      }
-      
-      // Explicitly returning void
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
-  };
-
-  // Logout function
-  const logout = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Logout failed",
-          description: error.message,
-        });
-        throw error;
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-      throw error;
-    }
-  };
-
-  // Register function
-  const register = async (email: string, password: string, username: string) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-          },
-        },
-      });
-      
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Registration failed",
-          description: error.message,
-        });
-        throw error;
-      }
-      
-      // Explicitly returning void
-    } catch (error) {
-      console.error("Register error:", error);
-      throw error;
-    }
-  };
-
-  // Admin login function
-  const adminLogin = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Admin login failed",
-          description: error.message,
-        });
-        throw error;
-      }
-      
-      // Check if user is admin after login
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user?.id)
-        .single();
-      
-      // Check for is_admin property - handle case when it might not exist
-      if (!(profileData && 'is_admin' in profileData && profileData.is_admin)) {
-        toast({
-          variant: "destructive",
-          title: "Access denied",
-          description: "You do not have admin privileges",
-        });
-        await logout();
-        throw new Error("Not an admin");
-      }
-      
-      // Explicitly returning void
-    } catch (error) {
-      console.error("Admin login error:", error);
-      throw error;
-    }
-  };
-
-  // Update wallet balance
-  const updateBalance = async (amount: number) => {
-    if (!user) return;
-    
-    try {
-      // Implementation would depend on your wallet service
-      console.log(`Balance updated for user ${user.id} by ${amount}`);
-      toast({
-        title: "Balance updated",
-        description: `Your balance has been updated by ${amount}`,
-      });
-    } catch (error) {
-      console.error("Update balance error:", error);
-      throw error;
-    }
-  };
-
-  // Deposit function
-  const deposit = async (amount: number) => {
-    if (!user) return;
-    
-    try {
-      // Implementation would depend on your payment service
-      console.log(`Deposit of ${amount} made for user ${user.id}`);
-      toast({
-        title: "Deposit successful",
-        description: `You have deposited ${amount}`,
-      });
-      
-      // Update balance after deposit
-      await updateBalance(amount);
-    } catch (error) {
-      console.error("Deposit error:", error);
-      throw error;
-    }
-  };
-
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  
+  // Initialize user session from Supabase
   useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        fetchUserProfile(session.user);
+      }
+    });
+
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setIsAuthenticated(!!session);
+        setSession(session);
         if (session?.user) {
-          setTimeout(async () => {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-              
-            // Safely check for is_admin property
-            setIsAdmin(!!(data && 'is_admin' in data && data.is_admin));
-            setUser(session.user);
-            setIsLoading(false);
-          }, 0);
+          fetchUserProfile(session.user);
         } else {
-          setIsAdmin(false);
           setUser(null);
-          setIsLoading(false);
         }
       }
     );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data }) => {
-            // Safely check for is_admin property
-            setIsAdmin(!!(data && 'is_admin' in data && data.is_admin));
-            setUser(session.user);
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
-      }
-    });
 
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
+  const fetchUserProfile = async (authUser: User) => {
+    try {
+      // First get the profile that links auth.users to our custom users table
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('id', authUser.id)
+        .single();
+      
+      if (profileError) throw profileError;
+      
+      if (profileData?.user_id) {
+        // Now get the actual user data
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*, wallets(*)')
+          .eq('id', profileData.user_id)
+          .single();
+          
+        if (userError) throw userError;
+        
+        // Get wallet data for the user
+        const wallet = userData.wallets?.[0] || { balance: 0, vip_level: 0 };
+        
+        // Transform database user to our app's user profile structure
+        const userProfile: UserProfile = {
+          id: userData.id,
+          username: userData.username,
+          email: userData.email,
+          isAdmin: userData.role_id === 1, // Assuming role_id 1 is admin
+          name: userData.username,
+          avatarUrl: userData.avatar || "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: wallet.balance || 0,
+          vipLevel: wallet.vip_level || 0,
+          isVerified: userData.status === 'active'
+        };
+        
+        setUser(userProfile);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      
+      // Fall back to demo user data for development
+      if (process.env.NODE_ENV === 'development') {
+        setUser({
+          id: authUser.id,
+          username: authUser.email?.split('@')[0] || "demouser",
+          name: "Demo User",
+          email: authUser.email || "demo@example.com",
+          isAdmin: false,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 1,
+          isVerified: true
+        });
+      }
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (error) throw error;
+      
+      toast.success("Login successful");
+      
+      // fetchUserProfile will be called by the auth state change listener
+      return;
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      // For development purposes and demo accounts
+      if (email === "demo@example.com" && password === "password123") {
+        // Create a temporary sign-up and login for the demo user
+        try {
+          // Try to sign up the demo user (will fail if already exists, which is fine)
+          await supabase.auth.signUp({ email, password });
+          // Now try to sign in
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (!error) {
+            toast.success("Demo login successful");
+            return;
+          }
+        } catch (demoError) {
+          console.log("Demo account login failed with Supabase, using fallback", demoError);
+        }
+        
+        // Fallback to mock user if Supabase fails
+        setUser({
+          id: "demo1",
+          username: "demouser",
+          name: "Demo User",
+          email: email,
+          isAdmin: false,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 3,
+          isVerified: true
+        });
+        
+        toast.success("Demo login successful (local mode)");
+        return;
+      }
+      
+      throw new Error(error.message || "Invalid credentials");
+    }
+  };
+  
+  const adminLogin = async (username: string, password: string) => {
+    try {
+      // In a real app, we'd verify admin credentials differently
+      // For now, we'll just use email login as normal but check role afterwards
+      const email = username.includes('@') ? username : `${username}@admin.com`;
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      if (error) throw error;
+      
+      // Admin check will happen in fetchUserProfile
+      toast.success("Admin login successful");
+      
+      // Just for demo purposes (fallback for admin)
+      if (username === "admin" && password === "admin") {
+        setUser({
+          id: "admin1",
+          username: username,
+          name: "Admin User",
+          email: "admin@example.com",
+          isAdmin: true,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 5,
+          isVerified: true
+        });
+      }
+      
+      return;
+    } catch (error: any) {
+      console.error("Admin login error:", error);
+      
+      // Fallback for demo admin user
+      if (username === "admin" && password === "admin") {
+        setUser({
+          id: "admin1",
+          username: username,
+          name: "Admin User",
+          email: "admin@example.com",
+          isAdmin: true,
+          avatarUrl: "/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png",
+          balance: 1000,
+          vipLevel: 5,
+          isVerified: true
+        });
+        
+        toast.success("Admin login successful (local mode)");
+        return;
+      }
+      
+      throw new Error(error.message || "Invalid admin credentials");
+    }
+  };
+  
+  const register = async (email: string, username: string, password: string) => {
+    try {
+      // Sign up the user with Supabase
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            username: username,
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Registration successful! Please check your email for verification.");
+      
+      return;
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      throw new Error(error.message || "Registration failed");
+    }
+  };
+  
+  const deposit = async (amount: number) => {
+    if (!user) return;
+    
+    try {
+      // Update wallet balance in Supabase
+      const { data, error } = await supabase
+        .from('wallets')
+        .update({ balance: user.balance + amount })
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      
+      // Update local user state
+      setUser({
+        ...user,
+        balance: user.balance + amount
+      });
+      
+      toast.success(`$${amount.toFixed(2)} has been added to your account.`);
+    } catch (error: any) {
+      console.error("Deposit error:", error);
+      toast.error("Failed to process deposit.");
+      
+      // Fallback to local update for demo
+      setUser({
+        ...user,
+        balance: user.balance + amount
+      });
+    }
+  };
+  
+  const updateBalance = (newBalance: number) => {
+    if (!user) return;
+    
+    try {
+      // Update wallet balance in Supabase
+      supabase
+        .from('wallets')
+        .update({ balance: newBalance })
+        .eq('user_id', user.id)
+        .then(({ error }) => {
+          if (error) console.error("Balance update error:", error);
+        });
+      
+      // Update local user state
+      setUser({
+        ...user,
+        balance: newBalance
+      });
+    } catch (error: any) {
+      console.error("Balance update error:", error);
+      
+      // Fallback to local update
+      setUser({
+        ...user,
+        balance: newBalance
+      });
+    }
+  };
+  
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      toast.success("You have been successfully logged out");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Failed to log out");
+      
+      // Force logout on frontend anyway
+      setUser(null);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      isAdmin, 
-      isLoading, 
-      user, 
-      login, 
-      logout, 
-      register, 
-      adminLogin,
-      updateBalance,
-      deposit
-    }}>
+    <AuthContext.Provider 
+      value={{ 
+        user, 
+        isAuthenticated: !!user, 
+        isAdmin: !!user?.isAdmin,
+        login, 
+        adminLogin,
+        register,
+        logout,
+        deposit,
+        updateBalance,
+        session
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 };

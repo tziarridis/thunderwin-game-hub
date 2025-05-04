@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -145,20 +144,25 @@ export const creditWallet = async (
   provider = 'system'
 ): Promise<boolean> => {
   try {
-    const { data: userData } = await supabase.functions.invoke('credit_wallet', {
-      body: {
-        userId,
-        amount,
-        type,
-        provider
-      }
+    // Get current wallet
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) throw new Error('Wallet not found');
+    
+    // Calculate new balance
+    const newBalance = wallet.balance + amount;
+    
+    // Start a Supabase transaction
+    const { data, error } = await supabase.rpc('credit_wallet', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_type: type,
+      p_provider: provider,
+      p_currency: wallet.currency
     });
     
-    if (userData) {
-      return true;
-    }
+    if (error) throw error;
     
-    return false;
+    return true;
   } catch (error) {
     console.error(`Error crediting wallet for user ${userId}:`, error);
     return false;
@@ -180,20 +184,28 @@ export const debitWallet = async (
   provider = 'system'
 ): Promise<boolean> => {
   try {
-    const { data: userData } = await supabase.functions.invoke('debit_wallet', {
-      body: {
-        userId,
-        amount,
-        type,
-        provider
-      }
-    });
+    // Get current wallet
+    const wallet = await getWalletByUserId(userId);
+    if (!wallet) throw new Error('Wallet not found');
     
-    if (userData) {
-      return true;
+    // Check if sufficient funds
+    if (wallet.balance < amount) {
+      toast.error('Insufficient funds');
+      return false;
     }
     
-    return false;
+    // Start a Supabase transaction
+    const { data, error } = await supabase.rpc('debit_wallet', {
+      p_user_id: userId,
+      p_amount: amount,
+      p_type: type,
+      p_provider: provider,
+      p_currency: wallet.currency
+    });
+    
+    if (error) throw error;
+    
+    return true;
   } catch (error) {
     console.error(`Error debiting wallet for user ${userId}:`, error);
     return false;
