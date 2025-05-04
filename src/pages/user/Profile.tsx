@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -8,18 +8,37 @@ import {
   Mail,
   Shield,
   Award,
-  Wallet,
   Calendar,
   Edit,
   Upload,
-  BadgeDollarSign,
   Gift
 } from "lucide-react";
+import DepositButton from "@/components/user/DepositButton";
+import WalletBalance from "@/components/user/WalletBalance";
+import { walletService, Wallet } from "@/services/walletService";
 
 const Profile = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchWallet();
+    }
+  }, [isAuthenticated, user?.id]);
+
+  const fetchWallet = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const walletData = await walletService.getWalletByUserId(user.id);
+      setWallet(walletData);
+    } catch (error) {
+      console.error("Error fetching wallet:", error);
+    }
+  };
 
   const handleUploadAvatar = () => {
     setIsUploading(true);
@@ -83,25 +102,21 @@ const Profile = () => {
             <p className="text-white/70 text-sm mb-6">{user?.email}</p>
             
             <div className="flex items-center mb-4">
-              <BadgeDollarSign className="text-casino-thunder-green mr-2" />
+              <Award className="text-casino-thunder-green mr-2" />
               <span className="text-sm text-white/80">VIP Level: {user?.vipLevel}</span>
             </div>
             
             <div className="w-full bg-white/5 rounded-md p-4 mb-6">
               <div className="flex justify-between mb-2">
                 <span className="text-white/70">Balance:</span>
-                <span className="text-white/90 font-medium">${user?.balance.toFixed(2)}</span>
+                <span className="text-white/90 font-medium">
+                  {wallet ? 
+                    `${wallet.symbol}${wallet.balance.toFixed(2)}` : 
+                    `$${user?.balance.toFixed(2)}`
+                  }
+                </span>
               </div>
-              <Button 
-                className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                onClick={() => toast({
-                  title: "Coming Soon",
-                  description: "Deposit functionality will be available soon!",
-                })}
-              >
-                <Wallet className="mr-2 h-4 w-4" />
-                Deposit
-              </Button>
+              <DepositButton className="w-full" variant="highlight" />
             </div>
             
             <div className="w-full">
