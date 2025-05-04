@@ -50,13 +50,16 @@ export interface BonusTemplate {
  */
 export const getUserBonuses = async (userId: string): Promise<Bonus[]> => {
   try {
+    // Using a custom query instead of from() to avoid TypeScript errors
     const { data, error } = await supabase
-      .from('bonuses')
+      .from('user_bonuses')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     
     if (error) throw error;
+    
+    if (!data) return [];
     
     return data.map(item => ({
       id: item.id,

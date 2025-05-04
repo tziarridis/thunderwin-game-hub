@@ -1,4 +1,3 @@
-
 import { Transaction } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -268,15 +267,15 @@ export const getTransactionsWithFilters = async (
     }
     
     if (filters?.type) {
-      query = query.eq('type', filter.type);
+      query = query.eq('type', filters.type);
     }
     
     if (filters?.status) {
-      query = query.eq('status', filter.status);
+      query = query.eq('status', filters.status);
     }
     
     if (filters?.provider) {
-      query = query.eq('provider', filter.provider);
+      query = query.eq('provider', filters.provider);
     }
     
     if (filters?.startDate) {

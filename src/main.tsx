@@ -8,6 +8,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
 import { supabase } from './integrations/supabase/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SessionContextProvider } from '@supabase/auth-helpers-react';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -34,13 +35,15 @@ supabase.auth.onAuthStateChange((event, session) => {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <AuthProvider>
-          <App />
-          <Toaster />
-        </AuthProvider>
-      </Router>
-    </QueryClientProvider>
+    <SessionContextProvider supabaseClient={supabase}>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <AuthProvider>
+            <App />
+            <Toaster />
+          </AuthProvider>
+        </Router>
+      </QueryClientProvider>
+    </SessionContextProvider>
   </StrictMode>
 );

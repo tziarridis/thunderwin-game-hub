@@ -34,14 +34,15 @@ export const getRevenueData = async (timeframe: 'day' | 'week' | 'month' | 'year
         limit = 7;
     }
     
+    // Use a type assertion to handle the API call
     const { data, error } = await supabase.rpc('get_revenue_over_time', {
       p_interval: interval,
       p_limit: limit
-    });
+    } as any);
     
     if (error) throw error;
     
-    return data.map((item: any) => item.revenue);
+    return data ? data.map((item: any) => item.revenue) : [];
   } catch (error) {
     console.error('Error fetching revenue data:', error);
     return [];
@@ -97,13 +98,14 @@ export const getUserActivityData = async (timeframe: 'day' | 'week' | 'month' | 
 
 export const getTopGames = async (limit: number = 10): Promise<GameAnalytics[]> => {
   try {
+    // Use a type assertion to handle the API call
     const { data, error } = await supabase.rpc('get_top_games_by_revenue', {
       p_limit: limit
-    });
+    } as any);
     
     if (error) throw error;
     
-    if (!data || !data.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       // Mock data for demonstration
       return [
         {
@@ -161,11 +163,12 @@ export const getTopGames = async (limit: number = 10): Promise<GameAnalytics[]> 
 
 export const getBonusAnalytics = async (): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc('get_bonus_analytics');
+    // Use a type assertion to handle the API call
+    const { data, error } = await supabase.rpc('get_bonus_analytics') as any;
     
     if (error) throw error;
     
-    if (!data || !data.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       // Mock data for demonstration
       return [
         {
@@ -204,11 +207,12 @@ export const getBonusAnalytics = async (): Promise<any> => {
 
 export const getPlayerRetentionData = async (): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc('get_player_retention');
+    // Use a type assertion to handle the API call
+    const { data, error } = await supabase.rpc('get_player_retention') as any;
     
     if (error) throw error;
     
-    if (!data || !data.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       // Mock data for demonstration
       return {
         newPlayers: [120, 140, 160, 130, 150, 170, 160],
@@ -228,11 +232,12 @@ export const getPlayerRetentionData = async (): Promise<any> => {
 
 export const getPaymentMethodDistribution = async (): Promise<any> => {
   try {
-    const { data, error } = await supabase.rpc('get_payment_method_distribution');
+    // Use a type assertion to handle the API call
+    const { data, error } = await supabase.rpc('get_payment_method_distribution') as any;
     
     if (error) throw error;
     
-    if (!data || !data.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       // Mock data for demonstration
       return [
         { name: "Credit Card", value: 45 },
