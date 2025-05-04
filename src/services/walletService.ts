@@ -130,7 +130,7 @@ export const creditWallet = async (
       p_amount: amount,
       p_type: type,
       p_provider: provider,
-      p_currency: wallet.currency
+      p_currency: wallet.currency || 'USD'
     });
     
     if (error) throw error;
@@ -173,7 +173,7 @@ export const debitWallet = async (
       p_amount: amount,
       p_type: type,
       p_provider: provider,
-      p_currency: wallet.currency
+      p_currency: wallet.currency || 'USD'
     });
     
     if (error) throw error;
@@ -213,7 +213,11 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
       created_at: item.created_at,
       provider: item.provider,
       game_id: item.game_id,
-      round_id: item.round_id
+      round_id: item.round_id,
+      description: item.description,
+      payment_method: item.payment_method,
+      bonus_id: item.bonus_id,
+      reference_id: item.reference_id
     }));
     
     return transactions;

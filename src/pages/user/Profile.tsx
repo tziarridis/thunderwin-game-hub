@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import {
   Edit,
   Upload,
   Gift,
-  Wallet
+  Wallet as WalletIcon
 } from "lucide-react";
 import DepositButton from "@/components/user/DepositButton";
 import WalletBalance from "@/components/user/WalletBalance";
@@ -114,7 +115,7 @@ const Profile = () => {
                 <span className="text-white/90 font-medium">
                   {wallet ? 
                     `${wallet.symbol}${wallet.balance.toFixed(2)}` : 
-                    `$${user?.balance.toFixed(2)}`
+                    `$${user?.balance?.toFixed(2) || '0.00'}`
                   }
                 </span>
               </div>
@@ -331,13 +332,13 @@ const ActivityItem = ({
   const getIconByType = () => {
     switch (type) {
       case 'win':
-        return <Wallet className="h-5 w-5 text-green-500" />;
+        return <WalletIcon className="h-5 w-5 text-green-500" />;
       case 'loss':
-        return <Wallet className="h-5 w-5 text-red-500" />;
+        return <WalletIcon className="h-5 w-5 text-red-500" />;
       case 'deposit':
-        return <Wallet className="h-5 w-5 text-blue-500" />;
+        return <WalletIcon className="h-5 w-5 text-blue-500" />;
       case 'withdrawal':
-        return <Wallet className="h-5 w-5 text-yellow-500" />;
+        return <WalletIcon className="h-5 w-5 text-yellow-500" />;
       case 'bonus':
         return <Gift className="h-5 w-5 text-purple-500" />;
       default:

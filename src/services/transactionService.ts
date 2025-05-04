@@ -1,9 +1,10 @@
+
 // Import the necessary types
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WalletTransaction } from "@/types/wallet";
 
-interface TransactionInput {
+export interface TransactionInput {
   userId: string;
   type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
   amount: number;
@@ -19,6 +20,16 @@ interface TransactionInput {
   referenceId?: string;
 }
 
+export interface TransactionFilter {
+  player_id?: string;
+  type?: string;
+  status?: string;
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
+}
+
 /**
  * Add a transaction record to the database
  * @param transaction Transaction details
@@ -28,6 +39,7 @@ export const addTransaction = async (transaction: TransactionInput): Promise<Wal
   try {
     const { userId, type, amount, currency = 'USD', status = 'completed', ...rest } = transaction;
 
+    // Add default values to handle missing properties
     const insertData = {
       player_id: userId,
       type,
@@ -64,10 +76,10 @@ export const addTransaction = async (transaction: TransactionInput): Promise<Wal
       provider: data.provider,
       game_id: data.game_id,
       round_id: data.round_id,
-      description: data.description,
-      payment_method: data.payment_method,
-      bonus_id: data.bonus_id,
-      reference_id: data.reference_id
+      description: data.description || undefined,
+      payment_method: data.payment_method || undefined,
+      bonus_id: data.bonus_id || undefined,
+      reference_id: data.reference_id || undefined
     };
 
     return transactionRecord;
@@ -104,10 +116,10 @@ export const getTransactionById = async (transactionId: string): Promise<WalletT
       provider: data.provider,
       game_id: data.game_id,
       round_id: data.round_id,
-      description: data.description,
-      payment_method: data.payment_method,
-      bonus_id: data.bonus_id,
-      reference_id: data.reference_id
+      description: data.description || undefined,
+      payment_method: data.payment_method || undefined,
+      bonus_id: data.bonus_id || undefined,
+      reference_id: data.reference_id || undefined
     };
     
     return transaction;
@@ -158,10 +170,10 @@ export const getUserTransactions = async (
       provider: item.provider,
       game_id: item.game_id,
       round_id: item.round_id,
-      description: item.description,
-      payment_method: item.payment_method,
-      bonus_id: item.bonus_id,
-      reference_id: item.reference_id
+      description: item.description || undefined,
+      payment_method: item.payment_method || undefined,
+      bonus_id: item.bonus_id || undefined,
+      reference_id: item.reference_id || undefined
     }));
     
     return {
@@ -177,10 +189,82 @@ export const getUserTransactions = async (
   }
 };
 
+/**
+ * Get transactions for Pragmatic Play provider
+ * @param filter Optional filter parameters
+ * @returns List of transactions
+ */
+export const getPragmaticPlayTransactions = async (
+  filter?: TransactionFilter
+): Promise<WalletTransaction[]> => {
+  try {
+    let query = supabase
+      .from('transactions')
+      .select('*')
+      .eq('provider', 'pragmaticplay');
+    
+    if (filter?.player_id) {
+      query = query.eq('player_id', filter.player_id);
+    }
+    
+    if (filter?.status) {
+      query = query.eq('status', filter.status);
+    }
+    
+    if (filter?.startDate) {
+      query = query.gte('created_at', filter.startDate);
+    }
+    
+    if (filter?.endDate) {
+      query = query.lte('created_at', filter.endDate);
+    }
+    
+    query = query.order('created_at', { ascending: false });
+    
+    if (filter?.limit) {
+      query = query.limit(filter.limit);
+    } else {
+      query = query.limit(100);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    // Transform the data to match WalletTransaction interface
+    const transactions: WalletTransaction[] = (data || []).map(item => ({
+      id: item.id,
+      user_id: item.player_id,
+      amount: item.amount,
+      currency: item.currency,
+      type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
+      status: item.status as 'pending' | 'completed' | 'failed',
+      created_at: item.created_at,
+      provider: item.provider,
+      game_id: item.game_id,
+      round_id: item.round_id,
+      description: item.description || undefined,
+      payment_method: item.payment_method || undefined,
+      bonus_id: item.bonus_id || undefined,
+      reference_id: item.reference_id || undefined
+    }));
+    
+    return transactions;
+  } catch (error) {
+    console.error("Error fetching Pragmatic Play transactions:", error);
+    return [];
+  }
+};
+
+// Alias function to maintain compatibility with existing code
+export const getTransactions = getUserTransactions;
+
 export const transactionService = {
   addTransaction,
   getTransactionById,
-  getUserTransactions
+  getUserTransactions,
+  getPragmaticPlayTransactions,
+  getTransactions: getUserTransactions
 };
 
 export default transactionService;

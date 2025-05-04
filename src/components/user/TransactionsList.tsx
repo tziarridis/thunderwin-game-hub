@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
-import { getTransactions } from "@/services/transactionService";
-import { Transaction } from "@/types";
+import { transactionService } from "@/services/transactionService";
+import { WalletTransaction } from "@/types/wallet";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ interface TransactionsListProps {
 }
 
 const TransactionsList = ({ userId, limit = 10, showFilters = false }: TransactionsListProps) => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   
@@ -21,8 +21,8 @@ const TransactionsList = ({ userId, limit = 10, showFilters = false }: Transacti
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const data = await getTransactions(userId);
-        setTransactions(data.slice(0, limit));
+        const result = await transactionService.getUserTransactions(userId, limit);
+        setTransactions(result.data);
       } catch (error) {
         console.error("Failed to load transactions:", error);
         toast({
@@ -81,7 +81,7 @@ const TransactionsList = ({ userId, limit = 10, showFilters = false }: Transacti
             <tbody>
               {transactions.map((transaction) => (
                 <tr key={transaction.id} className="border-b hover:bg-muted/50">
-                  <td className="py-3 px-4">{new Date(transaction.date).toLocaleString()}</td>
+                  <td className="py-3 px-4">{new Date(transaction.created_at).toLocaleString()}</td>
                   <td className="py-3 px-4 capitalize">
                     <Badge variant={
                       transaction.type === 'deposit' || transaction.type === 'win' ? 'success' : 
@@ -110,8 +110,8 @@ const TransactionsList = ({ userId, limit = 10, showFilters = false }: Transacti
                   </td>
                   <td className="py-3 px-4">
                     {transaction.description || 
-                     (transaction.gameId && `Game: ${transaction.gameId}`) || 
-                     (transaction.paymentMethod && `Method: ${transaction.paymentMethod}`) || 
+                     (transaction.game_id && `Game: ${transaction.game_id}`) || 
+                     (transaction.payment_method && `Method: ${transaction.payment_method}`) || 
                      '-'}
                   </td>
                 </tr>
