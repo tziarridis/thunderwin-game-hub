@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Wallet, WalletTransaction } from '@/types/wallet';
@@ -112,8 +113,8 @@ export const updateWalletBalance = async (userId: string, newBalance: number): P
 export const creditWallet = async (
   userId: string, 
   amount: number, 
-  type: 'deposit' | 'win' | 'bonus' = 'deposit',
-  provider = 'system'
+  type: 'deposit' | 'win' | 'bonus',
+  provider: string = 'system'
 ): Promise<boolean> => {
   try {
     // Get current wallet
@@ -152,8 +153,8 @@ export const creditWallet = async (
 export const debitWallet = async (
   userId: string, 
   amount: number, 
-  type: 'withdraw' | 'bet' = 'withdraw',
-  provider = 'system'
+  type: 'withdraw' | 'bet',
+  provider: string = 'system'
 ): Promise<boolean> => {
   try {
     // Get current wallet

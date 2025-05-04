@@ -15,14 +15,15 @@ import {
 } from "lucide-react";
 import DepositButton from "@/components/user/DepositButton";
 import WalletBalance from "@/components/user/WalletBalance";
+import MetaMaskWallet from "@/components/user/MetaMaskWallet";
 import { walletService } from "@/services/walletService";
-import { Wallet as WalletType } from "@/types/wallet";
+import { Wallet } from "@/types/wallet";
 
 const Profile = () => {
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
-  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -233,6 +234,8 @@ const Profile = () => {
                 />
               </div>
             </div>
+
+            <MetaMaskWallet />
             
             {/* Activity */}
             <div className="thunder-card p-6">

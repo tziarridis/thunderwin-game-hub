@@ -27,4 +27,8 @@ export interface WalletTransaction {
   provider?: string;
   game_id?: string;
   round_id?: string;
+  description?: string;
+  payment_method?: string;
+  bonus_id?: string;
+  reference_id?: string;
 }

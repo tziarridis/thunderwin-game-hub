@@ -1,6 +1,6 @@
 
 import { toast } from "sonner";
-import { WalletTransaction } from "./walletService";
+import { WalletTransaction } from "@/types/wallet";
 import { addTransaction } from "./transactionService";
 import { creditWallet } from "./walletService";
 
@@ -10,6 +10,8 @@ interface EthereumWindow extends Window {
     request: (request: { method: string; params?: any[] }) => Promise<any>;
     on: (event: string, callback: (...args: any[]) => void) => void;
     removeListener: (event: string, callback: (...args: any[]) => void) => void;
+    selectedAddress?: string;
+    chainId?: string;
   };
 }
 
@@ -77,6 +79,34 @@ const switchToEthereumMainnet = async (): Promise<void> => {
     } else {
       throw error;
     }
+  }
+};
+
+/**
+ * Gets the connected wallet's ETH balance
+ * @returns Balance in ETH
+ */
+const getBalance = async (): Promise<number> => {
+  try {
+    // Ensure account is connected
+    const accounts = await requestAccounts();
+    
+    if (accounts.length === 0) {
+      throw new Error("No connected accounts found");
+    }
+    
+    // Get balance in wei
+    const balanceInWei = await window.ethereum.request({
+      method: 'eth_getBalance',
+      params: [accounts[0], 'latest'],
+    });
+    
+    // Convert from wei to ETH (1 ETH = 10^18 wei)
+    const balanceInEth = parseInt(balanceInWei) / 1e18;
+    return balanceInEth;
+  } catch (error: any) {
+    console.error("Error getting ETH balance:", error);
+    throw error;
   }
 };
 
@@ -210,6 +240,17 @@ const setupMetaMaskListeners = () => {
   };
 };
 
+const getConnectedAccount = async (): Promise<string | null> => {
+  try {
+    if (!isMetaMaskInstalled()) return null;
+    
+    const accounts = await requestAccounts();
+    return accounts.length > 0 ? accounts[0] : null;
+  } catch {
+    return null;
+  }
+};
+
 export const metamaskService = {
   isMetaMaskInstalled,
   requestAccounts,
@@ -217,7 +258,9 @@ export const metamaskService = {
   switchToEthereumMainnet,
   sendTransaction,
   processDeposit,
-  setupMetaMaskListeners
+  setupMetaMaskListeners,
+  getBalance,
+  getConnectedAccount
 };
 
 export default metamaskService;

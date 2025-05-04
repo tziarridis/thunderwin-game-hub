@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { walletService } from "@/services";
-import { Wallet } from "@/services/walletService";
+import { Wallet } from "@/types/wallet";
 import { CircleDollarSign, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
