@@ -1,160 +1,199 @@
 
 import axios from 'axios';
-import { availableProviders, GameProviderConfig, getProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { generateMockGamesForProvider } from '@/utils/mockGameGenerator';
-import { gameProviderSyncService } from './gameProviderSyncService';
+import { addTransaction } from '@/services/transactionService';
 
-interface GameInfo {
-  game_id: string;
-  game_name: string;
-  game_code?: string;
-  type?: string;
-  theme?: string;
-  is_mobile?: boolean;
-  is_desktop?: boolean;
-  thumbnail?: string;
-  background?: string;
+// Game Aggregator API configuration
+const API_CONFIG = {
+  endpoint: 'https://apipg.slotgamesapi.com',
+  agentId: 'captaingambleEUR',
+  token: '275c535c8c014b59bedb2a2d6fe7d37b',
+  secretKey: 'bbd0551e144c46d19975f985e037c9b0',
+  callbackUrl: 'https://your-domain/casino/seamless'
+};
+
+// Interface for session creation request
+interface SessionCreationRequest {
+  agentId: string;
+  token: string;
+  currency: string;
+  playerName: string;
+  gameId: string;
+  platform: 'web' | 'mobile';
+  callbackUrl: string;
 }
 
-interface ProviderGameResponse {
+// Interface for session creation response
+interface SessionCreationResponse {
   success: boolean;
-  games?: GameInfo[];
+  gameUrl?: string;
+  sessionId?: string;
   errorMessage?: string;
+  errorCode?: string;
 }
-
-// In-memory storage for games (since we don't have a games table in Supabase yet)
-let inMemoryGames: {[key: string]: GameInfo[]} = {};
 
 /**
- * Game Aggregator Service
- * Handles fetching and syncing games from all configured providers
+ * Game Aggregator Service for connecting with the game provider API
  */
 export const gameAggregatorService = {
   /**
-   * Fetch games from a specific provider
-   * @param providerKey The provider configuration key
-   * @returns Promise with games information
+   * Create a gaming session and get a game launch URL
    */
-  fetchGamesFromProvider: async (providerKey: string): Promise<ProviderGameResponse> => {
-    const providerConfig = getProviderConfig(providerKey);
-    if (!providerConfig) {
-      return { success: false, errorMessage: `Unknown provider: ${providerKey}` };
-    }
-
+  createSession: async (
+    gameId: string,
+    playerId: string,
+    currency = 'EUR',
+    platform: 'web' | 'mobile' = 'web'
+  ): Promise<SessionCreationResponse> => {
     try {
-      // Log the provider fetch attempt
-      console.log(`Fetching games for ${providerConfig.name} (${providerConfig.currency})`);
+      console.log(`Creating game session for player ${playerId}, game ${gameId}`);
       
-      // Check if we already have games from this provider in our in-memory storage
-      if (inMemoryGames[providerKey] && inMemoryGames[providerKey].length > 0) {
-        return { success: true, games: inMemoryGames[providerKey] };
-      }
+      const requestBody: SessionCreationRequest = {
+        agentId: API_CONFIG.agentId,
+        token: API_CONFIG.token,
+        currency: currency,
+        playerName: playerId,
+        gameId: gameId,
+        platform: platform,
+        callbackUrl: API_CONFIG.callbackUrl
+      };
       
-      // Generate mock data for this provider
-      const mockGames = generateMockGamesForProvider(
-        providerConfig.code, 
-        Math.floor(Math.random() * 30) + 20
+      // Make API request to create session
+      const response = await axios.post(
+        `${API_CONFIG.endpoint}/api/casino/create-session`,
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
       );
       
-      // Store mock games in our in-memory storage
-      inMemoryGames[providerKey] = mockGames;
+      console.log('Game session response:', response.data);
       
-      return { success: true, games: mockGames };
+      if (response.data && response.data.success) {
+        // Log successful game launch in transactions
+        await addTransaction({
+          userId: playerId,
+          type: 'bet',
+          amount: 0, // Initial amount is 0, actual bet will be recorded later
+          currency: currency,
+          status: 'pending',
+          provider: 'aggregator',
+          gameId: gameId,
+          description: `Game session created: ${gameId}`,
+          referenceId: response.data.sessionId
+        });
+        
+        return {
+          success: true,
+          gameUrl: response.data.gameUrl,
+          sessionId: response.data.sessionId
+        };
+      } else {
+        throw new Error(response.data?.errorMessage || 'Unknown error creating game session');
+      }
     } catch (error: any) {
-      console.error(`Error fetching games from ${providerConfig.name}:`, error);
+      console.error('Error creating game session:', error);
       
-      // Return a structured error response
+      // Show error to user
+      toast.error(`Failed to launch game: ${error.message || 'Unknown error'}`);
+      
       return {
         success: false,
-        errorMessage: error.message || `Failed to connect to ${providerConfig.name}`
+        errorMessage: error.message || 'Failed to create game session',
+        errorCode: error.response?.data?.errorCode || 'UNKNOWN'
       };
     }
   },
-
+  
   /**
-   * Sync games from all configured providers
-   * @returns Promise with sync results
+   * Process a wallet callback from the game provider
    */
-  syncAllProviders: async () => {
-    return await gameProviderSyncService.syncAllProviders(inMemoryGames);
-  },
-
-  /**
-   * Get all available games from all providers
-   * @returns Promise with all games
-   */
-  getAllGames: async () => {
+  processCallback: async (callbackData: any) => {
     try {
-      // Combine all games from all providers
-      const allGames: GameInfo[] = [];
+      console.log('Processing game callback:', callbackData);
       
-      for (const [providerKey, games] of Object.entries(inMemoryGames)) {
-        allGames.push(...games);
+      // Verify that this is a valid callback with our agent ID
+      if (callbackData.agentId !== API_CONFIG.agentId) {
+        return { success: false, errorCode: 'INVALID_AGENT' };
       }
       
-      return {
+      // Extract data from callback
+      const { 
+        playerId, 
+        gameId, 
+        roundId, 
+        transactionId, 
+        amount, 
+        currency, 
+        transactionType 
+      } = callbackData;
+      
+      // Map transaction type to our internal type
+      let type: 'bet' | 'win' = transactionType === 'debit' ? 'bet' : 'win';
+      
+      // Record the transaction in our system
+      await addTransaction({
+        userId: playerId,
+        type,
+        amount: Math.abs(amount),
+        currency,
+        status: 'completed',
+        provider: 'aggregator',
+        gameId,
+        roundId,
+        referenceId: transactionId,
+        description: `Game ${type}: ${gameId}, Round: ${roundId}`
+      });
+      
+      // Return success response
+      return { 
         success: true,
-        games: allGames
+        balance: 100.00 // In a real implementation, return actual user balance
       };
     } catch (error: any) {
-      console.error('Error fetching all games:', error);
+      console.error('Error processing game callback:', error);
+      
+      // Return error response
       return {
         success: false,
-        errorMessage: error.message || 'Unknown error'
+        errorCode: 'INTERNAL_ERROR',
+        errorMessage: error.message
       };
     }
   },
   
   /**
-   * Get scheduled sync status
+   * Get available games from the aggregator
    */
-  getSyncStatus: async () => {
-    return gameProviderSyncService.getSyncStatus();
-  },
-
-  /**
-   * Manually trigger a sync
-   */
-  triggerSync: async () => {
-    return await gameProviderSyncService.syncAllProviders(inMemoryGames);
-  },
-  
-  /**
-   * Store a transaction for game play
-   * @param data Transaction data
-   */
-  storeGameTransaction: async (data: { 
-    player_id: string; 
-    game_id: string; 
-    provider: string; 
-    type: string;
-    amount: number;
-    currency: string;
-  }) => {
+  getAvailableGames: async () => {
     try {
-      // Store the transaction in Supabase
-      const { data: result, error } = await supabase
-        .from('transactions')
-        .insert({
-          player_id: data.player_id,
-          game_id: data.game_id,
-          provider: data.provider,
-          type: data.type,
-          amount: data.amount,
-          currency: data.currency,
-          status: 'completed'
-        });
+      const response = await axios.get(
+        `${API_CONFIG.endpoint}/api/casino/games`,
+        {
+          params: {
+            agentId: API_CONFIG.agentId,
+            token: API_CONFIG.token
+          }
+        }
+      );
       
-      if (error) throw error;
-      
-      return { success: true };
+      if (response.data && response.data.success) {
+        return {
+          success: true,
+          games: response.data.games || []
+        };
+      } else {
+        throw new Error(response.data?.errorMessage || 'Failed to fetch games');
+      }
     } catch (error: any) {
-      console.error('Error storing game transaction:', error);
-      return { 
-        success: false, 
-        errorMessage: error.message 
+      console.error('Error fetching available games:', error);
+      return {
+        success: false,
+        errorMessage: error.message || 'Failed to get games list',
+        games: []
       };
     }
   }

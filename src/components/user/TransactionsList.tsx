@@ -6,7 +6,7 @@ import { Transaction } from "@/types/transaction";
 
 interface TransactionsListProps {
   userId: string;
-  limit?: number; // Make limit optional
+  limit?: number;
 }
 
 const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {

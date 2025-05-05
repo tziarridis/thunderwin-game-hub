@@ -59,9 +59,10 @@ export const getUserTransactions = async (
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
       status: item.status as 'pending' | 'completed' | 'failed',
       date: item.created_at,
-      provider: item.provider,
-      gameId: item.game_id,
-      roundId: item.round_id,
+      provider: item.provider || '',
+      gameId: item.game_id || '',
+      roundId: item.round_id || '',
+      // Safely handle optional fields that might not exist in the database
       description: item.description || undefined,
       paymentMethod: item.payment_method || undefined,
       bonusId: item.bonus_id || undefined,
@@ -138,9 +139,10 @@ export const getAllTransactions = async (
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
       status: item.status as 'pending' | 'completed' | 'failed',
       date: item.created_at,
-      provider: item.provider,
-      gameId: item.game_id,
-      roundId: item.round_id,
+      provider: item.provider || '',
+      gameId: item.game_id || '',
+      roundId: item.round_id || '',
+      // Safely handle optional fields that might not exist
       description: item.description || undefined,
       paymentMethod: item.payment_method || undefined,
       bonusId: item.bonus_id || undefined,
@@ -214,9 +216,10 @@ export const getPragmaticPlayTransactions = async (
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
       status: item.status as 'pending' | 'completed' | 'failed',
       date: item.created_at,
-      provider: item.provider,
-      gameId: item.game_id,
-      roundId: item.round_id,
+      provider: item.provider || '',
+      gameId: item.game_id || '',
+      roundId: item.round_id || '',
+      // Safely handle optional fields
       description: item.description || undefined,
       paymentMethod: item.payment_method || undefined,
       bonusId: item.bonus_id || undefined,
@@ -244,28 +247,37 @@ export const addTransaction = async (transactionData: {
   description?: string;
   paymentMethod?: string;
   referenceId?: string;
+  provider?: string;
+  gameId?: string;
+  roundId?: string;
 }): Promise<Transaction | null> => {
   try {
     // Convert to database field names
-    const dbData = {
+    const dbData: Record<string, any> = {
       player_id: transactionData.userId,
       type: transactionData.type,
       amount: transactionData.amount,
       currency: transactionData.currency,
       status: transactionData.status || 'completed',
-      provider: 'system',
+      provider: transactionData.provider || 'system',
       created_at: new Date().toISOString()
     };
 
     // Add optional fields only if they exist
     if (transactionData.description) {
-      Object.assign(dbData, { description: transactionData.description });
+      dbData.description = transactionData.description;
     }
     if (transactionData.paymentMethod) {
-      Object.assign(dbData, { payment_method: transactionData.paymentMethod });
+      dbData.payment_method = transactionData.paymentMethod;
     }
     if (transactionData.referenceId) {
-      Object.assign(dbData, { reference_id: transactionData.referenceId });
+      dbData.reference_id = transactionData.referenceId;
+    }
+    if (transactionData.gameId) {
+      dbData.game_id = transactionData.gameId;
+    }
+    if (transactionData.roundId) {
+      dbData.round_id = transactionData.roundId;
     }
     
     const { data, error } = await supabase
@@ -281,8 +293,8 @@ export const addTransaction = async (transactionData: {
       userId: data.player_id,
       amount: data.amount,
       currency: data.currency,
-      type: data.type,
-      status: data.status,
+      type: data.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
+      status: data.status as 'pending' | 'completed' | 'failed',
       date: data.created_at,
       description: data.description,
       paymentMethod: data.payment_method,
