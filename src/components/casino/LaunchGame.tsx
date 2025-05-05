@@ -80,17 +80,38 @@ const LaunchGame = ({
         platform
       });
       
-      // Extract the actual game code if needed
-      const gameCode = typeof game.id === 'string' && 
-        (game.id.startsWith('pp_') || game.id.startsWith('gsp_') || game.id.startsWith('infin_'))
-        ? game.id.split('_')[1] 
-        : game.game_code || game.game_id;
+      // Extract the actual game code if needed - safely access properties that might be from the API
+      let gameCode;
+      if ('game_code' in game) {
+        gameCode = game.game_code;
+      } else if (typeof game.id === 'string' && 
+        (game.id.startsWith('pp_') || game.id.startsWith('gsp_') || game.id.startsWith('infin_'))) {
+        gameCode = game.id.split('_')[1];
+      } else {
+        gameCode = String(game.id);
+      }
         
       // Create a properly formatted game object for the launchGame function
       const gameToLaunch = {
         ...game,
-        game_code: gameCode,
-        game_id: gameCode
+        // Make sure all required properties are present
+        id: game.id,
+        name: game.name || game.title,
+        title: game.title || game.name,
+        category: game.category || 'slots',
+        image: game.image || '/placeholder.svg',
+        rtp: typeof game.rtp === 'number' ? game.rtp : 96,
+        volatility: game.volatility || 'medium',
+        minBet: typeof game.minBet === 'number' ? game.minBet : 0.1,
+        maxBet: typeof game.maxBet === 'number' ? game.maxBet : 100,
+        isPopular: !!game.isPopular,
+        isNew: !!game.isNew,
+        isFavorite: !!game.isFavorite,
+        jackpot: !!game.jackpot,
+        releaseDate: game.releaseDate || new Date().toISOString(),
+        features: game.features || [],
+        tags: game.tags || [],
+        description: game.description || ''
       };
       
       const gameUrl = await launchGame(gameToLaunch, { 

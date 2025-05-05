@@ -36,6 +36,21 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           title: game.name,
           name: game.name,
           provider: 'GitSlotPark',
+          category: 'slots',
+          image: `/lovable-uploads/casino-games/gsp_${Math.floor(Math.random() * 5) + 1}.jpg`,
+          rtp: 96,
+          volatility: 'medium',
+          minBet: 0.1,
+          maxBet: 100,
+          isPopular: Math.random() > 0.7,
+          isNew: Math.random() > 0.8,
+          isFavorite: false,
+          jackpot: false,
+          releaseDate: new Date().toISOString(),
+          features: [],
+          tags: [],
+          description: "",
+          // Additional properties needed for the API
           provider_id: 3,
           game_id: game.code,
           game_name: game.name,
@@ -46,19 +61,11 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           regulated: true,
           type: 'slots',
           status: 'active',
-          image: `/lovable-uploads/casino-games/gsp_${Math.floor(Math.random() * 5) + 1}.jpg`,
-          isPopular: Math.random() > 0.7,
-          isNew: Math.random() > 0.8,
-          rtp: 96,
-          variance: 'medium',
-          minBet: 0.1,
-          maxBet: 100,
           is_mobile: true,
           has_freespins: false,
           has_tables: false,
           distribution: 'GitSlotPark',
-          views: 0,
-          releaseDate: new Date().toISOString()
+          views: 0
         }));
       } else if (provider === 'pragmaticplay') {
         // Pragmatic Play games - using getAvailableGames instead of getGames
@@ -68,6 +75,21 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           title: game.name,
           name: game.name,
           provider: 'Pragmatic Play',
+          category: 'slots',
+          image: `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
+          rtp: 96,
+          volatility: 'medium',
+          minBet: 0.1,
+          maxBet: 100,
+          isPopular: Math.random() > 0.7,
+          isNew: Math.random() > 0.8,
+          isFavorite: false,
+          jackpot: false,
+          releaseDate: new Date().toISOString(),
+          features: [],
+          tags: [],
+          description: "",
+          // Additional properties needed for the API
           provider_id: 1,
           game_id: game.code,
           game_name: game.name,
@@ -78,19 +100,11 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           regulated: true,
           type: 'slots',
           status: 'active',
-          image: `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
-          isPopular: Math.random() > 0.7,
-          isNew: Math.random() > 0.8,
-          rtp: 96,
-          variance: 'medium',
-          minBet: 0.1,
-          maxBet: 100,
           is_mobile: true,
           has_freespins: false,
           has_tables: false,
           distribution: 'Pragmatic Play',
-          views: 0,
-          releaseDate: new Date().toISOString()
+          views: 0
         }));
       }
       
@@ -114,11 +128,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
   };
   
   const handleViewAll = () => {
-    if (activeTab === 'gitslotpark') {
-      navigate('/casino/providers/gitslotpark');
-    } else if (activeTab === 'pragmaticplay') {
-      navigate('/casino/providers/pragmaticplay');
-    }
+    navigate('/casino/aggregator-games');
   };
   
   if (isLoading) {
