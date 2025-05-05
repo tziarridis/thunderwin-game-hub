@@ -14,29 +14,29 @@ declare global {
 /**
  * Service for MetaMask integration and Ethereum transactions
  */
-export const metamaskService = {
+export class MetaMaskService {
   /**
    * Check if MetaMask is available in the browser
    */
-  isMetaMaskAvailable: (): boolean => {
+  isMetaMaskAvailable = (): boolean => {
     return typeof window !== 'undefined' && 
            typeof window.ethereum !== 'undefined' && 
            window.ethereum.isMetaMask === true;
-  },
+  };
 
   /**
    * Alias for isMetaMaskAvailable for compatibility with existing components
    */
-  isMetaMaskInstalled: (): boolean => {
-    return metamaskService.isMetaMaskAvailable();
-  },
+  isMetaMaskInstalled = (): boolean => {
+    return this.isMetaMaskAvailable();
+  };
 
   /**
    * Connect to MetaMask and get user accounts
    */
-  connectToMetaMask: async (): Promise<string[]> => {
+  connectToMetaMask = async (): Promise<string[]> => {
     try {
-      if (!metamaskService.isMetaMaskAvailable()) {
+      if (!this.isMetaMaskAvailable()) {
         throw new Error("MetaMask is not installed. Please install MetaMask to continue.");
       }
 
@@ -52,21 +52,21 @@ export const metamaskService = {
       toast.error(`Failed to connect to MetaMask: ${error.message || "Unknown error"}`);
       throw error;
     }
-  },
+  };
 
   /**
    * Alias for connectToMetaMask for compatibility with existing components
    */
-  requestAccounts: async (): Promise<string[]> => {
-    return metamaskService.connectToMetaMask();
-  },
+  requestAccounts = async (): Promise<string[]> => {
+    return this.connectToMetaMask();
+  };
 
   /**
    * Get currently connected account (if any)
    */
-  getConnectedAccount: async (): Promise<string | null> => {
+  getConnectedAccount = async (): Promise<string | null> => {
     try {
-      if (!metamaskService.isMetaMaskAvailable()) {
+      if (!this.isMetaMaskAvailable()) {
         return null;
       }
       
@@ -76,12 +76,12 @@ export const metamaskService = {
       console.error("Error getting connected account:", error);
       return null;
     }
-  },
+  };
 
   /**
    * Get current Ethereum balance for an account
    */
-  getBalance: async (address?: string): Promise<number> => {
+  getBalance = async (address?: string): Promise<number> => {
     try {
       if (!address) {
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -105,12 +105,12 @@ export const metamaskService = {
       toast.error(`Failed to get balance: ${error.message || "Unknown error"}`);
       throw error;
     }
-  },
+  };
 
   /**
    * Switch to Ethereum Mainnet
    */
-  switchToEthereumMainnet: async (): Promise<void> => {
+  switchToEthereumMainnet = async (): Promise<void> => {
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
@@ -121,12 +121,12 @@ export const metamaskService = {
       toast.error(`Failed to switch network: ${error.message || "Unknown error"}`);
       throw error;
     }
-  },
+  };
 
   /**
    * Process a deposit from MetaMask to user's wallet
    */
-  processDeposit: async (
+  processDeposit = async (
     userId: string, 
     ethAmount: number
   ): Promise<boolean> => {
@@ -135,7 +135,7 @@ export const metamaskService = {
       const toAddress = '0xRecipientAddress';
       
       // Send the transaction
-      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, userId);
+      const txHash = await this.sendTransaction(toAddress, ethAmount, userId);
       
       // If we got here, the transaction was sent successfully
       return !!txHash;
@@ -143,18 +143,18 @@ export const metamaskService = {
       console.error("Error processing deposit:", error);
       return false;
     }
-  },
+  };
 
   /**
    * Send ETH from user's MetaMask wallet to a recipient address
    */
-  sendTransaction: async (
+  sendTransaction = async (
     toAddress: string, 
     amountInEth: number,
     userId: string
   ): Promise<string> => {
     try {
-      if (!metamaskService.isMetaMaskAvailable()) {
+      if (!this.isMetaMaskAvailable()) {
         throw new Error("MetaMask is not installed");
       }
 
@@ -181,13 +181,15 @@ export const metamaskService = {
 
       // Record the transaction in our system
       await addTransaction({
-        userId: userId,
+        user_id: userId,
+        player_id: userId,
         type: "deposit",
         amount: amountInEth,
         currency: 'ETH',
         status: 'completed',
         description: `Metamask deposit: ${amountInEth} ETH`,
-        referenceId: txHash,
+        reference_id: txHash,
+        provider: 'Metamask'
       });
       
       // Credit the user's wallet
@@ -201,31 +203,31 @@ export const metamaskService = {
       toast.error(`Transaction failed: ${error.message || "Unknown error"}`);
       throw error;
     }
-  },
+  };
 
   /**
    * Listen for MetaMask account changes
    */
-  listenForAccountChanges: (callback: (accounts: string[]) => void): void => {
-    if (metamaskService.isMetaMaskAvailable()) {
+  listenForAccountChanges = (callback: (accounts: string[]) => void): void => {
+    if (this.isMetaMaskAvailable()) {
       window.ethereum.on('accountsChanged', callback);
     }
-  },
+  };
 
   /**
    * Listen for MetaMask chain changes
    */
-  listenForChainChanges: (callback: (chainId: string) => void): void => {
-    if (metamaskService.isMetaMaskAvailable()) {
+  listenForChainChanges = (callback: (chainId: string) => void): void => {
+    if (this.isMetaMaskAvailable()) {
       window.ethereum.on('chainChanged', callback);
     }
-  },
+  };
 
   /**
    * Set up all MetaMask event listeners
    */
-  setupMetaMaskListeners: (): (() => void) | undefined => {
-    if (!metamaskService.isMetaMaskAvailable()) {
+  setupMetaMaskListeners = (): (() => void) | undefined => {
+    if (!this.isMetaMaskAvailable()) {
       return undefined;
     }
 
@@ -245,7 +247,8 @@ export const metamaskService = {
       window.ethereum.removeListener('accountsChanged', accountsHandler);
       window.ethereum.removeListener('chainChanged', chainHandler);
     };
-  }
-};
+  };
+}
 
+export const metamaskService = new MetaMaskService();
 export default metamaskService;

@@ -181,9 +181,15 @@ class TransactionService {
   // Add transaction helper (used by gameAggregatorService)
   async addTransaction(transactionData: TransactionData) {
     try {
+      // Ensure player_id is included in the transaction data
+      const dbTransactionData: Record<string, any> = {
+        ...transactionData,
+        player_id: transactionData.player_id || transactionData.user_id,
+      };
+      
       const { data, error } = await supabase
         .from('transactions')
-        .insert([transactionData])
+        .insert([dbTransactionData])
         .select();
 
       if (error) {
@@ -210,12 +216,13 @@ class TransactionService {
       }
 
       // Clean up transaction data to match the expected schema
-      const cleanedData: TransactionData = {
+      const cleanedData: Record<string, any> = {
         amount: Number(transactionData.amount),
         currency: transactionData.currency,
-        type: transactionData.type as 'bet' | 'win' | 'deposit' | 'withdraw' | 'bonus',
+        type: transactionData.type,
         status: transactionData.status || 'completed',
-        user_id: transactionData.player_id,
+        user_id: transactionData.user_id || transactionData.player_id,
+        player_id: transactionData.player_id,
         provider: transactionData.provider,
         game_id: transactionData.game_id || '',
         round_id: transactionData.round_id || '',
@@ -247,3 +254,4 @@ class TransactionService {
 }
 
 export const transactionService = new TransactionService();
+export const { getUserTransactions, getPragmaticPlayTransactions, addTransaction, processPragmaticTransaction } = transactionService;

@@ -33,6 +33,7 @@ export interface TransactionData {
   payment_method?: string;
   bonus_id?: string;
   reference_id?: string;
+  player_id?: string; // Add player_id for compatibility with the database
 }
 
 class WalletService {
@@ -102,8 +103,9 @@ class WalletService {
       }
 
       // 3. Create the transaction
-      const transactionData: TransactionData = {
+      const transactionData: Record<string, any> = {
         user_id: userId,
+        player_id: userId, // Add player_id for database compatibility
         amount,
         currency: wallet.currency || "USD", // Use wallet currency or default to USD
         type,
@@ -198,6 +200,21 @@ class WalletService {
 
     return data;
   }
+
+  // Helper function to credit wallet (used by metamaskService)
+  async creditWallet(userId: string, amount: number, type: TransactionData['type'] = 'deposit', paymentMethod: string = 'metamask') {
+    try {
+      return await this.deposit(userId, amount, paymentMethod, {
+        description: `${paymentMethod} deposit of ${amount}`,
+        reference_id: generateHash()
+      });
+    } catch (error: any) {
+      console.error('Error crediting wallet:', error);
+      throw new Error(error.message || 'Failed to credit wallet');
+    }
+  }
 }
 
 export const walletService = new WalletService();
+export const { creditWallet } = walletService;
+export default walletService;
