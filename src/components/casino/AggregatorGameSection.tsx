@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -172,12 +171,12 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                 {games.map((game) => (
                   <GameCard 
                     key={game.id}
-                    id={game.id}
-                    title={game.title}
-                    image={game.image}
-                    provider={game.provider}
-                    isPopular={game.isPopular}
-                    isNew={game.isNew}
+                    id={String(game.id)}
+                    title={game.title || ''}
+                    image={game.image || ''}
+                    provider={game.provider || ''}
+                    isPopular={!!game.isPopular}
+                    isNew={!!game.isNew}
                     rtp={`${game.rtp}%`}
                     isFavorite={false}
                     minBet={`$${game.minBet}`}
@@ -202,12 +201,12 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                 {games.map((game) => (
                   <GameCard 
                     key={game.id}
-                    id={game.id}
-                    title={game.title}
-                    image={game.image}
-                    provider={game.provider}
-                    isPopular={game.isPopular}
-                    isNew={game.isNew}
+                    id={String(game.id)}
+                    title={game.title || ''}
+                    image={game.image || ''}
+                    provider={game.provider || ''}
+                    isPopular={!!game.isPopular}
+                    isNew={!!game.isNew}
                     rtp={`${game.rtp}%`}
                     isFavorite={false}
                     minBet={`$${game.minBet}`}
