@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, RefreshCw } from "lucide-react";
+import { User, LogOut, RefreshCw, Wallet } from "lucide-react";
 import WalletBalance from "../user/WalletBalance";
 import DepositButton from "../user/DepositButton";
 
@@ -62,8 +62,13 @@ const Header = () => {
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <>
-              <div className="hidden md:flex items-center gap-2">
-                <WalletBalance variant="compact" showRefresh />
+              <div className="flex items-center gap-2">
+                <div className="bg-white/10 rounded-lg px-3 py-2 flex items-center">
+                  <Wallet className="h-4 w-4 text-casino-thunder-green mr-2" />
+                  <span className="text-white font-medium">
+                    ${user?.balance?.toFixed(2) || '0.00'}
+                  </span>
+                </div>
                 <Button
                   variant="outline"
                   size="icon"

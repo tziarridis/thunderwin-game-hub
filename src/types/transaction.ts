@@ -26,3 +26,6 @@ export interface TransactionFilter {
   endDate?: string;
   limit?: number;
 }
+
+// Reexport the TransactionFilter to maintain compatibility with existing imports
+export { TransactionFilter as TransactionFilterType };

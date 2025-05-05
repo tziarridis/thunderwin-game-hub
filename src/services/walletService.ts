@@ -202,7 +202,7 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
     // Transform the data to match WalletTransaction interface
     const transactions: WalletTransaction[] = (data || []).map(item => ({
       id: item.id,
-      user_id: item.player_id, // Map player_id to user_id
+      user_id: item.player_id,
       amount: item.amount,
       currency: item.currency,
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
@@ -211,10 +211,10 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
       provider: item.provider,
       game_id: item.game_id,
       round_id: item.round_id,
-      description: item.description || undefined,
-      payment_method: item.payment_method || undefined,
-      bonus_id: item.bonus_id || undefined,
-      reference_id: item.reference_id || undefined
+      description: item.description, 
+      payment_method: item.payment_method,
+      bonus_id: item.bonus_id,
+      reference_id: item.reference_id
     }));
     
     return transactions;
