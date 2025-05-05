@@ -82,7 +82,7 @@ const Profile = () => {
               
               <div>
                 <h3 className="text-lg font-medium mb-3">Recent Transactions</h3>
-                <TransactionsList limit={5} />
+                <TransactionsList userId={user.id} limit={5} />
               </div>
             </div>
           </div>

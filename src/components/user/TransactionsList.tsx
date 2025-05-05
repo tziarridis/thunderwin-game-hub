@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getUserTransactions } from "@/services/transactionService";
 import { Transaction } from "@/types/transaction";
+import { Loader2 } from "lucide-react";
 
 interface TransactionsListProps {
   userId: string;
@@ -16,6 +17,12 @@ const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
 
   useEffect(() => {
     const fetchTransactions = async () => {
+      if (!userId) {
+        setError("User ID is required to fetch transactions");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         const result = await getUserTransactions(userId, { limit });
@@ -32,17 +39,21 @@ const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
   }, [userId, limit]);
 
   if (loading) {
-    return <div>Loading transactions...</div>;
+    return (
+      <div className="flex justify-center items-center p-4">
+        <Loader2 className="h-6 w-6 animate-spin text-casino-thunder-green mr-2" />
+        <span>Loading transactions...</span>
+      </div>
+    );
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <div className="text-red-500 p-2">{error}</div>;
   }
 
   return (
     <div>
-      <h2 className="text-lg font-semibold mb-4">Transaction History</h2>
-      {transactions.length > 0 ? (
+      {transactions && transactions.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
@@ -68,7 +79,7 @@ const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
               {transactions.map((transaction) => (
                 <tr key={transaction.id}>
                   <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 font-medium text-gray-900">
-                    {transaction.id}
+                    {transaction.id?.substring(0, 8)}...
                   </td>
                   <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-500">
                     {transaction.type}
@@ -90,7 +101,7 @@ const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
           </table>
         </div>
       ) : (
-        <div>No transactions found.</div>
+        <div className="py-4 text-center text-gray-500">No transactions found.</div>
       )}
     </div>
   );

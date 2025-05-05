@@ -28,7 +28,7 @@ const GameLauncher = ({
 }: GameLauncherProps) => {
   const [isLaunching, setIsLaunching] = useState(false);
   const { user, isAuthenticated } = useAuth();
-  const { launchGame } = useGames();
+  const { launchGame, games } = useGames();
   
   const handleLaunchGame = async () => {
     // Check if user is logged in
@@ -40,11 +40,13 @@ const GameLauncher = ({
     try {
       setIsLaunching(true);
       
-      // Get the game details
-      const gameData = await gameAggregatorService.getGameById(gameId);
-      if (!gameData) {
-        throw new Error("Game not found");
-      }
+      // Instead of using a non-existent getGameById function, 
+      // we'll get the game from the useGames hook or create a minimal game object
+      const gameData = games.find(g => g.id === gameId) || {
+        id: gameId,
+        title: gameName,
+        provider: "unknown"
+      };
       
       // Launch the game using useGames hook
       const gameUrl = await launchGame(gameData, {
