@@ -94,7 +94,10 @@ export class GameProviderSyncService {
         has_tables: false,
         rtp: 96,
         variance: 'medium',
-        min_bet: 0.1
+        min_bet: 0.1,
+        // Add the missing required fields
+        distribution: 'normal',
+        views: 0
       }));
 
       // Check if 'games' table exists before proceeding

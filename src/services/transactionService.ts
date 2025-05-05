@@ -181,10 +181,11 @@ class TransactionService {
   // Add transaction helper (used by gameAggregatorService)
   async addTransaction(transactionData: TransactionData) {
     try {
-      // Ensure player_id is included in the transaction data
+      // Ensure player_id and provider are included in the transaction data
       const dbTransactionData = {
         ...transactionData,
         player_id: transactionData.player_id || transactionData.user_id,
+        provider: transactionData.provider || 'system' // Set a default provider
       };
       
       const { data, error } = await supabase
@@ -208,7 +209,7 @@ class TransactionService {
   async processPragmaticTransaction(transactionData: Record<string, any>): Promise<any> {
     try {
       // Ensure required fields are present
-      const requiredFields = ['amount', 'currency', 'player_id', 'provider', 'type'];
+      const requiredFields = ['amount', 'currency', 'player_id', 'type'];
       for (const field of requiredFields) {
         if (transactionData[field] === undefined) {
           throw new Error(`Missing required field: ${field}`);
@@ -223,7 +224,7 @@ class TransactionService {
         status: transactionData.status || 'completed',
         user_id: transactionData.user_id || transactionData.player_id,
         player_id: transactionData.player_id,
-        provider: transactionData.provider,
+        provider: transactionData.provider || 'Pragmatic Play',
         game_id: transactionData.game_id || '',
         round_id: transactionData.round_id || '',
         description: transactionData.description || '',

@@ -110,6 +110,7 @@ class WalletService {
         currency: wallet.currency || "USD", // Use wallet currency or default to USD
         type,
         status: 'completed',
+        provider: metadata.provider || 'system', // Set a default provider
         ...metadata
       };
 
@@ -157,6 +158,7 @@ class WalletService {
         payment_method: paymentMethod,
         description: `Deposit of ${amount} ${wallet.currency || "USD"}`, // Fixed error here
         reference_id: generateHash(),
+        provider: metadata.provider || 'payment-gateway', // Set a default provider
         ...metadata
       });
     } catch (error: any) {
@@ -178,6 +180,7 @@ class WalletService {
         payment_method: paymentMethod,
         description: `Withdrawal of ${amount} ${wallet.currency || "USD"}`, // Fixed error here
         reference_id: generateHash(),
+        provider: metadata.provider || 'payment-gateway', // Set a default provider
         ...metadata
       });
     } catch (error: any) {
@@ -190,7 +193,7 @@ class WalletService {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('player_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -206,7 +209,8 @@ class WalletService {
     try {
       return await this.deposit(userId, amount, paymentMethod, {
         description: `${paymentMethod} deposit of ${amount}`,
-        reference_id: generateHash()
+        reference_id: generateHash(),
+        provider: 'metamask'
       });
     } catch (error: any) {
       console.error('Error crediting wallet:', error);
