@@ -12,7 +12,7 @@ import Register from './pages/auth/Register';
 import NotFound from './pages/NotFound';
 import { AuthProvider } from './contexts/AuthContext';
 import { toast, Toaster } from 'sonner';
-import { ThemeProvider } from '@/components/ui/theme-provider';
+import { ThemeProvider } from './components/ui/theme-provider';
 
 // Add the import for AggregatorGames
 import AggregatorGames from './pages/casino/AggregatorGames';
