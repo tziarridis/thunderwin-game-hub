@@ -1,35 +1,8 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { addTransaction } from '@/services/transactionService';
-
-// Game Aggregator API configuration
-const API_CONFIG = {
-  endpoint: 'https://apipg.slotgamesapi.com',
-  agentId: 'captaingambleEUR',
-  token: '275c535c8c014b59bedb2a2d6fe7d37b',
-  secretKey: 'bbd0551e144c46d19975f985e037c9b0',
-  callbackUrl: 'https://your-domain/casino/seamless'
-};
-
-// InfinGame API configuration
-const INFIN_API_CONFIG = {
-  endpoint: 'https://infinapi-docs.axis-stage.infingame.com',
-  agentId: 'casinothunder',
-  token: 'api-token-here',
-  secretKey: 'secret-key-here',
-  callbackUrl: 'https://your-api.com/infin/callback'
-};
-
-// GitSlotPark API configuration
-const GSP_API_CONFIG = {
-  endpoint: 'https://api.gitslotpark.com',
-  agentId: 'partner123',
-  token: 'gsp-api-token',
-  secretKey: 'gsp-secret-key',
-  callbackUrl: 'https://your-domain/casino/seamless/gsp'
-};
+import { getProviderConfig } from '@/config/gameProviders';
 
 // Interface for session creation request
 interface SessionCreationRequest {
@@ -79,38 +52,47 @@ export const gameAggregatorService = {
     try {
       console.log(`Creating game session for player ${playerId}, game ${gameId}`);
       
-      // Determine which API configuration to use based on the game ID
+      // Determine which provider to use based on the game ID
       const isInfinGame = gameId.startsWith('infin_');
       const isGSP = gameId.startsWith('gsp_');
       
-      let apiConfig;
+      let providerConfig;
+      let providerId;
+      
       if (isInfinGame) {
-        apiConfig = INFIN_API_CONFIG;
+        providerId = 'infineur';
+        providerConfig = getProviderConfig(providerId);
       } else if (isGSP) {
-        apiConfig = GSP_API_CONFIG;
+        providerId = 'gspeur';
+        providerConfig = getProviderConfig(providerId);
       } else {
-        apiConfig = API_CONFIG;
+        providerId = 'ppeur';
+        providerConfig = getProviderConfig(providerId);
+      }
+      
+      if (!providerConfig) {
+        throw new Error(`Provider configuration not found for game ${gameId}`);
       }
       
       const requestBody: SessionCreationRequest = {
-        agentId: apiConfig.agentId,
-        token: apiConfig.token,
+        agentId: providerConfig.credentials.agentId,
+        token: providerConfig.credentials.token || providerConfig.credentials.secretKey,
         currency: currency,
         playerName: playerId,
         gameId: isInfinGame ? gameId.replace('infin_', '') : 
                 isGSP ? gameId.replace('gsp_', '') : gameId,
         platform: platform,
-        callbackUrl: apiConfig.callbackUrl
+        callbackUrl: providerConfig.credentials.callbackUrl
       };
       
       // Make API request to create session
       let apiEndpoint;
       if (isInfinGame) {
-        apiEndpoint = `${apiConfig.endpoint}/api/games/launch`;
+        apiEndpoint = `https://${providerConfig.credentials.apiEndpoint}/api/games/launch`;
       } else if (isGSP) {
-        apiEndpoint = `${apiConfig.endpoint}/api/v1/games/launch`;
+        apiEndpoint = `https://${providerConfig.credentials.apiEndpoint}/api/v1/games/launch`;
       } else {
-        apiEndpoint = `${apiConfig.endpoint}/api/casino/create-session`;
+        apiEndpoint = `https://${providerConfig.credentials.apiEndpoint}/api/casino/create-session`;
       }
       
       console.log(`API Endpoint: ${apiEndpoint}`);
@@ -232,17 +214,23 @@ export const gameAggregatorService = {
       const isInfinGame = callbackData.provider === 'infingame';
       const isGSP = callbackData.provider === 'gitslotpark';
       
-      let apiConfig;
+      let providerId;
       if (isInfinGame) {
-        apiConfig = INFIN_API_CONFIG;
+        providerId = 'infineur';
       } else if (isGSP) {
-        apiConfig = GSP_API_CONFIG;
+        providerId = 'gspeur';
       } else {
-        apiConfig = API_CONFIG;
+        providerId = 'ppeur';
+      }
+      
+      const providerConfig = getProviderConfig(providerId);
+      
+      if (!providerConfig) {
+        return { success: false, errorCode: 'INVALID_PROVIDER' };
       }
       
       // Verify that this is a valid callback with our agent ID
-      if (callbackData.agentId !== apiConfig.agentId) {
+      if (callbackData.agentId !== providerConfig.credentials.agentId) {
         return { success: false, errorCode: 'INVALID_AGENT' };
       }
       
@@ -297,6 +285,13 @@ export const gameAggregatorService = {
    */
   getAvailableGames: async () => {
     try {
+      const API_CONFIG = {
+        endpoint: 'https://apipg.slotgamesapi.com',
+        agentId: 'captaingambleEUR',
+        token: '275c535c8c014b59bedb2a2d6fe7d37b',
+        secretKey: 'bbd0551e144c46d19975f985e037c9b0',
+        callbackUrl: 'https://your-domain/casino/seamless'
+      };
       const response = await axios.get(
         `${API_CONFIG.endpoint}/api/casino/games`,
         {
@@ -343,6 +338,13 @@ export const gameAggregatorService = {
    */
   getInfinGames: async () => {
     try {
+      const INFIN_API_CONFIG = {
+        endpoint: 'https://infinapi-docs.axis-stage.infingame.com',
+        agentId: 'casinothunder',
+        token: 'api-token-here',
+        secretKey: 'secret-key-here',
+        callbackUrl: 'https://your-api.com/infin/callback'
+      };
       const response = await axios.get(
         `${INFIN_API_CONFIG.endpoint}/api/games/list`,
         {
@@ -387,6 +389,13 @@ export const gameAggregatorService = {
    */
   getGitSlotParkGames: async () => {
     try {
+      const GSP_API_CONFIG = {
+        endpoint: 'https://api.gitslotpark.com',
+        agentId: 'partner123',
+        token: 'gsp-api-token',
+        secretKey: 'gsp-secret-key',
+        callbackUrl: 'https://your-domain/casino/seamless/gsp'
+      };
       const response = await axios.get(
         `${GSP_API_CONFIG.endpoint}/api/v1/games`,
         {

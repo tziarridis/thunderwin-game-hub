@@ -3,6 +3,7 @@ export interface GameProviderCredentials {
   apiEndpoint: string;
   agentId: string;
   secretKey: string;
+  token?: string;
   callbackUrl: string;
 }
 
@@ -71,6 +72,7 @@ export const availableProviders: GameProviderConfig[] = [
       apiEndpoint: 'api.gitslotpark.com',
       agentId: 'partner123',
       secretKey: 'gsp-secret-key',
+      token: 'gsp-api-token',
       callbackUrl: `${window.origin}/casino/seamless/gsp`,
     }
   },
@@ -84,7 +86,8 @@ export const availableProviders: GameProviderConfig[] = [
     credentials: {
       apiEndpoint: 'infinapi-docs.axis-stage.infingame.com',
       agentId: 'casinothunder',
-      secretKey: 'api-token-here',
+      secretKey: 'secret-key-here',
+      token: 'api-token-here',
       callbackUrl: 'https://your-api.com/infin/callback',
     }
   }

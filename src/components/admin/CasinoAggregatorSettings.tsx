@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { gameProviderConfigs, updateProviderConfig } from "@/config/gameProviders";
-import { Globe, Check, Copy, RefreshCw, AlertCircle } from "lucide-react";
+import { Globe, Check, Copy, RefreshCw, AlertCircle, ExternalLink } from "lucide-react";
 
 const CasinoAggregatorSettings = () => {
   const [activeTab, setActiveTab] = useState("pp");
@@ -107,6 +107,215 @@ const CasinoAggregatorSettings = () => {
     }, 2000);
   };
 
+  const renderProviderCard = (provider: any) => {
+    const hasToken = provider.code === 'INFIN' || provider.code === 'GSP';
+    
+    return (
+      <Card key={provider.id} className="border border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Globe className="mr-2 h-5 w-5 text-blue-400" />
+            {provider.name} - {provider.currency}
+          </CardTitle>
+          <CardDescription>
+            Provider ID: {provider.id} | Type: {provider.type}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`${provider.id}-endpoint`}>API Endpoint</Label>
+                <div className="flex mt-1">
+                  <Input 
+                    id={`${provider.id}-endpoint`}
+                    value={isEditing === provider.id 
+                      ? formValues[provider.id]?.apiEndpoint 
+                      : provider.credentials.apiEndpoint}
+                    disabled={isEditing !== provider.id}
+                    onChange={(e) => handleInputChange(provider.id, 'apiEndpoint', e.target.value)}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => handleCopy(provider.credentials.apiEndpoint, "API Endpoint")}
+                  >
+                    {copiedValue === "API Endpoint" ? <Check size={16} /> : <Copy size={16} />}
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor={`${provider.id}-agentid`}>Agent ID</Label>
+                <div className="flex mt-1">
+                  <Input 
+                    id={`${provider.id}-agentid`}
+                    value={isEditing === provider.id 
+                      ? formValues[provider.id]?.agentId 
+                      : provider.credentials.agentId}
+                    disabled={isEditing !== provider.id}
+                    onChange={(e) => handleInputChange(provider.id, 'agentId', e.target.value)}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => handleCopy(provider.credentials.agentId, "Agent ID")}
+                  >
+                    {copiedValue === "Agent ID" ? <Check size={16} /> : <Copy size={16} />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor={`${provider.id}-secret`}>Secret Key</Label>
+                <div className="flex mt-1">
+                  <Input 
+                    id={`${provider.id}-secret`}
+                    value={isEditing === provider.id 
+                      ? formValues[provider.id]?.secretKey 
+                      : provider.credentials.secretKey}
+                    disabled={isEditing !== provider.id}
+                    type={isEditing === provider.id ? "text" : "password"}
+                    onChange={(e) => handleInputChange(provider.id, 'secretKey', e.target.value)}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => handleCopy(provider.credentials.secretKey, "Secret Key")}
+                  >
+                    {copiedValue === "Secret Key" ? <Check size={16} /> : <Copy size={16} />}
+                  </Button>
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor={`${provider.id}-callback`}>Callback URL</Label>
+                <div className="flex mt-1">
+                  <Input 
+                    id={`${provider.id}-callback`}
+                    value={isEditing === provider.id 
+                      ? formValues[provider.id]?.callbackUrl 
+                      : provider.credentials.callbackUrl}
+                    disabled={isEditing !== provider.id}
+                    onChange={(e) => handleInputChange(provider.id, 'callbackUrl', e.target.value)}
+                    className="flex-grow"
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => handleCopy(provider.credentials.callbackUrl, "Callback URL")}
+                  >
+                    {copiedValue === "Callback URL" ? <Check size={16} /> : <Copy size={16} />}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            {hasToken && (
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor={`${provider.id}-token`}>API Token</Label>
+                  <div className="flex mt-1">
+                    <Input 
+                      id={`${provider.id}-token`}
+                      value={isEditing === provider.id 
+                        ? formValues[provider.id]?.token 
+                        : provider.credentials.token || ""}
+                      disabled={isEditing !== provider.id}
+                      type={isEditing === provider.id ? "text" : "password"}
+                      onChange={(e) => handleInputChange(provider.id, 'token', e.target.value)}
+                      className="flex-grow"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleCopy(provider.credentials.token || "", "API Token")}
+                    >
+                      {copiedValue === "API Token" ? <Check size={16} /> : <Copy size={16} />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-2 mt-4">
+              <Switch 
+                id={`${provider.id}-enabled`} 
+                checked={provider.enabled}
+                onCheckedChange={() => {
+                  const updated = updateProviderConfig(provider.id, {
+                    enabled: !provider.enabled
+                  });
+                  if (updated) {
+                    setProviderConfigs([...gameProviderConfigs]);
+                    toast.success(`Provider ${provider.enabled ? 'disabled' : 'enabled'}`);
+                  }
+                }}
+              />
+              <Label htmlFor={`${provider.id}-enabled`}>Provider Enabled</Label>
+            </div>
+            
+            {(provider.code === 'GSP' || provider.code === 'INFIN') && (
+              <div className="p-4 bg-slate-800 rounded-md mt-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-yellow-500">API Documentation</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      View the {provider.name} API documentation:
+                      <a href={
+                        provider.code === 'GSP' 
+                          ? 'https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4' 
+                          : 'https://infinapi-docs.axis-stage.infingame.com/'
+                        } 
+                        target="_blank" rel="noopener noreferrer" 
+                        className="text-blue-400 hover:underline ml-1 inline-flex items-center">
+                        API Docs <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </CardContent>
+        
+        <CardFooter className="flex justify-between">
+          <Button 
+            variant={isEditing === provider.id ? "default" : "outline"}
+            onClick={() => handleEditToggle(provider.id)}
+          >
+            {isEditing === provider.id ? "Save Changes" : "Edit Configuration"}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => handleTestConnection(provider.id)}
+            disabled={testingProvider === provider.id}
+          >
+            {testingProvider === provider.id ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              <>
+                <Globe className="h-4 w-4 mr-2" />
+                Test Connection
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -116,324 +325,15 @@ const CasinoAggregatorSettings = () => {
               {key.toUpperCase()}
             </TabsTrigger>
           ))}
-          <TabsTrigger value="infin">INFIN</TabsTrigger>
         </TabsList>
         
         {tabKeys.map(key => (
           <TabsContent key={key} value={key} className="space-y-4">
             <div className="grid grid-cols-1 gap-6">
-              {providerGroups[key]?.map(provider => (
-                <Card key={provider.id} className="border border-slate-700">
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Globe className="mr-2 h-5 w-5 text-blue-400" />
-                      {provider.name} - {provider.currency}
-                    </CardTitle>
-                    <CardDescription>
-                      Provider ID: {provider.id} | Type: {provider.type}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor={`${provider.id}-endpoint`}>API Endpoint</Label>
-                          <div className="flex mt-1">
-                            <Input 
-                              id={`${provider.id}-endpoint`}
-                              value={isEditing === provider.id 
-                                ? formValues[provider.id]?.apiEndpoint 
-                                : provider.credentials.apiEndpoint}
-                              disabled={isEditing !== provider.id}
-                              onChange={(e) => handleInputChange(provider.id, 'apiEndpoint', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleCopy(provider.credentials.apiEndpoint, "API Endpoint")}
-                            >
-                              {copiedValue === "API Endpoint" ? <Check size={16} /> : <Copy size={16} />}
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`${provider.id}-agentid`}>Agent ID</Label>
-                          <div className="flex mt-1">
-                            <Input 
-                              id={`${provider.id}-agentid`}
-                              value={isEditing === provider.id 
-                                ? formValues[provider.id]?.agentId 
-                                : provider.credentials.agentId}
-                              disabled={isEditing !== provider.id}
-                              onChange={(e) => handleInputChange(provider.id, 'agentId', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleCopy(provider.credentials.agentId, "Agent ID")}
-                            >
-                              {copiedValue === "Agent ID" ? <Check size={16} /> : <Copy size={16} />}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor={`${provider.id}-secret`}>Secret Key</Label>
-                          <div className="flex mt-1">
-                            <Input 
-                              id={`${provider.id}-secret`}
-                              value={isEditing === provider.id 
-                                ? formValues[provider.id]?.secretKey 
-                                : provider.credentials.secretKey}
-                              disabled={isEditing !== provider.id}
-                              type={isEditing === provider.id ? "text" : "password"}
-                              onChange={(e) => handleInputChange(provider.id, 'secretKey', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleCopy(provider.credentials.secretKey, "Secret Key")}
-                            >
-                              {copiedValue === "Secret Key" ? <Check size={16} /> : <Copy size={16} />}
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor={`${provider.id}-callback`}>Callback URL</Label>
-                          <div className="flex mt-1">
-                            <Input 
-                              id={`${provider.id}-callback`}
-                              value={isEditing === provider.id 
-                                ? formValues[provider.id]?.callbackUrl 
-                                : provider.credentials.callbackUrl}
-                              disabled={isEditing !== provider.id}
-                              onChange={(e) => handleInputChange(provider.id, 'callbackUrl', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleCopy(provider.credentials.callbackUrl, "Callback URL")}
-                            >
-                              {copiedValue === "Callback URL" ? <Check size={16} /> : <Copy size={16} />}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 mt-4">
-                        <Switch 
-                          id={`${provider.id}-enabled`} 
-                          checked={provider.enabled}
-                          onCheckedChange={() => {
-                            const updated = updateProviderConfig(provider.id, {
-                              enabled: !provider.enabled
-                            });
-                            if (updated) {
-                              setProviderConfigs([...gameProviderConfigs]);
-                              toast.success(`Provider ${provider.enabled ? 'disabled' : 'enabled'}`);
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`${provider.id}-enabled`}>Provider Enabled</Label>
-                      </div>
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="flex justify-between">
-                    <Button 
-                      variant={isEditing === provider.id ? "default" : "outline"}
-                      onClick={() => handleEditToggle(provider.id)}
-                    >
-                      {isEditing === provider.id ? "Save Changes" : "Edit Configuration"}
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      onClick={() => handleTestConnection(provider.id)}
-                      disabled={testingProvider === provider.id}
-                    >
-                      {testingProvider === provider.id ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Testing...
-                        </>
-                      ) : (
-                        <>
-                          <Globe className="h-4 w-4 mr-2" />
-                          Test Connection
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+              {providerGroups[key]?.map(provider => renderProviderCard(provider))}
             </div>
           </TabsContent>
         ))}
-        
-        {/* InfinGame Tab */}
-        <TabsContent value="infin" className="space-y-4">
-          <Card className="border border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Globe className="mr-2 h-5 w-5 text-blue-400" />
-                InfinGame - EUR
-              </CardTitle>
-              <CardDescription>
-                Provider ID: infineur | Type: slots
-              </CardDescription>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="p-4 bg-slate-800 rounded-md mb-4">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-yellow-500">Integration Notes</h3>
-                    <p className="text-sm text-gray-400 mt-1">
-                      InfinGame uses a different API format than other providers. Please refer to their
-                      <a href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" rel="noopener noreferrer" 
-                        className="text-blue-400 hover:underline mx-1">
-                        API documentation
-                      </a>
-                      for more details.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="infin-endpoint">API Endpoint</Label>
-                    <div className="flex mt-1">
-                      <Input 
-                        id="infin-endpoint"
-                        value="infinapi-docs.axis-stage.infingame.com"
-                        disabled={isEditing !== "infineur"}
-                        className="flex-grow"
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleCopy("infinapi-docs.axis-stage.infingame.com", "InfinGame API")}
-                      >
-                        {copiedValue === "InfinGame API" ? <Check size={16} /> : <Copy size={16} />}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="infin-agentid">Agent ID</Label>
-                    <div className="flex mt-1">
-                      <Input 
-                        id="infin-agentid"
-                        value="casinothunder"
-                        disabled={isEditing !== "infineur"}
-                        className="flex-grow"
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleCopy("casinothunder", "InfinGame Agent ID")}
-                      >
-                        {copiedValue === "InfinGame Agent ID" ? <Check size={16} /> : <Copy size={16} />}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="infin-secret">API Token</Label>
-                    <div className="flex mt-1">
-                      <Input 
-                        id="infin-secret"
-                        value="api-token-here"
-                        disabled={isEditing !== "infineur"}
-                        type="password"
-                        className="flex-grow"
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleCopy("api-token-here", "InfinGame Token")}
-                      >
-                        {copiedValue === "InfinGame Token" ? <Check size={16} /> : <Copy size={16} />}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="infin-callback">Callback URL</Label>
-                    <div className="flex mt-1">
-                      <Input 
-                        id="infin-callback"
-                        value="https://your-api.com/infin/callback"
-                        disabled={isEditing !== "infineur"}
-                        className="flex-grow"
-                      />
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleCopy("https://your-api.com/infin/callback", "InfinGame Callback")}
-                      >
-                        {copiedValue === "InfinGame Callback" ? <Check size={16} /> : <Copy size={16} />}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex items-center space-x-2 mt-4">
-                  <Switch 
-                    id="infin-enabled" 
-                    checked={true}
-                    onCheckedChange={() => {
-                      toast.success(`InfinGame provider ${true ? 'disabled' : 'enabled'}`);
-                    }}
-                  />
-                  <Label htmlFor="infin-enabled">Provider Enabled</Label>
-                </div>
-              </div>
-            </CardContent>
-            
-            <CardFooter className="flex justify-between">
-              <Button 
-                variant={isEditing === "infineur" ? "default" : "outline"}
-                onClick={() => handleEditToggle("infineur")}
-              >
-                {isEditing === "infineur" ? "Save Changes" : "Edit Configuration"}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                onClick={() => handleTestConnection("infineur")}
-                disabled={testingProvider === "infineur"}
-              >
-                {testingProvider === "infineur" ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <Globe className="h-4 w-4 mr-2" />
-                    Test Connection
-                  </>
-                )}
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

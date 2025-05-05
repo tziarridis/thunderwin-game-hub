@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
 import { useEffect, useState } from "react";
-import { getProviderConfig, GameProviderConfig } from "@/config/gameProviders";
+import { getProviderConfig, getEnabledProviders } from "@/config/gameProviders";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check, AlertTriangle, Play } from "lucide-react";
@@ -28,12 +28,17 @@ const GameAggregator = () => {
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [gameId, setGameId] = useState('');
   const [playerId, setPlayerId] = useState('demo_player');
+  const [enabledProviders, setEnabledProviders] = useState(getEnabledProviders());
 
   useEffect(() => {
     // Get unique provider types
     const uniqueProviders = new Set<string>();
     const providerList: {id: string, name: string, code: string}[] = [];
     const additionalList: {id: string, name: string, code: string}[] = [];
+    
+    // Get enabled providers
+    const enabled = getEnabledProviders();
+    setEnabledProviders(enabled);
     
     // Get supported providers with available credentials
     const supportedProviders = {
@@ -57,9 +62,17 @@ const GameAggregator = () => {
           (key === 'am' && getProviderConfig('ameur')) ||
           (key === 'infin' && getProviderConfig('infineur'));
         
-        if (hasConfig) {
+        // Check if provider is enabled
+        const isEnabled = 
+          (key === 'pp' && enabled.find(p => p.id === 'ppeur')) ||
+          (key === 'gsp' && enabled.find(p => p.id === 'gspeur')) ||
+          (key === 'pg' && enabled.find(p => p.id === 'pgeur')) ||
+          (key === 'am' && enabled.find(p => p.id === 'ameur')) ||
+          (key === 'infin' && enabled.find(p => p.id === 'infineur'));
+        
+        if (hasConfig && isEnabled) {
           providerList.push({ id: key, name: provider.name, code: provider.code });
-        } else {
+        } else if (hasConfig) {
           additionalList.push({ id: key, name: provider.name, code: provider.code });
         }
       }
@@ -79,11 +92,13 @@ const GameAggregator = () => {
     let url = "";
     
     if (providerId === 'infin') {
-      url = "https://your-api.com/infin/callback";
-    } else {
-      const config = getProviderConfig(providerConfigId);
-      url = config?.credentials.callbackUrl || "";
+      providerConfigId = 'infineur';
+    } else if (providerId === 'gsp') {
+      providerConfigId = 'gspeur';
     }
+    
+    const config = getProviderConfig(providerConfigId);
+    url = config?.credentials.callbackUrl || "";
     
     if (url) {
       navigator.clipboard.writeText(url);
@@ -118,23 +133,19 @@ const GameAggregator = () => {
       
       toast.info(`Launching ${providerId.toUpperCase()} game: ${gameId}`);
       
-      let gameResponse;
+      // Prepend provider prefix to game ID if needed
+      const formattedGameId = providerId === 'infin' 
+        ? gameId.startsWith('infin_') ? gameId : `infin_${gameId}`
+        : providerId === 'gsp'
+          ? gameId.startsWith('gsp_') ? gameId : `gsp_${gameId}`
+          : gameId;
       
-      if (providerId === 'infin') {
-        gameResponse = await gameAggregatorService.createSession(
-          `infin_${gameId}`, 
-          playerId,
-          'EUR',
-          'web'
-        );
-      } else {
-        gameResponse = await gameAggregatorService.createSession(
-          gameId,
-          playerId,
-          'EUR',
-          'web'
-        );
-      }
+      const gameResponse = await gameAggregatorService.createSession(
+        formattedGameId, 
+        playerId,
+        'EUR',
+        'web'
+      );
       
       if (gameResponse.success && gameResponse.gameUrl) {
         window.open(gameResponse.gameUrl, '_blank');
@@ -161,12 +172,6 @@ const GameAggregator = () => {
             <Button variant="outline" size="sm">
               <Globe className="mr-2 h-4 w-4" />
               Aggregator Settings
-            </Button>
-          </Link>
-          <Link to="/api/seamless/pragmatic" target="_blank">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Callback Endpoint
             </Button>
           </Link>
         </div>
@@ -261,6 +266,37 @@ const GameAggregator = () => {
                     Launch Test Game
                   </Button>
                 </div>
+                
+                <div className="p-4 bg-slate-800 rounded-md mt-6">
+                  <h3 className="text-lg mb-2">Integration Details</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Configure these endpoints in your GitSlotPark integration dashboard.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                      <div>
+                        <p className="text-sm font-semibold">API Endpoint:</p>
+                        <p className="text-xs text-gray-400">{getProviderConfig('gspeur')?.credentials.apiEndpoint}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        handleCopyCallback('gsp', 'gsp-api');
+                      }} className="h-8 px-2">
+                        {copiedEndpoint === 'gsp-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                      <div>
+                        <p className="text-sm font-semibold">Documentation URL:</p>
+                        <p className="text-xs text-gray-400">https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4</p>
+                      </div>
+                      <Button size="sm" variant="outline" component="a" href="https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4" target="_blank" className="h-8 px-2">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -315,44 +351,33 @@ const GameAggregator = () => {
                   </Button>
                 </div>
                 
-                <div className="space-y-4 mt-6">
-                  <div className="p-4 bg-slate-800 rounded-md">
-                    <h3 className="text-lg mb-2">Integration Details</h3>
-                    <p className="text-sm text-gray-400 mb-4">
-                      Configure these endpoints in your InfinGame integration dashboard.
-                    </p>
+                <div className="p-4 bg-slate-800 rounded-md mt-6">
+                  <h3 className="text-lg mb-2">Integration Details</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Configure these endpoints in your InfinGame integration dashboard.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                      <div>
+                        <p className="text-sm font-semibold">API Endpoint:</p>
+                        <p className="text-xs text-gray-400">{getProviderConfig('infineur')?.credentials.apiEndpoint}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => {
+                        handleCopyCallback('infin', 'infin-api');
+                      }} className="h-8 px-2">
+                        {copiedEndpoint === 'infin-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
-                        <div>
-                          <p className="text-sm font-semibold">Callback URL:</p>
-                          <p className="text-xs text-gray-400">https://your-api.com/infin/callback</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          navigator.clipboard.writeText("https://your-api.com/infin/callback");
-                          setCopiedEndpoint('infin-callback');
-                          toast.success('Callback URL copied to clipboard');
-                          setTimeout(() => setCopiedEndpoint(null), 2000);
-                        }}
-                          className="h-8 px-2">
-                          {copiedEndpoint === 'infin-callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
+                    <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
+                      <div>
+                        <p className="text-sm font-semibold">Documentation URL:</p>
+                        <p className="text-xs text-gray-400">https://infinapi-docs.axis-stage.infingame.com/</p>
                       </div>
-                      
-                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
-                        <div>
-                          <p className="text-sm font-semibold">API Endpoint:</p>
-                          <p className="text-xs text-gray-400">https://infinapi-docs.axis-stage.infingame.com/</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          navigator.clipboard.writeText("https://infinapi-docs.axis-stage.infingame.com/");
-                          setCopiedEndpoint('infin-api');
-                          toast.success('API endpoint copied to clipboard');
-                          setTimeout(() => setCopiedEndpoint(null), 2000);
-                        }} className="h-8 px-2">
-                          {copiedEndpoint === 'infin-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
+                      <Button size="sm" variant="outline" component="a" href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" className="h-8 px-2">
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -406,14 +431,18 @@ const GameAggregator = () => {
                                 <p className="text-sm font-medium mb-1">EUR Callback URL</p>
                                 <div className="flex items-center justify-between">
                                   <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
-                                    {provider.id === 'infin' 
-                                    ? 'https://your-api.com/infin/callback' 
-                                    : getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
+                                    {(() => {
+                                      let configId = provider.id === 'infin' ? 'infineur' : 
+                                                     provider.id === 'gsp' ? 'gspeur' : 
+                                                     `${provider.id}eur`;
+                                      return getProviderConfig(configId)?.credentials.callbackUrl || 'Not configured';
+                                    })()}
                                   </code>
                                   <Button size="sm" variant="ghost" onClick={() => {
-                                    const url = provider.id === 'infin' 
-                                    ? 'https://your-api.com/infin/callback' 
-                                    : getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    let configId = provider.id === 'infin' ? 'infineur' : 
+                                                   provider.id === 'gsp' ? 'gspeur' : 
+                                                   `${provider.id}eur`;
+                                    const url = getProviderConfig(configId)?.credentials.callbackUrl;
                                     
                                     if (url) {
                                       navigator.clipboard.writeText(url);
@@ -426,23 +455,26 @@ const GameAggregator = () => {
                               </div>
                               
                               <div className="p-3 bg-slate-700 rounded-md">
-                                <p className="text-sm font-medium mb-1">USD Callback URL</p>
+                                <p className="text-sm font-medium mb-1">API Endpoint</p>
                                 <div className="flex items-center justify-between">
-                                  <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
-                                    {provider.id === 'infin' 
-                                    ? 'https://your-api.com/infin/usd/callback' 
-                                    : getProviderConfig(`${provider.id}usd`)?.credentials.callbackUrl || 
-                                      getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
+                                  <code className="text-xs bg-slate-800 p-1 rounded">
+                                    {(() => {
+                                      let configId = provider.id === 'infin' ? 'infineur' : 
+                                                     provider.id === 'gsp' ? 'gspeur' : 
+                                                     `${provider.id}eur`;
+                                      const endpoint = getProviderConfig(configId)?.credentials.apiEndpoint;
+                                      return endpoint ? `https://${endpoint}` : 'Not configured';
+                                    })()}
                                   </code>
                                   <Button size="sm" variant="ghost" onClick={() => {
-                                    const url = provider.id === 'infin' 
-                                    ? 'https://your-api.com/infin/usd/callback' 
-                                    : getProviderConfig(`${provider.id}usd`)?.credentials.callbackUrl || 
-                                      getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    let configId = provider.id === 'infin' ? 'infineur' : 
+                                                   provider.id === 'gsp' ? 'gspeur' : 
+                                                   `${provider.id}eur`;
+                                    const endpoint = getProviderConfig(configId)?.credentials.apiEndpoint;
                                     
-                                    if (url) {
-                                      navigator.clipboard.writeText(url);
-                                      toast.success('Callback URL copied');
+                                    if (endpoint) {
+                                      navigator.clipboard.writeText(`https://${endpoint}`);
+                                      toast.success('API endpoint copied');
                                     }
                                   }}>
                                     <Copy className="h-4 w-4" />
@@ -451,36 +483,22 @@ const GameAggregator = () => {
                               </div>
                             </div>
                             
-                            <div className="p-3 bg-slate-700 rounded-md">
-                              <p className="text-sm font-medium mb-1">API Endpoint</p>
-                              <div className="flex items-center justify-between">
-                                <code className="text-xs bg-slate-800 p-1 rounded">
-                                  {provider.id === 'infin' 
-                                  ? 'https://infinapi-docs.axis-stage.infingame.com/' 
-                                  : `https://${getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint}`}
-                                </code>
-                                <Button size="sm" variant="ghost" onClick={() => {
-                                  const endpoint = provider.id === 'infin' 
-                                  ? 'https://infinapi-docs.axis-stage.infingame.com/' 
-                                  : getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint;
-                                  
-                                  if (endpoint) {
-                                    navigator.clipboard.writeText(`https://${endpoint}`);
-                                    toast.success('API endpoint copied');
-                                  }
-                                }}>
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                            
                             <div className="flex justify-end mt-2">
-                              <Link to={`/api/seamless/${provider.id.toLowerCase()}`} target="_blank">
+                              <a href={
+                                provider.id === 'gsp' 
+                                  ? 'https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4'
+                                  : provider.id === 'infin'
+                                    ? 'https://infinapi-docs.axis-stage.infingame.com/'
+                                    : `https://your-domain/api/seamless/${provider.id.toLowerCase()}`
+                                } 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                              >
                                 <Button size="sm" variant="outline">
                                   <ExternalLink className="mr-2 h-4 w-4" />
-                                  Test Endpoint
+                                  API Documentation
                                 </Button>
-                              </Link>
+                              </a>
                             </div>
                           </div>
                         </CollapsibleContent>

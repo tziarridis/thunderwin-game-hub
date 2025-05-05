@@ -30,7 +30,9 @@ export class GameProviderSyncService {
         ? 'Pragmatic Play' 
         : providerId.toUpperCase().includes('GSP') 
           ? 'GitSlotPark' 
-          : 'Unknown Provider';
+          : providerId.toUpperCase().includes('INFIN')
+            ? 'InfinGame'
+            : 'Unknown Provider';
       
       // Return mock data for now
       return [
@@ -95,7 +97,8 @@ export class GameProviderSyncService {
         rtp: 96,
         variance: 'medium',
         min_bet: 0.1,
-        distribution: 'normal',
+        max_bet: 100,
+        distribution: game.provider_name || 'Unknown',
         views: 0
       }));
 
