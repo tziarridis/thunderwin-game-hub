@@ -23,11 +23,18 @@ const getCallbackUrl = (providerId: string): string => {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
   
   // Map provider IDs to their callback paths
-  const providerPath = providerId.includes('pp') ? '/casino/seamless/pp' : 
-                       providerId === 'evolution' ? '/casino/seamless/evolution' : 
-                       providerId.includes('gsp') ? '/casino/seamless/gsp' :
-                       providerId.includes('infin') ? '/casino/seamless/infin' : 
-                       '/casino/seamless';
+  let providerPath;
+  if (providerId.includes('pp')) {
+    providerPath = '/api/seamless/pp';
+  } else if (providerId === 'evolution') {
+    providerPath = '/api/seamless/evolution';
+  } else if (providerId.includes('gsp')) {
+    providerPath = '/api/seamless/gsp'; 
+  } else if (providerId.includes('infin')) {
+    providerPath = '/api/seamless/infin';
+  } else {
+    providerPath = `/api/seamless/${providerId.toLowerCase()}`;
+  }
   
   return `${baseUrl}${providerPath}`;
 };

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Gamepad2, Settings, TestTube, History, Package, Server } from "lucide-react";
+import { Gamepad2, Settings, TestTube, History, Package, Server, Play } from "lucide-react";
 import GameAggregator from "@/components/admin/GameAggregator";
 
 const GameManagement = () => {
@@ -32,6 +32,10 @@ const GameManagement = () => {
             <History className="mr-2 h-4 w-4" />
             Transactions
           </Button>
+          <Button variant="outline" onClick={() => navigate('/casino/seamless')}>
+            <Play className="mr-2 h-4 w-4" />
+            Seamless API
+          </Button>
         </div>
       </div>
       
@@ -57,7 +61,7 @@ const GameManagement = () => {
                     <p className="text-sm text-muted-foreground mb-4">
                       View and manage all games in your casino
                     </p>
-                    <Button onClick={() => navigate('/admin/games')}>
+                    <Button onClick={() => navigate('/admin/cms/games-management')}>
                       Go to Games List
                     </Button>
                   </CardContent>

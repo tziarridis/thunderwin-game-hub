@@ -25,7 +25,12 @@ export async function handleSeamlessCallback(req: Request) {
     
     // Return the result
     return new Response(JSON.stringify(result), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
       status: 200
     });
   } catch (error: any) {
@@ -37,11 +42,36 @@ export async function handleSeamlessCallback(req: Request) {
       errorCode: 'INTERNAL_ERROR',
       errorMessage: error.message || 'Unknown error'
     }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
       status: 500
     });
   }
 }
 
+// Handle preflight OPTIONS requests for CORS
+export async function handleOptions() {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+    status: 204, // No content
+  });
+}
+
 // Export the handler as default
-export default handleSeamlessCallback;
+export default async function handler(req: Request) {
+  // Handle OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return handleOptions();
+  }
+  
+  // Handle GET/POST requests
+  return handleSeamlessCallback(req);
+}

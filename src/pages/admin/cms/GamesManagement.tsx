@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   Search, 
@@ -11,7 +10,8 @@ import {
   Eye,
   Gamepad2,
   BarChart2,
-  Loader2
+  Loader2,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,6 +26,7 @@ import {
   deleteGameAdapter, 
   toggleGameFeatureAdapter 
 } from "@/utils/cmsGamesAdapter";
+import { DataTable } from "@/components/ui/data-table";
 
 const GamesManagement = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -43,7 +44,8 @@ const GamesManagement = () => {
   const { 
     games, 
     loading, 
-    totalGames
+    totalGames,
+    launchGame
   } = useGames();
   
   // Helper function to get provider name
@@ -58,9 +60,9 @@ const GamesManagement = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const results = games.filter(game => 
-        game.title.toLowerCase().includes(query) || 
+        (game.title?.toLowerCase().includes(query) || '') || 
         getProviderName(game.provider).toLowerCase().includes(query) ||
-        game.id.includes(query)
+        (game.id?.includes(query) || '')
       );
       setFilteredGames(results);
     } else {
@@ -74,9 +76,9 @@ const GamesManagement = () => {
     
     if (query) {
       const results = games.filter(game => 
-        game.title.toLowerCase().includes(query) || 
+        (game.title?.toLowerCase().includes(query) || '') || 
         getProviderName(game.provider).toLowerCase().includes(query) ||
-        game.id.includes(query)
+        (game.id?.includes(query) || '')
       );
       setFilteredGames(results);
     } else {
@@ -174,6 +176,70 @@ const GamesManagement = () => {
   const indexOfFirstGame = indexOfLastGame - gamesPerPage;
   const currentGames = filteredGames.slice(indexOfFirstGame, indexOfLastGame);
   const totalPages = Math.ceil(filteredGames.length / gamesPerPage);
+  
+  // Table columns configuration
+  const columns = [
+    {
+      header: "Game",
+      accessorKey: "title",
+      cell: (game: Game) => (
+        <div className="flex items-center">
+          <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-white/10">
+            <img src={game.image} alt={game.title} className="h-10 w-10 object-cover" />
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium">{game.title}</div>
+            <div className="text-xs text-white/60">ID: {game.id}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      header: "Provider",
+      accessorKey: "provider",
+      cell: (game: Game) => getProviderName(game.provider)
+    },
+    {
+      header: "Actions",
+      accessorKey: "actions",
+      cell: (game: Game) => (
+        <div className="flex space-x-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => navigate(`/casino/game/${game.id}`)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8"
+            onClick={() => handleEditGame(game)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-green-500"
+            onClick={() => launchGame(game, { mode: "demo" })}
+          >
+            <Play className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-red-500"
+            onClick={() => handleDeleteGame(game.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
 
   return (
     <div className="py-8 px-4">
@@ -181,6 +247,10 @@ const GamesManagement = () => {
         <h1 className="text-2xl font-bold">Game Management</h1>
         
         <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate('/casino/seamless')}>
+            <Play className="mr-2 h-4 w-4" />
+            Seamless API
+          </Button>
           <Button variant="outline" className="flex items-center">
             <Filter className="mr-2 h-4 w-4" />
             Filter
@@ -257,128 +327,17 @@ const GamesManagement = () => {
         </div>
       </div>
       
-      {/* Games Table */}
+      {/* Games Table - using DataTable component for better display */}
       <div className="thunder-card overflow-hidden">
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                        checked={selectedRows.length === currentGames.length && currentGames.length > 0}
-                        onChange={handleSelectAll}
-                      />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Game
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Provider
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    RTP
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Bet Range
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {currentGames.map((game) => (
-                  <tr key={game.id} className="hover:bg-white/5">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                        checked={selectedRows.includes(game.id)}
-                        onChange={() => handleSelectRow(game.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-white/10">
-                          <img src={game.image} alt={game.title} className="h-10 w-10 object-cover" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium">{game.title}</div>
-                          <div className="text-xs text-white/60">ID: {game.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {getProviderName(game.provider)}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">{game.category}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp}%</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      ${game.minBet} - ${game.maxBet}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        game.isNew 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : game.isPopular 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-green-100 text-green-800'
-                      }`}>
-                        {game.isNew 
-                          ? 'New' 
-                          : game.isPopular 
-                            ? 'Popular' 
-                            : 'Active'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleViewGame(game.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleEditGame(game)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-red-500"
-                          onClick={() => handleDeleteGame(game.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable 
+            data={currentGames}
+            columns={columns}
+          />
         )}
         
         {/* Pagination */}
