@@ -50,7 +50,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           features: [],
           tags: [],
           description: "",
-          // Additional properties needed for the API
+          // Additional properties needed for the API - using proper number types
           provider_id: 3,
           game_id: game.code,
           game_name: game.name,
@@ -89,7 +89,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           features: [],
           tags: [],
           description: "",
-          // Additional properties needed for the API
+          // Additional properties needed for the API - using proper number types
           provider_id: 1,
           game_id: game.code,
           game_name: game.name,
