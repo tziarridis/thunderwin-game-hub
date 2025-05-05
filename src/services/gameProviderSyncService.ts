@@ -88,6 +88,13 @@ export class GameProviderSyncService {
         regulated: true,
         type: 'slots',
         releaseDate: new Date().toISOString(),
+        // Add missing properties required by Game type
+        is_mobile: false,
+        has_freespins: false,
+        has_tables: false,
+        rtp: 96,
+        variance: 'medium',
+        min_bet: 0.1
       }));
 
       // Check if 'games' table exists before proceeding

@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,15 +126,16 @@ export const gameAggregatorService = {
       if (success) {
         // Log successful game launch in transactions
         await addTransaction({
-          userId: playerId,
+          user_id: playerId,
+          player_id: playerId,
           type: 'bet',
           amount: 0, // Initial amount is 0, actual bet will be recorded later
           currency: currency,
-          status: 'pending',
+          status: 'completed',
           provider: isInfinGame ? 'infingame' : 'aggregator',
-          gameId: gameId,
+          game_id: gameId,
           description: `Game session created: ${gameId}`,
-          referenceId: sessionId
+          reference_id: sessionId
         });
         
         return {
@@ -222,15 +222,16 @@ export const gameAggregatorService = {
       
       // Record the transaction in our system
       await addTransaction({
-        userId: playerId,
+        user_id: playerId,
+        player_id: playerId,
         type,
         amount: Math.abs(amount),
         currency,
         status: 'completed',
         provider: isInfinGame ? 'infingame' : 'aggregator',
-        gameId,
-        roundId,
-        referenceId: transactionId,
+        game_id: gameId,
+        round_id: roundId,
+        reference_id: transactionId,
         description: `Game ${type}: ${gameId}, Round: ${roundId}`
       });
       

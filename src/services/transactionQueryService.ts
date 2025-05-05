@@ -15,7 +15,7 @@ export const useTransactionQuery = (userId: string, initialFilters: TransactionF
       try {
         const result = await getUserTransactions(userId, filters);
         setTransactions(result.data);
-        setTotal(result.total);
+        setTotal(result.count || 0); // Use count as total if total doesn't exist
       } catch (error) {
         console.error('Failed to load transactions:', error);
       } finally {
@@ -35,7 +35,7 @@ export const useTransactionQuery = (userId: string, initialFilters: TransactionF
     try {
       const result = await getUserTransactions(userId, filters);
       setTransactions(result.data);
-      setTotal(result.total);
+      setTotal(result.count || 0); // Use count as total if total doesn't exist
     } catch (error) {
       console.error('Failed to refresh transactions:', error);
     } finally {

@@ -182,14 +182,14 @@ class TransactionService {
   async addTransaction(transactionData: TransactionData) {
     try {
       // Ensure player_id is included in the transaction data
-      const dbTransactionData: Record<string, any> = {
+      const dbTransactionData = {
         ...transactionData,
         player_id: transactionData.player_id || transactionData.user_id,
       };
       
       const { data, error } = await supabase
         .from('transactions')
-        .insert([dbTransactionData])
+        .insert(dbTransactionData)
         .select();
 
       if (error) {
@@ -216,7 +216,7 @@ class TransactionService {
       }
 
       // Clean up transaction data to match the expected schema
-      const cleanedData: Record<string, any> = {
+      const cleanedData = {
         amount: Number(transactionData.amount),
         currency: transactionData.currency,
         type: transactionData.type,
@@ -235,7 +235,7 @@ class TransactionService {
       // Insert the transaction into the database
       const { data, error } = await supabase
         .from('transactions')
-        .insert([cleanedData])
+        .insert(cleanedData)
         .select();
 
       if (error) {

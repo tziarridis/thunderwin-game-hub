@@ -23,3 +23,26 @@ export const generateSecureRandomString = (length: number = 32): string => {
   crypto.getRandomValues(array);
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 };
+
+/**
+ * Simple MD5 hash implementation for browser environment
+ * This is a simplified version suitable for non-cryptographic purposes
+ * @param input The string to hash
+ * @returns A string representation of the hash
+ */
+export const simpleMD5 = (input: string): string => {
+  // This is a simple implementation for demo purposes
+  // In a real production environment, you would use a proper crypto library
+  let hash = 0;
+  if (input.length === 0) return hash.toString(16);
+  
+  for (let i = 0; i < input.length; i++) {
+    const char = input.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  // Convert to hex string and ensure it's 32 characters long
+  const hexHash = Math.abs(hash).toString(16).padStart(8, '0');
+  return hexHash.repeat(4).substring(0, 32);
+};

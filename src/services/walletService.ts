@@ -103,7 +103,7 @@ class WalletService {
       }
 
       // 3. Create the transaction
-      const transactionData: Record<string, any> = {
+      const transactionData = {
         user_id: userId,
         player_id: userId, // Add player_id for database compatibility
         amount,
@@ -116,7 +116,7 @@ class WalletService {
       // 4. Begin transaction
       const { data: transaction, error: transactionError } = await supabase
         .from('transactions')
-        .insert([transactionData])
+        .insert(transactionData)
         .select();
 
       if (transactionError) {
