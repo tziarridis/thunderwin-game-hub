@@ -9,12 +9,10 @@ import gitSlotParkService from '@/services/gitSlotParkService';
 import pragmaticPlayService from '@/services/pragmaticPlayService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { Game } from '@/types';
-import LaunchGame from './LaunchGame';
 
-const AggregatorGameSection = ({ showAllGames = false }) => {
+const AggregatorGameSection = () => {
   const [activeTab, setActiveTab] = useState('gitslotpark');
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -26,76 +24,43 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
   const loadGames = async (provider: string) => {
     setIsLoading(true);
     try {
-      let gamesData: Game[] = [];
+      let gamesData: any[] = [];
       
       if (provider === 'gitslotpark') {
         // GitSlotPark games are returned directly, not as a Promise
         const gspGames = gitSlotParkService.getAvailableGames();
         gamesData = gspGames.map(game => ({
-          id: `gsp_${game.code}`,
+          id: game.code,
           title: game.name,
-          name: game.name,
           provider: 'GitSlotPark',
-          provider_id: 3,
-          game_id: game.code,
-          game_name: game.name,
-          game_code: game.code,
-          has_lobby: false,
-          has_jackpot: false,
-          freerounds_supported: false,
-          regulated: true,
-          type: 'slots',
-          status: 'active',
           image: `/lovable-uploads/casino-games/gsp_${Math.floor(Math.random() * 5) + 1}.jpg`,
           isPopular: Math.random() > 0.7,
           isNew: Math.random() > 0.8,
-          rtp: 96,
-          variance: 'medium',
-          minBet: 0.1,
-          maxBet: 100,
-          is_mobile: true,
-          has_freespins: false,
-          has_tables: false,
-          distribution: 'GitSlotPark',
-          views: 0,
-          releaseDate: new Date().toISOString()
+          rtp: (88 + Math.random() * 10).toFixed(2) + '%',
+          minBet: '$0.10',
+          maxBet: '$100',
+          gameCode: game.code
         }));
       } else if (provider === 'pragmaticplay') {
         // Pragmatic Play games - using getAvailableGames instead of getGames
         const ppGames = pragmaticPlayService.getAvailableGames();
         gamesData = ppGames.map(game => ({
-          id: `pp_${game.code}`,
+          id: game.code,
           title: game.name,
-          name: game.name,
           provider: 'Pragmatic Play',
-          provider_id: 1,
-          game_id: game.code,
-          game_name: game.name,
-          game_code: game.code,
-          has_lobby: false,
-          has_jackpot: false,
-          freerounds_supported: false,
-          regulated: true,
-          type: 'slots',
-          status: 'active',
+          // The pragmaticPlayService.getAvailableGames() returns objects with only code and name properties
+          // So we need to generate a random image path instead of trying to use game.image
           image: `/lovable-uploads/casino-games/pp_${Math.floor(Math.random() * 5) + 1}.jpg`,
           isPopular: Math.random() > 0.7,
           isNew: Math.random() > 0.8,
-          rtp: 96,
-          variance: 'medium',
-          minBet: 0.1,
-          maxBet: 100,
-          is_mobile: true,
-          has_freespins: false,
-          has_tables: false,
-          distribution: 'Pragmatic Play',
-          views: 0,
-          releaseDate: new Date().toISOString()
+          rtp: (88 + Math.random() * 10).toFixed(2) + '%',
+          minBet: '$0.20',
+          maxBet: '$200',
+          gameCode: game.code
         }));
       }
       
-      // If showAllGames is true, return all games, otherwise limit to 6
-      setGames(showAllGames ? gamesData : gamesData.slice(0, 6));
+      setGames(gamesData.slice(0, 6));
     } catch (error) {
       console.error(`Error loading ${provider} games:`, error);
       toast.error(`Failed to load games from ${provider}`);
@@ -105,11 +70,17 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
     }
   };
   
-  const handlePlayGame = (game: Game) => {
+  const handlePlayGame = (game: any) => {
     if (!user) {
       toast.error("Please log in to play games");
       navigate('/login');
       return;
+    }
+    
+    if (activeTab === 'gitslotpark') {
+      navigate(`/casino/gitslotpark-seamless?gameCode=${game.gameCode}`);
+    } else if (activeTab === 'pragmaticplay') {
+      navigate(`/casino/seamless?gameCode=${game.gameCode}`);
     }
   };
   
@@ -126,7 +97,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
       <div className="space-y-4">
         <h2 className="text-2xl font-bold thunder-glow">Partner Casino Games</h2>
         <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[...Array(showAllGames ? 12 : 6)].map((_, i) => (
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="bg-casino-thunder-gray/30 rounded-lg h-48"></div>
           ))}
         </div>
@@ -138,15 +109,13 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold thunder-glow">Partner Casino Games</h2>
-        {!showAllGames && (
-          <Button 
-            variant="outline" 
-            className="text-casino-thunder-green border-casino-thunder-green hover:bg-casino-thunder-green/20"
-            onClick={handleViewAll}
-          >
-            View All
-          </Button>
-        )}
+        <Button 
+          variant="outline" 
+          className="text-casino-thunder-green border-casino-thunder-green hover:bg-casino-thunder-green/20"
+          onClick={handleViewAll}
+        >
+          View All
+        </Button>
       </div>
       
       <Card className="bg-casino-thunder-dark/50 border-white/10">
@@ -168,20 +137,11 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider}
                     isPopular={game.isPopular}
                     isNew={game.isNew}
-                    rtp={`${game.rtp}%`}
+                    rtp={game.rtp}
                     isFavorite={false}
-                    minBet={`$${game.minBet}`}
-                    maxBet={`$${game.maxBet}`}
+                    minBet={game.minBet}
+                    maxBet={game.maxBet}
                     onClick={() => handlePlayGame(game)}
-                    button={
-                      <LaunchGame 
-                        game={game}
-                        buttonText="Play Now"
-                        variant="default"
-                        mode="demo"
-                        className="w-full"
-                      />
-                    }
                   />
                 ))}
               </div>
@@ -198,20 +158,11 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider}
                     isPopular={game.isPopular}
                     isNew={game.isNew}
-                    rtp={`${game.rtp}%`}
+                    rtp={game.rtp}
                     isFavorite={false}
-                    minBet={`$${game.minBet}`}
-                    maxBet={`$${game.maxBet}`}
+                    minBet={game.minBet}
+                    maxBet={game.maxBet}
                     onClick={() => handlePlayGame(game)}
-                    button={
-                      <LaunchGame 
-                        game={game}
-                        buttonText="Play Now"
-                        variant="default"
-                        mode="demo"
-                        className="w-full"
-                      />
-                    }
                   />
                 ))}
               </div>

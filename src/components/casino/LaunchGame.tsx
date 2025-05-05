@@ -26,7 +26,7 @@ const LaunchGame = ({
   buttonText = 'Play Game', 
   variant = 'default',
   className = '',
-  providerId,
+  providerId = 'ppeur',
   currency = 'USD',
   language = 'en',
   platform = 'web'
@@ -55,47 +55,19 @@ const LaunchGame = ({
         }
       }
       
-      // Determine provider ID based on game ID if not provided
-      let gameProviderId = providerId;
-      if (!gameProviderId) {
-        if (typeof game.id === 'string') {
-          if (game.id.startsWith('pp_')) {
-            gameProviderId = 'ppeur';
-          } else if (game.id.startsWith('gsp_')) {
-            gameProviderId = 'gspeur';
-          } else if (game.id.startsWith('infin_')) {
-            gameProviderId = 'infineur';
-          } else {
-            gameProviderId = 'ppeur'; // Default
-          }
-        } else {
-          gameProviderId = 'ppeur'; // Default for number IDs
-        }
-      }
-      
-      console.log(`Launching game ${game.id} with provider ${gameProviderId} for player ${playerId}`, {
+      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
         mode,
         language,
         currency,
         platform
       });
       
-      // Extract the actual game code if needed
-      const gameCode = typeof game.id === 'string' && 
-        (game.id.startsWith('pp_') || game.id.startsWith('gsp_') || game.id.startsWith('infin_'))
-        ? game.id.split('_')[1] 
-        : game.game_code || game.game_id;
-        
-      // Create a properly formatted game object for the launchGame function
-      const gameToLaunch = {
-        ...game,
-        game_code: gameCode,
-        game_id: gameCode
-      };
+      // Log this game launch in transaction history
+      // We'll handle this in the launchGame function
       
-      const gameUrl = await launchGame(gameToLaunch, { 
+      const gameUrl = await launchGame(game, { 
         mode, 
-        providerId: gameProviderId,
+        providerId,
         playerId,
         language,
         currency,
@@ -112,7 +84,7 @@ const LaunchGame = ({
           throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
         }
         
-        toast.success(`Game launched: ${game.title || game.name}`);
+        toast.success(`Game launched: ${game.title}`);
       } else {
         throw new Error("Failed to generate game URL");
       }
