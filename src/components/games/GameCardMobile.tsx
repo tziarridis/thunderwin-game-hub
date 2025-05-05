@@ -45,7 +45,7 @@ const GameCardMobile = ({ game, onLaunch, className }: GameCardMobileProps) => {
     >
       <div className="aspect-[4/3] w-full overflow-hidden relative">
         <img 
-          src={game.thumbnailUrl || game.imageUrl || '/placeholder-game.jpg'} 
+          src={game.image || '/placeholder-game.jpg'} 
           alt={game.title} 
           className="w-full h-full object-cover transition-transform duration-500"
           loading="lazy"

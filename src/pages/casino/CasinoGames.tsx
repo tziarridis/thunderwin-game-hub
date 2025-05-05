@@ -1,223 +1,173 @@
-import { useState, useEffect } from "react";
-import { useGames } from "@/hooks/useGames";
-import { Game } from "@/types";
-import { useIsMobile } from "@/hooks/use-mobile";
-import GamesGrid from "@/components/games/GamesGrid"; 
-import GamesGridMobile from "@/components/games/GamesGridMobile";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGames } from '@/hooks/useGames';
+import { Game } from '@/types';
+import GamesGrid from '@/components/games/GamesGrid';
+import GamesGridMobile from '@/components/games/GamesGridMobile';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search, FilterX } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { scrollToTop } from '@/utils/scrollUtils';
+import { useAuth } from '@/contexts/AuthContext';
+import GameLauncher from '@/components/games/GameLauncher';
+import { toast } from 'sonner';
 
 const CasinoGames = () => {
-  const { games, loading, providers, updateParams } = useGames();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [selectedProvider, setSelectedProvider] = useState("");
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  const { category } = useParams<{ category: string }>();
+  const { games, loading } = useGames();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   
-  useEffect(() => {
-    // Filter games based on search term, category, and provider
-    let filtered = [...games];
-    
-    if (searchTerm) {
-      filtered = filtered.filter(game => 
-        game.title.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    if (selectedCategory && selectedCategory !== 'all') {
-      filtered = filtered.filter(game =>
-        game.category?.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-    
-    if (selectedProvider) {
-      filtered = filtered.filter(game =>
-        game.provider?.toLowerCase() === selectedProvider.toLowerCase()
-      );
-    }
-    
-    setFilteredGames(filtered);
-  }, [games, searchTerm, selectedCategory, selectedProvider]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(24);
   
-  // Handler for game launch
-  const handleGameClick = (game: Game) => {
-    // Navigate to game detail or launch directly
-    console.log(`Launch game: ${game.id}`);
+  // Format category for display
+  const formatCategory = (category: string | undefined) => {
+    if (!category) return 'All Games';
+    return category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   };
   
-  // Mobile-optimized categories
-  const categories = [
-    { id: 'all', name: 'All Games' },
-    { id: 'slots', name: 'Slots' },
-    { id: 'table', name: 'Table Games' },
-    { id: 'live', name: 'Live Casino' },
-    { id: 'jackpot', name: 'Jackpots' },
-    { id: 'new', name: 'New Games' },
-  ];
-
+  // Filter games based on category and search term
+  useEffect(() => {
+    if (!games) return;
+    
+    let filtered = [...games];
+    
+    // Filter by category if provided
+    if (category) {
+      switch (category) {
+        case 'slots':
+          filtered = filtered.filter(game => game.category === 'slots');
+          break;
+        case 'table-games':
+          filtered = filtered.filter(game => game.category === 'table');
+          break;
+        case 'live-casino':
+          filtered = filtered.filter(game => game.category === 'live');
+          break;
+        case 'jackpots':
+          filtered = filtered.filter(game => game.jackpot);
+          break;
+        case 'new':
+          filtered = filtered.filter(game => game.isNew);
+          break;
+        case 'popular':
+          filtered = filtered.filter(game => game.isPopular);
+          break;
+        case 'favorites':
+          filtered = filtered.filter(game => game.isFavorite);
+          break;
+        default:
+          // No filter
+          break;
+      }
+    }
+    
+    // Filter by search term
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        game => 
+          game.title.toLowerCase().includes(term) || 
+          game.provider.toLowerCase().includes(term)
+      );
+    }
+    
+    setFilteredGames(filtered.slice(0, visibleCount));
+    setHasMore(filtered.length > visibleCount);
+  }, [games, category, searchTerm, visibleCount]);
+  
+  const handleLoadMore = () => {
+    setLoadingMore(true);
+    setTimeout(() => {
+      setVisibleCount(prev => prev + 24);
+      setLoadingMore(false);
+    }, 500);
+  };
+  
+  const handleClearSearch = () => {
+    setSearchTerm('');
+  };
+  
+  const handleGameClick = (game: Game) => {
+    if (!isAuthenticated) {
+      toast.error('Please log in to play this game');
+      navigate('/login');
+      return;
+    }
+    
+    navigate(`/casino/game/${game.id}`);
+    scrollToTop();
+  };
+  
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {isMobile ? (
-        // Mobile layout
-        <>
-          {/* Search and filter bar */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-              <Input
-                placeholder="Search games..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 bg-casino-thunder-dark border-casino-thunder-gray/30"
-              />
-            </div>
-            
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="bg-casino-thunder-darker border-t border-white/10 rounded-t-xl">
-                <div className="pt-2 pb-6 space-y-4">
-                  <h3 className="text-lg font-medium">Filter Games</h3>
-                  
-                  <div className="space-y-2">
-                    <Label>Provider</Label>
-                    <Select
-                      value={selectedProvider}
-                      onValueChange={setSelectedProvider}
-                    >
-                      <SelectTrigger className="bg-casino-thunder-dark border-casino-thunder-gray/30">
-                        <SelectValue placeholder="All Providers" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-casino-thunder-dark border-casino-thunder-gray/30">
-                        <SelectItem value="">All Providers</SelectItem>
-                        {providers.map(provider => (
-                          <SelectItem key={provider.id} value={provider.id}>{provider.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Game Features</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="jackpot" />
-                        <label htmlFor="jackpot" className="text-sm">Jackpot</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="new" />
-                        <label htmlFor="new" className="text-sm">New Games</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="featured" />
-                        <label htmlFor="featured" className="text-sm">Featured</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="popular" />
-                        <label htmlFor="popular" className="text-sm">Popular</label>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Button className="w-full bg-casino-thunder-green text-black">
-                    Apply Filters
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-          
-          {/* Categories slider */}
-          <ScrollArea className="w-full whitespace-nowrap pb-2">
-            <div className="flex space-x-2">
-              {categories.map((category) => (
-                <Button
-                  key={category.id}
-                  variant={selectedCategory === category.id ? "default" : "outline"}
-                  className={selectedCategory === category.id ? "bg-casino-thunder-green text-black" : ""}
-                  onClick={() => setSelectedCategory(category.id)}
-                >
-                  {category.name}
-                </Button>
-              ))}
-            </div>
-          </ScrollArea>
-          
-          {/* Mobile games grid */}
+    <div className="relative bg-casino-thunder-darker min-h-screen">
+      <div className="container mx-auto px-4 py-8 pt-20">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">{formatCategory(category)}</h1>
+          <p className="text-white/70 max-w-2xl mx-auto">
+            {category === 'slots' && 'Spin to win with our huge collection of online slot games.'}
+            {category === 'table-games' && 'Experience classic table games like Blackjack, Roulette, and Poker.'}
+            {category === 'live-casino' && 'Play with live dealers for an authentic casino experience.'}
+            {category === 'jackpots' && 'Try your luck with our progressive jackpot games with massive prize pools.'}
+            {category === 'new' && 'Discover our latest additions to the game library.'}
+            {category === 'popular' && 'Play the games that other players love the most.'}
+            {category === 'favorites' && 'Your favorite games in one place.'}
+            {!category && 'Browse our complete collection of casino games.'}
+          </p>
+        </div>
+        
+        <div className="relative mb-6">
+          <Input
+            type="text"
+            placeholder="Search games or providers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          {searchTerm && (
+            <Button 
+              variant="ghost" 
+              className="absolute right-2 top-1/2 transform -translate-y-1/2" 
+              onClick={handleClearSearch}
+            >
+              <FilterX size={18} />
+            </Button>
+          )}
+        </div>
+        
+        {isMobile ? (
           <GamesGridMobile
             games={filteredGames}
             loading={loading}
             onGameClick={handleGameClick}
-            emptyMessage="No games found. Try different filters."
-            loadMore={() => console.log('Load more games')}
-            hasMore={filteredGames.length >= 12}
+            emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
+            loadMore={hasMore ? handleLoadMore : undefined}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
           />
-        </>
-      ) : (
-        // Desktop layout (keep existing code)
-        <>
-          <h1 className="text-3xl font-bold">Casino Games</h1>
-          
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2 w-1/3">
-              <Input
-                placeholder="Search games..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-casino-thunder-dark border-casino-thunder-gray/30"
-              />
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Select
-                value={selectedProvider}
-                onValueChange={setSelectedProvider}
-              >
-                <SelectTrigger className="w-[180px] bg-casino-thunder-dark border-casino-thunder-gray/30">
-                  <SelectValue placeholder="All Providers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Providers</SelectItem>
-                  {providers.map(provider => (
-                    <SelectItem key={provider.id} value={provider.id}>{provider.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <Tabs defaultValue={selectedCategory} onValueChange={setSelectedCategory}>
-            <TabsList>
-              {categories.map((category) => (
-                <TabsTrigger key={category.id} value={category.id}>
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            {categories.map((category) => (
-              <TabsContent key={category.id} value={category.id}>
-                <GamesGrid
-                  games={filteredGames}
-                  loading={loading}
-                  onGameClick={handleGameClick}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
-        </>
-      )}
+        ) : (
+          <GamesGrid
+            games={filteredGames}
+            loading={loading}
+            onGameClick={handleGameClick}
+            emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
+            loadMore={hasMore ? handleLoadMore : undefined}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+          />
+        )}
+      </div>
     </div>
   );
 };

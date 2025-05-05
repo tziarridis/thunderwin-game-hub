@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { navigateByButtonName } from "@/utils/navigationUtils";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,16 @@ import GameCard from "@/components/games/GameCard";
 import RecentBigWins from "@/components/casino/RecentBigWins";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
+import WalletBalance from "@/components/user/WalletBalance";
+import DepositButton from "@/components/user/DepositButton";
+import { useIsMobile } from "@/hooks/use-mobile";
+import GameLauncher from "@/components/games/GameLauncher";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { games, loading, error } = useGames();
-  const { isAuthenticated } = useAuth();
+  const { games, loading, error, launchGame } = useGames();
+  const { isAuthenticated, user } = useAuth();
+  const isMobile = useIsMobile();
   
   const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const buttonName = e.currentTarget.textContent?.trim() || "";
@@ -37,6 +41,31 @@ const Index = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
     scrollToTop();
+  };
+  
+  // Game launch handler for aggregator games
+  const handleGameLaunch = async (game: any) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      scrollToTop();
+      return;
+    }
+    
+    try {
+      const gameUrl = await launchGame(game, {
+        mode: 'real',
+        playerId: user?.id || 'guest',
+        currency: 'USD',
+        language: 'en',
+        platform: isMobile ? 'mobile' : 'web'
+      });
+      
+      if (gameUrl) {
+        window.open(gameUrl, '_blank');
+      }
+    } catch (error) {
+      console.error("Error launching game:", error);
+    }
   };
   
   // Filter games for different sections
@@ -63,46 +92,40 @@ const Index = () => {
             <p className="text-lg md:text-xl text-white/80 mb-6 max-w-md">
               Experience the thrill of over 1000+ games and massive jackpots
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Button 
-                size="lg" 
-                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
-                onClick={() => {
-                  if (!isAuthenticated) {
+            
+            {isAuthenticated ? (
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <div className="bg-black/40 backdrop-blur p-4 rounded-lg">
+                  <WalletBalance showRefresh={true} />
+                </div>
+                <DepositButton variant="highlight" className="md:self-start" />
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                <Button 
+                  size="lg" 
+                  className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
+                  onClick={() => {
                     navigate('/register');
                     scrollToTop();
-                  } else {
-                    navigate('/casino');
+                  }}
+                >
+                  <UserPlus className="h-5 w-5 mr-2" />
+                  Join Now
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-white text-white hover:bg-white/10"
+                  onClick={() => {
+                    navigate('/login');
                     scrollToTop();
-                  }
-                }}
-              >
-                {!isAuthenticated ? (
-                  <>
-                    <UserPlus className="h-5 w-5 mr-2" />
-                    Join Now
-                  </>
-                ) : (
-                  "Play Now"
-                )}
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="border-white text-white hover:bg-white/10"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    navigate('/register');
-                    scrollToTop();
-                  } else {
-                    navigate('/bonuses');
-                    scrollToTop();
-                  }
-                }}
-              >
-                {!isAuthenticated ? "Learn More" : "Claim Bonus"}
-              </Button>
-            </div>
+                  }}
+                >
+                  Learn More
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         
@@ -220,7 +243,7 @@ const Index = () => {
                 isFavorite={game.isFavorite}
                 minBet={game.minBet}
                 maxBet={game.maxBet}
-                onClick={() => handleNavigation(`/casino/game/${game.id}`)}
+                onClick={() => handleGameLaunch(game)}
               />
             ))}
           </div>

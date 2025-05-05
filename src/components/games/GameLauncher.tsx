@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
+import { useGames } from "@/hooks/useGames";
 
 interface GameLauncherProps {
   gameId: string;
@@ -27,6 +28,7 @@ const GameLauncher = ({
 }: GameLauncherProps) => {
   const [isLaunching, setIsLaunching] = useState(false);
   const { user, isAuthenticated } = useAuth();
+  const { launchGame } = useGames();
   
   const handleLaunchGame = async () => {
     // Check if user is logged in
@@ -38,20 +40,27 @@ const GameLauncher = ({
     try {
       setIsLaunching(true);
       
-      // Create game session
-      const result = await gameAggregatorService.createSession(
-        gameId,
-        user.id,
-        currency,
-        platform
-      );
+      // Get the game details
+      const gameData = await gameAggregatorService.getGameById(gameId);
+      if (!gameData) {
+        throw new Error("Game not found");
+      }
       
-      if (result.success && result.gameUrl) {
-        // Open game in new window
-        window.open(result.gameUrl, "_blank");
+      // Launch the game using useGames hook
+      const gameUrl = await launchGame(gameData, {
+        playerId: user.id,
+        mode: 'real',
+        currency,
+        language: 'en',
+        platform,
+        returnUrl: window.location.href
+      });
+      
+      if (gameUrl) {
+        window.open(gameUrl, "_blank");
         toast.success(`Launching ${gameName}`);
       } else {
-        throw new Error(result.errorMessage || "Failed to launch game");
+        throw new Error("Failed to generate game URL");
       }
     } catch (error: any) {
       console.error("Error launching game:", error);

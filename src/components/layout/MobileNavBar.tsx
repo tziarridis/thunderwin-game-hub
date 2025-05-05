@@ -5,6 +5,7 @@ import { Home, Gamepad2, Zap, Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import WalletBalance from "@/components/user/WalletBalance";
+import DepositButton from "@/components/user/DepositButton"; 
 
 interface MobileNavBarProps {
   onOpenMenu: () => void;
@@ -35,11 +36,15 @@ const MobileNavBar = ({ onOpenMenu }: MobileNavBarProps) => {
         />
         
         {isAuthenticated ? (
-          <div className="flex justify-center -mt-6">
+          <div className="flex flex-col items-center justify-center -mt-6">
             <WalletBalance 
               variant="compact" 
               className="bg-casino-thunder-green text-black px-3 py-2 rounded-full shadow-lg" 
               showRefresh={false} 
+            />
+            <DepositButton 
+              variant="icon" 
+              className="h-6 w-6 mt-1 p-0"
             />
           </div>
         ) : (
