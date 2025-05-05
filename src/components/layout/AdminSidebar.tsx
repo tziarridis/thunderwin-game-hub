@@ -19,7 +19,9 @@ import {
   CircleDot,
   LogOut,
   TestTube,
-  History
+  History,
+  Package,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -163,53 +165,72 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
             onClick={() => navigate("/admin/users")}
           />
           
-          {/* Games */}
+          {/* Games - Reorganized Section */}
           <MenuGroup
             icon={<Gamepad2 className="h-5 w-5" />}
             title="Games"
             collapsed={collapsed}
-            active={pathname.includes("/admin/games") || pathname.includes("/admin/game-aggregator") || pathname.includes("/admin/pp-")}
+            active={pathname.includes("/admin/game") || pathname.includes("/admin/aggregator") || pathname.includes("/admin/pp-")}
           >
+            {/* Game Management */}
             <MenuItem
-              icon={<CircleDot className="h-4 w-4" />}
-              title="Games Management"
+              icon={<Package className="h-4 w-4" />}
+              title="Game Management"
               collapsed={collapsed}
-              active={pathname === "/admin/games"}
-              onClick={() => navigate("/admin/games")}
+              active={pathname === "/admin/game-management"}
+              onClick={() => navigate("/admin/game-management")}
               isSubmenu
             />
-            <MenuItem
-              icon={<CircleDot className="h-4 w-4" />}
-              title="Game Aggregator"
-              collapsed={collapsed}
-              active={pathname === "/admin/game-aggregator"}
-              onClick={() => navigate("/admin/game-aggregator")}
-              isSubmenu
-            />
-            <MenuItem
-              icon={<CircleDot className="h-4 w-4" />}
+            
+            {/* Game Aggregators section */}
+            <MenuGroup
+              icon={<Settings2 className="h-4 w-4" />}
               title="Aggregator Settings"
               collapsed={collapsed}
-              active={pathname === "/admin/aggregator-settings"}
-              onClick={() => navigate("/admin/aggregator-settings")}
-              isSubmenu
-            />
-            <MenuItem
+              active={pathname.includes("/admin/aggregator")}
+            >
+              <MenuItem
+                icon={<CircleDot className="h-4 w-4" />}
+                title="Game Aggregator"
+                collapsed={collapsed}
+                active={pathname === "/admin/game-aggregator"}
+                onClick={() => navigate("/admin/game-aggregator")}
+                isSubmenu
+              />
+              <MenuItem
+                icon={<CircleDot className="h-4 w-4" />}
+                title="Settings"
+                collapsed={collapsed}
+                active={pathname === "/admin/aggregator-settings" || pathname === "/admin/casino-aggregator-settings"}
+                onClick={() => navigate("/admin/aggregator-settings")}
+                isSubmenu
+              />
+            </MenuGroup>
+            
+            {/* Integrations section */}
+            <MenuGroup
               icon={<TestTube className="h-4 w-4" />}
-              title="PP Integration Tester"
+              title="Integrations"
               collapsed={collapsed}
-              active={pathname === "/admin/pp-integration-tester"}
-              onClick={() => navigate("/admin/pp-integration-tester")}
-              isSubmenu
-            />
-            <MenuItem
-              icon={<History className="h-4 w-4" />}
-              title="PP Transactions"
-              collapsed={collapsed}
-              active={pathname === "/admin/pp-transactions"}
-              onClick={() => navigate("/admin/pp-transactions")}
-              isSubmenu
-            />
+              active={pathname.includes("/admin/pp-")}
+            >
+              <MenuItem
+                icon={<CircleDot className="h-4 w-4" />}
+                title="PP Integration Tester"
+                collapsed={collapsed}
+                active={pathname === "/admin/pp-integration-tester"}
+                onClick={() => navigate("/admin/pp-integration-tester")}
+                isSubmenu
+              />
+              <MenuItem
+                icon={<History className="h-4 w-4" />}
+                title="PP Transactions"
+                collapsed={collapsed}
+                active={pathname === "/admin/pp-transactions"}
+                onClick={() => navigate("/admin/pp-transactions")}
+                isSubmenu
+              />
+            </MenuGroup>
           </MenuGroup>
           
           {/* Transactions */}

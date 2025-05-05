@@ -1,260 +1,203 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { Wallet, WalletTransaction } from '@/types/wallet';
-import { Transaction } from '@/types/transaction';
-import transactionService from './transactionService';
+// Fix the wallet service errors by properly handling the currency
+import { supabase } from '../integrations/supabase/client';
+import { generateHash } from '@/utils/browserHashUtils';
 
-/**
- * Wallet Service
- * Handles all wallet-related operations for the casino
- */
+export interface WalletData {
+  id?: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  active: boolean;
+  vip_level?: number;
+  vip_points?: number;
+  balance_bonus?: number;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+}
 
-// Define the database transaction type to match what's in the database
-interface DbTransaction {
-  id: string;
-  player_id: string;
+export interface TransactionData {
+  id?: string;
+  user_id: string;
   amount: number;
   currency: string;
-  type: string;
-  status: string;
-  provider: string;
-  game_id: string;
-  round_id: string;
-  session_id: string;
-  balance_before: number;
-  balance_after: number;
-  created_at: string;
-  updated_at: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
+  status: 'pending' | 'completed' | 'failed';
+  created_at?: string;
+  provider?: string;
+  game_id?: string;
+  round_id?: string;
   description?: string;
   payment_method?: string;
   bonus_id?: string;
   reference_id?: string;
 }
 
-/**
- * Get a user's wallet or create if it doesn't exist
- * @param userId User ID
- * @returns The user's wallet
- */
-export const getWalletByUserId = async (userId: string): Promise<Wallet | null> => {
-  try {
-    // Try to get the existing wallet
+class WalletService {
+  async getWalletByUserId(userId: string) {
+    if (!userId) throw new Error('User ID is required');
+
     const { data, error } = await supabase
       .from('wallets')
       .select('*')
       .eq('user_id', userId)
       .single();
-    
-    if (error) {
-      // If no wallet exists, create one
-      if (error.code === 'PGRST116') {
-        return await createWallet(userId);
-      }
-      throw error;
-    }
-    
-    return data as Wallet;
-  } catch (error) {
-    console.error(`Error getting wallet for user ${userId}:`, error);
-    return null;
-  }
-};
 
-/**
- * Create a new wallet for a user
- * @param userId User ID
- * @param currency Currency code (default: USD)
- * @returns The newly created wallet
- */
-export const createWallet = async (userId: string, currency = 'USD'): Promise<Wallet | null> => {
-  try {
-    const symbol = currency === 'USD' ? '$' : 
-                   currency === 'EUR' ? '€' : 
-                   currency === 'GBP' ? '£' : 
-                   currency;
-    
-    const newWallet = {
-      user_id: userId,
-      balance: 0,
-      currency,
-      symbol,
-      active: true,
-      vip_level: 0,
-      vip_points: 0
-    };
-    
+    if (error) {
+      console.error('Error fetching wallet:', error);
+      throw new Error('Failed to fetch wallet');
+    }
+
+    return data;
+  }
+
+  async createWallet(walletData: WalletData) {
     const { data, error } = await supabase
       .from('wallets')
-      .insert(newWallet)
+      .insert([walletData])
       .select()
       .single();
-    
-    if (error) throw error;
-    
-    toast.success('Wallet created successfully');
-    return data as Wallet;
-  } catch (error) {
-    console.error(`Error creating wallet for user ${userId}:`, error);
-    toast.error('Failed to create wallet');
-    return null;
-  }
-};
 
-/**
- * Update a wallet's balance
- * @param userId User ID
- * @param newBalance New balance value
- * @returns Success status
- */
-export const updateWalletBalance = async (userId: string, newBalance: number): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('wallets')
-      .update({ 
-        balance: newBalance, 
-        updated_at: new Date().toISOString() 
-      })
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error(`Error updating wallet balance for user ${userId}:`, error);
-    return false;
-  }
-};
-
-/**
- * Credit (deposit) funds to a wallet
- * @param userId User ID
- * @param amount Amount to credit
- * @param type Transaction type
- * @param provider Provider name
- * @returns Success status
- */
-export const creditWallet = async (
-  userId: string, 
-  amount: number, 
-  type: 'deposit' | 'win' | 'bonus',
-  provider: string = 'system'
-): Promise<boolean> => {
-  try {
-    // Get current wallet
-    const wallet = await getWalletByUserId(userId);
-    if (!wallet) throw new Error('Wallet not found');
-    
-    // Start a Supabase transaction
-    const { data, error } = await supabase.rpc('credit_wallet', {
-      p_user_id: userId,
-      p_amount: amount,
-      p_type: type,
-      p_provider: provider,
-      p_currency: wallet.currency || 'USD'
-    });
-    
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error(`Error crediting wallet for user ${userId}:`, error);
-    return false;
-  }
-};
-
-/**
- * Debit (withdraw) funds from a wallet
- * @param userId User ID
- * @param amount Amount to debit
- * @param type Transaction type
- * @param provider Provider name
- * @returns Success status
- */
-export const debitWallet = async (
-  userId: string, 
-  amount: number, 
-  type: 'withdraw' | 'bet',
-  provider: string = 'system'
-): Promise<boolean> => {
-  try {
-    // Get current wallet
-    const wallet = await getWalletByUserId(userId);
-    if (!wallet) throw new Error('Wallet not found');
-    
-    // Check if sufficient funds
-    if (wallet.balance < amount) {
-      toast.error('Insufficient funds');
-      return false;
+    if (error) {
+      console.error('Error creating wallet:', error);
+      throw new Error('Failed to create wallet');
     }
-    
-    // Start a Supabase transaction
-    const { data, error } = await supabase.rpc('debit_wallet', {
-      p_user_id: userId,
-      p_amount: amount,
-      p_type: type,
-      p_provider: provider,
-      p_currency: wallet.currency || 'USD'
-    });
-    
-    if (error) throw error;
-    
-    return true;
-  } catch (error) {
-    console.error(`Error debiting wallet for user ${userId}:`, error);
-    return false;
-  }
-};
 
-/**
- * Get wallet transactions for a user
- * @param userId User ID
- * @param limit Maximum number of transactions to return
- * @returns List of transactions
- */
-export const getWalletTransactions = async (userId: string, limit = 20): Promise<WalletTransaction[]> => {
-  try {
+    return data;
+  }
+
+  async updateWallet(id: string, walletData: Partial<WalletData>) {
+    const { data, error } = await supabase
+      .from('wallets')
+      .update(walletData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating wallet:', error);
+      throw new Error('Failed to update wallet');
+    }
+
+    return data;
+  }
+
+  async updateWalletBalance(userId: string, amount: number, operation: 'add' | 'subtract', type: TransactionData['type'], metadata: Record<string, any> = {}) {
+    try {
+      // 1. Get the wallet
+      const wallet = await this.getWalletByUserId(userId);
+      if (!wallet) throw new Error('Wallet not found');
+
+      const balanceBefore = wallet.balance;
+      let balanceAfter: number;
+
+      // 2. Update the wallet balance
+      if (operation === 'add') {
+        balanceAfter = Number(balanceBefore) + Number(amount);
+      } else {
+        balanceAfter = Number(balanceBefore) - Number(amount);
+        if (balanceAfter < 0) throw new Error('Insufficient funds');
+      }
+
+      // 3. Create the transaction
+      const transactionData: TransactionData = {
+        user_id: userId,
+        amount,
+        currency: wallet.currency || "USD", // Use wallet currency or default to USD
+        type,
+        status: 'completed',
+        ...metadata
+      };
+
+      // 4. Begin transaction
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .insert([transactionData])
+        .select();
+
+      if (transactionError) {
+        console.error('Error creating transaction:', transactionError);
+        throw new Error('Failed to create transaction');
+      }
+
+      // 5. Update wallet balance
+      const { data: updatedWallet, error: walletError } = await supabase
+        .from('wallets')
+        .update({ balance: balanceAfter })
+        .eq('id', wallet.id)
+        .select();
+
+      if (walletError) {
+        console.error('Error updating wallet balance:', walletError);
+        throw new Error('Failed to update wallet balance');
+      }
+
+      return {
+        transaction: transaction[0],
+        wallet: updatedWallet[0],
+        balanceBefore,
+        balanceAfter
+      };
+    } catch (error: any) {
+      console.error('Error in updateWalletBalance:', error);
+      throw new Error(error.message || 'Failed to update wallet balance');
+    }
+  }
+
+  async deposit(userId: string, amount: number, paymentMethod: string, metadata: Record<string, any> = {}) {
+    try {
+      const wallet = await this.getWalletByUserId(userId);
+      if (!wallet) throw new Error('Wallet not found');
+
+      return await this.updateWalletBalance(userId, amount, 'add', 'deposit', {
+        payment_method: paymentMethod,
+        description: `Deposit of ${amount} ${wallet.currency || "USD"}`, // Fixed error here
+        reference_id: generateHash(),
+        ...metadata
+      });
+    } catch (error: any) {
+      console.error('Error in deposit:', error);
+      throw new Error(error.message || 'Failed to process deposit');
+    }
+  }
+
+  async withdraw(userId: string, amount: number, paymentMethod: string, metadata: Record<string, any> = {}) {
+    try {
+      const wallet = await this.getWalletByUserId(userId);
+      if (!wallet) throw new Error('Wallet not found');
+
+      if (wallet.balance < amount) {
+        throw new Error('Insufficient funds for withdrawal');
+      }
+
+      return await this.updateWalletBalance(userId, amount, 'subtract', 'withdraw', {
+        payment_method: paymentMethod,
+        description: `Withdrawal of ${amount} ${wallet.currency || "USD"}`, // Fixed error here
+        reference_id: generateHash(),
+        ...metadata
+      });
+    } catch (error: any) {
+      console.error('Error in withdraw:', error);
+      throw new Error(error.message || 'Failed to process withdrawal');
+    }
+  }
+
+  async getTransactionsByUserId(userId: string) {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('player_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    
-    if (error) throw error;
-    
-    // Transform the data to match WalletTransaction interface
-    const transactions: WalletTransaction[] = (data || []).map((item: DbTransaction) => ({
-      id: item.id,
-      user_id: item.player_id,
-      amount: item.amount,
-      currency: item.currency,
-      type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
-      status: item.status as 'pending' | 'completed' | 'failed',
-      created_at: item.created_at,
-      provider: item.provider,
-      game_id: item.game_id,
-      round_id: item.round_id,
-      description: item.description || undefined,
-      payment_method: item.payment_method || undefined,
-      bonus_id: item.bonus_id || undefined,
-      reference_id: item.reference_id || undefined
-    }));
-    
-    return transactions;
-  } catch (error) {
-    console.error(`Error getting transactions for user ${userId}:`, error);
-    return [];
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching transactions:', error);
+      throw new Error('Failed to fetch transactions');
+    }
+
+    return data;
   }
-};
+}
 
-export const walletService = {
-  getWalletByUserId,
-  createWallet,
-  updateWalletBalance,
-  creditWallet,
-  debitWallet,
-  getWalletTransactions
-};
-
-export default walletService;
+export const walletService = new WalletService();

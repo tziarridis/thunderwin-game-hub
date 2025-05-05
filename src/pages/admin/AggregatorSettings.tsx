@@ -1,315 +1,101 @@
 
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Server, Database, Settings, RefreshCw, ExternalLink } from "lucide-react";
-import { toast } from "sonner";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import CasinoAggregatorSettings from "@/components/admin/CasinoAggregatorSettings";
+import { Separator } from "@/components/ui/separator";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb";
+import { ChevronRight, Home, Settings, Globe, PlusCircle } from "lucide-react";
 
 const AggregatorSettings = () => {
-  const [apiEndpoint, setApiEndpoint] = useState("https://apipg.slotgamesapi.com");
-  const [agentId, setAgentId] = useState("captaingambleEUR");
-  const [apiToken, setApiToken] = useState("275c535c8c014b59bedb2a2d6fe7d37b");
-  const [secretKey, setSecretKey] = useState("bbd0551e144c46d19975f985e037c9b0");
-  const [loading, setLoading] = useState(false);
-
-  // Load settings from database on component mount
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('providers')
-          .select('*')
-          .eq('name', 'GitSlotPark')
-          .maybeSingle(); // Changed from single() to maybeSingle() to handle missing data
-        
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error loading provider settings:', error);
-          return;
-        }
-        
-        if (data) {
-          // Parse API credentials if available
-          try {
-            if (data.api_endpoint) setApiEndpoint(data.api_endpoint);
-            if (data.api_key) setApiToken(data.api_key);
-            if (data.api_secret) setSecretKey(data.api_secret);
-          } catch (e) {
-            console.error('Error parsing provider credentials:', e);
-          }
-        } else {
-          // Create default provider settings if none exists
-          console.log('No provider settings found, using defaults');
-        }
-      } catch (err) {
-        console.error('Error loading aggregator settings:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadSettings();
-  }, []);
-
-  const handleSaveSettings = async () => {
-    try {
-      setLoading(true);
-      
-      // Check if provider exists
-      const { data: existingProvider, error: checkError } = await supabase
-        .from('providers')
-        .select('id')
-        .eq('name', 'GitSlotPark')
-        .maybeSingle();
-      
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking provider:', checkError);
-        toast.error("Failed to save settings: Database error");
-        return;
-      }
-      
-      let result;
-      
-      if (existingProvider) {
-        // Update existing provider
-        result = await supabase
-          .from('providers')
-          .update({
-            api_endpoint: apiEndpoint,
-            api_key: apiToken,
-            api_secret: secretKey,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingProvider.id);
-      } else {
-        // Create new provider
-        result = await supabase
-          .from('providers')
-          .insert({
-            name: 'GitSlotPark',
-            logo: '/providers/gitslotpark.png',
-            status: 'active',
-            api_endpoint: apiEndpoint,
-            api_key: apiToken,
-            api_secret: secretKey
-          });
-      }
-      
-      if (result.error) {
-        console.error('Error saving provider settings:', result.error);
-        toast.error("Failed to save settings: " + result.error.message);
-        return;
-      }
-      
-      toast.success("Aggregator settings saved successfully");
-    } catch (err) {
-      console.error('Error saving aggregator settings:', err);
-      toast.error("Failed to save settings");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestConnection = async () => {
-    try {
-      setLoading(true);
-      
-      // In a real implementation, we would test the connection to the aggregator API
-      // For demo purposes, we'll just simulate a successful connection
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success("Connection successful to the aggregator API!");
-    } catch (err) {
-      console.error('Error testing connection:', err);
-      toast.error("Connection test failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [activeTab, setActiveTab] = useState("casino");
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Aggregator Settings</h1>
-        <div className="flex space-x-2">
-          <Link to="/casino/gitslotpark-seamless" target="_blank">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              View Seamless Wallet
-            </Button>
-          </Link>
-          <Link to="/admin/casino-aggregator-settings">
-            <Button variant="outline" size="sm">
-              <Settings className="mr-2 h-4 w-4" />
-              Game Provider Settings
-            </Button>
-          </Link>
+    <div className="container mx-auto px-4 py-6">
+      <Breadcrumb className="mb-6">
+        <BreadcrumbItem>
+          <BreadcrumbLink href="/admin/dashboard">
+            <Home className="h-4 w-4 mr-1" />
+            Dashboard
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <ChevronRight className="h-4 w-4" />
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <BreadcrumbLink href="/admin/game-management">Game Management</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <ChevronRight className="h-4 w-4" />
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <BreadcrumbLink>Aggregator Settings</BreadcrumbLink>
+        </BreadcrumbItem>
+      </Breadcrumb>
+      
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center">
+          <Settings className="h-6 w-6 mr-2" />
+          <h1 className="text-2xl font-bold">Game Aggregator Settings</h1>
         </div>
+        <Button>
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Add New Aggregator
+        </Button>
       </div>
-
-      <Tabs defaultValue="general" className="w-full">
+      
+      <Separator className="my-6" />
+      
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
-          <TabsTrigger value="general">
-            <Settings className="mr-2 h-4 w-4" />
-            General
-          </TabsTrigger>
-          <TabsTrigger value="api">
-            <Server className="mr-2 h-4 w-4" />
-            API Configuration
-          </TabsTrigger>
-          <TabsTrigger value="security">
-            <Shield className="mr-2 h-4 w-4" />
-            Security
-          </TabsTrigger>
-          <TabsTrigger value="database">
-            <Database className="mr-2 h-4 w-4" />
-            Database
-          </TabsTrigger>
+          <TabsTrigger value="casino">Casino Aggregators</TabsTrigger>
+          <TabsTrigger value="sports">Sports Aggregators</TabsTrigger>
+          <TabsTrigger value="live">Live Dealer Aggregators</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="general">
-          <Card className="bg-slate-800 border-slate-700">
+        
+        <TabsContent value="casino" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle>General Settings</CardTitle>
-              <CardDescription>Configure general settings for the game aggregator.</CardDescription>
+              <CardTitle className="flex items-center">
+                <Globe className="mr-2 h-5 w-5" />
+                Available Casino Aggregators
+              </CardTitle>
+              <CardDescription>
+                Configure your casino game aggregators for multiple providers
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Platform Name</Label>
-                  <Input id="name" placeholder="Enter platform name" defaultValue="ThunderWin Casino" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Default Currency</Label>
-                  <Input id="currency" placeholder="Enter default currency" defaultValue="EUR" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="language">Default Language</Label>
-                  <Input id="language" placeholder="Enter default language" defaultValue="en" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Input id="timezone" placeholder="Enter timezone" defaultValue="UTC" />
-                </div>
-              </div>
-              <Button className="mt-4" onClick={handleSaveSettings} disabled={loading}>
-                {loading ? 'Saving...' : 'Save Settings'}
-              </Button>
+            <CardContent>
+              <CasinoAggregatorSettings />
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="api">
-          <Card className="bg-slate-800 border-slate-700">
+        
+        <TabsContent value="sports" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle>API Configuration</CardTitle>
-              <CardDescription>Configure API settings for the game aggregator.</CardDescription>
+              <CardTitle>Sports Aggregators</CardTitle>
+              <CardDescription>Configure your sports betting aggregators</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="apiEndpoint">API Endpoint</Label>
-                <Input 
-                  id="apiEndpoint" 
-                  placeholder="Enter API endpoint" 
-                  value={apiEndpoint}
-                  onChange={(e) => setApiEndpoint(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="agentId">Agent ID</Label>
-                <Input 
-                  id="agentId" 
-                  placeholder="Enter agent ID" 
-                  value={agentId}
-                  onChange={(e) => setAgentId(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="apiToken">API Token</Label>
-                <Input 
-                  id="apiToken" 
-                  placeholder="Enter API token" 
-                  value={apiToken}
-                  onChange={(e) => setApiToken(e.target.value)}
-                  type="password"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="secretKey">Secret Key</Label>
-                <Input 
-                  id="secretKey" 
-                  placeholder="Enter secret key" 
-                  value={secretKey}
-                  onChange={(e) => setSecretKey(e.target.value)}
-                  type="password"
-                />
-              </div>
-              <div className="flex gap-4 mt-4">
-                <Button onClick={handleSaveSettings} disabled={loading}>
-                  {loading ? 'Saving...' : 'Save API Settings'}
-                </Button>
-                <Button variant="outline" onClick={handleTestConnection} disabled={loading}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  {loading ? 'Testing...' : 'Test Connection'}
-                </Button>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-12">
+                <p className="text-muted-foreground mb-4">No sports aggregators configured yet</p>
+                <Button>Add Sports Aggregator</Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="security">
-          <Card className="bg-slate-800 border-slate-700">
+        
+        <TabsContent value="live" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle>Security Settings</CardTitle>
-              <CardDescription>Configure security settings for the game aggregator.</CardDescription>
+              <CardTitle>Live Dealer Aggregators</CardTitle>
+              <CardDescription>Configure your live dealer game aggregators</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="ipWhitelist">IP Whitelist</Label>
-                <Input id="ipWhitelist" placeholder="Enter IP whitelist (comma separated)" defaultValue="127.0.0.1, 192.168.1.1" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="rateLimiting">Rate Limiting (requests per minute)</Label>
-                <Input id="rateLimiting" placeholder="Enter rate limit" defaultValue="500" type="number" />
-              </div>
-              <Button className="mt-4" onClick={handleSaveSettings} disabled={loading}>
-                {loading ? 'Saving...' : 'Save Security Settings'}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="database">
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Database Settings</CardTitle>
-              <CardDescription>View your Supabase database configuration.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Project URL</Label>
-                <Input value="https://xucpujttrmcfnxalnuzr.supabase.co" readOnly className="bg-gray-900" />
-              </div>
-              <div className="space-y-2">
-                <Label>Project Reference</Label>
-                <Input value="xucpujttrmcfnxalnuzr" readOnly className="bg-gray-900" />
-              </div>
-              <div className="space-y-2">
-                <Label>Database Provider</Label>
-                <Input value="Supabase" readOnly className="bg-gray-900" />
-              </div>
-              <div className="flex gap-4 mt-4">
-                <Link to="https://supabase.com/dashboard/project/xucpujttrmcfnxalnuzr/database/tables" target="_blank">
-                  <Button variant="outline">
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    View Database
-                  </Button>
-                </Link>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-12">
+                <p className="text-muted-foreground mb-4">No live dealer aggregators configured yet</p>
+                <Button>Add Live Dealer Aggregator</Button>
               </div>
             </CardContent>
           </Card>

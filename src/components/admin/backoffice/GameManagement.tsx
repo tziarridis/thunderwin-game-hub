@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Gamepad2, Settings, TestTube, History, Package } from "lucide-react";
+import { Gamepad2, Settings, TestTube, History, Package, Server } from "lucide-react";
 import GameAggregator from "@/components/admin/GameAggregator";
 
 const GameManagement = () => {
@@ -20,9 +20,9 @@ const GameManagement = () => {
             <Gamepad2 className="mr-2 h-4 w-4" />
             Game Aggregator
           </Button>
-          <Button variant="outline" onClick={() => navigate('/admin/games')}>
-            <Package className="mr-2 h-4 w-4" />
-            Games List
+          <Button variant="outline" onClick={() => navigate('/admin/aggregator-settings')}>
+            <Settings className="mr-2 h-4 w-4" />
+            Aggregator Settings
           </Button>
           <Button variant="outline" onClick={() => navigate('/admin/pp-integration-tester')}>
             <TestTube className="mr-2 h-4 w-4" />
@@ -87,7 +87,7 @@ const GameManagement = () => {
             <CardContent>
               <p className="mb-4">Manage your game providers and their integrations.</p>
               
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-center">
@@ -111,6 +111,17 @@ const GameManagement = () => {
                       </div>
                       <Button variant="outline" onClick={() => navigate('/admin/infingame-tester')}>
                         Manage
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center flex-col h-full items-center justify-center">
+                      <Server className="h-12 w-12 text-muted-foreground mb-2" />
+                      <Button variant="outline" onClick={() => navigate('/admin/aggregator-settings')}>
+                        Add Provider
                       </Button>
                     </div>
                   </CardContent>

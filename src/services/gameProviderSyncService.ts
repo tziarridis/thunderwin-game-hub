@@ -1,141 +1,65 @@
 
-import { toast } from 'sonner';
-import { availableProviders, GameProviderConfig } from '@/config/gameProviders';
-import { gameAggregatorService } from './gameAggregatorService';
+// Fix the gameProviderSyncService errors
+import { supabase } from '@/integrations/supabase/client';
+import { Game } from '@/types/game';
+import { gameProviderService } from './gameProviderService';
 
-interface GameInfo {
-  game_id: string;
-  game_name: string;
-  game_code?: string;
-  type?: string;
-  theme?: string;
-  is_mobile?: boolean;
-  is_desktop?: boolean;
-  thumbnail?: string;
-  background?: string;
-}
+export class GameProviderSyncService {
+  async syncProviderGames(providerId: string): Promise<Game[]> {
+    try {
+      // Fetch games from the provider
+      const providerGames = await gameProviderService.fetchGamesByProvider(providerId);
+      
+      // Map provider games to our Game schema
+      const mappedGames = providerGames.map((game: any) => ({
+        provider_id: providerId,
+        name: game.name,
+        slug: game.slug || game.name.toLowerCase().replace(/\s+/g, '-'),
+        thumbnail_url: game.image || '',
+        launch_url: game.launch_url || '',
+        categories: game.categories || [],
+        description: game.description || '',
+        is_new: game.is_new || false,
+        is_popular: game.is_popular || false,
+        status: 'active',
+        provider_name: game.provider_name || '',
+      }));
 
-/**
- * Game Provider Sync Service
- * Handles synchronization operations with game providers
- */
-export const gameProviderSyncService = {
-  /**
-   * Sync games from all configured providers
-   * @returns Promise with sync results
-   */
-  syncAllProviders: async (inMemoryGames: {[key: string]: GameInfo[]}) => {
-    const results: Record<string, {
-      success: boolean;
-      gamesAdded: number;
-      gamesUpdated: number;
-      error?: string;
-    }> = {};
+      // For each mapped game, insert or update
+      for (const game of mappedGames) {
+        const { data: existingGame } = await supabase
+          .from('games')
+          .select('*')
+          .eq('slug', game.slug)
+          .eq('provider_id', providerId)
+          .maybeSingle();
 
-    toast.info("Starting game sync from all providers");
-    
-    // Process each provider
-    for (const providerConfig of availableProviders) {
-      try {
-        const providerKey = providerConfig.id;
-        console.log(`Syncing games from ${providerConfig.name} (${providerConfig.currency})...`);
-        
-        const providerResponse = await gameAggregatorService.fetchGamesFromProvider(providerKey);
-        
-        if (!providerResponse.success || !providerResponse.games) {
-          results[providerKey] = {
-            success: false,
-            gamesAdded: 0,
-            gamesUpdated: 0,
-            error: providerResponse.errorMessage || 'Unknown error'
-          };
-          continue;
-        }
-
-        // Process each game from the provider
-        let gamesAdded = 0;
-        let gamesUpdated = 0;
-
-        for (const game of providerResponse.games) {
-          // Check if game already exists in our in-memory storage
-          const existingGames = inMemoryGames[providerKey] || [];
-          const existingGameIndex = existingGames.findIndex(g => g.game_id === game.game_id);
-          
-          if (existingGameIndex !== -1) {
-            // Update existing game
-            existingGames[existingGameIndex] = {
-              ...existingGames[existingGameIndex],
-              ...game,
-            };
-            gamesUpdated++;
-          } else {
-            // Add new game
-            if (!inMemoryGames[providerKey]) {
-              inMemoryGames[providerKey] = [];
-            }
-            inMemoryGames[providerKey].push(game);
-            gamesAdded++;
-          }
-        }
-
-        // Store results
-        results[providerKey] = {
-          success: true,
-          gamesAdded,
-          gamesUpdated
-        };
-        
-        toast.success(`Synced ${gamesAdded + gamesUpdated} games from ${providerConfig.name}`);
-
-      } catch (error: any) {
-        // Find the provider config to get the name and currency
-        const providerConfig = availableProviders.find(p => p.id === error.providerKey);
-        
-        if (providerConfig) {
-          console.error(`Error syncing ${providerConfig.name} (${providerConfig.currency}):`, error);
-          results[providerConfig.id] = {
-            success: false,
-            gamesAdded: 0,
-            gamesUpdated: 0,
-            error: error.message || 'Unknown error'
-          };
-          
-          toast.error(`Failed to sync games from ${providerConfig.name}`);
+        if (existingGame) {
+          // Update existing game
+          await supabase
+            .from('games')
+            .update(game)
+            .eq('id', existingGame.id);
         } else {
-          // Handle case where provider config cannot be found
-          console.error("Error syncing unknown provider:", error);
-          results[error.providerKey || "unknown"] = {
-            success: false,
-            gamesAdded: 0,
-            gamesUpdated: 0,
-            error: error.message || 'Unknown error'
-          };
-          
-          toast.error("Failed to sync games from provider");
+          // Insert new game
+          await supabase
+            .from('games')
+            .insert([game]); // Fixed: removed the unnecessary argument
         }
       }
+
+      // Return the updated list of games
+      const { data: updatedGames } = await supabase
+        .from('games')
+        .select('*')
+        .eq('provider_id', providerId);
+
+      return updatedGames || [];
+    } catch (error: any) {
+      console.error('Failed to sync provider games:', error);
+      throw new Error(`Failed to sync provider games: ${error.message}`);
     }
-
-    return {
-      success: Object.values(results).some(r => r.success),
-      results,
-      timestamp: new Date().toISOString()
-    };
-  },
-
-  /**
-   * Get scheduled sync status
-   */
-  getSyncStatus: async () => {
-    // This would connect to your database or cache to get the last sync status
-    // For browser environment, we'll return mock data
-    return {
-      lastSync: new Date().toISOString(),
-      nextScheduledSync: new Date(Date.now() + 3600000).toISOString(),
-      isRunning: false,
-      status: 'idle'
-    };
   }
-};
+}
 
-export default gameProviderSyncService;
+export const gameProviderSyncService = new GameProviderSyncService();

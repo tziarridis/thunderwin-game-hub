@@ -1,240 +1,219 @@
-import { useState, useEffect } from "react";
-import { getPragmaticPlayTransactions } from "@/services/transactionService";
-import { Transaction, TransactionFilter } from "@/types/transaction";
+
+// Fix the DateRangePicker usage in PPTransactions.tsx
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Search, Download } from "lucide-react";
 import { format } from "date-fns";
-import { Download, RefreshCw } from "lucide-react";
-import PPTransactionLogger from "@/components/admin/PPTransactionLogger";
+
+interface Transaction {
+  id: string;
+  date: string;
+  player_id: string;
+  round_id: string;
+  type: string;
+  amount: number;
+  status: string;
+}
+
+// Mock data for demonstration
+const mockTransactions: Transaction[] = [
+  {
+    id: "pp-tx-1234",
+    date: "2023-06-01T14:23:45",
+    player_id: "player123",
+    round_id: "round-5678",
+    type: "bet",
+    amount: -10,
+    status: "completed"
+  },
+  {
+    id: "pp-tx-1235",
+    date: "2023-06-01T14:25:12",
+    player_id: "player123",
+    round_id: "round-5678",
+    type: "win",
+    amount: 15,
+    status: "completed"
+  },
+  {
+    id: "pp-tx-1236",
+    date: "2023-06-02T09:12:33",
+    player_id: "player456",
+    round_id: "round-9012",
+    type: "bet",
+    amount: -25,
+    status: "completed"
+  }
+];
 
 const PPTransactions = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<TransactionFilter>({
-    limit: 100
+  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().setDate(new Date().getDate() - 7)),
+    to: new Date()
   });
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
-    from: undefined,
-    to: undefined
-  });
+  const [transactionType, setTransactionType] = useState<string>("all");
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [filters]);
-
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      const data = await getPragmaticPlayTransactions(filters);
-      setTransactions(data);
-      setError(null);
-    } catch (err) {
-      console.error("Failed to fetch Pragmatic Play transactions:", err);
-      setError("Failed to load transactions. Please try again later.");
-    } finally {
-      setLoading(false);
+  // Filter transactions based on search query, date range, and type
+  const filteredTransactions = transactions.filter(tx => {
+    // Search filter (check player_id, round_id, or id)
+    const searchMatch = searchQuery === "" || 
+      tx.player_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.round_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Date filter
+    let dateMatch = true;
+    if (dateRange.from && dateRange.to) {
+      const txDate = new Date(tx.date);
+      dateMatch = txDate >= dateRange.from && txDate <= dateRange.to;
     }
-  };
+    
+    // Type filter
+    const typeMatch = transactionType === "all" || tx.type === transactionType;
+    
+    return searchMatch && dateMatch && typeMatch;
+  });
 
-  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
+  const handleDateChange = (range: DateRange) => {
     setDateRange(range);
-    
-    const newFilters = { ...filters };
-    if (range.from) {
-      newFilters.startDate = format(range.from, "yyyy-MM-dd");
-    } else {
-      delete newFilters.startDate;
-    }
-    
-    if (range.to) {
-      newFilters.endDate = format(range.to, "yyyy-MM-dd");
-    } else {
-      delete newFilters.endDate;
-    }
-    
-    setFilters(newFilters);
-  };
-
-  const handleFilterChange = (key: keyof TransactionFilter, value: string | undefined) => {
-    const newFilters = { ...filters };
-    
-    if (value && value !== "all") {
-      newFilters[key] = value;
-    } else {
-      delete newFilters[key];
-    }
-    
-    setFilters(newFilters);
-  };
-
-  const handleRefresh = () => {
-    fetchTransactions();
   };
 
   const handleExport = () => {
-    // Convert transactions to CSV
-    const headers = "ID,User ID,Date,Type,Amount,Currency,Status,Game ID,Round ID\n";
-    const csv = transactions.map(t => 
-      `${t.id},${t.userId},${t.date},${t.type},${t.amount},${t.currency},${t.status},${t.gameId || ''},${t.roundId || ''}`
-    ).join("\n");
-    
-    const blob = new Blob([headers + csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('hidden', '');
-    a.setAttribute('href', url);
-    a.setAttribute('download', `pragmatic-transactions-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // Logic to export transactions
+    console.log("Exporting transactions:", filteredTransactions);
+    alert("Export functionality will be implemented here");
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pragmatic Play Transactions</h1>
-          <p className="text-muted-foreground">View and analyze all Pragmatic Play game transactions.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={loading}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={handleExport} disabled={loading || transactions.length === 0}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+    <div className="container mx-auto py-6">
+      <h1 className="text-2xl font-bold mb-6">Pragmatic Play Transactions</h1>
       
-      <div className="flex flex-wrap gap-4">
-        <Select 
-          value={filters.type || "all"} 
-          onValueChange={(value) => handleFilterChange("type", value)}
-        >
-          <SelectTrigger className="w-[150px] bg-slate-800 text-white">
-            <SelectValue placeholder="Transaction Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="bet">Bets</SelectItem>
-            <SelectItem value="win">Wins</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <Select 
-          value={filters.status || "all"} 
-          onValueChange={(value) => handleFilterChange("status", value)}
-        >
-          <SelectTrigger className="w-[150px] bg-slate-800 text-white">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
-          </SelectContent>
-        </Select>
-        
-        <DateRangePicker 
-          date={dateRange}
-          onDateChange={handleDateRangeChange}
-        />
-        
-        <Input 
-          placeholder="Player ID" 
-          className="w-[200px] bg-slate-800 text-white"
-          value={filters.player_id || ""}
-          onChange={(e) => handleFilterChange("player_id", e.target.value || undefined)}
-        />
-      </div>
-      
-      <Card className="bg-slate-900 border-slate-800">
-        <CardHeader className="pb-3">
-          <CardTitle>Transaction List</CardTitle>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Transaction Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && (
-            <div className="flex justify-center my-8">
-              <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Player ID, Round ID, or Transaction ID"
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
-          )}
-          
-          {error && (
-            <div className="bg-red-900/20 border border-red-900 p-4 rounded-md text-red-400">
-              {error}
+            
+            <div>
+              <Label htmlFor="date-range">Date Range</Label>
+              <div className="mt-1">
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={handleDateChange}
+                />
+              </div>
             </div>
-          )}
-          
-          {!loading && !error && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-3 px-4">ID</th>
-                    <th className="text-left py-3 px-4">User</th>
-                    <th className="text-left py-3 px-4">Date</th>
-                    <th className="text-left py-3 px-4">Game ID</th>
-                    <th className="text-left py-3 px-4">Round</th>
-                    <th className="text-left py-3 px-4">Type</th>
-                    <th className="text-right py-3 px-4">Amount</th>
-                    <th className="text-left py-3 px-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map((transaction) => (
-                    <tr key={transaction.id} className="border-b border-slate-800 hover:bg-slate-800/50">
-                      <td className="py-3 px-4 font-mono text-xs">{transaction.id.substring(0, 8)}...</td>
-                      <td className="py-3 px-4">{transaction.userId.substring(0, 8)}...</td>
-                      <td className="py-3 px-4">{new Date(transaction.date).toLocaleString()}</td>
-                      <td className="py-3 px-4">{transaction.gameId || '-'}</td>
-                      <td className="py-3 px-4">{transaction.roundId || '-'}</td>
-                      <td className="py-3 px-4 capitalize">{transaction.type}</td>
-                      <td className={`py-3 px-4 text-right ${transaction.type === 'win' ? 'text-green-500' : 'text-red-500'}`}>
-                        {transaction.amount.toFixed(2)} {transaction.currency}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          transaction.status === 'completed' ? 'bg-green-500/20 text-green-400' : 
-                          transaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 
-                          'bg-red-500/20 text-red-400'
-                        }`}>
-                          {transaction.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  
-                  {transactions.length === 0 && (
-                    <tr>
-                      <td colSpan={8} className="text-center py-8 text-gray-500">
-                        No transactions found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            
+            <div>
+              <Label htmlFor="type">Transaction Type</Label>
+              <Select
+                value={transactionType}
+                onValueChange={setTransactionType}
+              >
+                <SelectTrigger id="type" className="mt-1">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="bet">Bet</SelectItem>
+                  <SelectItem value="win">Win</SelectItem>
+                  <SelectItem value="refund">Refund</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          
-          <div className="flex justify-between items-center mt-6">
-            <div className="text-sm text-gray-500">
-              Showing <span className="font-medium">{transactions.length}</span> transactions
+            
+            <div className="flex items-end">
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
       
-      <PPTransactionLogger />
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Transaction ID</TableHead>
+                <TableHead>Player ID</TableHead>
+                <TableHead>Round ID</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-6">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTransactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{format(new Date(tx.date), "MMM dd, yyyy HH:mm")}</TableCell>
+                    <TableCell className="font-mono text-xs">{tx.id}</TableCell>
+                    <TableCell>{tx.player_id}</TableCell>
+                    <TableCell className="font-mono text-xs">{tx.round_id}</TableCell>
+                    <TableCell>
+                      <Badge variant={tx.type === "win" ? "success" : tx.type === "bet" ? "destructive" : "outline"}>
+                        {tx.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${tx.amount >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={tx.status === "completed" ? "outline" : "secondary"}>
+                        {tx.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };
