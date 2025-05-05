@@ -44,7 +44,7 @@ const CrashGamesPage = () => {
     // If user is authenticated, mark favorites
     if (isAuthenticated && user) {
       try {
-        // Fetch user's favorite games
+        // Fetch user's favorite games - we need to manually construct this since the table doesn't exist in types
         const { data: favoriteData, error: favoriteError } = await supabase
           .from('favorite_games')
           .select('game_id')
@@ -53,7 +53,7 @@ const CrashGamesPage = () => {
         if (favoriteError) throw favoriteError;
         
         // Create a set of favorite game IDs for quick lookup
-        const favoriteIds = new Set(favoriteData.map(item => item.game_id));
+        const favoriteIds = new Set((favoriteData || []).map((item: any) => item.game_id));
         
         // Mark games as favorites if they're in the user's favorites
         filtered = filtered.map(game => ({

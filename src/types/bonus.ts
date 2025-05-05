@@ -5,11 +5,24 @@ export interface UserBonus {
   id: string;
   userId: string;
   bonusId: string;
+  type: BonusType;
+  amount: number;
   status: 'active' | 'used' | 'expired';
   dateIssued: string;
   expiryDate: string;
-  amount: number;
   wageringRequirement: number;
   wageringCompleted: number;
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
   type: string;
+  value: number;
+  minDeposit: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
 }

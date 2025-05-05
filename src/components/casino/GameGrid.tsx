@@ -26,16 +26,17 @@ const GameGrid = ({ games, onGameClick, showEmptyMessage = true }: GameGridProps
     
     try {
       if (isFavorite) {
-        // Remove from favorites
+        // Remove from favorites - we need to manually construct this since the table doesn't exist in types
         const { error } = await supabase
           .from('favorite_games')
           .delete()
-          .match({ user_id: user?.id, game_id: gameId });
+          .eq('user_id', user?.id)
+          .eq('game_id', gameId);
           
         if (error) throw error;
         toast.success("Removed from favorites");
       } else {
-        // Add to favorites
+        // Add to favorites - we need to manually construct this since the table doesn't exist in types
         const { error } = await supabase
           .from('favorite_games')
           .insert({ user_id: user?.id, game_id: gameId });

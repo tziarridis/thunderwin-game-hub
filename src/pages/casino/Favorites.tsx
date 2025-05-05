@@ -33,7 +33,7 @@ const FavoritesPage = () => {
     try {
       setIsLoading(true);
       
-      // Fetch user's favorite game IDs
+      // Fetch user's favorite game IDs - we need to manually construct this since the table doesn't exist in types
       const { data: favoriteData, error: favoriteError } = await supabase
         .from('favorite_games')
         .select('game_id')
@@ -42,7 +42,7 @@ const FavoritesPage = () => {
       if (favoriteError) throw favoriteError;
       
       // Create a set of favorite game IDs for quick lookup
-      const favoriteIds = new Set(favoriteData.map(item => item.game_id));
+      const favoriteIds = new Set((favoriteData || []).map((item: any) => item.game_id));
       
       // Filter games that are in the favorites list and match search term
       const filteredGames = games

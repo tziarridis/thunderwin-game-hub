@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { BonusType, UserBonus } from "@/types/bonus";
 import { BonusTemplate } from "@/types";
@@ -103,7 +104,7 @@ export const issueBonusToUser = async (userId: string, bonusTemplateId: string):
     const bonusData = {
       userId: userId,
       bonusId: template.id,
-      type: template.type,
+      type: template.type as BonusType,
       amount: template.value,
       status: 'active' as const,
       dateIssued: new Date().toISOString(),
@@ -131,13 +132,13 @@ export const getUserBonuses = async (userId: string): Promise<UserBonus[]> => {
         id: "bonus1",
         userId: userId,
         bonusId: "1",
+        type: "welcome",
+        amount: 100,
         status: 'active',
         dateIssued: new Date().toISOString(),
         expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        amount: 100,
         wageringRequirement: 30,
-        wageringCompleted: 10,
-        type: "welcome"
+        wageringCompleted: 10
       }
     ];
     
