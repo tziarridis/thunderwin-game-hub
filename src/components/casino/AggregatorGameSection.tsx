@@ -178,10 +178,10 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider || ''}
                     isPopular={!!game.isPopular}
                     isNew={!!game.isNew}
-                    rtp={`${game.rtp}%`}
-                    isFavorite={false}
-                    minBet={`$${game.minBet}`}
-                    maxBet={`$${game.maxBet}`}
+                    rtp={game.rtp ? `${game.rtp}%` : '96%'}
+                    isFavorite={!!game.isFavorite}
+                    minBet={game.minBet ? `$${game.minBet}` : '$0.10'}
+                    maxBet={game.maxBet ? `$${game.maxBet}` : '$100'}
                     onClick={() => handlePlayGame(game)}
                     button={
                       <LaunchGame 
@@ -208,10 +208,10 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider || ''}
                     isPopular={!!game.isPopular}
                     isNew={!!game.isNew}
-                    rtp={`${game.rtp}%`}
-                    isFavorite={false}
-                    minBet={`$${game.minBet}`}
-                    maxBet={`$${game.maxBet}`}
+                    rtp={game.rtp ? `${game.rtp}%` : '96%'}
+                    isFavorite={!!game.isFavorite}
+                    minBet={game.minBet ? `$${game.minBet}` : '$0.10'}
+                    maxBet={game.maxBet ? `$${game.maxBet}` : '$100'}
                     onClick={() => handlePlayGame(game)}
                     button={
                       <LaunchGame 
