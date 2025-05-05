@@ -2,7 +2,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
-import GitSlotParkTester from "@/components/games/GitSlotParkTester";
 import { useEffect, useState } from "react";
 import { getProviderConfig } from "@/config/gameProviders";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -34,7 +33,8 @@ const GameAggregator = () => {
       pp: { name: "Pragmatic Play", code: "PP" },
       gsp: { name: "GitSlotPark", code: "GSP" },
       pg: { name: "Play'n GO", code: "PG" },
-      am: { name: "Amatic", code: "AM" }
+      am: { name: "Amatic", code: "AM" },
+      infin: { name: "InfinGame", code: "INFIN" }
     };
     
     // Check which providers have valid configurations
@@ -47,7 +47,8 @@ const GameAggregator = () => {
           (key === 'pp' && getProviderConfig('ppeur')) || 
           (key === 'gsp' && getProviderConfig('gspeur')) ||
           (key === 'pg' && getProviderConfig('pgeur')) ||
-          (key === 'am' && getProviderConfig('ameur'));
+          (key === 'am' && getProviderConfig('ameur')) ||
+          (key === 'infin' && getProviderConfig('infineur'));
         
         if (hasConfig) {
           providerList.push({ id: key, name: provider.name, code: provider.code });
@@ -148,37 +149,20 @@ const GameAggregator = () => {
           </div>
         </TabsContent>
         
-        {/* GitSlotPark Integration Tab */}
-        <TabsContent value="gsp">
+        {/* InfinGame Integration Tab */}
+        <TabsContent value="infin">
           <div className="grid grid-cols-1 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>GitSlotPark Integration</CardTitle>
+                <CardTitle>InfinGame Integration</CardTitle>
                 <CardDescription>
-                  Test and manage GitSlotPark games integration
+                  Test and manage InfinGame integration
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <GitSlotParkTester />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        {/* PlayGo Integration Tab */}
-        <TabsContent value="pg">
-          <div className="grid grid-cols-1 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Play'n GO Integration</CardTitle>
-                <CardDescription>
-                  Test and manage Play'n GO games integration
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Alert className="mb-4 bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
+                <Alert className="mb-4 bg-blue-500/10 text-blue-500 border-blue-500/50">
                   <AlertDescription>
-                    The Play'n GO integration is currently in setup. Use the callback URLs below to configure your integration.
+                    The InfinGame integration is set up using the API endpoint: https://infinapi-docs.axis-stage.infingame.com/
                   </AlertDescription>
                 </Alert>
                 
@@ -186,91 +170,38 @@ const GameAggregator = () => {
                   <div className="p-4 bg-slate-800 rounded-md">
                     <h3 className="text-lg mb-2">Integration Details</h3>
                     <p className="text-sm text-gray-400 mb-4">
-                      Configure these endpoints in your Play'n GO integration dashboard.
+                      Configure these endpoints in your InfinGame integration dashboard.
                     </p>
                     
                     <div className="space-y-4">
                       <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
                         <div>
                           <p className="text-sm font-semibold">Callback URL:</p>
-                          <p className="text-xs text-gray-400">{getProviderConfig('pgeur')?.credentials.callbackUrl}</p>
+                          <p className="text-xs text-gray-400">https://your-api.com/infin/callback</p>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => handleCopyCallback('pg', 'callback')}
+                        <Button size="sm" variant="outline" onClick={() => {
+                          navigator.clipboard.writeText("https://your-api.com/infin/callback");
+                          setCopiedEndpoint('infin-callback');
+                          toast.success('Callback URL copied to clipboard');
+                          setTimeout(() => setCopiedEndpoint(null), 2000);
+                        }}
                           className="h-8 px-2">
-                          {copiedEndpoint === 'callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copiedEndpoint === 'infin-callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         </Button>
                       </div>
                       
                       <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
                         <div>
                           <p className="text-sm font-semibold">API Endpoint:</p>
-                          <p className="text-xs text-gray-400">https://{getProviderConfig('pgeur')?.credentials.apiEndpoint}</p>
+                          <p className="text-xs text-gray-400">https://infinapi-docs.axis-stage.infingame.com/</p>
                         </div>
                         <Button size="sm" variant="outline" onClick={() => {
-                          navigator.clipboard.writeText(`https://${getProviderConfig('pgeur')?.credentials.apiEndpoint}`);
-                          setCopiedEndpoint('api');
+                          navigator.clipboard.writeText("https://infinapi-docs.axis-stage.infingame.com/");
+                          setCopiedEndpoint('infin-api');
                           toast.success('API endpoint copied to clipboard');
                           setTimeout(() => setCopiedEndpoint(null), 2000);
                         }} className="h-8 px-2">
-                          {copiedEndpoint === 'api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        {/* Amatic Integration Tab */}
-        <TabsContent value="am">
-          <div className="grid grid-cols-1 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Amatic Integration</CardTitle>
-                <CardDescription>
-                  Test and manage Amatic games integration
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Alert className="mb-4 bg-yellow-500/10 text-yellow-500 border-yellow-500/50">
-                  <AlertDescription>
-                    The Amatic integration is currently in setup. Use the callback URLs below to configure your integration.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="space-y-4">
-                  <div className="p-4 bg-slate-800 rounded-md">
-                    <h3 className="text-lg mb-2">Integration Details</h3>
-                    <p className="text-sm text-gray-400 mb-4">
-                      Configure these endpoints in your Amatic integration dashboard.
-                    </p>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
-                        <div>
-                          <p className="text-sm font-semibold">Callback URL:</p>
-                          <p className="text-xs text-gray-400">{getProviderConfig('ameur')?.credentials.callbackUrl}</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => handleCopyCallback('am', 'am-callback')}
-                          className="h-8 px-2">
-                          {copiedEndpoint === 'am-callback' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
-                        <div>
-                          <p className="text-sm font-semibold">API Endpoint:</p>
-                          <p className="text-xs text-gray-400">https://{getProviderConfig('ameur')?.credentials.apiEndpoint}</p>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => {
-                          navigator.clipboard.writeText(`https://${getProviderConfig('ameur')?.credentials.apiEndpoint}`);
-                          setCopiedEndpoint('am-api');
-                          toast.success('API endpoint copied to clipboard');
-                          setTimeout(() => setCopiedEndpoint(null), 2000);
-                        }} className="h-8 px-2">
-                          {copiedEndpoint === 'am-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {copiedEndpoint === 'infin-api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                         </Button>
                       </div>
                     </div>
@@ -326,10 +257,15 @@ const GameAggregator = () => {
                                 <p className="text-sm font-medium mb-1">EUR Callback URL</p>
                                 <div className="flex items-center justify-between">
                                   <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
-                                    {getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
+                                    {provider.id === 'infin' 
+                                    ? 'https://your-api.com/infin/callback' 
+                                    : getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
                                   </code>
                                   <Button size="sm" variant="ghost" onClick={() => {
-                                    const url = getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    const url = provider.id === 'infin' 
+                                    ? 'https://your-api.com/infin/callback' 
+                                    : getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    
                                     if (url) {
                                       navigator.clipboard.writeText(url);
                                       toast.success('Callback URL copied');
@@ -341,13 +277,20 @@ const GameAggregator = () => {
                               </div>
                               
                               <div className="p-3 bg-slate-700 rounded-md">
-                                <p className="text-sm font-medium mb-1">BRL Callback URL</p>
+                                <p className="text-sm font-medium mb-1">USD Callback URL</p>
                                 <div className="flex items-center justify-between">
                                   <code className="text-xs bg-slate-800 p-1 rounded overflow-x-auto max-w-[80%]">
-                                    {getProviderConfig(`${provider.id}brl`)?.credentials.callbackUrl}
+                                    {provider.id === 'infin' 
+                                    ? 'https://your-api.com/infin/usd/callback' 
+                                    : getProviderConfig(`${provider.id}usd`)?.credentials.callbackUrl || 
+                                      getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl}
                                   </code>
                                   <Button size="sm" variant="ghost" onClick={() => {
-                                    const url = getProviderConfig(`${provider.id}brl`)?.credentials.callbackUrl;
+                                    const url = provider.id === 'infin' 
+                                    ? 'https://your-api.com/infin/usd/callback' 
+                                    : getProviderConfig(`${provider.id}usd`)?.credentials.callbackUrl || 
+                                      getProviderConfig(`${provider.id}eur`)?.credentials.callbackUrl;
+                                    
                                     if (url) {
                                       navigator.clipboard.writeText(url);
                                       toast.success('Callback URL copied');
@@ -363,10 +306,15 @@ const GameAggregator = () => {
                               <p className="text-sm font-medium mb-1">API Endpoint</p>
                               <div className="flex items-center justify-between">
                                 <code className="text-xs bg-slate-800 p-1 rounded">
-                                  https://{getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint}
+                                  {provider.id === 'infin' 
+                                  ? 'https://infinapi-docs.axis-stage.infingame.com/' 
+                                  : `https://${getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint}`}
                                 </code>
                                 <Button size="sm" variant="ghost" onClick={() => {
-                                  const endpoint = getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint;
+                                  const endpoint = provider.id === 'infin' 
+                                  ? 'https://infinapi-docs.axis-stage.infingame.com/' 
+                                  : getProviderConfig(`${provider.id}eur`)?.credentials.apiEndpoint;
+                                  
                                   if (endpoint) {
                                     navigator.clipboard.writeText(`https://${endpoint}`);
                                     toast.success('API endpoint copied');

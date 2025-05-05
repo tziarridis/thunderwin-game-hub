@@ -191,10 +191,7 @@ export const metamaskService = {
       });
       
       // Credit the user's wallet
-      await creditWallet(userId, amountInEth, 'USD', {
-        description: `Crypto deposit via MetaMask (${amountInEth} ETH)`,
-        referenceId: txHash
-      });
+      await creditWallet(userId, amountInEth, 'deposit', 'metamask');
 
       toast.success(`Transaction sent successfully! Amount: ${amountInEth} ETH`);
       

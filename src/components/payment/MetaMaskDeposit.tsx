@@ -2,199 +2,127 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { metamaskService } from "@/services";
 import { toast } from "sonner";
-import { Loader2, AlertCircle } from "lucide-react";
-import { metamaskService } from "@/services/metamaskService";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/contexts/AuthContext"; // Adjust import to your auth context
-
-const RECIPIENT_ADDRESS = "0xRecipientAddress"; // Replace with your actual wallet address
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MetaMaskDepositProps {
+  amount: string;
+  setAmount: (value: string) => void;
   onSuccess?: () => void;
-  onError?: (error: string) => void;
+  onProcessing?: (isProcessing: boolean) => void;
 }
 
-const MetaMaskDeposit = ({ onSuccess, onError }: MetaMaskDepositProps) => {
-  const [amount, setAmount] = useState<number>(0.1);
+const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMaskDepositProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectedAccount, setConnectedAccount] = useState<string | null>(null);
-  const [balance, setBalance] = useState<string | null>(null);
   const { user } = useAuth();
-  
-  const handleConnectWallet = async () => {
-    try {
-      setIsConnecting(true);
-      const accounts = await metamaskService.connectToMetaMask();
-      
-      if (accounts && accounts.length > 0) {
-        setConnectedAccount(accounts[0]);
-        
-        // Get and display balance
-        const balance = await metamaskService.getBalance(accounts[0]);
-        setBalance(balance);
-      }
-    } catch (error: any) {
-      console.error("Error connecting wallet:", error);
-      if (onError) onError(error.message);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-  
+
   const handleDeposit = async () => {
-    if (!user) {
-      toast.error("You must be logged in to make a deposit");
+    if (!user?.id) {
+      toast.error("User ID not found");
       return;
     }
     
-    if (!connectedAccount) {
-      toast.error("Please connect your MetaMask wallet first");
+    const depositAmount = parseFloat(amount);
+    if (isNaN(depositAmount) || depositAmount <= 0) {
+      toast.error("Please enter a valid amount");
       return;
     }
-    
-    if (amount <= 0) {
-      toast.error("Please enter a valid amount to deposit");
-      return;
-    }
+
+    setIsProcessing(true);
+    if (onProcessing) onProcessing(true);
     
     try {
-      setIsProcessing(true);
+      // Check if MetaMask is installed
+      if (!metamaskService.isMetaMaskAvailable()) {
+        throw new Error("MetaMask is not installed. Please install MetaMask extension and try again.");
+      }
       
-      // Send transaction using metamaskService
-      const txHash = await metamaskService.sendTransaction(
-        RECIPIENT_ADDRESS,
-        amount,
-        user.id
+      // Request account access
+      const accounts = await metamaskService.connectToMetaMask();
+      if (accounts.length === 0) {
+        throw new Error("Please connect to MetaMask.");
+      }
+      
+      // Switch to Ethereum Mainnet if needed
+      await metamaskService.switchToEthereumMainnet();
+      
+      // Current ETH price in USD (in production, this should come from an API)
+      const ethPriceInUsd = 2500; 
+      
+      // Convert USD to ETH
+      const ethAmount = depositAmount / ethPriceInUsd;
+      
+      const confirmed = window.confirm(
+        `You are about to deposit ${ethAmount.toFixed(6)} ETH (approximately $${depositAmount.toFixed(2)} USD). Do you want to continue?`
       );
       
-      toast.success(`Deposit successful! Transaction hash: ${txHash.substring(0, 10)}...`);
+      if (!confirmed) {
+        setIsProcessing(false);
+        if (onProcessing) onProcessing(false);
+        return;
+      }
       
-      if (onSuccess) {
+      const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, user.id);
+      
+      if (txHash && onSuccess) {
         onSuccess();
       }
     } catch (error: any) {
-      console.error("Error processing deposit:", error);
-      toast.error(`Deposit failed: ${error.message || "Unknown error"}`);
-      
-      if (onError) {
-        onError(error.message || "Failed to process deposit");
-      }
+      console.error("MetaMask deposit error:", error);
+      toast.error(error.message || "Failed to process MetaMask deposit");
     } finally {
       setIsProcessing(false);
+      if (onProcessing) onProcessing(false);
     }
   };
-  
-  // Check if MetaMask is available
-  const isMetaMaskAvailable = metamaskService.isMetaMaskAvailable();
-  
-  if (!isMetaMaskAvailable) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>MetaMask Deposit</CardTitle>
-          <CardDescription>Deposit ETH to your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              MetaMask is not installed. Please install MetaMask browser extension to continue.
-            </AlertDescription>
-          </Alert>
-          <div className="mt-4">
-            <Button 
-              onClick={() => window.open("https://metamask.io/download.html", "_blank")}
-              variant="outline"
-            >
-              Install MetaMask
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-  
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>MetaMask Deposit</CardTitle>
-        <CardDescription>Deposit ETH to your account</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {!connectedAccount ? (
-          <Button 
-            onClick={handleConnectWallet} 
-            disabled={isConnecting}
-            className="w-full"
-          >
-            {isConnecting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              "Connect MetaMask"
-            )}
-          </Button>
-        ) : (
-          <>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <p className="text-sm text-muted-foreground">Connected Account:</p>
-                <p className="text-sm font-mono">{connectedAccount.substring(0, 6)}...{connectedAccount.substring(connectedAccount.length - 4)}</p>
-              </div>
-              
-              {balance && (
-                <div className="flex justify-between">
-                  <p className="text-sm text-muted-foreground">Balance:</p>
-                  <p className="text-sm">{parseFloat(balance).toFixed(4)} ETH</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount (ETH)</Label>
-              <Input
-                id="amount"
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(parseFloat(e.target.value))}
-                min={0.01}
-                step={0.01}
-                placeholder="0.1"
-              />
-              <p className="text-xs text-muted-foreground">
-                Minimum deposit: 0.01 ETH
-              </p>
-            </div>
-            
-            <Button 
-              onClick={handleDeposit} 
-              disabled={isProcessing || !connectedAccount || amount <= 0}
-              className="w-full"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                `Deposit ${amount} ETH`
-              )}
-            </Button>
-          </>
-        )}
-      </CardContent>
-      <CardFooter className="flex-col items-start">
-        <p className="text-xs text-muted-foreground mt-2">
-          Note: The deposit will be converted to USD based on the current exchange rate.
+    <div className="space-y-3">
+      <div className="flex flex-col space-y-1">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/70">$</span>
+          <Input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            type="number"
+            min="10"
+            step="5"
+            placeholder="Enter amount"
+            className="pl-8 bg-casino-thunder-gray/30 border-white/10 focus:border-casino-thunder-green"
+          />
+        </div>
+        <p className="text-xs text-white/50">
+          Minimum deposit: $10
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+      
+      <Button 
+        onClick={handleDeposit}
+        disabled={isProcessing}
+        className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+      >
+        {isProcessing ? (
+          <>
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+          </>
+        ) : (
+          `Deposit with MetaMask`
+        )}
+      </Button>
+      
+      <p className="text-xs text-white/60 text-center">
+        {metamaskService.isMetaMaskAvailable() ? 
+          "Connect to your MetaMask wallet to deposit ETH" : 
+          "MetaMask extension is not installed. Please install MetaMask to continue."
+        }
+      </p>
+    </div>
   );
 };
 

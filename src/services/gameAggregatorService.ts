@@ -13,6 +13,15 @@ const API_CONFIG = {
   callbackUrl: 'https://your-domain/casino/seamless'
 };
 
+// InfinGame API configuration
+const INFIN_API_CONFIG = {
+  endpoint: 'https://infinapi-docs.axis-stage.infingame.com',
+  agentId: 'casinothunder',
+  token: 'api-token-here',
+  secretKey: 'secret-key-here',
+  callbackUrl: 'https://your-api.com/infin/callback'
+};
+
 // Interface for session creation request
 interface SessionCreationRequest {
   agentId: string;
@@ -61,19 +70,30 @@ export const gameAggregatorService = {
     try {
       console.log(`Creating game session for player ${playerId}, game ${gameId}`);
       
+      // Determine which API configuration to use based on the game ID
+      const isInfinGame = gameId.startsWith('infin_');
+      const apiConfig = isInfinGame ? INFIN_API_CONFIG : API_CONFIG;
+      
       const requestBody: SessionCreationRequest = {
-        agentId: API_CONFIG.agentId,
-        token: API_CONFIG.token,
+        agentId: apiConfig.agentId,
+        token: apiConfig.token,
         currency: currency,
         playerName: playerId,
-        gameId: gameId,
+        gameId: isInfinGame ? gameId.replace('infin_', '') : gameId,
         platform: platform,
-        callbackUrl: API_CONFIG.callbackUrl
+        callbackUrl: apiConfig.callbackUrl
       };
       
       // Make API request to create session
+      const apiEndpoint = isInfinGame 
+        ? `${apiConfig.endpoint}/api/games/launch` 
+        : `${apiConfig.endpoint}/api/casino/create-session`;
+      
+      console.log(`API Endpoint: ${apiEndpoint}`);
+      console.log('Request body:', requestBody);
+      
       const response = await axios.post(
-        `${API_CONFIG.endpoint}/api/casino/create-session`,
+        apiEndpoint,
         requestBody,
         {
           headers: {
@@ -84,7 +104,27 @@ export const gameAggregatorService = {
       
       console.log('Game session response:', response.data);
       
-      if (response.data && response.data.success) {
+      // Structure for response data differs between providers
+      let success = false;
+      let gameUrl = '';
+      let sessionId = '';
+      let errorMessage = '';
+      
+      if (isInfinGame) {
+        // Handle InfinGame API response format
+        success = response.data && response.data.success;
+        gameUrl = success ? response.data.url : '';
+        sessionId = success ? response.data.session_id : '';
+        errorMessage = !success ? (response.data.error || 'Unknown error') : '';
+      } else {
+        // Handle default aggregator API response format
+        success = response.data && response.data.success;
+        gameUrl = success ? response.data.gameUrl : '';
+        sessionId = success ? response.data.sessionId : '';
+        errorMessage = !success ? (response.data.errorMessage || 'Unknown error') : '';
+      }
+      
+      if (success) {
         // Log successful game launch in transactions
         await addTransaction({
           userId: playerId,
@@ -92,19 +132,19 @@ export const gameAggregatorService = {
           amount: 0, // Initial amount is 0, actual bet will be recorded later
           currency: currency,
           status: 'pending',
-          provider: 'aggregator',
+          provider: isInfinGame ? 'infingame' : 'aggregator',
           gameId: gameId,
           description: `Game session created: ${gameId}`,
-          referenceId: response.data.sessionId
+          referenceId: sessionId
         });
         
         return {
           success: true,
-          gameUrl: response.data.gameUrl,
-          sessionId: response.data.sessionId
+          gameUrl: gameUrl,
+          sessionId: sessionId
         };
       } else {
-        throw new Error(response.data?.errorMessage || 'Unknown error creating game session');
+        throw new Error(errorMessage || 'Unknown error creating game session');
       }
     } catch (error: any) {
       console.error('Error creating game session:', error);
@@ -157,8 +197,12 @@ export const gameAggregatorService = {
     try {
       console.log('Processing game callback:', callbackData);
       
+      // Determine the provider from the callback data
+      const isInfinGame = callbackData.provider === 'infingame';
+      const apiConfig = isInfinGame ? INFIN_API_CONFIG : API_CONFIG;
+      
       // Verify that this is a valid callback with our agent ID
-      if (callbackData.agentId !== API_CONFIG.agentId) {
+      if (callbackData.agentId !== apiConfig.agentId) {
         return { success: false, errorCode: 'INVALID_AGENT' };
       }
       
@@ -183,7 +227,7 @@ export const gameAggregatorService = {
         amount: Math.abs(amount),
         currency,
         status: 'completed',
-        provider: 'aggregator',
+        provider: isInfinGame ? 'infingame' : 'aggregator',
         gameId,
         roundId,
         referenceId: transactionId,
@@ -250,6 +294,50 @@ export const gameAggregatorService = {
     } catch (error) {
       console.error('Error fetching games from provider:', error);
       return [];
+    }
+  },
+  
+  /**
+   * Get available InfinGame games
+   */
+  getInfinGames: async () => {
+    try {
+      const response = await axios.get(
+        `${INFIN_API_CONFIG.endpoint}/api/games/list`,
+        {
+          params: {
+            agent: INFIN_API_CONFIG.agentId,
+            token: INFIN_API_CONFIG.token
+          }
+        }
+      );
+      
+      if (response.data && response.data.success) {
+        // Map the games to match our expected format
+        const mappedGames = (response.data.games || []).map((game: any) => ({
+          id: `infin_${game.id}`,
+          name: game.name,
+          provider: 'InfinGame',
+          category: game.category || 'slots',
+          imageUrl: game.image_url || '',
+          isPopular: !!game.is_popular,
+          isNew: !!game.is_new
+        }));
+        
+        return {
+          success: true,
+          games: mappedGames
+        };
+      } else {
+        throw new Error(response.data?.error || 'Failed to fetch InfinGame games');
+      }
+    } catch (error: any) {
+      console.error('Error fetching InfinGame games:', error);
+      return {
+        success: false,
+        errorMessage: error.message || 'Failed to get InfinGame games list',
+        games: []
+      };
     }
   }
 };

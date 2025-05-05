@@ -3,6 +3,28 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Transaction, TransactionFilter } from '@/types/transaction';
 
+// Define the database transaction type to match what's in the database
+interface DbTransaction {
+  id: string;
+  player_id: string;
+  amount: number;
+  currency: string;
+  type: string;
+  status: string;
+  provider: string;
+  game_id: string;
+  round_id: string;
+  session_id: string;
+  balance_before: number;
+  balance_after: number;
+  created_at: string;
+  updated_at: string;
+  description?: string;
+  payment_method?: string;
+  bonus_id?: string;
+  reference_id?: string;
+}
+
 /**
  * Get transactions for a user with filtering options
  * @param userId User ID
@@ -51,7 +73,7 @@ export const getUserTransactions = async (
     if (error) throw error;
     
     // Transform the data to match Transaction interface
-    const transactions: Transaction[] = (data || []).map(item => ({
+    const transactions: Transaction[] = (data || []).map((item: DbTransaction) => ({
       id: item.id,
       userId: item.player_id,
       amount: item.amount,
@@ -131,7 +153,7 @@ export const getAllTransactions = async (
     if (error) throw error;
     
     // Transform the data to match Transaction interface
-    const transactions: Transaction[] = (data || []).map(item => ({
+    const transactions: Transaction[] = (data || []).map((item: DbTransaction) => ({
       id: item.id,
       userId: item.player_id,
       amount: item.amount,
@@ -208,7 +230,7 @@ export const getPragmaticPlayTransactions = async (
     if (error) throw error;
     
     // Transform to Transaction type
-    const transactions: Transaction[] = (data || []).map(item => ({
+    const transactions: Transaction[] = (data || []).map((item: DbTransaction) => ({
       id: item.id,
       userId: item.player_id,
       amount: item.amount,
@@ -253,15 +275,16 @@ export const addTransaction = async (transactionData: {
 }): Promise<Transaction | null> => {
   try {
     // Convert to database field names
-    const dbData: Record<string, any> = {
+    const dbData = {
       player_id: transactionData.userId,
       type: transactionData.type,
       amount: transactionData.amount,
       currency: transactionData.currency,
       status: transactionData.status || 'completed',
       provider: transactionData.provider || 'system',
-      created_at: new Date().toISOString()
-    };
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    } as Record<string, any>;
 
     // Add optional fields only if they exist
     if (transactionData.description) {
@@ -288,21 +311,23 @@ export const addTransaction = async (transactionData: {
     
     if (error) throw error;
     
+    const transaction = data as DbTransaction;
+    
     return {
-      id: data.id,
-      userId: data.player_id,
-      amount: data.amount,
-      currency: data.currency,
-      type: data.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
-      status: data.status as 'pending' | 'completed' | 'failed',
-      date: data.created_at,
-      description: data.description,
-      paymentMethod: data.payment_method,
-      provider: data.provider,
-      gameId: data.game_id,
-      roundId: data.round_id,
-      bonusId: data.bonus_id,
-      referenceId: data.reference_id
+      id: transaction.id,
+      userId: transaction.player_id,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      type: transaction.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
+      status: transaction.status as 'pending' | 'completed' | 'failed',
+      date: transaction.created_at,
+      description: transaction.description,
+      paymentMethod: transaction.payment_method,
+      provider: transaction.provider,
+      gameId: transaction.game_id,
+      roundId: transaction.round_id,
+      bonusId: transaction.bonus_id,
+      referenceId: transaction.reference_id
     };
   } catch (error) {
     console.error('Error adding transaction:', error);

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Wallet, WalletTransaction } from '@/types/wallet';
@@ -8,6 +9,28 @@ import transactionService from './transactionService';
  * Wallet Service
  * Handles all wallet-related operations for the casino
  */
+
+// Define the database transaction type to match what's in the database
+interface DbTransaction {
+  id: string;
+  player_id: string;
+  amount: number;
+  currency: string;
+  type: string;
+  status: string;
+  provider: string;
+  game_id: string;
+  round_id: string;
+  session_id: string;
+  balance_before: number;
+  balance_after: number;
+  created_at: string;
+  updated_at: string;
+  description?: string;
+  payment_method?: string;
+  bonus_id?: string;
+  reference_id?: string;
+}
 
 /**
  * Get a user's wallet or create if it doesn't exist
@@ -201,7 +224,7 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
     if (error) throw error;
     
     // Transform the data to match WalletTransaction interface
-    const transactions: WalletTransaction[] = (data || []).map(item => ({
+    const transactions: WalletTransaction[] = (data || []).map((item: DbTransaction) => ({
       id: item.id,
       user_id: item.player_id,
       amount: item.amount,
