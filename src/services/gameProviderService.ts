@@ -1,248 +1,253 @@
 
-// First section of the file with imports and interfaces
-import axios from 'axios';
-import { getProviderConfig, GameProviderConfig } from '@/config/gameProviders';
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { pragmaticPlayService } from './pragmaticPlayService';
-import { gitSlotParkService } from './gitSlotParkService';
+import { toast } from 'sonner';
 
-// Interface for game launch options
+// Game launch options interface
 export interface GameLaunchOptions {
   gameId: string;
-  providerId: string;
-  playerId?: string;
-  mode?: 'real' | 'demo';
+  providerId?: string;
+  mode: 'demo' | 'real';
+  playerId: string;
   language?: string;
   currency?: string;
   returnUrl?: string;
   platform?: 'web' | 'mobile';
 }
 
-// Interface for provider API response
-interface ProviderAPIResponse {
-  success: boolean;
-  gameUrl?: string;
-  errorCode?: string;
-  errorMessage?: string;
+// Provider interface
+interface Provider {
+  id: string;
+  code: string;
+  name: string;
+  apiEndpoint: string;
+  callbackUrl: string;
+  getLaunchUrl: (options: GameLaunchOptions) => string;
 }
 
-/**
- * Service for integrating with game providers
- */
-export const gameProviderService = {
-  /**
-   * Get the game launch URL from a specific provider
-   * @param options Game launch options
-   * @returns Promise with the game URL or error
-   */
-  getLaunchUrl: async (options: GameLaunchOptions): Promise<string> => {
-    const { 
-      providerId, 
-      gameId, 
-      playerId = 'demo', 
-      mode = 'demo',
-      language = 'en',
-      currency = 'EUR',
-      platform = 'web'
-    } = options;
-    
-    const providerConfig = getProviderConfig(providerId);
-    if (!providerConfig) {
-      throw new Error(`Unknown provider: ${providerId}`);
+// Base URL for Supabase functions (edge functions)
+const EDGE_FUNCTION_BASE_URL = `https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1`;
+
+// Game provider service
+class GameProviderService {
+  private providers: Map<string, Provider>;
+  
+  constructor() {
+    this.providers = new Map();
+    this.initializeProviders();
+  }
+  
+  // Initialize providers from configuration
+  private async initializeProviders() {
+    try {
+      // Fetch providers from the database
+      const { data, error } = await supabase
+        .from('providers')
+        .select('*')
+        .eq('status', 'active');
+        
+      if (error) throw error;
+      
+      // Initialize each provider
+      (data || []).forEach(provider => {
+        this.addProvider({
+          id: provider.id,
+          code: provider.id,
+          name: provider.name,
+          apiEndpoint: provider.api_endpoint || '',
+          callbackUrl: `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/${provider.name.toLowerCase().replace(' ', '-')}`,
+          getLaunchUrl: this.getProviderLaunchUrlGenerator(provider.name)
+        });
+      });
+      
+      // Always add default providers if not present
+      if (!this.providers.has('ppeur')) {
+        this.addProvider({
+          id: 'ppeur',
+          code: 'ppeur',
+          name: 'Pragmatic Play',
+          apiEndpoint: 'https://api-stage.pragmaticplay.net',
+          callbackUrl: `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/pragmatic-play`,
+          getLaunchUrl: this.getPragmaticPlayLaunchUrl
+        });
+      }
+      
+      if (!this.providers.has('gitslotpark')) {
+        this.addProvider({
+          id: 'gitslotpark',
+          code: 'gitslotpark',
+          name: 'GitSlotPark',
+          apiEndpoint: 'https://api.gitslotpark.com',
+          callbackUrl: `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/gitslotpark`,
+          getLaunchUrl: this.getGitSlotParkLaunchUrl
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing game providers:', error);
+      toast.error('Failed to initialize game providers');
+      
+      // Add default providers even on error
+      this.addProvider({
+        id: 'ppeur',
+        code: 'ppeur',
+        name: 'Pragmatic Play',
+        apiEndpoint: 'https://api-stage.pragmaticplay.net',
+        callbackUrl: `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/pragmatic-play`,
+        getLaunchUrl: this.getPragmaticPlayLaunchUrl
+      });
+      
+      this.addProvider({
+        id: 'gitslotpark',
+        code: 'gitslotpark',
+        name: 'GitSlotPark',
+        apiEndpoint: 'https://api.gitslotpark.com',
+        callbackUrl: `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/gitslotpark`,
+        getLaunchUrl: this.getGitSlotParkLaunchUrl
+      });
     }
+  }
+  
+  // Add a provider to the service
+  private addProvider(provider: Provider) {
+    this.providers.set(provider.id, provider);
+    console.log(`Provider added: ${provider.name}`);
+  }
+  
+  // Get all registered providers
+  public getProviders(): Provider[] {
+    return Array.from(this.providers.values());
+  }
+  
+  // Get launch URL generator function based on provider name
+  private getProviderLaunchUrlGenerator(providerName: string): (options: GameLaunchOptions) => string {
+    // Map provider names to launch URL generators
+    const providerMap: Record<string, (options: GameLaunchOptions) => string> = {
+      'Pragmatic Play': this.getPragmaticPlayLaunchUrl,
+      'GitSlotPark': this.getGitSlotParkLaunchUrl
+    };
     
-    console.log(`Launching game with provider ${providerId}:`, {
-      gameId,
-      playerId,
-      mode,
-      language,
-      currency,
-      platform
+    // Return the appropriate function or a default one
+    return providerMap[providerName] || this.getDefaultLaunchUrl;
+  }
+  
+  // Default launch URL generator
+  private getDefaultLaunchUrl = (options: GameLaunchOptions): string => {
+    const baseParams = new URLSearchParams({
+      gameId: options.gameId,
+      playerId: options.playerId,
+      mode: options.mode,
+      language: options.language || 'en',
+      currency: options.currency || 'USD',
+      platform: options.platform || 'web',
+      returnUrl: options.returnUrl || window.location.origin
     });
     
-    // Log this game launch attempt to the database
+    return `${window.location.origin}/casino/game/${options.gameId}?${baseParams.toString()}`;
+  };
+  
+  // Pragmatic Play launch URL generator
+  private getPragmaticPlayLaunchUrl = (options: GameLaunchOptions): string => {
+    // Get the provider
+    const provider = this.providers.get('ppeur');
+    
+    // Generate URL with proper callback
+    const baseParams = new URLSearchParams({
+      gameId: options.gameId,
+      playerId: options.playerId,
+      mode: options.mode,
+      language: options.language || 'en',
+      currency: options.currency || 'USD',
+      platform: options.platform || 'web',
+      returnUrl: options.returnUrl || window.location.origin,
+      callbackUrl: provider?.callbackUrl || `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/pragmatic-play`
+    });
+    
+    // Use the real Pragmatic Play API endpoint if available
+    const apiEndpoint = provider?.apiEndpoint || 'https://api-stage.pragmaticplay.net';
+    return `${apiEndpoint}/launch/${options.gameId}?${baseParams.toString()}`;
+  };
+  
+  // GitSlotPark launch URL generator
+  private getGitSlotParkLaunchUrl = (options: GameLaunchOptions): string => {
+    // Get the provider
+    const provider = this.providers.get('gitslotpark');
+    
+    // Generate URL with proper callback
+    const baseParams = new URLSearchParams({
+      gameId: options.gameId,
+      playerId: options.playerId,
+      mode: options.mode,
+      language: options.language || 'en',
+      currency: options.currency || 'USD',
+      platform: options.platform || 'web',
+      returnUrl: options.returnUrl || window.location.origin,
+      callbackUrl: provider?.callbackUrl || `${EDGE_FUNCTION_BASE_URL}/game_provider_callback/gitslotpark`
+    });
+    
+    // Use the real GitSlotPark API endpoint if available
+    const apiEndpoint = provider?.apiEndpoint || 'https://api.gitslotpark.com';
+    return `${apiEndpoint}/launch?${baseParams.toString()}`;
+  };
+  
+  // Get launch URL for a game
+  public async getLaunchUrl(options: GameLaunchOptions): Promise<string> {
     try {
-      await supabase.from('transactions').insert({
-        player_id: playerId,
+      // Validate options
+      if (!options.gameId) {
+        throw new Error('Game ID is required');
+      }
+      
+      if (!options.playerId) {
+        throw new Error('Player ID is required');
+      }
+      
+      // Default provider ID to ppeur if not provided
+      const providerId = options.providerId || 'ppeur';
+      
+      // Get the provider
+      const provider = this.providers.get(providerId);
+      
+      if (!provider) {
+        throw new Error(`Provider not found: ${providerId}`);
+      }
+      
+      // Log game launch
+      console.log(`Launching game ${options.gameId} with provider ${provider.name}`);
+      
+      // Record game launch in the database
+      await this.recordGameLaunch(options, provider);
+      
+      // Get game launch URL
+      return provider.getLaunchUrl(options);
+    } catch (error: any) {
+      console.error('Error getting game launch URL:', error);
+      toast.error(error.message || 'Failed to launch game');
+      throw error;
+    }
+  }
+  
+  // Record game launch in the database
+  private async recordGameLaunch(options: GameLaunchOptions, provider: Provider) {
+    try {
+      const transactionData = {
+        player_id: options.playerId,
+        game_id: options.gameId,
+        provider: provider.name,
         type: 'game_launch',
         amount: 0,
-        currency: currency,
-        provider: providerConfig.name,
-        game_id: gameId,
-        status: 'pending'
-      });
-    } catch (error) {
-      console.error("Failed to log game launch:", error);
-      // Continue with game launch even if logging fails
-    }
-    
-    try {
-      let gameUrl = '';
+        currency: options.currency || 'USD',
+        status: 'completed',
+        description: `${provider.name} game launch: ${options.gameId}`
+      };
       
-      // Use the provider code from the config
-      switch(providerConfig.code) {
-        case 'PP':
-          // Update to use launchGame instead of getLaunchUrl
-          gameUrl = await pragmaticPlayService.launchGame({
-            playerId,
-            gameCode: gameId,
-            mode,
-            language,
-            currency,
-            platform,
-            returnUrl: options.returnUrl
-          });
-          break;
-        
-        case 'GSP':
-          gameUrl = await gitSlotParkService.launchGame({
-            playerId,
-            gameCode: gameId,
-            mode,
-            returnUrl: options.returnUrl,
-            language,
-            currency,
-            platform
-          });
-          break;
-        
-        default:
-          throw new Error(`Provider integration not implemented: ${providerConfig.name}`);
-      }
-      
-      // Update transaction status to completed
-      await updateTransactionStatus(playerId, gameId, 'completed');
-      
-      return gameUrl;
-      
-    } catch (error: any) {
-      console.error(`Error getting launch URL for ${providerId}:`, error);
-      
-      // Update the transaction status to failed
-      await updateTransactionStatus(playerId, gameId, 'failed');
-      
-      throw new Error(`Failed to get game URL: ${error.message || 'Unknown error'}`);
-    }
-  },
-  
-  /**
-   * Fetch games from a specific provider
-   * @param providerId The provider ID
-   * @returns Promise with the list of games
-   */
-  fetchGamesByProvider: async (providerId: string): Promise<any[]> => {
-    const providerConfig = getProviderConfig(providerId);
-    if (!providerConfig) {
-      throw new Error(`Unknown provider: ${providerId}`);
-    }
-
-    try {
-      // In a real implementation, we'd call the provider's API
-      // For now, return mock data based on the provider
-      
-      // Get some mock games based on provider
-      return gameProviderService.getProviderGames(providerId);
-    } catch (error: any) {
-      console.error(`Error fetching games for provider ${providerId}:`, error);
-      throw new Error(`Failed to fetch games: ${error.message || 'Unknown error'}`);
-    }
-  },
-  
-  /**
-   * Process a wallet callback from a game provider
-   * @param providerId The provider ID
-   * @param data The callback data
-   * @returns Promise with the response to send back to the provider
-   */
-  processWalletCallback: async (providerId: string, data: any): Promise<any> => {
-    // Get provider configuration
-    const providerConfig = getProviderConfig(providerId);
-    if (!providerConfig) {
-      throw new Error(`Unknown provider: ${providerId}`);
-    }
-    
-    try {
-      // Handle different providers based on their code
-      switch(providerConfig.code) {
-        case 'PP':
-          // Update to pass only one argument to processWalletCallback
-          return await pragmaticPlayService.processWalletCallback(data);
-          
-        case 'GSP':
-          // Process GitSlotPark wallet callback
-          return await gitSlotParkService.processCallback(data);
-          
-        default:
-          throw new Error(`Wallet integration not implemented for provider: ${providerConfig.name}`);
-      }
-    } catch (error: any) {
-      console.error(`Error processing wallet callback for ${providerId}:`, error);
-      return { errorcode: "1", balance: 0 };
-    }
-  },
-  
-  /**
-   * Get a list of all supported providers with their details
-   */
-  getSupportedProviders: () => {
-    // This would return provider-specific details that can be shown in the UI
-    return [
-      { id: 'ppeur', code: 'PP', name: 'Pragmatic Play', currency: 'EUR', gamesCount: 150 },
-      { id: 'ppbrl', code: 'PP', name: 'Pragmatic Play', currency: 'BRL', gamesCount: 150 },
-      { id: 'pgeur', code: 'PG', name: 'Play\'n GO', currency: 'EUR', gamesCount: 200 },
-      { id: 'pgbrl', code: 'PG', name: 'Play\'n GO', currency: 'BRL', gamesCount: 200 },
-      { id: 'ameur', code: 'AM', name: 'Amatic', currency: 'EUR', gamesCount: 100 },
-      { id: 'ambrl', code: 'AM', name: 'Amatic', currency: 'BRL', gamesCount: 100 }
-    ];
-  },
-  
-  /**
-   * Get list of available games for a provider
-   * @param providerId The provider ID
-   * @returns Array of games
-   */
-  getProviderGames: (providerId: string) => {
-    // In a real implementation, this would fetch from an API or database
-    if (providerId.startsWith('pp')) {
-      return [
-        { id: 'vs20bonzanza', name: 'Sweet Bonanza', provider: 'Pragmatic Play', category: 'slots' },
-        { id: 'vs20fruitsw', name: 'Sweet Bonanza Xmas', provider: 'Pragmatic Play', category: 'slots' },
-        { id: 'vs20doghouse', name: 'The Dog House', provider: 'Pragmatic Play', category: 'slots' },
-        { id: 'vs10wolfgold', name: 'Wolf Gold', provider: 'Pragmatic Play', category: 'slots' },
-        { id: 'vs25pyramid', name: 'Pyramid Bonanza', provider: 'Pragmatic Play', category: 'slots' },
-        { id: 'vs20fparty2', name: 'Fruit Party 2', provider: 'Pragmatic Play', category: 'slots' }
-      ];
-    }
-    return [];
-  }
-};
-
-/**
- * Helper function to update transaction status
- */
-async function updateTransactionStatus(playerId: string, gameId: string, status: string): Promise<void> {
-  try {
-    const { data } = await supabase
-      .from('transactions')
-      .select('id')
-      .eq('player_id', playerId)
-      .eq('game_id', gameId)
-      .eq('type', 'game_launch')
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-      
-    if (data?.id) {
       await supabase
         .from('transactions')
-        .update({ status })
-        .eq('id', data.id);
+        .insert(transactionData);
+    } catch (error) {
+      console.error('Error recording game launch:', error);
+      // Non-blocking - continue even if recording fails
     }
-  } catch (dbError) {
-    console.error(`Failed to update transaction status to ${status}:`, dbError);
   }
 }
 
+export const gameProviderService = new GameProviderService();
 export default gameProviderService;

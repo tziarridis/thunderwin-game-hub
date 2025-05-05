@@ -1,43 +1,31 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { BonusType, UserBonus } from "@/types/bonus";
-import { BonusTemplate } from "@/types";
+import { BonusType, UserBonus, BonusTemplate } from "@/types/bonus";
 import { toast } from "sonner";
 
-// Mock data for bonus templates (since the Supabase table doesn't exist yet)
-const mockBonusTemplates: BonusTemplate[] = [
-  {
-    id: "1",
-    name: "Welcome Bonus",
-    description: "100% match on your first deposit",
-    type: "deposit",
-    value: 100,
-    minDeposit: 20,
-    wageringRequirement: 30,
-    durationDays: 7,
-    forVipLevels: [0, 1, 2],
-    isActive: true
-  },
-  {
-    id: "2",
-    name: "Free Spins",
-    description: "50 free spins on Starburst",
-    type: "free_spins",
-    value: 50,
-    minDeposit: 0,
-    wageringRequirement: 20,
-    durationDays: 3,
-    forVipLevels: [0, 1, 2, 3],
-    isActive: true
-  }
-];
-
-// Get all bonus templates
+// Get all bonus templates from the database
 export const getBonusTemplates = async (): Promise<BonusTemplate[]> => {
   try {
-    // Since the bonus_templates table doesn't exist yet, we use mock data
-    // Later this would be replaced with the Supabase query
-    return mockBonusTemplates;
+    const { data, error } = await supabase
+      .from('bonus_types')
+      .select('*')
+      .eq('status', 'active');
+      
+    if (error) throw error;
+    
+    // Map database records to BonusTemplate type
+    return (data || []).map(item => ({
+      id: item.id,
+      name: item.name,
+      description: item.description || '',
+      type: item.name.toLowerCase().replace(' ', '_') as string,
+      value: item.bonus_percentage || 0,
+      minDeposit: item.max_amount || 0,
+      wageringRequirement: item.wagering_requirement || 0,
+      durationDays: item.duration_days || 7,
+      forVipLevels: [0, 1, 2, 3, 4, 5], // Default to all VIP levels
+      isActive: item.status === 'active'
+    }));
   } catch (error) {
     console.error("Error fetching bonus templates:", error);
     return [];
@@ -47,16 +35,43 @@ export const getBonusTemplates = async (): Promise<BonusTemplate[]> => {
 // Create a new bonus template
 export const createBonusTemplate = async (template: Omit<BonusTemplate, 'id'>): Promise<BonusTemplate | null> => {
   try {
-    // In production, this would insert into the database
-    // For now, mock the response
+    // Convert BonusTemplate to database format
+    const dbBonusType = {
+      name: template.name,
+      description: template.description,
+      bonus_percentage: template.value,
+      max_amount: template.minDeposit,
+      wagering_requirement: template.wageringRequirement,
+      duration_days: template.durationDays,
+      status: template.isActive ? 'active' : 'inactive'
+    };
+    
+    // Insert into database
+    const { data, error } = await supabase
+      .from('bonus_types')
+      .insert(dbBonusType)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    // Convert back to BonusTemplate format
     const newTemplate: BonusTemplate = {
-      ...template,
-      id: `bonus_${Date.now()}`
+      id: data.id,
+      name: data.name,
+      description: data.description || '',
+      type: data.name.toLowerCase().replace(' ', '_') as string,
+      value: data.bonus_percentage || 0,
+      minDeposit: data.max_amount || 0,
+      wageringRequirement: data.wagering_requirement || 0,
+      durationDays: data.duration_days || 7,
+      forVipLevels: [0, 1, 2, 3, 4, 5], // Default to all VIP levels
+      isActive: data.status === 'active'
     };
     
     toast.success("Bonus template created successfully");
     return newTemplate;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating bonus template:", error);
     toast.error("Failed to create bonus template");
     return null;
@@ -66,22 +81,43 @@ export const createBonusTemplate = async (template: Omit<BonusTemplate, 'id'>): 
 // Update an existing bonus template
 export const updateBonusTemplate = async (id: string, updates: Partial<BonusTemplate>): Promise<BonusTemplate | null> => {
   try {
-    // In production, this would update the database
-    // For now, mock the response
-    const updatedTemplate = mockBonusTemplates.find(template => template.id === id);
+    // Convert updates to database format
+    const dbUpdates: any = {};
+    if (updates.name) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.value !== undefined) dbUpdates.bonus_percentage = updates.value;
+    if (updates.minDeposit !== undefined) dbUpdates.max_amount = updates.minDeposit;
+    if (updates.wageringRequirement !== undefined) dbUpdates.wagering_requirement = updates.wageringRequirement;
+    if (updates.durationDays !== undefined) dbUpdates.duration_days = updates.durationDays;
+    if (updates.isActive !== undefined) dbUpdates.status = updates.isActive ? 'active' : 'inactive';
     
-    if (!updatedTemplate) {
-      throw new Error("Bonus template not found");
-    }
+    // Update in database
+    const { data, error } = await supabase
+      .from('bonus_types')
+      .update(dbUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) throw error;
     
+    // Convert back to BonusTemplate format
     const updated: BonusTemplate = {
-      ...updatedTemplate,
-      ...updates
+      id: data.id,
+      name: data.name,
+      description: data.description || '',
+      type: data.name.toLowerCase().replace(' ', '_') as string,
+      value: data.bonus_percentage || 0,
+      minDeposit: data.max_amount || 0,
+      wageringRequirement: data.wagering_requirement || 0,
+      durationDays: data.duration_days || 7,
+      forVipLevels: [0, 1, 2, 3, 4, 5], // Default to all VIP levels
+      isActive: data.status === 'active'
     };
     
     toast.success("Bonus template updated successfully");
     return updated;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error updating bonus template ${id}:`, error);
     toast.error("Failed to update bonus template");
     return null;
@@ -92,31 +128,39 @@ export const updateBonusTemplate = async (id: string, updates: Partial<BonusTemp
 export const issueBonusToUser = async (userId: string, bonusTemplateId: string): Promise<boolean> => {
   try {
     // Get the bonus template
-    const template = mockBonusTemplates.find(t => t.id === bonusTemplateId);
-
+    const { data: template, error: templateError } = await supabase
+      .from('bonus_types')
+      .select('*')
+      .eq('id', bonusTemplateId)
+      .single();
+      
+    if (templateError) throw templateError;
     if (!template) throw new Error("Bonus template not found");
 
     // Calculate expiry date
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + template.durationDays);
+    expiryDate.setDate(expiryDate.getDate() + template.duration_days);
 
-    // Create user bonus record (mock)
+    // Create user bonus record
     const bonusData = {
-      userId: userId,
-      bonusId: template.id,
-      type: template.type as BonusType,
-      amount: template.value,
-      status: 'active' as const,
-      dateIssued: new Date().toISOString(),
-      expiryDate: expiryDate.toISOString(),
-      wageringRequirement: template.wageringRequirement,
-      wageringCompleted: 0
+      user_id: userId,
+      bonus_type_id: template.id,
+      amount: template.bonus_percentage || 0,
+      wagering_requirement_amount: (template.bonus_percentage || 0) * (template.wagering_requirement || 1),
+      wagering_completed_amount: 0,
+      status: 'active',
+      expires_at: expiryDate.toISOString()
     };
 
-    console.log("New bonus issued:", bonusData);
+    const { error } = await supabase
+      .from('user_bonuses')
+      .insert(bonusData);
+      
+    if (error) throw error;
+    
     toast.success("Bonus issued to user successfully");
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`Error issuing bonus to user ${userId}:`, error);
     toast.error("Failed to issue bonus");
     return false;
@@ -126,38 +170,79 @@ export const issueBonusToUser = async (userId: string, bonusTemplateId: string):
 // Get all bonuses for a specific user
 export const getUserBonuses = async (userId: string): Promise<UserBonus[]> => {
   try {
-    // Mock data for user bonuses
-    const mockUserBonuses: UserBonus[] = [
-      {
-        id: "bonus1",
-        userId: userId,
-        bonusId: "1",
-        type: "welcome",
-        amount: 100,
-        status: 'active',
-        dateIssued: new Date().toISOString(),
-        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        wageringRequirement: 30,
-        wageringCompleted: 10
-      }
-    ];
+    // Get user bonuses from database
+    const { data, error } = await supabase
+      .from('user_bonuses')
+      .select(`
+        id,
+        amount,
+        status,
+        created_at,
+        expires_at,
+        wagering_requirement_amount,
+        wagering_completed_amount,
+        bonus_types (*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
     
-    return mockUserBonuses;
-  } catch (error) {
+    // Map to UserBonus type
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      userId: userId,
+      bonusId: item.bonus_types?.id || '',
+      type: (item.bonus_types?.name || 'deposit').toLowerCase().replace(' ', '_') as BonusType,
+      amount: item.amount,
+      status: item.status,
+      dateIssued: item.created_at,
+      expiryDate: item.expires_at,
+      wageringRequirement: item.wagering_requirement_amount,
+      wageringCompleted: item.wagering_completed_amount
+    }));
+  } catch (error: any) {
     console.error(`Error fetching bonuses for user ${userId}:`, error);
     return [];
   }
 };
 
-// Apply a specific bonus to a user's bet or deposit
-export const applyBonus = async (bonusId: string, amount: number): Promise<boolean> => {
+// Apply a bonus to a bet (update wagering)
+export const updateBonusWagering = async (bonusId: string, amount: number): Promise<boolean> => {
   try {
-    // In a real implementation, this would apply the bonus to a user's account
-    // and update the wagering progress
-    console.log(`Applying bonus ${bonusId} with amount ${amount}`);
+    // Update the wagering completed amount
+    const { data: bonus, error: getError } = await supabase
+      .from('user_bonuses')
+      .select('wagering_completed_amount, wagering_requirement_amount, status')
+      .eq('id', bonusId)
+      .single();
+      
+    if (getError) throw getError;
+    if (!bonus || bonus.status !== 'active') return false;
+    
+    // Calculate new wagering completed
+    const newWageringCompleted = (bonus.wagering_completed_amount || 0) + amount;
+    
+    // Check if wagering is complete
+    let status = bonus.status;
+    if (newWageringCompleted >= bonus.wagering_requirement_amount) {
+      status = 'completed';
+    }
+    
+    // Update bonus record
+    const { error: updateError } = await supabase
+      .from('user_bonuses')
+      .update({
+        wagering_completed_amount: newWageringCompleted,
+        status: status
+      })
+      .eq('id', bonusId);
+      
+    if (updateError) throw updateError;
+    
     return true;
-  } catch (error) {
-    console.error(`Error applying bonus ${bonusId}:`, error);
+  } catch (error: any) {
+    console.error(`Error updating bonus wagering ${bonusId}:`, error);
     return false;
   }
 };
@@ -168,7 +253,7 @@ export const bonusService = {
   updateBonusTemplate,
   issueBonusToUser,
   getUserBonuses,
-  applyBonus
+  updateBonusWagering
 };
 
 export default bonusService;

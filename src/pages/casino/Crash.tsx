@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dice5, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,11 +43,9 @@ const CrashGamesPage = () => {
     // If user is authenticated, mark favorites
     if (isAuthenticated && user) {
       try {
-        // Fetch user's favorite games - we need to manually construct this since the table doesn't exist in types
+        // Fetch user's favorite games using a stored procedure
         const { data: favoriteData, error: favoriteError } = await supabase
-          .from('favorite_games')
-          .select('game_id')
-          .eq('user_id', user.id);
+          .rpc('get_user_favorites', { p_user_id: user.id });
           
         if (favoriteError) throw favoriteError;
         

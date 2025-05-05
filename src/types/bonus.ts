@@ -26,3 +26,14 @@ export interface BonusTemplate {
   forVipLevels: number[];
   isActive: boolean;
 }
+
+export interface VipLevel {
+  id: number;
+  name: string;
+  pointsRequired: number;
+  cashbackRate: number;
+  bonusMultiplier: number;
+  description?: string;
+  benefits: string[];
+  status: 'active' | 'inactive';
+}
