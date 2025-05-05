@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { getUserTransactions } from './transactionService';
-import { TransactionFilter } from '@/types/transaction';
+import { TransactionFilter, Transaction } from '@/types/transaction';
 
 export const useTransactionQuery = (userId: string, initialFilters: TransactionFilter = {}) => {
   const [filters, setFilters] = useState(initialFilters);
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
 

@@ -63,10 +63,10 @@ export const getUserTransactions = async (
       provider: item.provider,
       gameId: item.game_id,
       roundId: item.round_id,
-      description: item.description,
-      paymentMethod: item.payment_method,
-      bonusId: item.bonus_id,
-      referenceId: item.reference_id
+      description: item.description || undefined,
+      paymentMethod: item.payment_method || undefined,
+      bonusId: item.bonus_id || undefined,
+      referenceId: item.reference_id || undefined
     }));
     
     return {
@@ -142,10 +142,10 @@ export const getAllTransactions = async (
       provider: item.provider,
       gameId: item.game_id,
       roundId: item.round_id,
-      description: item.description,
-      paymentMethod: item.payment_method,
-      bonusId: item.bonus_id,
-      referenceId: item.reference_id
+      description: item.description || undefined,
+      paymentMethod: item.payment_method || undefined,
+      bonusId: item.bonus_id || undefined,
+      referenceId: item.reference_id || undefined
     }));
     
     return {
@@ -164,11 +164,11 @@ export const getAllTransactions = async (
 /**
  * Get Pragmatic Play transactions
  * @param filters Optional filters
- * @returns Transactions data and count
+ * @returns Transactions data
  */
 export const getPragmaticPlayTransactions = async (
   filters: TransactionFilter = {}
-): Promise<WalletTransaction[]> => {
+): Promise<Transaction[]> => {
   try {
     let query = supabase
       .from('transactions')
@@ -206,22 +206,22 @@ export const getPragmaticPlayTransactions = async (
     
     if (error) throw error;
     
-    // Transform to WalletTransaction type
-    const transactions: WalletTransaction[] = (data || []).map(item => ({
+    // Transform to Transaction type
+    const transactions: Transaction[] = (data || []).map(item => ({
       id: item.id,
-      user_id: item.player_id,
+      userId: item.player_id,
       amount: item.amount,
       currency: item.currency,
       type: item.type as 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus',
       status: item.status as 'pending' | 'completed' | 'failed',
-      created_at: item.created_at,
+      date: item.created_at,
       provider: item.provider,
-      game_id: item.game_id,
-      round_id: item.round_id,
-      description: item.description,
-      payment_method: item.payment_method,
-      bonus_id: item.bonus_id,
-      reference_id: item.reference_id
+      gameId: item.game_id,
+      roundId: item.round_id,
+      description: item.description || undefined,
+      paymentMethod: item.payment_method || undefined,
+      bonusId: item.bonus_id || undefined,
+      referenceId: item.reference_id || undefined
     }));
     
     return transactions;
@@ -231,15 +231,72 @@ export const getPragmaticPlayTransactions = async (
   }
 };
 
+/**
+ * Add a new transaction
+ * @param transaction Transaction data
+ * @returns The created transaction or null on error
+ */
+export const addTransaction = async (transactionData: {
+  userId: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
+  amount: number;
+  currency: string;
+  status?: 'pending' | 'completed' | 'failed';
+  description?: string;
+  paymentMethod?: string;
+  referenceId?: string;
+}): Promise<Transaction | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .insert({
+        player_id: transactionData.userId,
+        type: transactionData.type,
+        amount: transactionData.amount,
+        currency: transactionData.currency,
+        status: transactionData.status || 'completed',
+        description: transactionData.description,
+        payment_method: transactionData.paymentMethod,
+        reference_id: transactionData.referenceId,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    return {
+      id: data.id,
+      userId: data.player_id,
+      amount: data.amount,
+      currency: data.currency,
+      type: data.type,
+      status: data.status,
+      date: data.created_at,
+      description: data.description,
+      paymentMethod: data.payment_method,
+      provider: data.provider,
+      gameId: data.game_id,
+      roundId: data.round_id,
+      bonusId: data.bonus_id,
+      referenceId: data.reference_id
+    };
+  } catch (error) {
+    console.error('Error adding transaction:', error);
+    return null;
+  }
+};
+
 // For backwards compatibility with existing code
 export const getTransactions = getUserTransactions;
 
-// Export all functions
+// Export the service as default and named
 const transactionService = {
   getUserTransactions,
   getAllTransactions,
   getPragmaticPlayTransactions,
-  getTransactions
+  getTransactions,
+  addTransaction
 };
 
 export default transactionService;

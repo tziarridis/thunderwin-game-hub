@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { getTransactions, TransactionFilter } from "@/services/transactionService";
-import { Transaction } from "@/types";
+import { getUserTransactions } from "@/services/transactionService";
+import { Transaction, TransactionFilter } from "@/types/transaction";
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -23,8 +23,8 @@ const Transactions = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const data = await getTransactions('all');
-        setTransactions(data);
+        const result = await getUserTransactions('all');
+        setTransactions(result.data);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
         setError("Failed to load transactions. Please try again later.");
@@ -37,6 +37,7 @@ const Transactions = () => {
   }, []);
   
   return (
+    // ... keep existing JSX
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
         <div>

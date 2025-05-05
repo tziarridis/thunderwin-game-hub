@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPragmaticPlayTransactions } from "@/services/transactionService";
-import { Transaction } from "@/types";
+import { Transaction } from "@/types/transaction";
 
 const PPTransactionLogger = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);

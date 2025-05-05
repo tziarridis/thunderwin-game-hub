@@ -27,5 +27,5 @@ export interface TransactionFilter {
   limit?: number;
 }
 
-// Reexport the TransactionFilter to maintain compatibility with existing imports
-export { TransactionFilter as TransactionFilterType };
+// Use export type for re-export to fix TS1205 error
+export type { TransactionFilter as TransactionFilterType };

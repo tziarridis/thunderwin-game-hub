@@ -1,7 +1,8 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Wallet, WalletTransaction } from '@/types/wallet';
+import { Transaction } from '@/types/transaction';
+import transactionService from './transactionService';
 
 /**
  * Wallet Service
@@ -211,10 +212,10 @@ export const getWalletTransactions = async (userId: string, limit = 20): Promise
       provider: item.provider,
       game_id: item.game_id,
       round_id: item.round_id,
-      description: item.description, 
-      payment_method: item.payment_method,
-      bonus_id: item.bonus_id,
-      reference_id: item.reference_id
+      description: item.description || undefined,
+      payment_method: item.payment_method || undefined,
+      bonus_id: item.bonus_id || undefined,
+      reference_id: item.reference_id || undefined
     }));
     
     return transactions;

@@ -1,126 +1,96 @@
-
 import { useState, useEffect } from "react";
-import { transactionService } from "@/services/transactionService";
-import { WalletTransaction } from "@/types/wallet";
-import { useToast } from "@/components/ui/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getUserTransactions } from "@/services/transactionService";
+import { Transaction } from "@/types/transaction";
 
 interface TransactionsListProps {
   userId: string;
-  limit?: number;
-  showFilters?: boolean;
 }
 
-const TransactionsList = ({ userId, limit = 10, showFilters = false }: TransactionsListProps) => {
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+const TransactionsList = ({ userId }: TransactionsListProps) => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-  
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const result = await transactionService.getUserTransactions(userId, limit);
+        const result = await getUserTransactions(userId);
         setTransactions(result.data);
-      } catch (error) {
-        console.error("Failed to load transactions:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load transaction history",
-          variant: "destructive",
-        });
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
+        setError("Failed to load transactions. Please try again later.");
       } finally {
         setLoading(false);
       }
     };
-    
-    if (userId) {
-      fetchTransactions();
-    }
-  }, [userId, limit, toast]);
+
+    fetchTransactions();
+  }, [userId]);
 
   if (loading) {
-    return (
-      <div className="flex justify-center my-8">
-        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-      </div>
-    );
+    return <div>Loading transactions...</div>;
   }
 
-  if (transactions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <p className="text-lg text-gray-400">No transactions yet</p>
-            <p className="text-sm text-gray-500 mt-2">Your transaction history will appear here</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+  if (error) {
+    return <div>Error: {error}</div>;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Transaction History</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div>
+      <h2 className="text-lg font-semibold mb-4">Transaction History</h2>
+      {transactions.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="min-w-full divide-y divide-gray-200">
             <thead>
-              <tr className="border-b">
-                <th className="text-left py-3 px-4">Date</th>
-                <th className="text-left py-3 px-4">Type</th>
-                <th className="text-right py-3 px-4">Amount</th>
-                <th className="text-left py-3 px-4">Status</th>
-                <th className="text-left py-3 px-4">Details</th>
+              <tr>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                  Amount
+                </th>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 bg-gray-50 text-left text-xs leading-4 font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {transactions.map((transaction) => (
-                <tr key={transaction.id} className="border-b hover:bg-muted/50">
-                  <td className="py-3 px-4">{new Date(transaction.created_at).toLocaleString()}</td>
-                  <td className="py-3 px-4 capitalize">
-                    <Badge variant={
-                      transaction.type === 'deposit' || transaction.type === 'win' ? 'success' : 
-                      transaction.type === 'withdraw' || transaction.type === 'bet' ? 'destructive' : 
-                      'secondary'
-                    }>
-                      {transaction.type}
-                    </Badge>
+                <tr key={transaction.id}>
+                  <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 font-medium text-gray-900">
+                    {transaction.id}
                   </td>
-                  <td className={`py-3 px-4 text-right ${
-                    transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' 
-                      ? 'text-green-500' 
-                      : 'text-red-500'
-                  }`}>
-                    {transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' ? '+' : '-'}
-                    {transaction.amount.toFixed(2)} {transaction.currency}
+                  <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-500">
+                    {transaction.type}
                   </td>
-                  <td className="py-3 px-4">
-                    <Badge variant={
-                      transaction.status === 'completed' ? 'outline' : 
-                      transaction.status === 'pending' ? 'secondary' : 
-                      'destructive'
-                    }>
+                  <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-500">
+                    {transaction.amount} {transaction.currency}
+                  </td>
+                  <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-500">
+                    <Badge variant={transaction.status === 'completed' ? 'success' : transaction.status === 'pending' ? 'secondary' : 'destructive'}>
                       {transaction.status}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4">
-                    {transaction.description || 
-                     (transaction.game_id && `Game: ${transaction.game_id}`) || 
-                     (transaction.payment_method && `Method: ${transaction.payment_method}`) || 
-                     '-'}
+                  <td className="px-6 py-4 whitespace-no-wrap text-sm leading-5 text-gray-500">
+                    {new Date(transaction.date).toLocaleString()}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </CardContent>
-    </Card>
+      ) : (
+        <div>No transactions found.</div>
+      )}
+    </div>
   );
 };
 

@@ -1,7 +1,7 @@
 
 import { toast } from "sonner";
 import { WalletTransaction } from "@/types/wallet";
-import { addTransaction } from "./transactionService";
+import transactionService from "./transactionService";
 import { creditWallet } from "./walletService";
 
 interface EthereumWindow extends Window {
@@ -174,7 +174,7 @@ const processDeposit = async (userId: string, ethAmount: number, ethUsdRate: num
     
     if (credited) {
       // Add transaction record
-      await addTransaction({
+      await transactionService.addTransaction({
         userId: userId,
         type: 'deposit',
         amount: usdAmount,
