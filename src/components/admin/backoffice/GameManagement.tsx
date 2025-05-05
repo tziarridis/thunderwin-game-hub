@@ -78,6 +78,19 @@ const GameManagement = () => {
                     </Button>
                   </CardContent>
                 </Card>
+                
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold text-lg mb-2">Seamless API</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      View and manage game provider callbacks
+                    </p>
+                    <Button onClick={() => navigate('/casino/seamless')}>
+                      <Play className="mr-2 h-4 w-4" />
+                      Go to Seamless API
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
           </Card>

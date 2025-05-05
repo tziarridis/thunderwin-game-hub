@@ -15,6 +15,8 @@ export async function handleSeamlessCallback(req: Request) {
     const pathParts = url.pathname.split('/');
     const provider = pathParts[pathParts.length - 1] || 'default';
     
+    console.log(`Received callback for provider: ${provider} via path: ${url.pathname}`);
+    
     // Parse the request body
     const data = await req.json();
     
@@ -29,7 +31,7 @@ export async function handleSeamlessCallback(req: Request) {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
       status: 200
     });
@@ -46,7 +48,7 @@ export async function handleSeamlessCallback(req: Request) {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
       status: 500
     });
@@ -59,7 +61,7 @@ export async function handleOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
     status: 204, // No content
   });
