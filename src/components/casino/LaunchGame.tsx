@@ -18,6 +18,7 @@ interface LaunchGameProps {
   currency?: string;
   language?: string;
   platform?: 'web' | 'mobile';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
 }
 
 const LaunchGame = ({ 
@@ -29,11 +30,12 @@ const LaunchGame = ({
   providerId = 'ppeur',
   currency = 'USD',
   language = 'en',
-  platform = 'web'
+  platform = 'web',
+  size = 'default'
 }: LaunchGameProps) => {
   const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, refreshWalletBalance } = useAuth();
   
   const handleLaunch = async () => {
     if (mode === 'real' && !isAuthenticated) {
@@ -62,9 +64,6 @@ const LaunchGame = ({
         platform
       });
       
-      // Log this game launch in transaction history
-      // We'll handle this in the launchGame function
-      
       const gameUrl = await launchGame(game, { 
         mode, 
         providerId,
@@ -85,6 +84,13 @@ const LaunchGame = ({
         }
         
         toast.success(`Game launched: ${game.title}`);
+        
+        // Refresh wallet balance after game launch
+        if (mode === 'real' && isAuthenticated) {
+          setTimeout(() => {
+            refreshWalletBalance();
+          }, 5000); // Refresh balance after 5 seconds to give time for initial bet
+        }
       } else {
         throw new Error("Failed to generate game URL");
       }
@@ -103,6 +109,7 @@ const LaunchGame = ({
       onClick={handleLaunch}
       disabled={isLaunching || launchingGame}
       className={className}
+      size={size}
     >
       {isLaunching || launchingGame ? (
         <>

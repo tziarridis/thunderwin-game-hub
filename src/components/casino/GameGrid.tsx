@@ -1,35 +1,26 @@
 
-import React from "react";
-import { Game } from "@/types";
-import { Button } from "@/components/ui/button";
-import GameCard from "@/components/games/GameCard";
-import { useNavigate } from "react-router-dom";
+import React from 'react';
+import GameCard from '@/components/games/GameCard';
+import { Game } from '@/types';
 
 interface GameGridProps {
-  games: Game[];
+  games: any[];
+  onGameClick: (game: any) => void;
 }
 
-const GameGrid = ({ games }: GameGridProps) => {
-  const navigate = useNavigate();
-  
-  if (games.length === 0) {
+const GameGrid = ({ games, onGameClick }: GameGridProps) => {
+  if (!games || games.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-white/70 mb-4">No games found</p>
-        <Button 
-          variant="outline" 
-          onClick={() => navigate('/casino')}
-        >
-          Browse All Games
-        </Button>
+      <div className="text-center py-4">
+        <p className="text-white/70">No games available</p>
       </div>
     );
   }
-  
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
       {games.map((game) => (
-        <GameCard
+        <GameCard 
           key={game.id}
           id={game.id}
           title={game.title}
@@ -38,7 +29,10 @@ const GameGrid = ({ games }: GameGridProps) => {
           isPopular={game.isPopular}
           isNew={game.isNew}
           rtp={game.rtp}
-          isFavorite={game.isFavorite}
+          isFavorite={false}
+          minBet={game.minBet}
+          maxBet={game.maxBet}
+          onClick={() => onGameClick(game)}
         />
       ))}
     </div>

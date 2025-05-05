@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
-import GameCard from '@/components/games/GameCard';
 import gitSlotParkService from '@/services/gitSlotParkService';
 import pragmaticPlayService from '@/services/pragmaticPlayService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import LaunchGame from './LaunchGame';
+import GameSectionLoading from './GameSectionLoading';
+import ProviderGameTab from './ProviderGameTab';
 
 const AggregatorGameSection = () => {
   const [activeTab, setActiveTab] = useState('gitslotpark');
@@ -97,11 +97,7 @@ const AggregatorGameSection = () => {
     return (
       <div className="space-y-4">
         <h2 className="text-2xl font-bold thunder-glow">Partner Casino Games</h2>
-        <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-casino-thunder-gray/30 rounded-lg h-48"></div>
-          ))}
-        </div>
+        <GameSectionLoading />
       </div>
     );
   }
@@ -127,49 +123,17 @@ const AggregatorGameSection = () => {
               <TabsTrigger value="pragmaticplay">Pragmatic Play</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="gitslotpark">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {games.map((game) => (
-                  <GameCard 
-                    key={game.id}
-                    id={game.id}
-                    title={game.title}
-                    image={game.image}
-                    provider={game.provider}
-                    isPopular={game.isPopular}
-                    isNew={game.isNew}
-                    rtp={game.rtp}
-                    isFavorite={false}
-                    minBet={game.minBet}
-                    maxBet={game.maxBet}
-                    // Use the LaunchGame component instead of direct onClick
-                    onClick={() => handlePlayGame(game)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
+            <ProviderGameTab 
+              value="gitslotpark" 
+              games={games} 
+              onGameClick={handlePlayGame} 
+            />
             
-            <TabsContent value="pragmaticplay">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {games.map((game) => (
-                  <GameCard 
-                    key={game.id}
-                    id={game.id}
-                    title={game.title}
-                    image={game.image}
-                    provider={game.provider}
-                    isPopular={game.isPopular}
-                    isNew={game.isNew}
-                    rtp={game.rtp}
-                    isFavorite={false}
-                    minBet={game.minBet}
-                    maxBet={game.maxBet}
-                    // Use the LaunchGame component instead of direct onClick
-                    onClick={() => handlePlayGame(game)}
-                  />
-                ))}
-              </div>
-            </TabsContent>
+            <ProviderGameTab 
+              value="pragmaticplay" 
+              games={games} 
+              onGameClick={handlePlayGame} 
+            />
           </Tabs>
         </CardContent>
       </Card>
