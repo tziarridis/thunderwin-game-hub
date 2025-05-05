@@ -180,3 +180,13 @@ export function simpleMD5(str: string): string {
   const temp = wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d);
   return temp.toLowerCase();
 }
+
+/**
+ * Generate a unique hash for reference IDs
+ * @returns A unique hash string
+ */
+export function generateHash(): string {
+  const timestamp = new Date().getTime();
+  const randomNum = Math.random().toString();
+  return simpleMD5(timestamp.toString() + randomNum).substring(0, 16);
+}

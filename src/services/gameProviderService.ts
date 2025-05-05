@@ -1,4 +1,5 @@
 
+// First section of the file with imports and interfaces
 import axios from 'axios';
 import { getProviderConfig, GameProviderConfig } from '@/config/gameProviders';
 import { toast } from 'sonner';
@@ -122,6 +123,29 @@ export const gameProviderService = {
       await updateTransactionStatus(playerId, gameId, 'failed');
       
       throw new Error(`Failed to get game URL: ${error.message || 'Unknown error'}`);
+    }
+  },
+  
+  /**
+   * Fetch games from a specific provider
+   * @param providerId The provider ID
+   * @returns Promise with the list of games
+   */
+  fetchGamesByProvider: async (providerId: string): Promise<any[]> => {
+    const providerConfig = getProviderConfig(providerId);
+    if (!providerConfig) {
+      throw new Error(`Unknown provider: ${providerId}`);
+    }
+
+    try {
+      // In a real implementation, we'd call the provider's API
+      // For now, return mock data based on the provider
+      
+      // Get some mock games based on provider
+      return gameProviderService.getProviderGames(providerId);
+    } catch (error: any) {
+      console.error(`Error fetching games for provider ${providerId}:`, error);
+      throw new Error(`Failed to fetch games: ${error.message || 'Unknown error'}`);
     }
   },
   
