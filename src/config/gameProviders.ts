@@ -59,6 +59,34 @@ export const availableProviders: GameProviderConfig[] = [
       secretKey: 'secret',
       callbackUrl: `${window.origin}/casino/seamless/evolution`,
     }
+  },
+  {
+    id: 'gspeur',
+    name: 'GitSlotPark',
+    currency: 'EUR',
+    type: 'slots',
+    enabled: true,
+    code: 'GSP',
+    credentials: {
+      apiEndpoint: 'api.gitslotpark.com',
+      agentId: 'partner123',
+      secretKey: 'gsp-secret-key',
+      callbackUrl: `${window.origin}/casino/seamless/gsp`,
+    }
+  },
+  {
+    id: 'infineur',
+    name: 'InfinGame',
+    currency: 'EUR',
+    type: 'slots',
+    enabled: true,
+    code: 'INFIN',
+    credentials: {
+      apiEndpoint: 'infinapi-docs.axis-stage.infingame.com',
+      agentId: 'casinothunder',
+      secretKey: 'api-token-here',
+      callbackUrl: 'https://your-api.com/infin/callback',
+    }
   }
 ];
 

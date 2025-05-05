@@ -1,338 +1,437 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { AlertCircle, Save, Settings2, Globe, Key, Lock } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { gameProviderConfigs, updateProviderConfig } from "@/config/gameProviders";
+import { Globe, Check, Copy, RefreshCw, AlertCircle } from "lucide-react";
 
-interface ProviderSettings {
-  name: string;
-  enabled: boolean;
-  apiEndpoint: string;
-  agentId: string;
-  secretKey: string;
-  callbackUrl: string;
-  currency: string;
-}
-
-/**
- * Casino Aggregator Settings Component
- * Admin interface for configuring game providers
- */
 const CasinoAggregatorSettings = () => {
-  // Default settings for Pragmatic Play
-  const [ppSettings, setPPSettings] = useState<ProviderSettings>({
-    name: "Pragmatic Play",
-    enabled: true,
-    apiEndpoint: "demo.pragmaticplay.net",
-    agentId: "testpartner",
-    secretKey: "testsecret",
-    callbackUrl: `${window.location.origin}/casino/seamless`,
-    currency: "USD"
-  });
-
-  // Settings for other providers (can be expanded)
-  const [otherProviders, setOtherProviders] = useState<ProviderSettings[]>([
-    {
-      name: "Evolution Gaming",
-      enabled: false,
-      apiEndpoint: "",
-      agentId: "",
-      secretKey: "",
-      callbackUrl: `${window.location.origin}/casino/seamless/evolution`,
-      currency: "USD"
-    },
-    {
-      name: "NetEnt",
-      enabled: false,
-      apiEndpoint: "",
-      agentId: "",
-      secretKey: "",
-      callbackUrl: `${window.location.origin}/casino/seamless/netent`,
-      currency: "USD"
-    }
-  ]);
-
-  const [activeTab, setActiveTab] = useState("pragmatic-play");
-  const [isSaving, setIsSaving] = useState(false);
-
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
+  const [activeTab, setActiveTab] = useState("pp");
+  const [providerConfigs, setProviderConfigs] = useState(gameProviderConfigs);
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
+  
+  // Group providers by their code for tab display
+  const providerGroups = React.useMemo(() => {
+    const groups: Record<string, typeof gameProviderConfigs> = {};
     
-    try {
-      // In a real implementation, this would save settings to your backend
-      // For now, we'll just simulate a successful save
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success("Provider settings saved successfully");
-      
-      // In production, you would update your configuration service
-      // and potentially restart any affected services
-    } catch (error: any) {
-      toast.error(`Failed to save settings: ${error.message || "Unknown error"}`);
-    } finally {
-      setIsSaving(false);
+    providerConfigs.forEach(provider => {
+      const code = provider.code.toLowerCase();
+      if (!groups[code]) {
+        groups[code] = [];
+      }
+      groups[code].push(provider);
+    });
+    
+    return groups;
+  }, [providerConfigs]);
+  
+  // Get tab keys sorted alphabetically
+  const tabKeys = Object.keys(providerGroups).sort();
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedValue(label);
+    toast.success(`${label} copied to clipboard`);
+    
+    setTimeout(() => {
+      setCopiedValue(null);
+    }, 2000);
+  };
+  
+  const handleEditToggle = (providerId: string) => {
+    if (isEditing === providerId) {
+      // Save changes
+      const provider = providerConfigs.find(p => p.id === providerId);
+      if (provider && formValues[providerId]) {
+        const updatedProvider = {
+          ...provider,
+          credentials: {
+            ...provider.credentials,
+            ...formValues[providerId]
+          }
+        };
+        
+        const updated = updateProviderConfig(providerId, updatedProvider);
+        if (updated) {
+          setProviderConfigs([...gameProviderConfigs]);
+          toast.success("Provider configuration updated");
+        } else {
+          toast.error("Failed to update provider configuration");
+        }
+      }
+      setIsEditing(null);
+    } else {
+      // Start editing
+      const provider = providerConfigs.find(p => p.id === providerId);
+      if (provider) {
+        setFormValues({
+          ...formValues,
+          [providerId]: { ...provider.credentials }
+        });
+        setIsEditing(providerId);
+      }
     }
   };
-
-  const updatePPSetting = (key: keyof ProviderSettings, value: any) => {
-    setPPSettings(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  
+  const handleInputChange = (providerId: string, field: string, value: string) => {
+    setFormValues({
+      ...formValues,
+      [providerId]: {
+        ...(formValues[providerId] || {}),
+        [field]: value
+      }
+    });
+  };
+  
+  const handleTestConnection = (providerId: string) => {
+    setTestingProvider(providerId);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setTestingProvider(null);
+      const success = Math.random() > 0.3; // 70% chance of success for demo
+      
+      if (success) {
+        toast.success("Connection successful! API is responding correctly.");
+      } else {
+        toast.error("Connection failed. Please check your credentials.");
+      }
+    }, 2000);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Casino Game Aggregator Settings</h1>
-        <Button onClick={handleSaveSettings} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save All Settings"}
-        </Button>
-      </div>
-
-      <Alert className="bg-yellow-900/20 border-yellow-900/50 text-yellow-500">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          These settings affect the integration with game providers. Incorrect settings may cause games to malfunction.
-        </AlertDescription>
-      </Alert>
-
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pragmatic-play">Pragmatic Play</TabsTrigger>
-          <TabsTrigger value="evolution" disabled={!otherProviders[0].enabled}>Evolution Gaming</TabsTrigger>
-          <TabsTrigger value="netent" disabled={!otherProviders[1].enabled}>NetEnt</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          {tabKeys.map(key => (
+            <TabsTrigger key={key} value={key}>
+              {key.toUpperCase()}
+            </TabsTrigger>
+          ))}
+          <TabsTrigger value="infin">INFIN</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="pragmatic-play" className="space-y-4 mt-4">
-          <Card>
+        
+        {tabKeys.map(key => (
+          <TabsContent key={key} value={key} className="space-y-4">
+            <div className="grid grid-cols-1 gap-6">
+              {providerGroups[key]?.map(provider => (
+                <Card key={provider.id} className="border border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Globe className="mr-2 h-5 w-5 text-blue-400" />
+                      {provider.name} - {provider.currency}
+                    </CardTitle>
+                    <CardDescription>
+                      Provider ID: {provider.id} | Type: {provider.type}
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor={`${provider.id}-endpoint`}>API Endpoint</Label>
+                          <div className="flex mt-1">
+                            <Input 
+                              id={`${provider.id}-endpoint`}
+                              value={isEditing === provider.id 
+                                ? formValues[provider.id]?.apiEndpoint 
+                                : provider.credentials.apiEndpoint}
+                              disabled={isEditing !== provider.id}
+                              onChange={(e) => handleInputChange(provider.id, 'apiEndpoint', e.target.value)}
+                              className="flex-grow"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleCopy(provider.credentials.apiEndpoint, "API Endpoint")}
+                            >
+                              {copiedValue === "API Endpoint" ? <Check size={16} /> : <Copy size={16} />}
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor={`${provider.id}-agentid`}>Agent ID</Label>
+                          <div className="flex mt-1">
+                            <Input 
+                              id={`${provider.id}-agentid`}
+                              value={isEditing === provider.id 
+                                ? formValues[provider.id]?.agentId 
+                                : provider.credentials.agentId}
+                              disabled={isEditing !== provider.id}
+                              onChange={(e) => handleInputChange(provider.id, 'agentId', e.target.value)}
+                              className="flex-grow"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleCopy(provider.credentials.agentId, "Agent ID")}
+                            >
+                              {copiedValue === "Agent ID" ? <Check size={16} /> : <Copy size={16} />}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor={`${provider.id}-secret`}>Secret Key</Label>
+                          <div className="flex mt-1">
+                            <Input 
+                              id={`${provider.id}-secret`}
+                              value={isEditing === provider.id 
+                                ? formValues[provider.id]?.secretKey 
+                                : provider.credentials.secretKey}
+                              disabled={isEditing !== provider.id}
+                              type={isEditing === provider.id ? "text" : "password"}
+                              onChange={(e) => handleInputChange(provider.id, 'secretKey', e.target.value)}
+                              className="flex-grow"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleCopy(provider.credentials.secretKey, "Secret Key")}
+                            >
+                              {copiedValue === "Secret Key" ? <Check size={16} /> : <Copy size={16} />}
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor={`${provider.id}-callback`}>Callback URL</Label>
+                          <div className="flex mt-1">
+                            <Input 
+                              id={`${provider.id}-callback`}
+                              value={isEditing === provider.id 
+                                ? formValues[provider.id]?.callbackUrl 
+                                : provider.credentials.callbackUrl}
+                              disabled={isEditing !== provider.id}
+                              onChange={(e) => handleInputChange(provider.id, 'callbackUrl', e.target.value)}
+                              className="flex-grow"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleCopy(provider.credentials.callbackUrl, "Callback URL")}
+                            >
+                              {copiedValue === "Callback URL" ? <Check size={16} /> : <Copy size={16} />}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 mt-4">
+                        <Switch 
+                          id={`${provider.id}-enabled`} 
+                          checked={provider.enabled}
+                          onCheckedChange={() => {
+                            const updated = updateProviderConfig(provider.id, {
+                              enabled: !provider.enabled
+                            });
+                            if (updated) {
+                              setProviderConfigs([...gameProviderConfigs]);
+                              toast.success(`Provider ${provider.enabled ? 'disabled' : 'enabled'}`);
+                            }
+                          }}
+                        />
+                        <Label htmlFor={`${provider.id}-enabled`}>Provider Enabled</Label>
+                      </div>
+                    </div>
+                  </CardContent>
+                  
+                  <CardFooter className="flex justify-between">
+                    <Button 
+                      variant={isEditing === provider.id ? "default" : "outline"}
+                      onClick={() => handleEditToggle(provider.id)}
+                    >
+                      {isEditing === provider.id ? "Save Changes" : "Edit Configuration"}
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      onClick={() => handleTestConnection(provider.id)}
+                      disabled={testingProvider === provider.id}
+                    >
+                      {testingProvider === provider.id ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Testing...
+                        </>
+                      ) : (
+                        <>
+                          <Globe className="h-4 w-4 mr-2" />
+                          Test Connection
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        ))}
+        
+        {/* InfinGame Tab */}
+        <TabsContent value="infin" className="space-y-4">
+          <Card className="border border-slate-700">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Settings2 className="mr-2 h-5 w-5" />
-                Pragmatic Play Integration
+                <Globe className="mr-2 h-5 w-5 text-blue-400" />
+                InfinGame - EUR
               </CardTitle>
               <CardDescription>
-                Configure your Pragmatic Play casino integration settings
+                Provider ID: infineur | Type: slots
               </CardDescription>
             </CardHeader>
-
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Provider Status</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Enable or disable this game provider
-                  </p>
+            
+            <CardContent>
+              <div className="p-4 bg-slate-800 rounded-md mb-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-yellow-500">Integration Notes</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      InfinGame uses a different API format than other providers. Please refer to their
+                      <a href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" rel="noopener noreferrer" 
+                        className="text-blue-400 hover:underline mx-1">
+                        API documentation
+                      </a>
+                      for more details.
+                    </p>
+                  </div>
                 </div>
-                <Switch 
-                  checked={ppSettings.enabled} 
-                  onCheckedChange={(checked) => updatePPSetting('enabled', checked)} 
-                />
               </div>
-
-              <div className="pt-4 border-t space-y-4">
-                <div className="grid gap-4 grid-cols-2">
-                  <div className="space-y-2 col-span-2">
-                    <Label htmlFor="pp-api-endpoint" className="flex items-center">
-                      <Globe className="mr-2 h-4 w-4" />
-                      API Endpoint
-                    </Label>
-                    <Input
-                      id="pp-api-endpoint"
-                      value={ppSettings.apiEndpoint}
-                      onChange={(e) => updatePPSetting('apiEndpoint', e.target.value)}
-                      placeholder="e.g. api.pragmaticplay.net"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      The base URL for Pragmatic Play API requests
-                    </p>
+            
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="infin-endpoint">API Endpoint</Label>
+                    <div className="flex mt-1">
+                      <Input 
+                        id="infin-endpoint"
+                        value="infinapi-docs.axis-stage.infingame.com"
+                        disabled={isEditing !== "infineur"}
+                        className="flex-grow"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleCopy("infinapi-docs.axis-stage.infingame.com", "InfinGame API")}
+                      >
+                        {copiedValue === "InfinGame API" ? <Check size={16} /> : <Copy size={16} />}
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pp-agent-id" className="flex items-center">
-                      <Key className="mr-2 h-4 w-4" />
-                      Agent ID
-                    </Label>
-                    <Input
-                      id="pp-agent-id"
-                      value={ppSettings.agentId}
-                      onChange={(e) => updatePPSetting('agentId', e.target.value)}
-                      placeholder="Your Pragmatic Play agent ID"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Provided by Pragmatic Play
-                    </p>
+                  
+                  <div>
+                    <Label htmlFor="infin-agentid">Agent ID</Label>
+                    <div className="flex mt-1">
+                      <Input 
+                        id="infin-agentid"
+                        value="casinothunder"
+                        disabled={isEditing !== "infineur"}
+                        className="flex-grow"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleCopy("casinothunder", "InfinGame Agent ID")}
+                      >
+                        {copiedValue === "InfinGame Agent ID" ? <Check size={16} /> : <Copy size={16} />}
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pp-secret-key" className="flex items-center">
-                      <Lock className="mr-2 h-4 w-4" />
-                      Secret Key
-                    </Label>
-                    <Input
-                      id="pp-secret-key"
-                      type="password"
-                      value={ppSettings.secretKey}
-                      onChange={(e) => updatePPSetting('secretKey', e.target.value)}
-                      placeholder="Your Pragmatic Play secret key"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Used for transaction signature verification
-                    </p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="infin-secret">API Token</Label>
+                    <div className="flex mt-1">
+                      <Input 
+                        id="infin-secret"
+                        value="api-token-here"
+                        disabled={isEditing !== "infineur"}
+                        type="password"
+                        className="flex-grow"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleCopy("api-token-here", "InfinGame Token")}
+                      >
+                        {copiedValue === "InfinGame Token" ? <Check size={16} /> : <Copy size={16} />}
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pp-callback-url">
-                      Callback URL
-                    </Label>
-                    <Input
-                      id="pp-callback-url"
-                      value={ppSettings.callbackUrl}
-                      onChange={(e) => updatePPSetting('callbackUrl', e.target.value)}
-                      placeholder="https://your-domain.com/api/callbacks/pragmatic"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      URL that Pragmatic Play will call for transactions
-                    </p>
+                  
+                  <div>
+                    <Label htmlFor="infin-callback">Callback URL</Label>
+                    <div className="flex mt-1">
+                      <Input 
+                        id="infin-callback"
+                        value="https://your-api.com/infin/callback"
+                        disabled={isEditing !== "infineur"}
+                        className="flex-grow"
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => handleCopy("https://your-api.com/infin/callback", "InfinGame Callback")}
+                      >
+                        {copiedValue === "InfinGame Callback" ? <Check size={16} /> : <Copy size={16} />}
+                      </Button>
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="pp-currency">Currency</Label>
-                    <Select 
-                      value={ppSettings.currency} 
-                      onValueChange={(value) => updatePPSetting('currency', value)}
-                    >
-                      <SelectTrigger id="pp-currency">
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="GBP">GBP</SelectItem>
-                        <SelectItem value="CAD">CAD</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Default currency for games
-                    </p>
-                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2 mt-4">
+                  <Switch 
+                    id="infin-enabled" 
+                    checked={true}
+                    onCheckedChange={() => {
+                      toast.success(`InfinGame provider ${true ? 'disabled' : 'enabled'}`);
+                    }}
+                  />
+                  <Label htmlFor="infin-enabled">Provider Enabled</Label>
                 </div>
               </div>
             </CardContent>
-
-            <CardFooter className="flex justify-end">
-              <Button onClick={handleSaveSettings} disabled={isSaving}>
-                <Save className="mr-2 h-4 w-4" />
-                {isSaving ? "Saving..." : "Save Settings"}
+            
+            <CardFooter className="flex justify-between">
+              <Button 
+                variant={isEditing === "infineur" ? "default" : "outline"}
+                onClick={() => handleEditToggle("infineur")}
+              >
+                {isEditing === "infineur" ? "Save Changes" : "Edit Configuration"}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={() => handleTestConnection("infineur")}
+                disabled={testingProvider === "infineur"}
+              >
+                {testingProvider === "infineur" ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="h-4 w-4 mr-2" />
+                    Test Connection
+                  </>
+                )}
               </Button>
             </CardFooter>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>API Configuration</CardTitle>
-              <CardDescription>
-                Technical settings for API integration
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="pp-api-version">API Version</Label>
-                <Select defaultValue="v1">
-                  <SelectTrigger id="pp-api-version">
-                    <SelectValue placeholder="Select API version" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="v1">Version 1.0</SelectItem>
-                    <SelectItem value="v2">Version 2.0 (Beta)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  The Pragmatic Play API version to use
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pp-timeout">Request Timeout (ms)</Label>
-                <Input
-                  id="pp-timeout"
-                  type="number"
-                  defaultValue={30000}
-                  placeholder="30000"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Maximum time to wait for API responses
-                </p>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch id="pp-debug" />
-                <Label htmlFor="pp-debug">Enable Debug Mode</Label>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="evolution" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Evolution Gaming Integration</CardTitle>
-              <CardDescription>
-                Settings for Evolution Gaming live casino
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="evolution-enabled">Enable Evolution Gaming</Label>
-                <Switch 
-                  id="evolution-enabled"
-                  checked={otherProviders[0].enabled}
-                  onCheckedChange={(checked) => {
-                    const updated = [...otherProviders];
-                    updated[0].enabled = checked;
-                    setOtherProviders(updated);
-                  }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Enable this provider to configure its settings
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="netent" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>NetEnt Integration</CardTitle>
-              <CardDescription>
-                Settings for NetEnt games
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="netent-enabled">Enable NetEnt</Label>
-                <Switch 
-                  id="netent-enabled"
-                  checked={otherProviders[1].enabled}
-                  onCheckedChange={(checked) => {
-                    const updated = [...otherProviders];
-                    updated[1].enabled = checked;
-                    setOtherProviders(updated);
-                  }}
-                />
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
-                Enable this provider to configure its settings
-              </p>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

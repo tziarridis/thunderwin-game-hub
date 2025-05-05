@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,15 @@ const INFIN_API_CONFIG = {
   token: 'api-token-here',
   secretKey: 'secret-key-here',
   callbackUrl: 'https://your-api.com/infin/callback'
+};
+
+// GitSlotPark API configuration
+const GSP_API_CONFIG = {
+  endpoint: 'https://api.gitslotpark.com',
+  agentId: 'partner123',
+  token: 'gsp-api-token',
+  secretKey: 'gsp-secret-key',
+  callbackUrl: 'https://your-domain/casino/seamless/gsp'
 };
 
 // Interface for session creation request
@@ -71,22 +81,37 @@ export const gameAggregatorService = {
       
       // Determine which API configuration to use based on the game ID
       const isInfinGame = gameId.startsWith('infin_');
-      const apiConfig = isInfinGame ? INFIN_API_CONFIG : API_CONFIG;
+      const isGSP = gameId.startsWith('gsp_');
+      
+      let apiConfig;
+      if (isInfinGame) {
+        apiConfig = INFIN_API_CONFIG;
+      } else if (isGSP) {
+        apiConfig = GSP_API_CONFIG;
+      } else {
+        apiConfig = API_CONFIG;
+      }
       
       const requestBody: SessionCreationRequest = {
         agentId: apiConfig.agentId,
         token: apiConfig.token,
         currency: currency,
         playerName: playerId,
-        gameId: isInfinGame ? gameId.replace('infin_', '') : gameId,
+        gameId: isInfinGame ? gameId.replace('infin_', '') : 
+                isGSP ? gameId.replace('gsp_', '') : gameId,
         platform: platform,
         callbackUrl: apiConfig.callbackUrl
       };
       
       // Make API request to create session
-      const apiEndpoint = isInfinGame 
-        ? `${apiConfig.endpoint}/api/games/launch` 
-        : `${apiConfig.endpoint}/api/casino/create-session`;
+      let apiEndpoint;
+      if (isInfinGame) {
+        apiEndpoint = `${apiConfig.endpoint}/api/games/launch`;
+      } else if (isGSP) {
+        apiEndpoint = `${apiConfig.endpoint}/api/v1/games/launch`;
+      } else {
+        apiEndpoint = `${apiConfig.endpoint}/api/casino/create-session`;
+      }
       
       console.log(`API Endpoint: ${apiEndpoint}`);
       console.log('Request body:', requestBody);
@@ -115,6 +140,12 @@ export const gameAggregatorService = {
         gameUrl = success ? response.data.url : '';
         sessionId = success ? response.data.session_id : '';
         errorMessage = !success ? (response.data.error || 'Unknown error') : '';
+      } else if (isGSP) {
+        // Handle GitSlotPark API response format
+        success = response.data && response.data.status === 'success';
+        gameUrl = success ? response.data.game_url : '';
+        sessionId = success ? response.data.session_id : '';
+        errorMessage = !success ? (response.data.message || 'Unknown error') : '';
       } else {
         // Handle default aggregator API response format
         success = response.data && response.data.success;
@@ -132,7 +163,7 @@ export const gameAggregatorService = {
           amount: 0, // Initial amount is 0, actual bet will be recorded later
           currency: currency,
           status: 'completed',
-          provider: isInfinGame ? 'infingame' : 'aggregator',
+          provider: isInfinGame ? 'infingame' : isGSP ? 'gitslotpark' : 'aggregator',
           game_id: gameId,
           description: `Game session created: ${gameId}`,
           reference_id: sessionId
@@ -199,7 +230,16 @@ export const gameAggregatorService = {
       
       // Determine the provider from the callback data
       const isInfinGame = callbackData.provider === 'infingame';
-      const apiConfig = isInfinGame ? INFIN_API_CONFIG : API_CONFIG;
+      const isGSP = callbackData.provider === 'gitslotpark';
+      
+      let apiConfig;
+      if (isInfinGame) {
+        apiConfig = INFIN_API_CONFIG;
+      } else if (isGSP) {
+        apiConfig = GSP_API_CONFIG;
+      } else {
+        apiConfig = API_CONFIG;
+      }
       
       // Verify that this is a valid callback with our agent ID
       if (callbackData.agentId !== apiConfig.agentId) {
@@ -228,7 +268,7 @@ export const gameAggregatorService = {
         amount: Math.abs(amount),
         currency,
         status: 'completed',
-        provider: isInfinGame ? 'infingame' : 'aggregator',
+        provider: isInfinGame ? 'infingame' : isGSP ? 'gitslotpark' : 'aggregator',
         game_id: gameId,
         round_id: roundId,
         reference_id: transactionId,
@@ -337,6 +377,55 @@ export const gameAggregatorService = {
       return {
         success: false,
         errorMessage: error.message || 'Failed to get InfinGame games list',
+        games: []
+      };
+    }
+  },
+  
+  /**
+   * Get available GitSlotPark games
+   */
+  getGitSlotParkGames: async () => {
+    try {
+      const response = await axios.get(
+        `${GSP_API_CONFIG.endpoint}/api/v1/games`,
+        {
+          params: {
+            agent_id: GSP_API_CONFIG.agentId,
+            token: GSP_API_CONFIG.token
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+      
+      if (response.data && response.data.status === 'success') {
+        // Map the games to match our expected format
+        const mappedGames = (response.data.games || []).map((game: any) => ({
+          id: `gsp_${game.game_id}`,
+          name: game.name,
+          provider: 'GitSlotPark',
+          category: game.type || 'slots',
+          imageUrl: game.image_url || '',
+          isPopular: game.is_featured || false,
+          isNew: game.is_new || false,
+          rtp: game.rtp || 96
+        }));
+        
+        return {
+          success: true,
+          games: mappedGames
+        };
+      } else {
+        throw new Error(response.data?.message || 'Failed to fetch GitSlotPark games');
+      }
+    } catch (error: any) {
+      console.error('Error fetching GitSlotPark games:', error);
+      return {
+        success: false,
+        errorMessage: error.message || 'Failed to get GitSlotPark games list',
         games: []
       };
     }

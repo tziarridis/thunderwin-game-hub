@@ -3,25 +3,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
 import { useEffect, useState } from "react";
-import { getProviderConfig } from "@/config/gameProviders";
+import { getProviderConfig, GameProviderConfig } from "@/config/gameProviders";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check, AlertTriangle } from "lucide-react";
+import { ExternalLink, Activity, Globe, ChevronDown, Copy, Check, AlertTriangle, Play } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { gameAggregatorService } from "@/services/gameAggregatorService";
+import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /**
  * Game Aggregator component for admin dashboard
  * Allows testing and management of game provider integrations
  */
 const GameAggregator = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("pp");
   const [providers, setProviders] = useState<{id: string, name: string, code: string}[]>([]);
   const [additionalProviders, setAdditionalProviders] = useState<{id: string, name: string, code: string}[]>([]);
   const [openProviderDetails, setOpenProviderDetails] = useState<string | null>(null);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
-  
+  const [gameId, setGameId] = useState('');
+  const [playerId, setPlayerId] = useState('demo_player');
+
   useEffect(() => {
     // Get unique provider types
     const uniqueProviders = new Set<string>();
@@ -68,9 +75,18 @@ const GameAggregator = () => {
   }, [activeTab]);
 
   const handleCopyCallback = (providerId: string, endpoint: string) => {
-    const config = getProviderConfig(`${providerId}eur`);
-    if (config) {
-      navigator.clipboard.writeText(config.credentials.callbackUrl);
+    let providerConfigId = `${providerId}eur`;
+    let url = "";
+    
+    if (providerId === 'infin') {
+      url = "https://your-api.com/infin/callback";
+    } else {
+      const config = getProviderConfig(providerConfigId);
+      url = config?.credentials.callbackUrl || "";
+    }
+    
+    if (url) {
+      navigator.clipboard.writeText(url);
       setCopiedEndpoint(endpoint);
       toast.success(`Callback URL copied to clipboard`);
       
@@ -88,6 +104,48 @@ const GameAggregator = () => {
     }
   };
 
+  const handleLaunchTestGame = async (providerId: string) => {
+    try {
+      if (!gameId) {
+        toast.error('Please enter a game ID');
+        return;
+      }
+      
+      if (!playerId) {
+        toast.error('Please enter a player ID');
+        return;
+      }
+      
+      toast.info(`Launching ${providerId.toUpperCase()} game: ${gameId}`);
+      
+      let gameResponse;
+      
+      if (providerId === 'infin') {
+        gameResponse = await gameAggregatorService.createSession(
+          `infin_${gameId}`, 
+          playerId,
+          'EUR',
+          'web'
+        );
+      } else {
+        gameResponse = await gameAggregatorService.createSession(
+          gameId,
+          playerId,
+          'EUR',
+          'web'
+        );
+      }
+      
+      if (gameResponse.success && gameResponse.gameUrl) {
+        window.open(gameResponse.gameUrl, '_blank');
+      } else {
+        toast.error(`Failed to launch game: ${gameResponse.errorMessage || 'Unknown error'}`);
+      }
+    } catch (error: any) {
+      toast.error(`Error launching game: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
@@ -99,10 +157,16 @@ const GameAggregator = () => {
               PP Integration Tester
             </Button>
           </Link>
+          <Link to="/admin/aggregator-settings">
+            <Button variant="outline" size="sm">
+              <Globe className="mr-2 h-4 w-4" />
+              Aggregator Settings
+            </Button>
+          </Link>
           <Link to="/api/seamless/pragmatic" target="_blank">
             <Button variant="outline" size="sm">
               <ExternalLink className="mr-2 h-4 w-4" />
-              View PP Callback Endpoint
+              View Callback Endpoint
             </Button>
           </Link>
         </div>
@@ -149,6 +213,59 @@ const GameAggregator = () => {
           </div>
         </TabsContent>
         
+        {/* GitSlotPark Integration Tab */}
+        <TabsContent value="gsp">
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>GitSlotPark Integration</CardTitle>
+                <CardDescription>
+                  Test and manage GitSlotPark games integration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="mb-4 bg-blue-500/10 border border-blue-500/50">
+                  <AlertDescription>
+                    Learn more about the GitSlotPark integration in their 
+                    <a href="https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4" target="_blank" rel="noopener noreferrer" 
+                      className="text-blue-400 hover:underline mx-1">
+                      API documentation
+                    </a>.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="gsp-gameId">Game ID</Label>
+                    <Input 
+                      id="gsp-gameId" 
+                      placeholder="Enter game ID (e.g. blackjack)" 
+                      value={gameId}
+                      onChange={(e) => setGameId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gsp-playerId">Player ID</Label>
+                    <Input 
+                      id="gsp-playerId" 
+                      placeholder="Enter player ID"
+                      value={playerId}
+                      onChange={(e) => setPlayerId(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-center mt-4">
+                  <Button onClick={() => handleLaunchTestGame('gsp')} className="px-6">
+                    <Play className="mr-2 h-4 w-4" />
+                    Launch Test Game
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
         {/* InfinGame Integration Tab */}
         <TabsContent value="infin">
           <div className="grid grid-cols-1 gap-6">
@@ -162,11 +279,43 @@ const GameAggregator = () => {
               <CardContent>
                 <Alert className="mb-4 bg-blue-500/10 text-blue-500 border-blue-500/50">
                   <AlertDescription>
-                    The InfinGame integration is set up using the API endpoint: https://infinapi-docs.axis-stage.infingame.com/
+                    The InfinGame integration is set up using the API endpoint: 
+                    <a href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" rel="noopener noreferrer" 
+                      className="text-blue-400 hover:underline mx-1">
+                      https://infinapi-docs.axis-stage.infingame.com/
+                    </a>
                   </AlertDescription>
                 </Alert>
                 
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="infin-gameId">Game ID</Label>
+                    <Input 
+                      id="infin-gameId" 
+                      placeholder="Enter game ID (e.g. luckyslots)" 
+                      value={gameId}
+                      onChange={(e) => setGameId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="infin-playerId">Player ID</Label>
+                    <Input 
+                      id="infin-playerId" 
+                      placeholder="Enter player ID"
+                      value={playerId}
+                      onChange={(e) => setPlayerId(e.target.value)}
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex justify-center mt-4">
+                  <Button onClick={() => handleLaunchTestGame('infin')} className="px-6">
+                    <Play className="mr-2 h-4 w-4" />
+                    Launch Test Game
+                  </Button>
+                </div>
+                
+                <div className="space-y-4 mt-6">
                   <div className="p-4 bg-slate-800 rounded-md">
                     <h3 className="text-lg mb-2">Integration Details</h3>
                     <p className="text-sm text-gray-400 mb-4">
@@ -337,6 +486,13 @@ const GameAggregator = () => {
                         </CollapsibleContent>
                       </Collapsible>
                     ))}
+                  </div>
+                  
+                  <div className="mt-6">
+                    <Button variant="outline" onClick={() => navigate('/admin/aggregator-settings')}>
+                      <Globe className="mr-2 h-4 w-4" />
+                      Advanced Aggregator Settings
+                    </Button>
                   </div>
                 </div>
               </CardContent>
