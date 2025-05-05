@@ -1,16 +1,14 @@
 
 import { ethers } from "ethers";
 import { toast } from "sonner";
-import { WalletTransaction } from "@/types/wallet";
 import { addTransaction } from "./transactionService";
 import { creditWallet } from "./walletService";
 
-export interface MetaMaskTransaction {
-  from: string;
-  to: string;
-  value: string;
-  gas?: string;
-  gasPrice?: string;
+// Extend Window interface to include ethereum property
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
 }
 
 /**
@@ -24,6 +22,13 @@ export const metamaskService = {
     return typeof window !== 'undefined' && 
            typeof window.ethereum !== 'undefined' && 
            window.ethereum.isMetaMask === true;
+  },
+
+  /**
+   * Alias for isMetaMaskAvailable for compatibility with existing components
+   */
+  isMetaMaskInstalled: (): boolean => {
+    return metamaskService.isMetaMaskAvailable();
   },
 
   /**
@@ -50,23 +55,93 @@ export const metamaskService = {
   },
 
   /**
+   * Alias for connectToMetaMask for compatibility with existing components
+   */
+  requestAccounts: async (): Promise<string[]> => {
+    return metamaskService.connectToMetaMask();
+  },
+
+  /**
+   * Get currently connected account (if any)
+   */
+  getConnectedAccount: async (): Promise<string | null> => {
+    try {
+      if (!metamaskService.isMetaMaskAvailable()) {
+        return null;
+      }
+      
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      return accounts.length > 0 ? accounts[0] : null;
+    } catch (error) {
+      console.error("Error getting connected account:", error);
+      return null;
+    }
+  },
+
+  /**
    * Get current Ethereum balance for an account
    */
-  getBalance: async (address: string): Promise<string> => {
+  getBalance: async (address?: string): Promise<number> => {
     try {
+      if (!address) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+          throw new Error("No account connected");
+        }
+        address = accounts[0];
+      }
+      
       const balanceHex = await window.ethereum.request({
         method: 'eth_getBalance',
         params: [address, 'latest'],
       });
       
       const balanceInWei = ethers.BigNumber.from(balanceHex);
-      const balanceInEth = ethers.utils.formatEther(balanceInWei);
+      const balanceInEth = parseFloat(ethers.utils.formatEther(balanceInWei));
       
       return balanceInEth;
     } catch (error: any) {
       console.error("Error getting balance:", error);
       toast.error(`Failed to get balance: ${error.message || "Unknown error"}`);
       throw error;
+    }
+  },
+
+  /**
+   * Switch to Ethereum Mainnet
+   */
+  switchToEthereumMainnet: async (): Promise<void> => {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x1' }], // '0x1' is the chainId for Ethereum Mainnet
+      });
+    } catch (error: any) {
+      console.error("Error switching to Ethereum Mainnet:", error);
+      toast.error(`Failed to switch network: ${error.message || "Unknown error"}`);
+      throw error;
+    }
+  },
+
+  /**
+   * Process a deposit from MetaMask to user's wallet
+   */
+  processDeposit: async (
+    userId: string, 
+    ethAmount: number
+  ): Promise<boolean> => {
+    try {
+      // Example recipient address - this should be your platform's wallet
+      const toAddress = '0xRecipientAddress';
+      
+      // Send the transaction
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, userId);
+      
+      // If we got here, the transaction was sent successfully
+      return !!txHash;
+    } catch (error) {
+      console.error("Error processing deposit:", error);
+      return false;
     }
   },
 
@@ -107,7 +182,7 @@ export const metamaskService = {
       // Record the transaction in our system
       await addTransaction({
         userId: userId,
-        type: 'deposit',
+        type: "deposit",
         amount: amountInEth,
         currency: 'ETH',
         status: 'completed',
@@ -147,6 +222,32 @@ export const metamaskService = {
     if (metamaskService.isMetaMaskAvailable()) {
       window.ethereum.on('chainChanged', callback);
     }
+  },
+
+  /**
+   * Set up all MetaMask event listeners
+   */
+  setupMetaMaskListeners: (): (() => void) | undefined => {
+    if (!metamaskService.isMetaMaskAvailable()) {
+      return undefined;
+    }
+
+    const accountsHandler = (accounts: string[]) => {
+      console.log("MetaMask accounts changed:", accounts);
+    };
+
+    const chainHandler = (chainId: string) => {
+      console.log("MetaMask chain changed:", chainId);
+    };
+
+    window.ethereum.on('accountsChanged', accountsHandler);
+    window.ethereum.on('chainChanged', chainHandler);
+
+    // Return cleanup function
+    return () => {
+      window.ethereum.removeListener('accountsChanged', accountsHandler);
+      window.ethereum.removeListener('chainChanged', chainHandler);
+    };
   }
 };
 

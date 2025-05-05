@@ -33,6 +33,18 @@ interface SessionCreationResponse {
   errorCode?: string;
 }
 
+// Interface for game transaction
+interface GameTransaction {
+  player_id: string;
+  game_id: string;
+  provider: string;
+  type: string;
+  amount: number;
+  currency: string;
+  round_id?: string;
+  session_id?: string;
+}
+
 /**
  * Game Aggregator Service for connecting with the game provider API
  */
@@ -105,6 +117,36 @@ export const gameAggregatorService = {
         errorMessage: error.message || 'Failed to create game session',
         errorCode: error.response?.data?.errorCode || 'UNKNOWN'
       };
+    }
+  },
+  
+  /**
+   * Store a game transaction in the database
+   */
+  storeGameTransaction: async (transaction: GameTransaction) => {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert({
+          player_id: transaction.player_id,
+          game_id: transaction.game_id,
+          provider: transaction.provider,
+          type: transaction.type,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          status: 'completed',
+          round_id: transaction.round_id,
+          session_id: transaction.session_id
+        });
+        
+      if (error) {
+        throw error;
+      }
+      
+      return { success: true, data };
+    } catch (error) {
+      console.error('Error storing game transaction:', error);
+      return { success: false, error };
     }
   },
   
@@ -195,6 +237,19 @@ export const gameAggregatorService = {
         errorMessage: error.message || 'Failed to get games list',
         games: []
       };
+    }
+  },
+
+  /**
+   * Fetch games from provider for sync operations
+   */
+  fetchGamesFromProvider: async () => {
+    try {
+      const games = await gameAggregatorService.getAvailableGames();
+      return games.success ? games.games : [];
+    } catch (error) {
+      console.error('Error fetching games from provider:', error);
+      return [];
     }
   }
 };

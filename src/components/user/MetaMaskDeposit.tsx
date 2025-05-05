@@ -34,12 +34,12 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
     
     try {
       // Check if MetaMask is installed
-      if (!metamaskService.isMetaMaskInstalled()) {
+      if (!metamaskService.isMetaMaskAvailable()) {
         throw new Error("MetaMask is not installed. Please install MetaMask extension and try again.");
       }
       
       // Request account access
-      const accounts = await metamaskService.requestAccounts();
+      const accounts = await metamaskService.connectToMetaMask();
       if (accounts.length === 0) {
         throw new Error("Please connect to MetaMask.");
       }
@@ -63,9 +63,10 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
         return;
       }
       
-      const success = await metamaskService.processDeposit(user.id, ethAmount);
+      const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, user.id);
       
-      if (success && onSuccess) {
+      if (txHash && onSuccess) {
         onSuccess();
       }
     } catch (error: any) {
@@ -116,7 +117,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       </Button>
       
       <p className="text-xs text-white/60 text-center">
-        {metamaskService.isMetaMaskInstalled() ? 
+        {metamaskService.isMetaMaskAvailable() ? 
           "Connect to your MetaMask wallet to deposit ETH" : 
           "MetaMask extension is not installed. Please install MetaMask to continue."
         }

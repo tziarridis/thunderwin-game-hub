@@ -22,7 +22,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
 
   useEffect(() => {
     const checkMetaMaskStatus = async () => {
-      const installed = metamaskService.isMetaMaskInstalled();
+      const installed = metamaskService.isMetaMaskAvailable();
       setIsInstalled(installed);
       
       if (installed) {
@@ -51,7 +51,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
 
   const fetchEthBalance = async (address: string) => {
     try {
-      const balance = await metamaskService.getBalance();
+      const balance = await metamaskService.getBalance(address);
       setEthBalance(balance);
     } catch (error) {
       console.error("Error fetching ETH balance:", error);
