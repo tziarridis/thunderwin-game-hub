@@ -29,7 +29,6 @@ function App() {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/casino" element={<CasinoMain />} />
-            <Route path="/casino/main" element={<CasinoMain />} />
             
             {/* Add the route for aggregator games */}
             <Route path="/casino/aggregator-games" element={<AggregatorGames />} />

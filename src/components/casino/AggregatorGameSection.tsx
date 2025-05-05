@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -178,10 +177,10 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider || ''}
                     isPopular={!!game.isPopular}
                     isNew={!!game.isNew}
-                    rtp={game.rtp ? `${game.rtp}%` : '96%'}
-                    isFavorite={!!game.isFavorite}
-                    minBet={game.minBet ? `$${game.minBet}` : '$0.10'}
-                    maxBet={game.maxBet ? `$${game.maxBet}` : '$100'}
+                    rtp={`${game.rtp}%`}
+                    isFavorite={false}
+                    minBet={`$${game.minBet}`}
+                    maxBet={`$${game.maxBet}`}
                     onClick={() => handlePlayGame(game)}
                     button={
                       <LaunchGame 
@@ -208,10 +207,10 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                     provider={game.provider || ''}
                     isPopular={!!game.isPopular}
                     isNew={!!game.isNew}
-                    rtp={game.rtp ? `${game.rtp}%` : '96%'}
-                    isFavorite={!!game.isFavorite}
-                    minBet={game.minBet ? `$${game.minBet}` : '$0.10'}
-                    maxBet={game.maxBet ? `$${game.maxBet}` : '$100'}
+                    rtp={`${game.rtp}%`}
+                    isFavorite={false}
+                    minBet={`$${game.minBet}`}
+                    maxBet={`$${game.maxBet}`}
                     onClick={() => handlePlayGame(game)}
                     button={
                       <LaunchGame 
