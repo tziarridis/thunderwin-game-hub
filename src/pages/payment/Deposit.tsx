@@ -1,17 +1,20 @@
 
-// Fix the MetaMaskDeposit component usage
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import MetaMaskDeposit from '@/components/payment/MetaMaskDeposit';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Deposit = () => {
   const [activeTab, setActiveTab] = useState('crypto');
   const [amount, setAmount] = useState('100');
+  const { refreshWalletBalance } = useAuth();
   
-  const handleSuccess = () => {
+  const handleSuccess = async () => {
     console.log('Deposit successful');
+    // Refresh the wallet balance after a successful deposit
+    await refreshWalletBalance();
   };
   
   const handleProcessing = (isProcessing: boolean) => {

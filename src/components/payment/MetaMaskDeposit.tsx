@@ -15,7 +15,7 @@ interface MetaMaskDepositProps {
 
 const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMaskDepositProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshWalletBalance } = useAuth();
 
   const handleDeposit = async () => {
     if (!user?.id) {
@@ -66,8 +66,15 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
       const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, user.id);
       
-      if (txHash && onSuccess) {
-        onSuccess();
+      if (txHash) {
+        // Refresh user's wallet balance after successful transaction
+        await refreshWalletBalance();
+        
+        if (onSuccess) {
+          onSuccess();
+        }
+        
+        toast.success(`Successfully deposited ${ethAmount.toFixed(6)} ETH. Your balance has been updated.`);
       }
     } catch (error: any) {
       console.error("MetaMask deposit error:", error);

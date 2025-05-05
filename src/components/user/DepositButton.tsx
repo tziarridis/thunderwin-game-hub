@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import MetaMaskDeposit from "./MetaMaskDeposit";
+import MetaMaskDeposit from "@/components/payment/MetaMaskDeposit";
 import CardDeposit from "./CardDeposit";
 
 interface DepositButtonProps {

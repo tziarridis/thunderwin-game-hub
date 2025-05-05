@@ -6,6 +6,14 @@ import { metamaskService } from "@/services/metamaskService";
 import { Wallet as WalletIcon, AlertTriangle, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import MetaMaskDeposit from "@/components/payment/MetaMaskDeposit";
 
 interface MetaMaskWalletProps {
   onConnected?: (address: string) => void;
@@ -18,7 +26,10 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
   const [accountAddress, setAccountAddress] = useState<string | null>(null);
   const [ethBalance, setEthBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("100");
+  const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
+  const { user, refreshWalletBalance } = useAuth();
 
   useEffect(() => {
     const checkMetaMaskStatus = async () => {
@@ -88,13 +99,18 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
   };
 
   const handleDeposit = () => {
-    if (!user?.id) {
-      toast.error("User ID not found");
-      return;
-    }
+    setIsDepositDialogOpen(true);
+  };
+
+  const handleDepositSuccess = async () => {
+    setIsDepositDialogOpen(false);
+    // Refresh the wallet balance
+    await refreshWalletBalance();
     
-    // Open deposit dialog
-    document.getElementById('deposit-dialog-trigger')?.click();
+    // If connected to MetaMask, also refresh ETH balance
+    if (accountAddress) {
+      fetchEthBalance(accountAddress);
+    }
   };
 
   const getShortAddress = (address: string) => {
@@ -158,12 +174,30 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
               </div>
             </div>
             
-            <Button 
-              className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-              onClick={handleDeposit}
-            >
-              Deposit with MetaMask
-            </Button>
+            <Dialog open={isDepositDialogOpen} onOpenChange={setIsDepositDialogOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                  onClick={handleDeposit}
+                >
+                  Deposit with MetaMask
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px] bg-casino-thunder-dark text-white border-casino-thunder-green/50">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center">
+                    <WalletIcon className="mr-2 h-5 w-5 text-casino-thunder-green" />
+                    MetaMask Deposit
+                  </DialogTitle>
+                </DialogHeader>
+                <MetaMaskDeposit 
+                  amount={depositAmount}
+                  setAmount={setDepositAmount}
+                  onSuccess={handleDepositSuccess}
+                  onProcessing={setIsProcessingDeposit}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </CardContent>
