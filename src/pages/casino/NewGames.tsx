@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const NewGamesPage = () => {
   const { games, loading, error } = useGames();
@@ -25,6 +26,12 @@ const NewGamesPage = () => {
   
   // Get unique providers
   const providers = ["all", ...Array.from(new Set(newGames.map(game => game.provider)))];
+  
+  // Handle game click
+  const handleGameClick = (game: any) => {
+    toast.info(`Opening ${game.title}`);
+    navigate(`/casino/game/${game.id}`);
+  };
   
   // Animation variants
   const container = {
@@ -149,7 +156,7 @@ const NewGamesPage = () => {
               </Button>
             </div>
           ) : (
-            <GameGrid games={newGames} />
+            <GameGrid games={newGames} onGameClick={handleGameClick} />
           )}
         </motion.div>
       </div>

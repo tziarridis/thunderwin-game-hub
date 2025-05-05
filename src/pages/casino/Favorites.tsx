@@ -10,6 +10,7 @@ import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const FavoritesPage = () => {
   const { games, loading, error } = useGames();
@@ -22,6 +23,12 @@ const FavoritesPage = () => {
     game.isFavorite && 
     (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+  
+  // Handle game click
+  const handleGameClick = (game: any) => {
+    toast.info(`Opening ${game.title}`);
+    navigate(`/casino/game/${game.id}`);
+  };
   
   // Animation variants
   const container = {
@@ -131,7 +138,7 @@ const FavoritesPage = () => {
             </div>
           ) : (
             <>
-              <GameGrid games={favoriteGames} />
+              <GameGrid games={favoriteGames} onGameClick={handleGameClick} />
               
               <div className="mt-6 bg-white/5 p-4 rounded-lg flex items-start text-white/70 text-sm">
                 <Info className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />

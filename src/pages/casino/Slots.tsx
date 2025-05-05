@@ -9,6 +9,7 @@ import { useGames } from "@/hooks/useGames";
 import { motion } from "framer-motion";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 // Mock data for configurable banners
 const banners = [
@@ -52,6 +53,12 @@ const SlotsPage = () => {
   
   // Get unique providers
   const providers = ["all", ...Array.from(new Set(slotsGames.map(game => game.provider)))];
+  
+  // Handle game click
+  const handleGameClick = (game: any) => {
+    toast.info(`Opening ${game.title}`);
+    navigate(`/casino/game/${game.id}`);
+  };
   
   // Animation variants
   const container = {
@@ -213,7 +220,7 @@ const SlotsPage = () => {
                   <Gamepad2 className="mr-2 h-5 w-5 text-casino-thunder-green" />
                   All Slot Games ({slotsGames.length})
                 </h2>
-                <GameGrid games={slotsGames} />
+                <GameGrid games={slotsGames} onGameClick={handleGameClick} />
               </motion.div>
             )}
           </TabsContent>
@@ -235,7 +242,7 @@ const SlotsPage = () => {
                   <Star className="mr-2 h-5 w-5 text-yellow-500" />
                   Popular Slot Games ({popularSlotsGames.length})
                 </h2>
-                <GameGrid games={popularSlotsGames} />
+                <GameGrid games={popularSlotsGames} onGameClick={handleGameClick} />
               </motion.div>
             )}
           </TabsContent>
@@ -257,7 +264,7 @@ const SlotsPage = () => {
                   <Zap className="mr-2 h-5 w-5 text-casino-thunder-green" />
                   New Slot Games ({newSlotsGames.length})
                 </h2>
-                <GameGrid games={newSlotsGames} />
+                <GameGrid games={newSlotsGames} onGameClick={handleGameClick} />
               </motion.div>
             )}
           </TabsContent>

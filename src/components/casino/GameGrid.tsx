@@ -5,7 +5,7 @@ import { Game } from '@/types';
 
 interface GameGridProps {
   games: any[];
-  onGameClick: (game: any) => void;
+  onGameClick?: (game: any) => void;
 }
 
 const GameGrid = ({ games, onGameClick }: GameGridProps) => {
@@ -32,7 +32,7 @@ const GameGrid = ({ games, onGameClick }: GameGridProps) => {
           isFavorite={false}
           minBet={game.minBet}
           maxBet={game.maxBet}
-          onClick={() => onGameClick(game)}
+          onClick={onGameClick ? () => onGameClick(game) : undefined}
         />
       ))}
     </div>
