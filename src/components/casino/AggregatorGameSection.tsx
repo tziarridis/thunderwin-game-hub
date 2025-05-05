@@ -9,6 +9,7 @@ import gitSlotParkService from '@/services/gitSlotParkService';
 import pragmaticPlayService from '@/services/pragmaticPlayService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import LaunchGame from './LaunchGame';
 
 const AggregatorGameSection = () => {
   const [activeTab, setActiveTab] = useState('gitslotpark');
@@ -141,6 +142,7 @@ const AggregatorGameSection = () => {
                     isFavorite={false}
                     minBet={game.minBet}
                     maxBet={game.maxBet}
+                    // Use the LaunchGame component instead of direct onClick
                     onClick={() => handlePlayGame(game)}
                   />
                 ))}
@@ -162,6 +164,7 @@ const AggregatorGameSection = () => {
                     isFavorite={false}
                     minBet={game.minBet}
                     maxBet={game.maxBet}
+                    // Use the LaunchGame component instead of direct onClick
                     onClick={() => handlePlayGame(game)}
                   />
                 ))}
