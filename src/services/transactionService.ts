@@ -2,7 +2,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Transaction, TransactionFilter } from '@/types/transaction';
-import { WalletTransaction } from '@/types/wallet';
 
 /**
  * Get transactions for a user with filtering options
@@ -247,19 +246,31 @@ export const addTransaction = async (transactionData: {
   referenceId?: string;
 }): Promise<Transaction | null> => {
   try {
+    // Convert to database field names
+    const dbData = {
+      player_id: transactionData.userId,
+      type: transactionData.type,
+      amount: transactionData.amount,
+      currency: transactionData.currency,
+      status: transactionData.status || 'completed',
+      provider: 'system',
+      created_at: new Date().toISOString()
+    };
+
+    // Add optional fields only if they exist
+    if (transactionData.description) {
+      Object.assign(dbData, { description: transactionData.description });
+    }
+    if (transactionData.paymentMethod) {
+      Object.assign(dbData, { payment_method: transactionData.paymentMethod });
+    }
+    if (transactionData.referenceId) {
+      Object.assign(dbData, { reference_id: transactionData.referenceId });
+    }
+    
     const { data, error } = await supabase
       .from('transactions')
-      .insert({
-        player_id: transactionData.userId,
-        type: transactionData.type,
-        amount: transactionData.amount,
-        currency: transactionData.currency,
-        status: transactionData.status || 'completed',
-        description: transactionData.description,
-        payment_method: transactionData.paymentMethod,
-        reference_id: transactionData.referenceId,
-        created_at: new Date().toISOString()
-      })
+      .insert(dbData)
       .select()
       .single();
     

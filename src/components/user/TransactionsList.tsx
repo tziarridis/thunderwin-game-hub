@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { getUserTransactions } from "@/services/transactionService";
@@ -5,9 +6,10 @@ import { Transaction } from "@/types/transaction";
 
 interface TransactionsListProps {
   userId: string;
+  limit?: number; // Make limit optional
 }
 
-const TransactionsList = ({ userId }: TransactionsListProps) => {
+const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +18,7 @@ const TransactionsList = ({ userId }: TransactionsListProps) => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const result = await getUserTransactions(userId);
+        const result = await getUserTransactions(userId, { limit });
         setTransactions(result.data);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
@@ -27,7 +29,7 @@ const TransactionsList = ({ userId }: TransactionsListProps) => {
     };
 
     fetchTransactions();
-  }, [userId]);
+  }, [userId, limit]);
 
   if (loading) {
     return <div>Loading transactions...</div>;
