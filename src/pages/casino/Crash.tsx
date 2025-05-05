@@ -1,9 +1,8 @@
 
-import React, { useState } from "react";
-import { Dice5, Search, Filter, SlidersHorizontal } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Dice5, Search, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GameGrid from "@/components/casino/GameGrid";
 import { useGames } from "@/hooks/useGames";
 import { motion } from "framer-motion";
@@ -11,23 +10,63 @@ import WinningSlideshow from "@/components/casino/WinningSlideshow";
 import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CrashGamesPage = () => {
   const { games, loading, error } = useGames();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProvider, setSelectedProvider] = useState("all");
   const navigate = useNavigate();
-  
-  // Filter crash games only - in a real app, we would have a better filter
-  // For demo purposes, we're using a small subset of games
-  const crashGames = games.filter(game => 
-    (game.title.toLowerCase().includes("crash") || game.category === "crash") && 
-    (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase())) &&
-    (selectedProvider === "all" || game.provider === selectedProvider)
-  );
+  const { isAuthenticated, user } = useAuth();
+  const [crashGames, setCrashGames] = useState<any[]>([]);
   
   // Get unique providers
-  const providers = ["all", ...Array.from(new Set(crashGames.map(game => game.provider)))];
+  const providers = ["all", ...Array.from(new Set(games
+    .filter(game => 
+      (game.title.toLowerCase().includes("crash") || game.category === "crash"))
+    .map(game => game.provider)))];
+  
+  useEffect(() => {
+    if (games.length > 0) {
+      processCrashGames();
+    }
+  }, [games, searchTerm, selectedProvider, isAuthenticated, user]);
+  
+  const processCrashGames = async () => {
+    // Filter crash games based on search term and provider
+    let filtered = games.filter(game => 
+      (game.title.toLowerCase().includes("crash") || game.category === "crash") && 
+      (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (selectedProvider === "all" || game.provider === selectedProvider)
+    );
+    
+    // If user is authenticated, mark favorites
+    if (isAuthenticated && user) {
+      try {
+        // Fetch user's favorite games
+        const { data: favoriteData, error: favoriteError } = await supabase
+          .from('favorite_games')
+          .select('game_id')
+          .eq('user_id', user.id);
+          
+        if (favoriteError) throw favoriteError;
+        
+        // Create a set of favorite game IDs for quick lookup
+        const favoriteIds = new Set(favoriteData.map(item => item.game_id));
+        
+        // Mark games as favorites if they're in the user's favorites
+        filtered = filtered.map(game => ({
+          ...game,
+          isFavorite: favoriteIds.has(game.id)
+        }));
+      } catch (error) {
+        console.error("Error fetching favorite games:", error);
+      }
+    }
+    
+    setCrashGames(filtered);
+  };
   
   // Handle game click
   const handleGameClick = (game: any) => {

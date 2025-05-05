@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Heart, Search, SlidersHorizontal, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,18 +11,58 @@ import GameCategories from "@/components/casino/GameCategories";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const FavoritesPage = () => {
   const { games, loading, error } = useGames();
   const [searchTerm, setSearchTerm] = useState("");
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const [favoriteGames, setFavoriteGames] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
-  // Filter favorite games only
-  const favoriteGames = games.filter(game => 
-    game.isFavorite && 
-    (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      fetchFavoriteGames();
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, user, games]);
+  
+  const fetchFavoriteGames = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Fetch user's favorite game IDs
+      const { data: favoriteData, error: favoriteError } = await supabase
+        .from('favorite_games')
+        .select('game_id')
+        .eq('user_id', user?.id);
+        
+      if (favoriteError) throw favoriteError;
+      
+      // Create a set of favorite game IDs for quick lookup
+      const favoriteIds = new Set(favoriteData.map(item => item.game_id));
+      
+      // Filter games that are in the favorites list and match search term
+      const filteredGames = games
+        .filter(game => 
+          favoriteIds.has(game.id) && 
+          (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+        .map(game => ({
+          ...game,
+          isFavorite: true // Mark all games as favorites since this is the favorites page
+        }));
+      
+      setFavoriteGames(filteredGames);
+    } catch (error) {
+      console.error("Error fetching favorite games:", error);
+      toast.error("Failed to load favorite games");
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   // Handle game click
   const handleGameClick = (game: any) => {
@@ -117,7 +157,7 @@ const FavoritesPage = () => {
                 Register
               </Button>
             </div>
-          ) : loading ? (
+          ) : isLoading ? (
             <div className="text-center py-8">
               <div className="animate-pulse text-white/70">Loading games...</div>
             </div>
