@@ -33,6 +33,7 @@ const AggregatorSettings = () => {
     apiEndpoint: "",
     agentId: "",
     secretKey: "",
+    token: "",
     callbackUrl: `${window.location.origin}/casino/seamless`
   });
 
@@ -43,6 +44,23 @@ const AggregatorSettings = () => {
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Update the callback URL based on the provider code and currency
+    if (name === 'code' || name === 'currency') {
+      const code = name === 'code' ? value.toLowerCase() : formData.code.toLowerCase();
+      const currency = name === 'currency' ? value.toLowerCase() : formData.currency.toLowerCase();
+      
+      const providerPath = code === 'pp' ? '/casino/seamless/pp' : 
+                           code === 'evo' ? '/casino/seamless/evolution' :
+                           code === 'gsp' ? '/casino/seamless/gsp' :
+                           code === 'infin' ? '/casino/seamless/infin' : 
+                           '/casino/seamless';
+      
+      setFormData(prev => ({
+        ...prev,
+        callbackUrl: `${window.location.origin}${providerPath}`
+      }));
+    }
   };
 
   const handleAddAggregator = () => {
@@ -68,6 +86,7 @@ const AggregatorSettings = () => {
           apiEndpoint: formData.apiEndpoint,
           agentId: formData.agentId,
           secretKey: formData.secretKey,
+          token: formData.token || undefined, // Only add token if it has a value
           callbackUrl: formData.callbackUrl
         }
       };
@@ -87,6 +106,7 @@ const AggregatorSettings = () => {
         apiEndpoint: "",
         agentId: "",
         secretKey: "",
+        token: "",
         callbackUrl: `${window.location.origin}/casino/seamless`
       });
       
@@ -237,6 +257,20 @@ const AggregatorSettings = () => {
                     onChange={handleInputChange}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="token">API Token (Optional)</Label>
+                <Input 
+                  id="token"
+                  name="token"
+                  placeholder="API token (if required)" 
+                  value={formData.token}
+                  onChange={handleInputChange}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Only required for some providers like GitSlotPark or InfinGame
+                </p>
               </div>
               
               <div className="space-y-2">

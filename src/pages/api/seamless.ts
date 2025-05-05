@@ -10,11 +10,18 @@ import { gameAggregatorService } from '@/services/gameAggregatorService';
  */
 export async function handleSeamlessCallback(req: Request) {
   try {
+    // Get the provider from the URL
+    const url = new URL(req.url);
+    const pathParts = url.pathname.split('/');
+    const provider = pathParts[pathParts.length - 1] || 'default';
+    
     // Parse the request body
     const data = await req.json();
     
+    console.log(`Received seamless callback for provider: ${provider}`, data);
+    
     // Process the callback using the game aggregator service
-    const result = await gameAggregatorService.processCallback(data);
+    const result = await gameAggregatorService.processCallback(provider, data);
     
     // Return the result
     return new Response(JSON.stringify(result), {

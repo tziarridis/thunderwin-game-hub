@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { addTransaction } from '@/services/transactionService';
-import { getProviderConfig } from '@/config/gameProviders';
+import { getProviderConfig, GameProviderConfig } from '@/config/gameProviders';
 
 // Interface for session creation request
 interface SessionCreationRequest {
@@ -204,78 +204,101 @@ export const gameAggregatorService = {
   },
   
   /**
-   * Process a wallet callback from the game provider
+   * Process a callback from the game provider
+   * @param provider The provider identifier
+   * @param callbackData The callback data
    */
-  processCallback: async (callbackData: any) => {
+  processCallback: async (provider: string, callbackData: any) => {
     try {
-      console.log('Processing game callback:', callbackData);
+      console.log(`Processing callback for provider ${provider}:`, callbackData);
       
-      // Determine the provider from the callback data
-      const isInfinGame = callbackData.provider === 'infingame';
-      const isGSP = callbackData.provider === 'gitslotpark';
+      // Normalize provider identifier
+      const providerCode = provider.toLowerCase();
+      
+      // Determine which provider to use based on the callback URL or data
+      const isInfinGame = providerCode.includes('infin');
+      const isGSP = providerCode.includes('gsp');
+      const isPP = providerCode.includes('pp');
+      const isEvolution = providerCode.includes('evo');
       
       let providerId;
       if (isInfinGame) {
         providerId = 'infineur';
       } else if (isGSP) {
         providerId = 'gspeur';
+      } else if (isPP) {
+        providerId = 'ppeur';
+      } else if (isEvolution) {
+        providerId = 'evolution';
       } else {
+        // Default to pragmatic play
         providerId = 'ppeur';
       }
       
       const providerConfig = getProviderConfig(providerId);
       
       if (!providerConfig) {
-        return { success: false, errorCode: 'INVALID_PROVIDER' };
+        console.error(`Provider configuration not found for ${providerId}`);
+        return { 
+          success: false, 
+          errorCode: 'INVALID_PROVIDER',
+          errorMessage: `Provider configuration not found for ${providerId}`
+        };
       }
       
-      // Verify that this is a valid callback with our agent ID
-      if (callbackData.agentId !== providerConfig.credentials.agentId) {
-        return { success: false, errorCode: 'INVALID_AGENT' };
+      console.log(`Using provider config: ${providerConfig.id}`);
+      
+      // Verify the request based on provider-specific validation logic
+      // Each provider has different ways to validate incoming callbacks
+      if (isInfinGame) {
+        // InfinGame validation
+        if (!callbackData.agent || callbackData.agent !== providerConfig.credentials.agentId) {
+          console.warn('Invalid agent ID in InfinGame callback');
+          return { success: false, errorCode: 'INVALID_AGENT' };
+        }
+      } else if (isGSP) {
+        // GitSlotPark validation
+        if (!callbackData.agent_id || callbackData.agent_id !== providerConfig.credentials.agentId) {
+          console.warn('Invalid agent ID in GitSlotPark callback');
+          return { success: false, errorCode: 'INVALID_AGENT' };
+        }
+      } else {
+        // Default validation for Pragmatic Play and others
+        if (callbackData.agentId && callbackData.agentId !== providerConfig.credentials.agentId) {
+          console.warn('Invalid agent ID in callback');
+          return { success: false, errorCode: 'INVALID_AGENT' };
+        }
       }
       
-      // Extract data from callback
-      const { 
-        playerId, 
-        gameId, 
-        roundId, 
-        transactionId, 
-        amount, 
-        currency, 
-        transactionType 
-      } = callbackData;
+      // Normalize data from different providers into a common format
+      const normalizedData = normalizeCallbackData(providerCode, callbackData);
       
-      // Map transaction type to our internal type
-      let type: 'bet' | 'win' = transactionType === 'debit' ? 'bet' : 'win';
+      console.log('Normalized callback data:', normalizedData);
       
-      // Record the transaction in our system
-      await addTransaction({
-        user_id: playerId,
-        player_id: playerId,
-        type,
-        amount: Math.abs(amount),
-        currency,
-        status: 'completed',
-        provider: isInfinGame ? 'infingame' : isGSP ? 'gitslotpark' : 'aggregator',
-        game_id: gameId,
-        round_id: roundId,
-        reference_id: transactionId,
-        description: `Game ${type}: ${gameId}, Round: ${roundId}`
-      });
-      
-      // Return success response
-      return { 
-        success: true,
-        balance: 100.00 // In a real implementation, return actual user balance
-      };
+      // Process the transaction based on the transaction type
+      switch (normalizedData.transactionType) {
+        case 'bet':
+          return await processBetTransaction(normalizedData, providerConfig);
+        case 'win':
+          return await processWinTransaction(normalizedData, providerConfig);
+        case 'refund':
+          return await processRefundTransaction(normalizedData, providerConfig);
+        case 'balance':
+          return await getPlayerBalance(normalizedData.playerId);
+        default:
+          console.warn(`Unknown transaction type: ${normalizedData.transactionType}`);
+          return { 
+            success: false, 
+            errorCode: 'INVALID_TRANSACTION_TYPE',
+            errorMessage: `Unknown transaction type: ${normalizedData.transactionType}`
+          };
+      }
     } catch (error: any) {
-      console.error('Error processing game callback:', error);
-      
-      // Return error response
-      return {
-        success: false,
+      console.error('Error processing callback:', error);
+      return { 
+        success: false, 
         errorCode: 'INTERNAL_ERROR',
-        errorMessage: error.message
+        errorMessage: error.message || 'Unknown error'
       };
     }
   },
@@ -440,5 +463,121 @@ export const gameAggregatorService = {
     }
   }
 };
+
+/**
+ * Normalize callback data from different providers into a common format
+ */
+function normalizeCallbackData(providerCode: string, callbackData: any) {
+  // Default values
+  const normalized = {
+    playerId: '',
+    gameId: '',
+    roundId: '',
+    transactionId: '',
+    amount: 0,
+    currency: 'EUR',
+    transactionType: 'bet',
+    provider: providerCode
+  };
+  
+  if (providerCode.includes('infin')) {
+    // InfinGame format
+    normalized.playerId = callbackData.player_id || callbackData.playerId || '';
+    normalized.gameId = callbackData.game_id || callbackData.gameId || '';
+    normalized.roundId = callbackData.round_id || callbackData.roundId || '';
+    normalized.transactionId = callbackData.transaction_id || callbackData.transactionId || '';
+    normalized.amount = parseFloat(callbackData.amount || '0');
+    normalized.currency = callbackData.currency || 'EUR';
+    normalized.transactionType = callbackData.type === 'credit' ? 'win' : 
+                                callbackData.type === 'debit' ? 'bet' : 
+                                callbackData.type === 'refund' ? 'refund' : 'bet';
+  } else if (providerCode.includes('gsp')) {
+    // GitSlotPark format
+    normalized.playerId = callbackData.player_id || '';
+    normalized.gameId = callbackData.game_id || '';
+    normalized.roundId = callbackData.round_id || '';
+    normalized.transactionId = callbackData.tx_id || '';
+    normalized.amount = parseFloat(callbackData.amount || '0');
+    normalized.currency = callbackData.currency || 'EUR';
+    normalized.transactionType = callbackData.operation === 'win' ? 'win' : 
+                                callbackData.operation === 'bet' ? 'bet' : 
+                                callbackData.operation === 'refund' ? 'refund' :
+                                callbackData.operation === 'balance' ? 'balance' : 'bet';
+  } else {
+    // Default format (Pragmatic Play, etc)
+    normalized.playerId = callbackData.playerid || callbackData.playerId || '';
+    normalized.gameId = callbackData.gameref || callbackData.gameId || '';
+    normalized.roundId = callbackData.roundid || callbackData.roundId || '';
+    normalized.transactionId = callbackData.trxid || callbackData.transactionId || '';
+    normalized.amount = parseFloat(callbackData.amount || '0');
+    normalized.currency = callbackData.currency || 'EUR';
+    normalized.transactionType = !callbackData.type ? 'balance' :
+                                callbackData.type === 'credit' ? 'win' :
+                                callbackData.type === 'debit' ? 'bet' : 
+                                callbackData.type === 'rollback' ? 'refund' : 'bet';
+  }
+  
+  return normalized;
+}
+
+/**
+ * Process a bet transaction
+ */
+async function processBetTransaction(data: any, providerConfig: GameProviderConfig) {
+  // In a real implementation, this would interact with a database
+  // For now, we'll just log it and return a mock response
+  console.log(`Processing bet transaction for player ${data.playerId}:`, data);
+  
+  // Mock successful transaction
+  return {
+    success: true,
+    balance: 100.00, // Mock balance
+    transactionId: data.transactionId
+  };
+}
+
+/**
+ * Process a win transaction
+ */
+async function processWinTransaction(data: any, providerConfig: GameProviderConfig) {
+  // In a real implementation, this would interact with a database
+  console.log(`Processing win transaction for player ${data.playerId}:`, data);
+  
+  // Mock successful transaction
+  return {
+    success: true,
+    balance: 100.00 + data.amount, // Mock balance
+    transactionId: data.transactionId
+  };
+}
+
+/**
+ * Process a refund transaction
+ */
+async function processRefundTransaction(data: any, providerConfig: GameProviderConfig) {
+  // In a real implementation, this would interact with a database
+  console.log(`Processing refund transaction for player ${data.playerId}:`, data);
+  
+  // Mock successful transaction
+  return {
+    success: true,
+    balance: 100.00, // Mock balance
+    transactionId: data.transactionId
+  };
+}
+
+/**
+ * Get player balance
+ */
+async function getPlayerBalance(playerId: string) {
+  // In a real implementation, this would fetch the balance from a database
+  console.log(`Getting balance for player ${playerId}`);
+  
+  // Mock balance response
+  return {
+    success: true,
+    balance: 100.00 // Mock balance
+  };
+}
 
 export default gameAggregatorService;

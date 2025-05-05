@@ -19,12 +19,17 @@ export interface GameProviderConfig {
 
 // Helper function to get consistent callback URL
 const getCallbackUrl = (providerId: string): string => {
-  const baseUrl = window.location.origin;
-  const providerPath = providerId === 'evolution' ? '/evolution' : 
-                       providerId.includes('gsp') ? '/gsp' :
-                       providerId.includes('infin') ? '/infin' : '';
+  // Use window.location.origin if available, otherwise fallback to a default URL
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
   
-  return `${baseUrl}/casino/seamless${providerPath}`;
+  // Map provider IDs to their callback paths
+  const providerPath = providerId.includes('pp') ? '/casino/seamless/pp' : 
+                       providerId === 'evolution' ? '/casino/seamless/evolution' : 
+                       providerId.includes('gsp') ? '/casino/seamless/gsp' :
+                       providerId.includes('infin') ? '/casino/seamless/infin' : 
+                       '/casino/seamless';
+  
+  return `${baseUrl}${providerPath}`;
 };
 
 // Available game providers
