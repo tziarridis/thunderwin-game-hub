@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { useGames } from "@/hooks/useGames";
+import { Game } from "@/types";
 
 interface GameLauncherProps {
   gameId: string;
@@ -40,13 +41,27 @@ const GameLauncher = ({
     try {
       setIsLaunching(true);
       
-      // Instead of using a non-existent getGameById function, 
-      // we'll get the game from the useGames hook or create a minimal game object
+      // Find the game in our games list, or create a fully compliant Game object
       const gameData = games.find(g => g.id === gameId) || {
         id: gameId,
         title: gameName,
-        provider: "unknown"
-      };
+        name: gameName,
+        provider: "unknown",
+        category: "slots",
+        image: "/placeholder.svg",
+        rtp: 96.0,
+        volatility: "medium",
+        minBet: 0.1,
+        maxBet: 100,
+        isPopular: false,
+        isNew: false,
+        isFavorite: false,
+        jackpot: false,
+        releaseDate: new Date().toISOString(),
+        features: [],
+        tags: [],
+        description: ""
+      } as Game;
       
       // Launch the game using useGames hook
       const gameUrl = await launchGame(gameData, {
