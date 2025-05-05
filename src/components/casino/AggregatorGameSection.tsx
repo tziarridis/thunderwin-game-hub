@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,7 +50,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           features: [],
           tags: [],
           description: "",
-          // Additional properties needed for the API - using proper number types
+          // Additional properties needed for the API
           provider_id: 3,
           game_id: game.code,
           game_name: game.name,
@@ -88,7 +89,7 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
           features: [],
           tags: [],
           description: "",
-          // Additional properties needed for the API - using proper number types
+          // Additional properties needed for the API
           provider_id: 1,
           game_id: game.code,
           game_name: game.name,
@@ -171,12 +172,12 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                 {games.map((game) => (
                   <GameCard 
                     key={game.id}
-                    id={String(game.id)}
-                    title={game.title || ''}
-                    image={game.image || ''}
-                    provider={game.provider || ''}
-                    isPopular={!!game.isPopular}
-                    isNew={!!game.isNew}
+                    id={game.id}
+                    title={game.title}
+                    image={game.image}
+                    provider={game.provider}
+                    isPopular={game.isPopular}
+                    isNew={game.isNew}
                     rtp={`${game.rtp}%`}
                     isFavorite={false}
                     minBet={`$${game.minBet}`}
@@ -201,12 +202,12 @@ const AggregatorGameSection = ({ showAllGames = false }) => {
                 {games.map((game) => (
                   <GameCard 
                     key={game.id}
-                    id={String(game.id)}
-                    title={game.title || ''}
-                    image={game.image || ''}
-                    provider={game.provider || ''}
-                    isPopular={!!game.isPopular}
-                    isNew={!!game.isNew}
+                    id={game.id}
+                    title={game.title}
+                    image={game.image}
+                    provider={game.provider}
+                    isPopular={game.isPopular}
+                    isNew={game.isNew}
                     rtp={`${game.rtp}%`}
                     isFavorite={false}
                     minBet={`$${game.minBet}`}
