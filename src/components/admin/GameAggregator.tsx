@@ -291,9 +291,11 @@ const GameAggregator = () => {
                         <p className="text-sm font-semibold">Documentation URL:</p>
                         <p className="text-xs text-gray-400">https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4</p>
                       </div>
-                      <Button size="sm" variant="outline" component="a" href="https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4" target="_blank" className="h-8 px-2">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      <a href="https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4" target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" variant="outline" className="h-8 px-2">
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -375,9 +377,11 @@ const GameAggregator = () => {
                         <p className="text-sm font-semibold">Documentation URL:</p>
                         <p className="text-xs text-gray-400">https://infinapi-docs.axis-stage.infingame.com/</p>
                       </div>
-                      <Button size="sm" variant="outline" component="a" href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" className="h-8 px-2">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                      <a href="https://infinapi-docs.axis-stage.infingame.com/" target="_blank" rel="noopener noreferrer">
+                        <Button size="sm" variant="outline" className="h-8 px-2">
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 </div>

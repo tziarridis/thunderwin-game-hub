@@ -17,6 +17,16 @@ export interface GameProviderConfig {
   credentials: GameProviderCredentials;
 }
 
+// Helper function to get consistent callback URL
+const getCallbackUrl = (providerId: string): string => {
+  const baseUrl = window.location.origin;
+  const providerPath = providerId === 'evolution' ? '/evolution' : 
+                       providerId.includes('gsp') ? '/gsp' :
+                       providerId.includes('infin') ? '/infin' : '';
+  
+  return `${baseUrl}/casino/seamless${providerPath}`;
+};
+
 // Available game providers
 export const availableProviders: GameProviderConfig[] = [
   {
@@ -30,7 +40,7 @@ export const availableProviders: GameProviderConfig[] = [
       apiEndpoint: 'demo.pragmaticplay.net',
       agentId: 'testpartner',
       secretKey: 'testsecret',
-      callbackUrl: `${window.origin}/casino/seamless`,
+      callbackUrl: getCallbackUrl('ppeur'),
     }
   },
   {
@@ -44,7 +54,7 @@ export const availableProviders: GameProviderConfig[] = [
       apiEndpoint: 'demo.pragmaticplay.net',
       agentId: 'testpartner-usd',
       secretKey: 'testsecret-usd',
-      callbackUrl: `${window.origin}/casino/seamless`,
+      callbackUrl: getCallbackUrl('ppusd'),
     }
   },
   {
@@ -58,7 +68,7 @@ export const availableProviders: GameProviderConfig[] = [
       apiEndpoint: 'api.evolution.com',
       agentId: 'demo',
       secretKey: 'secret',
-      callbackUrl: `${window.origin}/casino/seamless/evolution`,
+      callbackUrl: getCallbackUrl('evolution'),
     }
   },
   {
@@ -73,7 +83,7 @@ export const availableProviders: GameProviderConfig[] = [
       agentId: 'partner123',
       secretKey: 'gsp-secret-key',
       token: 'gsp-api-token',
-      callbackUrl: `${window.origin}/casino/seamless/gsp`,
+      callbackUrl: getCallbackUrl('gspeur'),
     }
   },
   {
@@ -88,7 +98,7 @@ export const availableProviders: GameProviderConfig[] = [
       agentId: 'casinothunder',
       secretKey: 'secret-key-here',
       token: 'api-token-here',
-      callbackUrl: 'https://your-api.com/infin/callback',
+      callbackUrl: getCallbackUrl('infineur'),
     }
   }
 ];
@@ -114,6 +124,11 @@ export const updateProviderConfig = (
   const index = availableProviders.findIndex(p => p.id === providerId);
   
   if (index === -1) {
+    // If provider doesn't exist and we have a complete config, add it
+    if (updates.id && updates.name && updates.currency && updates.code && updates.credentials) {
+      availableProviders.push(updates as GameProviderConfig);
+      return true;
+    }
     return false;
   }
   
