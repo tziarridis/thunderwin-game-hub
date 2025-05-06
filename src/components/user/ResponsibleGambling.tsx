@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertTriangle, Ban, Clock, Info, Loader2 } from "lucide-react";
@@ -10,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 interface SelfExclusionSettings {
   exclusion_period: string | null;
@@ -42,25 +41,29 @@ export const ResponsibleGambling = () => {
         setLoading(true);
         
         // Fetch self exclusion settings
-        const { data: walletData, error: walletError } = await supabase
+        const { data, error } = await supabase
           .from('wallets')
           .select('exclusion_period, exclusion_until, time_reminder_enabled, reminder_interval_minutes')
           .eq('user_id', user.id)
           .single();
         
-        if (walletError && walletError.code !== 'PGRST116') {
-          throw walletError;
+        if (error) {
+          if (error.code !== 'PGRST116') { // Not found error
+            console.error("Error fetching responsible gambling settings:", error);
+            toast.error("Failed to load settings");
+          }
+          return;
         }
         
-        if (walletData) {
+        if (data) {
           setSelfExclusionSettings({
-            exclusion_period: walletData.exclusion_period || 'none',
-            exclusion_until: walletData.exclusion_until || null
+            exclusion_period: data.exclusion_period || 'none',
+            exclusion_until: data.exclusion_until || null
           });
           
           setSessionSettings({
-            time_reminder_enabled: walletData.time_reminder_enabled || false,
-            reminder_interval_minutes: walletData.reminder_interval_minutes || 60
+            time_reminder_enabled: data.time_reminder_enabled || false,
+            reminder_interval_minutes: data.reminder_interval_minutes || 60
           });
         }
       } catch (error: any) {

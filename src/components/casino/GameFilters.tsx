@@ -1,424 +1,280 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, FilterX, SlidersHorizontal, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Input,
-  Button,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  Checkbox,
-  Label,
-  Slider
-} from '@/components/ui/';
-import { cn } from '@/lib/utils';
-import { debounce } from 'lodash';
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, X } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Slider } from '@/components/ui/slider';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface GameFilters {
+  category?: string;
+  provider?: string;
+  search?: string;
+  minRTP?: number;
+  isNew?: boolean;
+  isPopular?: boolean;
+  isFeatured?: boolean;
+  hasJackpot?: boolean;
+  sortBy?: 'name' | 'rtp' | 'provider' | 'date' | 'popularity';
+  sortDir?: 'asc' | 'desc';
+}
 
 interface GameFiltersProps {
-  onSearch: (query: string) => void;
-  onFilterChange: (filters: GameFilterOptions) => void;
-  initialFilters?: Partial<GameFilterOptions>;
-  className?: string;
-  availableProviders?: string[];
-  availableCategories?: string[];
+  filters: GameFilters;
+  onFilterChange: (filters: Partial<GameFilters>) => void;
+  expandedView?: boolean;
+  providers?: { id: string; name: string }[];
+  categories?: { id: string; name: string; slug: string }[];
 }
 
-export interface GameFilterOptions {
-  providers: string[];
-  minRTP: number | null;
-  maxRTP: number | null;
-  maxBet: number | null;
-  minBet: number | null;
-  categories: string[];
-  onlyFavorites: boolean;
-  onlyNew: boolean;
-  onlyPopular: boolean;
-  volatility: string | null;
-  sortBy: 'newest' | 'popularity' | 'name' | 'rtp' | null;
-}
-
-const defaultFilters: GameFilterOptions = {
-  providers: [],
-  minRTP: null,
-  maxRTP: null,
-  maxBet: null,
-  minBet: null,
-  categories: [],
-  onlyFavorites: false,
-  onlyNew: false,
-  onlyPopular: false,
-  volatility: null,
-  sortBy: null
-};
-
-export const GameFilters = ({
-  onSearch,
+const GameFilters: React.FC<GameFiltersProps> = ({
+  filters,
   onFilterChange,
-  initialFilters = {},
-  className,
-  availableProviders = ['Pragmatic Play', 'NetEnt', 'Playtech', 'Evolution', 'GitSlotPark'],
-  availableCategories = ['Slots', 'Table Games', 'Live Casino', 'Jackpots', 'New', 'Popular']
-}: GameFiltersProps) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState<GameFilterOptions>({
-    ...defaultFilters,
-    ...initialFilters
+  expandedView = false,
+  providers: propProviders,
+  categories: propCategories,
+}) => {
+  const [search, setSearch] = useState(filters.search || '');
+  const [minRTP, setMinRTP] = useState<number>(filters.minRTP || 0);
+  const [providers, setProviders] = useState<{ id: string; name: string }[]>(propProviders || []);
+  const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>(propCategories || []);
+  const [loading, setLoading] = useState({
+    providers: !propProviders,
+    categories: !propCategories
   });
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [rtpRange, setRtpRange] = useState<[number, number]>([filters.minRTP || 90, filters.maxRTP || 98]);
-  const [betRange, setBetRange] = useState<[number, number]>([filters.minBet || 0.1, filters.maxBet || 100]);
   
-  // Debounce search for better performance
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      onSearch(query);
-    }, 300),
-    [onSearch]
-  );
-  
-  // Effect for search query
+  // Fetch providers and categories if not provided as props
   useEffect(() => {
-    debouncedSearch(searchQuery);
-    return () => debouncedSearch.cancel();
-  }, [searchQuery, debouncedSearch]);
-  
-  // Effect for filter changes
-  useEffect(() => {
-    // Update filters with proper range values
-    const updatedFilters = {
-      ...filters,
-      minRTP: rtpRange[0],
-      maxRTP: rtpRange[1],
-      minBet: betRange[0],
-      maxBet: betRange[1]
+    const fetchData = async () => {
+      if (!propProviders) {
+        setLoading(prev => ({ ...prev, providers: true }));
+        try {
+          const { data, error } = await supabase
+            .from('providers')
+            .select('id, name')
+            .eq('status', 'active')
+            .order('name');
+            
+          if (error) throw error;
+          setProviders(data || []);
+        } catch (error) {
+          console.error('Error fetching providers:', error);
+          toast.error('Failed to load game providers');
+        } finally {
+          setLoading(prev => ({ ...prev, providers: false }));
+        }
+      }
+      
+      if (!propCategories) {
+        setLoading(prev => ({ ...prev, categories: true }));
+        try {
+          const { data, error } = await supabase
+            .from('game_categories')
+            .select('id, name, slug')
+            .eq('status', 'active')
+            .order('name');
+            
+          if (error) throw error;
+          setCategories(data || []);
+        } catch (error) {
+          console.error('Error fetching categories:', error);
+          toast.error('Failed to load game categories');
+        } finally {
+          setLoading(prev => ({ ...prev, categories: false }));
+        }
+      }
     };
-    onFilterChange(updatedFilters);
-  }, [filters, rtpRange, betRange, onFilterChange]);
+    
+    fetchData();
+  }, [propProviders, propCategories]);
   
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
+    setSearch(e.target.value);
   };
   
-  const handleClearSearch = () => {
-    setSearchQuery('');
-    debouncedSearch('');
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onFilterChange({ search });
   };
   
-  const handleFilterChange = (newFilters: Partial<GameFilterOptions>) => {
-    const updatedFilters = { ...filters, ...newFilters };
-    setFilters(updatedFilters);
-  };
-  
-  const handleCheckboxChange = (
-    category: 'providers' | 'categories',
-    value: string,
-    checked: boolean
-  ) => {
-    const currentValues = [...filters[category]];
-    
-    if (checked && !currentValues.includes(value)) {
-      handleFilterChange({ [category]: [...currentValues, value] });
-    } else if (!checked && currentValues.includes(value)) {
-      handleFilterChange({ 
-        [category]: currentValues.filter(item => item !== value) 
-      });
-    }
-  };
-  
-  const handleRtpRangeChange = (value: [number, number]) => {
-    setRtpRange(value);
-  };
-  
-  const handleBetRangeChange = (value: [number, number]) => {
-    setBetRange(value);
-  };
-  
-  const handleVolatilityChange = (volatility: string | null) => {
-    handleFilterChange({ volatility });
-  };
-  
-  const handleSortChange = (sortBy: 'newest' | 'popularity' | 'name' | 'rtp' | null) => {
-    handleFilterChange({ sortBy });
-    setFiltersOpen(false);
-  };
-  
-  const countActiveFilters = () => {
-    let count = 0;
-    if (filters.providers.length > 0) count++;
-    if (filters.categories.length > 0) count++;
-    if (filters.minRTP !== null && filters.minRTP > 90) count++;
-    if (filters.maxRTP !== null && filters.maxRTP < 98) count++;
-    if (filters.minBet !== null && filters.minBet > 0.1) count++;
-    if (filters.maxBet !== null && filters.maxBet < 100) count++;
-    if (filters.onlyFavorites) count++;
-    if (filters.onlyNew) count++;
-    if (filters.onlyPopular) count++;
-    if (filters.volatility !== null) count++;
-    if (filters.sortBy !== null) count++;
-    return count;
-  };
-  
-  const handleResetFilters = () => {
-    setFilters(defaultFilters);
-    setRtpRange([90, 98]);
-    setBetRange([0.1, 100]);
+  const handleReset = () => {
+    setSearch('');
+    setMinRTP(0);
+    onFilterChange({
+      category: undefined,
+      provider: undefined,
+      search: '',
+      minRTP: 0,
+      isNew: false,
+      isPopular: false,
+      isFeatured: false,
+      hasJackpot: false,
+      sortBy: 'popularity',
+      sortDir: 'desc'
+    });
   };
   
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="relative">
-        <Input
-          type="text"
-          placeholder="Search games or providers..."
-          value={searchQuery}
-          onChange={handleSearchChange}
-          className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
-        />
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-        {searchQuery && (
-          <Button 
-            variant="ghost" 
-            className="absolute right-2 top-1/2 transform -translate-y-1/2" 
-            onClick={handleClearSearch}
-          >
-            <FilterX size={18} />
-          </Button>
-        )}
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          {filters.sortBy && (
-            <Badge variant="secondary" className="bg-casino-thunder-green/20 text-casino-thunder-green">
-              Sort: {filters.sortBy}
-              <Button variant="ghost" size="sm" className="h-4 w-4 p-0 ml-1" onClick={() => handleSortChange(null)}>
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          )}
-        </div>
-        
-        <div className="text-sm text-white/60">
-          {countActiveFilters() > 0 && `${countActiveFilters()} filters applied`}
-        </div>
-        
-        <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-          <PopoverTrigger asChild>
+    <Card className="mb-6 bg-white/5">
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Search Box */}
+          <div className="lg:col-span-3">
+            <form onSubmit={handleSearchSubmit} className="relative">
+              <Input
+                placeholder="Search games..."
+                value={search}
+                onChange={handleSearchChange}
+                className="pr-10"
+              />
+              <button 
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+          
+          {/* Category Filter */}
+          <div className="lg:col-span-2">
+            <Select
+              value={filters.category}
+              onValueChange={value => onFilterChange({ category: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map(category => (
+                  <SelectItem key={category.id} value={category.slug}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Provider Filter */}
+          <div className="lg:col-span-2">
+            <Select
+              value={filters.provider}
+              onValueChange={value => onFilterChange({ provider: value })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Providers</SelectItem>
+                {providers.map(provider => (
+                  <SelectItem key={provider.id} value={provider.name}>
+                    {provider.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Sort Filter */}
+          <div className="lg:col-span-2">
+            <Select
+              value={filters.sortBy}
+              onValueChange={(value: 'name' | 'rtp' | 'provider' | 'date' | 'popularity') => 
+                onFilterChange({ sortBy: value })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="popularity">Popularity</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="rtp">RTP</SelectItem>
+                <SelectItem value="provider">Provider</SelectItem>
+                <SelectItem value="date">Release Date</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Toggle Buttons */}
+          <div className="lg:col-span-2 flex flex-wrap gap-2 items-center">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="isNew" 
+                checked={filters.isNew} 
+                onCheckedChange={value => onFilterChange({ isNew: !!value })}
+              />
+              <Label htmlFor="isNew">New</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="isPopular" 
+                checked={filters.isPopular} 
+                onCheckedChange={value => onFilterChange({ isPopular: !!value })}
+              />
+              <Label htmlFor="isPopular">Popular</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="hasJackpot" 
+                checked={filters.hasJackpot} 
+                onCheckedChange={value => onFilterChange({ hasJackpot: !!value })}
+              />
+              <Label htmlFor="hasJackpot">Jackpot</Label>
+            </div>
+          </div>
+          
+          {/* Reset Button */}
+          <div className="lg:col-span-1 flex justify-end">
             <Button 
               variant="outline" 
-              className={cn(
-                "border-white/10", 
-                countActiveFilters() > 0 && "border-casino-thunder-green text-casino-thunder-green"
-              )}
+              size="icon"
+              onClick={handleReset}
+              title="Clear all filters"
             >
-              <SlidersHorizontal className="mr-2 h-4 w-4" />
-              Filters
-              {countActiveFilters() > 0 && (
-                <span className="ml-2 bg-casino-thunder-green/20 text-casino-thunder-green rounded-full px-2 py-0.5 text-xs">
-                  {countActiveFilters()}
-                </span>
-              )}
+              <X className="h-4 w-4" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80 sm:w-[400px] p-4 bg-casino-thunder-dark border border-white/10">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="font-medium">Game Filters</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={handleResetFilters}
-                  className="text-sm text-white/70"
-                >
-                  Reset All
-                </Button>
+          </div>
+        </div>
+        
+        {/* RTP Slider (Expanded View) */}
+        {expandedView && (
+          <div className="mt-4 grid grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <Label htmlFor="rtp">RTP: {minRTP}%+</Label>
               </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">Sort By</h4>
-                <div className="flex flex-wrap gap-2">
-                  {(["newest", "popularity", "name", "rtp"] as const).map(sortOption => (
-                    <Button 
-                      key={sortOption}
-                      variant={filters.sortBy === sortOption ? "default" : "outline"}
-                      size="sm"
-                      className={filters.sortBy === sortOption ? "bg-casino-thunder-green text-black" : ""}
-                      onClick={() => handleSortChange(sortOption)}
-                    >
-                      {sortOption === "newest" ? "Newest" : 
-                       sortOption === "popularity" ? "Popular" :
-                       sortOption === "name" ? "Name (A-Z)" : "RTP"}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">Quick Filters</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="only-favorites"
-                      checked={filters.onlyFavorites}
-                      onCheckedChange={(checked) => 
-                        handleFilterChange({ onlyFavorites: !!checked })
-                      }
-                    />
-                    <Label htmlFor="only-favorites" className="text-sm">Favorites</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="only-new"
-                      checked={filters.onlyNew}
-                      onCheckedChange={(checked) => 
-                        handleFilterChange({ onlyNew: !!checked })
-                      }
-                    />
-                    <Label htmlFor="only-new" className="text-sm">New Games</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="only-popular"
-                      checked={filters.onlyPopular}
-                      onCheckedChange={(checked) => 
-                        handleFilterChange({ onlyPopular: !!checked })
-                      }
-                    />
-                    <Label htmlFor="only-popular" className="text-sm">Popular</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">RTP Range</h4>
-                <div className="px-2 py-4">
-                  <Slider
-                    defaultValue={[90, 98]}
-                    min={85}
-                    max={99}
-                    step={0.5}
-                    value={rtpRange}
-                    onValueChange={handleRtpRangeChange}
-                  />
-                  <div className="flex justify-between mt-2 text-xs text-white/70">
-                    <span>{rtpRange[0]}%</span>
-                    <span>{rtpRange[1]}%</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">Bet Range ($)</h4>
-                <div className="px-2 py-4">
-                  <Slider
-                    defaultValue={[0.1, 100]}
-                    min={0.1}
-                    max={500}
-                    step={0.1}
-                    value={betRange}
-                    onValueChange={handleBetRangeChange}
-                  />
-                  <div className="flex justify-between mt-2 text-xs text-white/70">
-                    <span>${betRange[0].toFixed(1)}</span>
-                    <span>${betRange[1].toFixed(1)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">Volatility</h4>
-                <div className="flex gap-2">
-                  {['Low', 'Medium', 'High'].map(vol => (
-                    <Button
-                      key={vol}
-                      variant={filters.volatility === vol.toLowerCase() ? "default" : "outline"}
-                      size="sm"
-                      className={filters.volatility === vol.toLowerCase() ? "bg-casino-thunder-green text-black" : ""}
-                      onClick={() => handleVolatilityChange(
-                        filters.volatility === vol.toLowerCase() ? null : vol.toLowerCase()
-                      )}
-                    >
-                      {vol}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-2 border-b border-white/10 pb-4">
-                <h4 className="text-sm font-medium text-white/70">Providers</h4>
-                <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto pr-2">
-                  {availableProviders.map(provider => (
-                    <div key={provider} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`provider-${provider}`}
-                        checked={filters.providers.includes(provider)}
-                        onCheckedChange={(checked) => 
-                          handleCheckboxChange('providers', provider, !!checked)
-                        }
-                      />
-                      <Label htmlFor={`provider-${provider}`} className="text-sm">
-                        {provider}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-white/70">Categories</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {availableCategories.map(category => (
-                    <div key={category} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`category-${category}`}
-                        checked={filters.categories.includes(category)}
-                        onCheckedChange={(checked) => 
-                          handleCheckboxChange('categories', category, !!checked)
-                        }
-                      />
-                      <Label htmlFor={`category-${category}`} className="text-sm">
-                        {category}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="border-t border-white/10 pt-4">
-                <Button 
-                  size="sm"
-                  onClick={() => setFiltersOpen(false)}
-                  className="w-full"
-                >
-                  Apply Filters
-                </Button>
-              </div>
+              <Slider
+                id="rtp"
+                min={80}
+                max={99}
+                step={1}
+                value={[minRTP]}
+                onValueChange={value => {
+                  setMinRTP(value[0]);
+                  onFilterChange({ minRTP: value[0] });
+                }}
+              />
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-    </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
-
-// Create Badge component for filter tags
-const Badge = React.forwardRef<HTMLDivElement, React.ComponentPropsWithoutRef<'div'> & { variant?: 'default' | 'secondary' | 'outline' }>(
-  ({ className, variant = 'default', ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-          variant === 'default' && "bg-primary text-primary-foreground hover:bg-primary/80",
-          variant === 'secondary' && "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-          variant === 'outline' && "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-          className
-        )}
-        {...props}
-      />
-    );
-  }
-);
-Badge.displayName = "Badge";
 
 export default GameFilters;

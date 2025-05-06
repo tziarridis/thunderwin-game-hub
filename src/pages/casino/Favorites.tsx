@@ -1,15 +1,13 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
 import { Game } from '@/types';
-import { Heart } from 'lucide-react';
+import { Heart, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { scrollToTop } from '@/utils/scrollUtils';
-import GameSectionLoading from '@/components/casino/GameSectionLoading';
-
-// Update the import to use the new component name
+import { supabase } from '@/integrations/supabase/client';
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 const Favorites = () => {
@@ -38,9 +36,46 @@ const Favorites = () => {
         throw new Error("User ID is not available");
       }
       
-      // For now, return empty array since we don't have the proper tables
-      // This can be updated once the appropriate tables are created
-      setFavoriteGames([]);
+      // Fetch favorite game IDs
+      const { data: favoriteIds, error: favError } = await supabase
+        .from('favorite_games')
+        .select('game_id')
+        .eq('user_id', user.id);
+        
+      if (favError) throw favError;
+      
+      if (!favoriteIds || favoriteIds.length === 0) {
+        setFavoriteGames([]);
+        setLoading(false);
+        return;
+      }
+      
+      const gameIds = favoriteIds.map(fav => fav.game_id);
+      
+      // Fetch game details
+      const { data: games, error: gamesError } = await supabase
+        .from('games')
+        .select('*, providers(name)')
+        .in('id', gameIds);
+        
+      if (gamesError) throw gamesError;
+      
+      // Format games data
+      const formattedGames = games?.map(game => ({
+        id: game.id,
+        title: game.game_name,
+        provider: game.providers?.name || 'Unknown',
+        image: game.cover || '/placeholder.svg',
+        category: game.game_type,
+        rtp: game.rtp,
+        isPopular: game.is_popular,
+        isNew: game.is_new,
+        isFavorite: true, // Since these are favorites
+        minBet: game.min_bet,
+        maxBet: game.max_bet
+      })) || [];
+      
+      setFavoriteGames(formattedGames);
       
     } catch (error: any) {
       console.error("Error loading favorite games:", error);
@@ -63,7 +98,9 @@ const Favorites = () => {
       </div>
   
       {loading ? (
-        <GameSectionLoading />
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+        </div>
       ) : error ? (
         <div className="text-center py-12">
           <p className="text-xl mb-4">Failed to load favorite games.</p>

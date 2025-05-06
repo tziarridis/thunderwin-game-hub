@@ -8,6 +8,7 @@ import { AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Slider } from "@/components/ui/slider";
 
 interface UserGamblingLimitsProps {
   userId: string;
@@ -41,8 +42,12 @@ export const UserGamblingLimits = ({ userId }: UserGamblingLimitsProps) => {
           .eq('user_id', userId)
           .single();
         
-        if (error && error.code !== 'PGRST116') {
-          throw error;
+        if (error) {
+          if (error.code !== 'PGRST116') { // Not found error
+            console.error("Error fetching gambling limits:", error);
+            toast.error("Failed to load gambling limits");
+          }
+          return;
         }
         
         if (data) {
