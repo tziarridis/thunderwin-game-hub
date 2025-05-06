@@ -1,30 +1,57 @@
 
-// Export all UI components for easier imports
-export { Button } from "./button";
-export { Input } from "./input";
-export { Label } from "./label";
-export { Switch } from "./switch";
-export { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./card";
-export { Checkbox } from "./checkbox";
-export { 
+import { Button, buttonVariants } from "./button";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from "./card";
+import { Input } from "./input";
+import { Label } from "./label";
+import { 
   Select, 
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
+  SelectContent, 
+  SelectGroup, 
+  SelectItem, 
+  SelectLabel, 
+  SelectTrigger, 
   SelectValue 
 } from "./select";
-export { 
+import { Switch } from "./switch";
+import { 
+  Popover, 
+  PopoverTrigger, 
+  PopoverContent, 
+  PopoverAnchor 
+} from "./popover";
+import { Checkbox } from "./checkbox";
+import { Slider } from "./slider";
+
+export {
+  Button,
+  buttonVariants,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent, 
+  SelectGroup, 
+  SelectItem, 
+  SelectLabel, 
+  SelectTrigger, 
+  SelectValue,
+  Switch,
   Popover,
   PopoverTrigger,
   PopoverContent,
-  PopoverAnchor 
-} from "./popover";
-export {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "./tabs";
-export { ScrollArea } from "./scroll-area";
+  PopoverAnchor,
+  Checkbox,
+  Slider
+};

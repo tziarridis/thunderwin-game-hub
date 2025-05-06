@@ -1,15 +1,22 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle, Info, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UserGamblingLimitsProps {
   userId: string;
+}
+
+export interface GamblingLimits {
+  dailyLimit: number;
+  weeklyLimit: number;
+  monthlyLimit: number;
 }
 
 export const UserGamblingLimits = ({ userId }: UserGamblingLimitsProps) => {
@@ -17,22 +24,90 @@ export const UserGamblingLimits = ({ userId }: UserGamblingLimitsProps) => {
   const [weeklyLimit, setWeeklyLimit] = useState<number>(0);
   const [monthlyLimit, setMonthlyLimit] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // Fetch user gambling limits on component mount
+  useEffect(() => {
+    if (!userId) return;
+    
+    const fetchGamblingLimits = async () => {
+      try {
+        setLoading(true);
+        
+        // First check if we have a gambling_limits record for this user
+        const { data, error } = await supabase
+          .from('wallets')
+          .select('deposit_limit_daily, deposit_limit_weekly, deposit_limit_monthly')
+          .eq('user_id', userId)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+        
+        if (data) {
+          // Set the gambling limits if they exist
+          setDailyLimit(data.deposit_limit_daily || 0);
+          setWeeklyLimit(data.deposit_limit_weekly || 0);
+          setMonthlyLimit(data.deposit_limit_monthly || 0);
+        }
+      } catch (error: any) {
+        console.error("Error fetching gambling limits:", error);
+        toast.error("Failed to load gambling limits");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchGamblingLimits();
+  }, [userId]);
   
   const handleSaveLimits = async () => {
+    if (!userId) {
+      toast.error("You must be logged in to save limits");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      // Here we'd normally save to a database
-      // For now, we'll just simulate success
-      setTimeout(() => {
-        toast.success('Your gambling limits have been updated');
-        setIsSubmitting(false);
-      }, 1000);
+      // Update the gambling limits in the wallet table
+      const { error } = await supabase
+        .from('wallets')
+        .update({
+          deposit_limit_daily: dailyLimit,
+          deposit_limit_weekly: weeklyLimit,
+          deposit_limit_monthly: monthlyLimit,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      toast.success('Your gambling limits have been updated');
     } catch (error: any) {
-      toast.error('Failed to update limits');
+      console.error("Error saving gambling limits:", error);
+      toast.error('Failed to update limits: ' + (error.message || 'Unknown error'));
+    } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <Card className="w-full mb-8">
+        <CardHeader className="bg-amber-500/10">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <CardTitle>Gambling Limits</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full mb-8">
