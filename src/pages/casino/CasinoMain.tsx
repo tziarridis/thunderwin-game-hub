@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,12 +6,12 @@ import { Search, FilterX } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
-import GameCard from "@/components/games/GameCard";
 import RecentBigWins from "@/components/casino/RecentBigWins";
 import GameCategories from "@/components/casino/GameCategories";
 import AggregatorGameSection from "@/components/casino/AggregatorGameSection";
 import { useAuth } from "@/contexts/AuthContext";
 import { scrollToTop } from "@/utils/scrollUtils";
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 // Mock data for configurable banners from backend
 const banners = [
@@ -215,27 +214,13 @@ const CasinoMain = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredGames.map(game => (
-              <GameCard 
-                key={game.id}
-                id={game.id}
-                title={game.title}
-                image={game.image}
-                provider={game.provider}
-                isPopular={game.isPopular}
-                isNew={game.isNew}
-                rtp={game.rtp}
-                isFavorite={game.isFavorite}
-                minBet={game.minBet}
-                maxBet={game.maxBet}
-                onClick={() => {
-                  navigate(`/casino/game/${game.id}`);
-                  scrollToTop();
-                }}
-              />
-            ))}
-          </div>
+          <CasinoGameGrid
+            games={filteredGames}
+            onGameClick={(game) => {
+              navigate(`/casino/game/${game.id}`);
+              scrollToTop();
+            }}
+          />
         )}
       </div>
     </div>

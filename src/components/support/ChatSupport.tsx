@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageCircle, Send, X, Loader, User, Bot } from "lucide-react";
+import { MessageCircle, Send, X, Loader, User, Bot, CheckCheck, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -204,7 +204,7 @@ export function ChatSupport() {
                                 <span className="ml-1">
                                   {msg.status === 'sending' && <Loader size={10} className="animate-spin" />}
                                   {msg.status === 'sent' && <Check size={10} />}
-                                  {msg.status === 'seen' && <Check size={10} className="text-blue-400" />}
+                                  {msg.status === 'seen' && <CheckCheck size={10} className="text-blue-400" />}
                                 </span>
                               )}
                             </div>
@@ -215,7 +215,7 @@ export function ChatSupport() {
                       {msg.sender === 'user' && (
                         <div className="flex-shrink-0 ml-2">
                           <Avatar className="size-8">
-                            <AvatarImage src={user?.avatar || ""} />
+                            <AvatarImage src={user?.avatar_url || ""} />
                             <AvatarFallback><User size={14} /></AvatarFallback>
                           </Avatar>
                         </div>

@@ -1,195 +1,98 @@
-import React, { useState, useEffect } from "react";
-import { Heart, Search, SlidersHorizontal, Info } from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import GameGrid from "@/components/casino/GameGrid";
-import { useGames } from "@/hooks/useGames";
-import { motion } from "framer-motion";
-import WinningSlideshow from "@/components/casino/WinningSlideshow";
-import GameCategories from "@/components/casino/GameCategories";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Game } from '@/types';
+import { Heart } from 'lucide-react';
+import { toast } from 'sonner';
+import { scrollToTop } from '@/utils/scrollUtils';
+import GameSectionLoading from '@/components/casino/GameSectionLoading';
 
-const FavoritesPage = () => {
-  const { games, loading, error } = useGames();
-  const [searchTerm, setSearchTerm] = useState("");
-  const { isAuthenticated, user } = useAuth();
+// Update the import to use the new component name
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
+
+const Favorites = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const navigate = useNavigate();
-  const [favoriteGames, setFavoriteGames] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (isAuthenticated && user) {
-      fetchFavoriteGames();
-    } else {
-      setIsLoading(false);
+    if (!isAuthenticated) {
+      navigate('/login');
+      toast.error("Please log in to view your favorites");
+      return;
     }
-  }, [isAuthenticated, user, games]);
+    
+    loadFavoriteGames();
+  }, [isAuthenticated, user, navigate]);
   
-  const fetchFavoriteGames = async () => {
+  const loadFavoriteGames = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      setIsLoading(true);
-      
-      // Fetch user's favorite game IDs using a stored procedure
-      const { data: favoriteData, error: favoriteError } = await supabase
-        .rpc('get_user_favorites', { p_user_id: user?.id });
-        
-      if (favoriteError) throw favoriteError;
-      
-      // Create a set of favorite game IDs for quick lookup
-      const favoriteIds = new Set((favoriteData || []).map((item: any) => item.game_id));
-      
-      // Filter games that are in the favorites list and match search term
-      const filteredGames = games
-        .filter(game => 
-          favoriteIds.has(game.id) && 
-          (searchTerm === "" || game.title.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-        .map(game => ({
-          ...game,
-          isFavorite: true // Mark all games as favorites since this is the favorites page
-        }));
-      
-      setFavoriteGames(filteredGames);
-    } catch (error) {
-      console.error("Error fetching favorite games:", error);
-      toast.error("Failed to load favorite games");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Handle game click
-  const handleGameClick = (game: any) => {
-    toast.info(`Opening ${game.title}`);
-    navigate(`/casino/game/${game.id}`);
-  };
-  
-  // Animation variants
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
+      if (!user?.id) {
+        throw new Error("User ID is not available");
       }
+      
+      const { data, error } = await supabase
+        .from('user_favorite_games')
+        .select('game_id, games(*)')
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      
+      if (data) {
+        const games = data.map(item => ({
+          ...(item.games as any),
+          isFavorite: true,
+        })) as Game[];
+        setFavoriteGames(games);
+      } else {
+        setFavoriteGames([]);
+      }
+    } catch (error: any) {
+      console.error("Error loading favorite games:", error);
+      setError(error);
+      toast.error(error.message || "Failed to load favorite games");
+    } finally {
+      setLoading(false);
     }
+  };
+  
+  const retryLoading = () => {
+    loadFavoriteGames();
   };
 
-  return (
-    <div className="bg-casino-thunder-darker min-h-screen pb-16 relative overflow-hidden">
-      <WinningSlideshow />
-      
-      <div className="pt-20 container mx-auto px-4">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between mb-8"
-        >
-          <div className="mb-4 md:mb-0">
-            <h1 className="text-3xl font-bold text-white flex items-center">
-              <Heart className="mr-3 h-8 w-8 text-pink-500" />
-              Favorite Games
-            </h1>
-            <p className="text-white/60 mt-2">
-              Your collection of favorite games for quick access
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/50" />
-              <Input
-                type="text"
-                placeholder="Search favorites..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/5 border-white/10 text-white w-full sm:w-60 md:w-80"
-              />
-            </div>
-            
-            <Button variant="outline" className="flex items-center gap-2 border-white/10 bg-white/5">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span>Filters</span>
-            </Button>
-          </div>
-        </motion.div>
-        
-        {/* Game Categories */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-          <GameCategories onCategoryClick={(category) => navigate(`/casino/${category}`)} />
-        </div>
-        
-        {/* Game Display */}
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-        >
-          <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <Heart className="mr-2 h-5 w-5 text-pink-500" />
-            Your Favorite Games ({favoriteGames.length})
-          </h2>
-          
-          {!isAuthenticated ? (
-            <div className="text-center py-12 bg-white/5 rounded-lg">
-              <Heart className="h-16 w-16 text-white/30 mx-auto mb-4" />
-              <p className="text-xl mb-4 text-white/70">Please log in to see your favorite games</p>
-              <p className="text-sm text-white/50 mb-6">Save your favorite games for quick and easy access</p>
-              <Button 
-                variant="default" 
-                className="bg-casino-thunder-green text-black mr-3"
-                onClick={() => navigate('/login')}
-              >
-                Log In
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-casino-thunder-green text-casino-thunder-green"
-                onClick={() => navigate('/register')}
-              >
-                Register
-              </Button>
-            </div>
-          ) : isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-pulse text-white/70">Loading games...</div>
-            </div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">Error loading games</div>
-          ) : favoriteGames.length === 0 ? (
-            <div className="text-center py-12 bg-white/5 rounded-lg">
-              <Heart className="h-16 w-16 text-white/30 mx-auto mb-4" />
-              <p className="text-xl mb-4 text-white/70">You don't have any favorite games yet</p>
-              <p className="text-sm text-white/50 mb-6">Click the heart icon on any game to add it to your favorites</p>
-              <Button 
-                variant="outline" 
-                className="border-casino-thunder-green text-casino-thunder-green"
-                onClick={() => navigate('/casino')}
-              >
-                Explore Games
-              </Button>
-            </div>
-          ) : (
-            <>
-              <GameGrid games={favoriteGames} onGameClick={handleGameClick} />
-              
-              <div className="mt-6 bg-white/5 p-4 rounded-lg flex items-start text-white/70 text-sm">
-                <Info className="h-5 w-5 mr-3 mt-0.5 flex-shrink-0" />
-                <p>
-                  To add or remove games from your favorites, click the heart icon on any game card. 
-                  Your favorite games will be saved to your account for quick access.
-                </p>
-              </div>
-            </>
-          )}
-        </motion.div>
+// Use the renamed component 
+return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-white">Your Favorite Games</h1>
+        <p className="text-white/70">Here are the games you've marked as your favorites.</p>
       </div>
+  
+  {loading ? (
+    <GameSectionLoading />
+  ) : error ? (
+    <div className="text-center py-12">
+      <p className="text-xl mb-4">Failed to load favorite games.</p>
+      <Button onClick={retryLoading}>Retry</Button>
+    </div>
+  ) : (
+    <CasinoGameGrid 
+      games={favoriteGames} 
+      onGameClick={(game) => {
+        navigate(`/casino/game/${game.id}`);
+        scrollToTop();
+      }}
+    />
+  )}
     </div>
   );
 };
 
-export default FavoritesPage;
+export default Favorites;
