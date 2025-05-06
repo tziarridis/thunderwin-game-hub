@@ -18,7 +18,16 @@ export async function handleSeamlessCallback(req: Request) {
     console.log(`Received callback for provider: ${provider} via path: ${url.pathname}`);
     
     // Parse the request body
-    const data = await req.json();
+    let data;
+    try {
+      data = await req.json();
+    } catch (error) {
+      console.error('Failed to parse request body:', error);
+      // If JSON parsing fails, try to get raw text
+      const text = await req.text();
+      console.log('Raw request body:', text);
+      throw new Error('Invalid JSON in request body');
+    }
     
     console.log(`Received seamless callback for provider: ${provider}`, data);
     

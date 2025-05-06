@@ -100,7 +100,7 @@ const getMockUserBonuses = (userId: string): UserBonus[] => {
 const getMockVipLevels = (): VipLevel[] => {
   return [
     {
-      id: '1',
+      id: 1,
       name: 'Bronze',
       pointsRequired: 0,
       cashbackRate: 0.01,
@@ -110,7 +110,7 @@ const getMockVipLevels = (): VipLevel[] => {
       status: 'active'
     },
     {
-      id: '2',
+      id: 2,
       name: 'Silver',
       pointsRequired: 1000,
       cashbackRate: 0.02,
@@ -120,7 +120,7 @@ const getMockVipLevels = (): VipLevel[] => {
       status: 'active'
     },
     {
-      id: '3',
+      id: 3,
       name: 'Gold',
       pointsRequired: 5000,
       cashbackRate: 0.05,

@@ -1,61 +1,64 @@
 
-import { v4 as uuidv4 } from 'uuid';
-import { PPGameConfig } from './pragmaticPlayConfig';
-
-interface PPSession {
-  sessionId: string;
-  playerId: string;
-  gameCode?: string;
-  currency: string;
-  startTime: number;
-  lastActivity: number;
-  active: boolean;
-  token?: string;
-  balance?: number;
-  roundId?: string;
-}
-
 /**
  * Service for managing Pragmatic Play game sessions
  */
 export const pragmaticPlaySessionService = {
   /**
-   * Create a new session for a player
+   * Create a new game session
    */
-  createSession: async (
-    playerId: string, 
-    gameCode: string | undefined,
-    currency: string
-  ): Promise<PPSession> => {
-    const session: PPSession = {
-      sessionId: `pp_${uuidv4()}`,
+  createSession: async (playerId: string, gameCode: string, currency: string) => {
+    const sessionId = `session_${playerId}_${Date.now()}`;
+    const token = `token_${playerId}_${Date.now()}`;
+    
+    const session = {
+      sessionId,
+      token,
       playerId,
       gameCode,
       currency,
-      startTime: Date.now(),
-      lastActivity: Date.now(),
-      active: true,
-      token: uuidv4().replace(/-/g, '')
+      balance: 0,
+      createdAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      status: 'active'
     };
     
-    // Store the session (in a real implementation, this would be in a database)
+    // In a real implementation, store the session in a database or cache
+    // For this example, we'll use localStorage as a simple storage
     await pragmaticPlaySessionService.storeSession(session);
     
     return session;
   },
   
   /**
+   * Store a session
+   */
+  storeSession: async (session: any) => {
+    try {
+      // In a real implementation, store in a database
+      // For this example, we'll use localStorage
+      if (typeof window !== 'undefined') {
+        const sessions = JSON.parse(localStorage.getItem('pp_sessions') || '{}');
+        sessions[session.sessionId] = session;
+        localStorage.setItem('pp_sessions', JSON.stringify(sessions));
+      }
+      return true;
+    } catch (error) {
+      console.error('Error storing session:', error);
+      return false;
+    }
+  },
+  
+  /**
    * Get a session by ID
    */
-  getSession: async (sessionId: string): Promise<PPSession | null> => {
-    // In a real implementation, this would fetch from the database
-    const sessions = localStorage.getItem('pp_sessions');
-    if (!sessions) return null;
-    
+  getSession: async (sessionId: string) => {
     try {
-      const sessionData = JSON.parse(sessions) as PPSession[];
-      const session = sessionData.find(s => s.sessionId === sessionId);
-      return session || null;
+      // In a real implementation, get from a database
+      if (typeof window !== 'undefined') {
+        const sessions = JSON.parse(localStorage.getItem('pp_sessions') || '{}');
+        return sessions[sessionId] || null;
+      }
+      return null;
     } catch (error) {
       console.error('Error getting session:', error);
       return null;
@@ -63,45 +66,17 @@ export const pragmaticPlaySessionService = {
   },
   
   /**
-   * Get a session by player ID and game code
+   * Update session activity timestamp
    */
-  getSessionByPlayerAndGame: async (playerId: string, gameCode?: string): Promise<PPSession | null> => {
-    // In a real implementation, this would fetch from the database
-    const sessions = localStorage.getItem('pp_sessions');
-    if (!sessions) return null;
-    
+  updateSessionActivity: async (sessionId: string) => {
     try {
-      const sessionData = JSON.parse(sessions) as PPSession[];
-      const session = sessionData.find(s => 
-        s.playerId === playerId && 
-        (gameCode ? s.gameCode === gameCode : true) && 
-        s.active
-      );
-      return session || null;
-    } catch (error) {
-      console.error('Error getting session by player and game:', error);
-      return null;
-    }
-  },
-  
-  /**
-   * Update a session's activity timestamp
-   */
-  updateSessionActivity: async (sessionId: string): Promise<boolean> => {
-    // In a real implementation, this would update the database
-    const sessions = localStorage.getItem('pp_sessions');
-    if (!sessions) return false;
-    
-    try {
-      const sessionData = JSON.parse(sessions) as PPSession[];
-      const sessionIndex = sessionData.findIndex(s => s.sessionId === sessionId);
-      
-      if (sessionIndex === -1) return false;
-      
-      sessionData[sessionIndex].lastActivity = Date.now();
-      localStorage.setItem('pp_sessions', JSON.stringify(sessionData));
-      
-      return true;
+      const session = await pragmaticPlaySessionService.getSession(sessionId);
+      if (session) {
+        session.lastActivity = new Date().toISOString();
+        await pragmaticPlaySessionService.storeSession(session);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Error updating session activity:', error);
       return false;
@@ -111,64 +86,19 @@ export const pragmaticPlaySessionService = {
   /**
    * End a session
    */
-  endSession: async (sessionId: string): Promise<boolean> => {
-    // In a real implementation, this would update the database
-    const sessions = localStorage.getItem('pp_sessions');
-    if (!sessions) return false;
-    
+  endSession: async (sessionId: string) => {
     try {
-      const sessionData = JSON.parse(sessions) as PPSession[];
-      const sessionIndex = sessionData.findIndex(s => s.sessionId === sessionId);
-      
-      if (sessionIndex === -1) return false;
-      
-      sessionData[sessionIndex].active = false;
-      localStorage.setItem('pp_sessions', JSON.stringify(sessionData));
-      
-      return true;
+      const session = await pragmaticPlaySessionService.getSession(sessionId);
+      if (session) {
+        session.status = 'ended';
+        session.endedAt = new Date().toISOString();
+        await pragmaticPlaySessionService.storeSession(session);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Error ending session:', error);
       return false;
-    }
-  },
-  
-  /**
-   * Store a session
-   */
-  storeSession: async (session: PPSession): Promise<void> => {
-    // In a real implementation, this would store in the database
-    const sessions = localStorage.getItem('pp_sessions');
-    let sessionData: PPSession[] = [];
-    
-    if (sessions) {
-      sessionData = JSON.parse(sessions);
-    }
-    
-    sessionData.push(session);
-    localStorage.setItem('pp_sessions', JSON.stringify(sessionData));
-  },
-  
-  /**
-   * Clean up expired sessions (older than 24 hours)
-   */
-  cleanupExpiredSessions: async (): Promise<void> => {
-    // In a real implementation, this would run as a cron job
-    const sessions = localStorage.getItem('pp_sessions');
-    if (!sessions) return;
-    
-    try {
-      const sessionData = JSON.parse(sessions) as PPSession[];
-      const currentTime = Date.now();
-      const expireTime = 24 * 60 * 60 * 1000; // 24 hours
-      
-      const activeSessions = sessionData.filter(session => {
-        const isExpired = currentTime - session.lastActivity > expireTime;
-        return !isExpired;
-      });
-      
-      localStorage.setItem('pp_sessions', JSON.stringify(activeSessions));
-    } catch (error) {
-      console.error('Error cleaning up expired sessions:', error);
     }
   }
 };
