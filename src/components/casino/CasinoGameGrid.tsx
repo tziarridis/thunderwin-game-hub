@@ -15,7 +15,7 @@ interface CasinoGameGridProps {
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { user, isAuthenticated } = useAuth();
   
-  const toggleFavorite = async (e: React.MouseEvent, gameId: string, isFavorite: boolean) => {
+  const toggleFavorite = async (e: React.MouseEvent, gameId: string, isFavorite: boolean): Promise<void> => {
     e.stopPropagation(); // Prevent game click when clicking the favorite button
     
     if (!isAuthenticated) {

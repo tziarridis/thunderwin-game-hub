@@ -40,8 +40,8 @@ const AggregatorGameLauncher = ({
       
       // Check wallet balance for real money play
       if (user?.id) {
-        const wallet = await walletService.getWalletByUserId(user.id);
-        if (!wallet || wallet.balance <= 0) {
+        const walletResponse = await walletService.getWalletByUserId(user.id);
+        if (!walletResponse.data || walletResponse.data.balance <= 0) {
           toast.error("Insufficient funds. Please deposit to play.");
           setIsLaunching(false);
           return;

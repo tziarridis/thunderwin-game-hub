@@ -5,11 +5,21 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { RefreshCw, CreditCard, Wallet, ArrowUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet as WalletType } from '@/types';
+import type { Wallet } from '@/types/wallet';
 
-const WalletBalance = () => {
+interface WalletBalanceProps {
+  variant?: 'default' | 'dropdown' | 'compact';
+  className?: string;
+  showRefresh?: boolean;
+}
+
+const WalletBalance = ({ 
+  variant = 'default', 
+  className = '', 
+  showRefresh = false 
+}: WalletBalanceProps) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const { user, refreshWalletBalance } = useAuth();
   
   useEffect(() => {
@@ -60,7 +70,7 @@ const WalletBalance = () => {
   
   if (!wallet) {
     return (
-      <Card className="bg-gradient-to-br from-slate-800 to-slate-900">
+      <Card className={`bg-gradient-to-br from-slate-800 to-slate-900 ${className}`}>
         <CardContent className="pt-6 pb-4">
           <div className="flex justify-center items-center h-24">
             <RefreshCw className="animate-spin h-6 w-6 text-gray-400" />
@@ -70,14 +80,53 @@ const WalletBalance = () => {
     );
   }
 
+  // Compact variant for mobile
+  if (variant === 'compact') {
+    return (
+      <div className={`px-3 py-1 rounded flex items-center gap-2 ${className}`}>
+        <span className="font-medium">{wallet.symbol}{wallet.balance.toFixed(2)}</span>
+        {showRefresh && (
+          <Button variant="ghost" size="icon" className="h-6 w-6 p-0" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // Dropdown variant for header dropdown
+  if (variant === 'dropdown') {
+    return (
+      <div className={`px-4 py-2 ${className}`}>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-white/70">Balance</span>
+          {showRefresh && (
+            <Button variant="ghost" size="icon" className="h-6 w-6 p-0" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
+        <div className="text-xl font-bold mb-2">{wallet.symbol}{wallet.balance.toFixed(2)}</div>
+        <div className="flex gap-2 text-xs">
+          <span className="text-white/50">Bonus: {wallet.symbol}{wallet.bonusBalance.toFixed(2)}</span>
+          <span>•</span>
+          <span className="text-white/50">Demo: {wallet.symbol}{wallet.demoBalance.toFixed(2)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Default card variant
   return (
-    <Card className="bg-gradient-to-br from-slate-800 to-slate-900">
+    <Card className={`bg-gradient-to-br from-slate-800 to-slate-900 ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex justify-between items-center">
           <CardTitle className="text-xl font-medium text-white">Your Balance</CardTitle>
-          <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          {showRefresh && (
+            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
         </div>
         <CardDescription>Main wallet balance</CardDescription>
       </CardHeader>
