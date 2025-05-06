@@ -2,7 +2,7 @@
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { addTransaction } from "./transactionService";
-import { creditWallet } from "./walletService";
+import { walletService } from "./walletService";
 
 // Extend Window interface to include ethereum property
 declare global {
@@ -192,8 +192,8 @@ export class MetaMaskService {
         provider: 'Metamask'
       });
       
-      // Credit the user's wallet
-      await creditWallet(userId, amountInEth, 'deposit', 'metamask');
+      // Credit the user's wallet using the walletService instead of creditWallet
+      await walletService.updateBalance(userId, amountInEth, 'deposit');
 
       toast.success(`Transaction sent successfully! Amount: ${amountInEth} ETH`);
       
