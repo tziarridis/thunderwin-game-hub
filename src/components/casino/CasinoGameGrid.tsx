@@ -63,7 +63,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           key={game.id}
           id={game.id}
           title={game.title || game.name || ''}
-          image={game.image || game.cover || '/placeholder.svg'}
+          image={game.image || ''}
           provider={game.provider}
           isPopular={game.isPopular || false}
           isNew={game.isNew || false}
@@ -72,9 +72,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           minBet={game.minBet || 1}
           maxBet={game.maxBet || 100}
           onClick={onGameClick ? () => onGameClick(game) : undefined}
-          onFavoriteToggle={(e: React.MouseEvent) => {
-            toggleFavorite(e, game.id?.toString() || '', game.isFavorite || false);
-          }}
+          onFavoriteToggle={(e) => toggleFavorite(e, game.id?.toString() || '', game.isFavorite || false)}
         />
       ))}
     </div>

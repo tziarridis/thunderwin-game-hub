@@ -55,7 +55,7 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
             <SelectContent>
               {availableProviders.map(provider => (
                 <SelectItem key={provider.id} value={provider.id}>
-                  {provider.name} ({provider.currency})
+                  {provider.name} ({provider.currency || 'EUR'})
                 </SelectItem>
               ))}
             </SelectContent>

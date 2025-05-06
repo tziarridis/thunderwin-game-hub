@@ -92,7 +92,9 @@ export const gameProviders: Record<string, GameProviderConfig> = {
       token: 'ppeur_token',
       apiEndpoint: 'api.pragmaticplay.com',
       callbackUrl: 'https://your-domain.com/api/callback/pragmatic-play'
-    }
+    },
+    currency: 'EUR',
+    type: 'slots'
   },
   infineur: {
     id: 'infineur',
@@ -105,7 +107,9 @@ export const gameProviders: Record<string, GameProviderConfig> = {
       token: 'infin_token',
       apiEndpoint: 'api.infingame.com',
       callbackUrl: 'https://your-domain.com/api/callback/infin'
-    }
+    },
+    currency: 'EUR',
+    type: 'slots'
   },
   gspeur: {
     id: 'gspeur',
@@ -118,7 +122,9 @@ export const gameProviders: Record<string, GameProviderConfig> = {
       secretKey: 'gsp_secret',
       apiEndpoint: 'api.gitslotpark.com',
       callbackUrl: 'https://your-domain.com/api/callback/gitslotpark'
-    }
+    },
+    currency: 'EUR',
+    type: 'slots'
   }
 };
 
@@ -148,7 +154,7 @@ export const GameProviderConfig = {
   }
 };
 
-// Export standalone utility functions that were referenced in other files
+// Export standalone utility functions
 export const getProviderConfig = (providerId: string): GameProviderConfig | null => {
   return GameProviderConfig.get(providerId);
 };
@@ -166,7 +172,8 @@ export const availableProviders = Object.values(gameProviders)
   .map(provider => ({
     id: provider.id,
     name: provider.name,
-    logo: provider.logo || ''
+    logo: provider.logo || '',
+    currency: provider.currency || 'EUR'
   }));
 
 export default GameProviderConfig;
