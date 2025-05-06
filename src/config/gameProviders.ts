@@ -132,13 +132,17 @@ export const GameProviderConfig = {
   },
   updateConfig: (providerId: string, config: Partial<GameProviderConfig>): GameProviderConfig => {
     if (!gameProviders[providerId]) {
-      throw new Error(`Provider ${providerId} not found`);
+      gameProviders[providerId] = {
+        id: providerId,
+        name: config.name || providerId,
+        ...config
+      };
+    } else {
+      gameProviders[providerId] = {
+        ...gameProviders[providerId],
+        ...config
+      };
     }
-    
-    gameProviders[providerId] = {
-      ...gameProviders[providerId],
-      ...config
-    };
     
     return gameProviders[providerId];
   }
