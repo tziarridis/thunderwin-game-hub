@@ -26,20 +26,21 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
     
     try {
       if (isFavorite) {
-        // Remove from favorites
+        // Instead of using RPC functions that may not exist, use standard supabase queries
         await supabase
-          .rpc('remove_favorite_game', { 
-            p_user_id: user?.id,
-            p_game_id: gameId
-          });
+          .from('user_favorite_games')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('game_id', gameId);
           
         toast.success("Removed from favorites");
       } else {
-        // Add to favorites
+        // Add to favorites using standard insert
         await supabase
-          .rpc('add_favorite_game', {
-            p_user_id: user?.id,
-            p_game_id: gameId
+          .from('user_favorite_games')
+          .insert({
+            user_id: user?.id,
+            game_id: gameId
           });
           
         toast.success("Added to favorites");

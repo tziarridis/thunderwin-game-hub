@@ -1,18 +1,26 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { GameSectionLoading } from '@/components/ui/loading';
 import { useGames } from '@/hooks/useGames';
 import { Game } from '@/types';
 import { scrollToTop } from '@/utils/scrollUtils';
+// Import the correct GameSectionLoading component
+import GameSectionLoading from '@/components/casino/GameSectionLoading';
 
 // Update the import to use the new component name
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 const Crash = () => {
-  const { games, loading, error, retryLoading } = useGames({ category: 'crash' });
+  const { games, loading, error } = useGames({ filter: 'crash' });
   const [crashGames, setCrashGames] = useState<Game[]>([]);
   const navigate = useNavigate();
+
+  // Add a retry loading function
+  const retryLoading = () => {
+    // We're manually implementing this since it doesn't exist in useGames
+    window.location.reload();
+  };
 
   useEffect(() => {
     if (games) {

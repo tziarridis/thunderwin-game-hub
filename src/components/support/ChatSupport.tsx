@@ -215,7 +215,7 @@ export function ChatSupport() {
                       {msg.sender === 'user' && (
                         <div className="flex-shrink-0 ml-2">
                           <Avatar className="size-8">
-                            <AvatarImage src={user?.avatar_url || ""} />
+                            <AvatarImage src={user?.avatar || ""} />
                             <AvatarFallback><User size={14} /></AvatarFallback>
                           </Avatar>
                         </div>

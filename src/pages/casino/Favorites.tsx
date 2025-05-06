@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -38,16 +39,37 @@ const Favorites = () => {
         throw new Error("User ID is not available");
       }
       
-      const { data, error } = await supabase
-        .from('user_favorite_games')
-        .select('game_id, games(*)')
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
+      // Use a direct join query instead of assuming a specific table structure
+      // We'll need to adapt this to the actual schema that exists
+      const { data, error } = await supabase.rpc('get_favorite_games', {
+        user_id_param: user.id
+      });
       
-      if (data) {
-        const games = data.map(item => ({
-          ...(item.games as any),
+      if (error) {
+        console.error("Database error:", error);
+        // Fallback approach if the RPC function doesn't exist
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('games')
+          .select('*')
+          .filter('id', 'in', (await supabase
+            .from('user_favorites')
+            .select('game_id')
+            .eq('user_id', user.id)).data?.map(row => row.game_id) || []);
+            
+        if (fallbackError) throw fallbackError;
+        
+        if (fallbackData) {
+          const games = fallbackData.map(game => ({
+            ...game,
+            isFavorite: true,
+          })) as Game[];
+          setFavoriteGames(games);
+        } else {
+          setFavoriteGames([]);
+        }
+      } else if (data) {
+        const games = data.map((item: any) => ({
+          ...item,
           isFavorite: true,
         })) as Game[];
         setFavoriteGames(games);
@@ -67,30 +89,29 @@ const Favorites = () => {
     loadFavoriteGames();
   };
 
-// Use the renamed component 
-return (
+  return (
     <div className="container mx-auto px-4 py-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-white">Your Favorite Games</h1>
         <p className="text-white/70">Here are the games you've marked as your favorites.</p>
       </div>
   
-  {loading ? (
-    <GameSectionLoading />
-  ) : error ? (
-    <div className="text-center py-12">
-      <p className="text-xl mb-4">Failed to load favorite games.</p>
-      <Button onClick={retryLoading}>Retry</Button>
-    </div>
-  ) : (
-    <CasinoGameGrid 
-      games={favoriteGames} 
-      onGameClick={(game) => {
-        navigate(`/casino/game/${game.id}`);
-        scrollToTop();
-      }}
-    />
-  )}
+      {loading ? (
+        <GameSectionLoading />
+      ) : error ? (
+        <div className="text-center py-12">
+          <p className="text-xl mb-4">Failed to load favorite games.</p>
+          <Button onClick={retryLoading}>Retry</Button>
+        </div>
+      ) : (
+        <CasinoGameGrid 
+          games={favoriteGames} 
+          onGameClick={(game) => {
+            navigate(`/casino/game/${game.id}`);
+            scrollToTop();
+          }}
+        />
+      )}
     </div>
   );
 };
