@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/walletService';
+import { gameAggregatorService } from '@/services/gameAggregatorService';
 
 interface LaunchGameProps {
   game: Game;
@@ -33,7 +34,6 @@ const LaunchGame = ({
   platform = 'web',
   size = 'default'
 }: LaunchGameProps) => {
-  const { launchGame, launchingGame } = useGames();
   const [isLaunching, setIsLaunching] = useState(false);
   const { isAuthenticated, user, refreshWalletBalance } = useAuth();
   
@@ -49,10 +49,11 @@ const LaunchGame = ({
       
       // Check wallet balance for real money play
       if (mode === 'real' && isAuthenticated && user?.id) {
-        const wallet = await walletService.getWalletByUserId(user.id);
+        const { data: wallet, error } = await walletService.getWalletByUserId(user.id);
+        if (error) throw error;
+        
         if (!wallet || wallet.balance <= 0) {
           toast.error("Insufficient funds. Please deposit to play in real money mode.");
-          setIsLaunching(false);
           return;
         }
       }
@@ -64,20 +65,20 @@ const LaunchGame = ({
         platform
       });
       
-      const gameUrl = await launchGame(game, { 
-        mode, 
-        providerId,
+      // Use gameAggregatorService to create the session and get the launch URL
+      const response = await gameAggregatorService.createSession(
+        game.id,
         playerId,
-        language,
         currency,
-        platform,
-        returnUrl: window.location.href
-      });
+        platform
+      );
       
-      console.log("Generated game URL:", gameUrl);
-      
-      if (gameUrl) {
-        const gameWindow = window.open(gameUrl, '_blank');
+      if (response.success && response.gameUrl) {
+        // Log game launch
+        console.log("Generated game URL:", response.gameUrl);
+        
+        // Open the game URL in a new window
+        const gameWindow = window.open(response.gameUrl, '_blank');
         
         if (!gameWindow) {
           throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
@@ -92,7 +93,7 @@ const LaunchGame = ({
           }, 5000); // Refresh balance after 5 seconds to give time for initial bet
         }
       } else {
-        throw new Error("Failed to generate game URL");
+        throw new Error(response.errorMessage || "Failed to generate game URL");
       }
       
     } catch (error: any) {
@@ -107,11 +108,11 @@ const LaunchGame = ({
     <Button 
       variant={variant}
       onClick={handleLaunch}
-      disabled={isLaunching || launchingGame}
+      disabled={isLaunching}
       className={className}
       size={size}
     >
-      {isLaunching || launchingGame ? (
+      {isLaunching ? (
         <>
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           Launching...

@@ -1,359 +1,205 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Ban, Clock, Info, Loader2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import UserGamblingLimits from './UserGamblingLimits';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import { toast } from 'sonner';
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from 'lucide-react';
 
-interface SelfExclusionSettings {
-  exclusion_period: string | null;
-  exclusion_until: string | null;
-}
-
-interface SessionSettings {
-  time_reminder_enabled: boolean;
-  reminder_interval_minutes: number;
-}
-
-export const ResponsibleGambling = () => {
+const ResponsibleGambling = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [selfExclusionSettings, setSelfExclusionSettings] = useState<SelfExclusionSettings>({
-    exclusion_period: 'none',
-    exclusion_until: null
+  const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState({
+    exclusionPeriod: 'none',
+    timeReminderEnabled: false,
+    reminderIntervalMinutes: 60
   });
-  const [sessionSettings, setSessionSettings] = useState<SessionSettings>({
-    time_reminder_enabled: false,
-    reminder_interval_minutes: 60
-  });
-  
+
   useEffect(() => {
-    if (!user?.id) return;
-    
     const fetchSettings = async () => {
+      if (!user?.id) return;
+
       try {
         setLoading(true);
-        
-        // Fetch self exclusion settings
         const { data, error } = await supabase
           .from('wallets')
           .select('exclusion_period, exclusion_until, time_reminder_enabled, reminder_interval_minutes')
           .eq('user_id', user.id)
           .single();
-        
+
         if (error) {
-          if (error.code !== 'PGRST116') { // Not found error
-            console.error("Error fetching responsible gambling settings:", error);
-            toast.error("Failed to load settings");
-          }
-          return;
-        }
-        
-        if (data) {
-          setSelfExclusionSettings({
-            exclusion_period: data.exclusion_period || 'none',
-            exclusion_until: data.exclusion_until || null
-          });
-          
-          setSessionSettings({
-            time_reminder_enabled: data.time_reminder_enabled || false,
-            reminder_interval_minutes: data.reminder_interval_minutes || 60
+          console.error('Error fetching responsible gambling settings:', error);
+        } else if (data) {
+          setSettings({
+            exclusionPeriod: data.exclusion_period || 'none',
+            timeReminderEnabled: !!data.time_reminder_enabled,
+            reminderIntervalMinutes: data.reminder_interval_minutes || 60
           });
         }
-      } catch (error: any) {
-        console.error("Error fetching responsible gambling settings:", error);
-        toast.error("Failed to load settings");
+      } catch (err) {
+        console.error('Error fetching settings:', err);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchSettings();
   }, [user?.id]);
-  
-  const handleSelfExclusion = async (period: string) => {
+
+  const handleSaveSettings = async () => {
     if (!user?.id) {
-      toast.error("You must be logged in to set exclusion period");
+      toast.error('You must be logged in to set responsible gambling settings');
       return;
     }
-    
+
     try {
-      let exclusionUntil: string | null = null;
+      setSaving(true);
       
-      if (period !== 'none') {
-        const now = new Date();
-        
-        switch (period) {
-          case '24h': 
-            now.setDate(now.getDate() + 1);
-            break;
-          case '7d':
-            now.setDate(now.getDate() + 7);
-            break;
-          case '30d':
-            now.setDate(now.getDate() + 30);
-            break;
-          case '90d':
-            now.setDate(now.getDate() + 90);
-            break;
-          case '6m':
-            now.setMonth(now.getMonth() + 6);
-            break;
-          case '1y':
-            now.setFullYear(now.getFullYear() + 1);
-            break;
-          case 'permanent':
-            // For permanent exclusion, set date far in future
-            now.setFullYear(now.getFullYear() + 100);
-            break;
-        }
-        
-        exclusionUntil = now.toISOString();
+      // Calculate exclusion_until date based on the selected period
+      let exclusionUntil = null;
+      const now = new Date();
+      
+      if (settings.exclusionPeriod === '24h') {
+        exclusionUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      } else if (settings.exclusionPeriod === '7d') {
+        exclusionUntil = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (settings.exclusionPeriod === '30d') {
+        exclusionUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      } else if (settings.exclusionPeriod === '90d') {
+        exclusionUntil = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      } else if (settings.exclusionPeriod === '1y') {
+        exclusionUntil = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+      } else if (settings.exclusionPeriod === 'permanent') {
+        exclusionUntil = new Date(2099, 11, 31); // Far future date for permanent exclusion
       }
       
       const { error } = await supabase
         .from('wallets')
         .update({
-          exclusion_period: period,
-          exclusion_until: exclusionUntil,
-          updated_at: new Date().toISOString()
+          exclusion_period: settings.exclusionPeriod,
+          exclusion_until: exclusionUntil?.toISOString(),
+          time_reminder_enabled: settings.timeReminderEnabled,
+          reminder_interval_minutes: settings.reminderIntervalMinutes
         })
         .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Responsible gambling settings updated successfully');
       
-      if (error) throw error;
-      
-      setSelfExclusionSettings({
-        exclusion_period: period,
-        exclusion_until: exclusionUntil
-      });
-      
-      if (period === 'none') {
-        toast.success('Self-exclusion period removed');
-      } else {
-        toast.success(`Self-exclusion period set to ${period}`);
+      if (settings.exclusionPeriod !== 'none') {
+        toast.info('Self-exclusion period has been set. You will not be able to play games until the exclusion period ends.');
       }
     } catch (error: any) {
-      console.error("Error setting exclusion period:", error);
-      toast.error('Failed to update exclusion period');
+      console.error('Error saving settings:', error);
+      toast.error('Failed to update responsible gambling settings');
+    } finally {
+      setSaving(false);
     }
   };
-  
-  const handleTimeReminderToggle = async (enabled: boolean) => {
-    if (!user?.id) {
-      toast.error("You must be logged in to update settings");
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('wallets')
-        .update({
-          time_reminder_enabled: enabled,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      setSessionSettings(prev => ({
-        ...prev,
-        time_reminder_enabled: enabled
-      }));
-      
-      if (enabled) {
-        toast.success('Time reminders enabled');
-      } else {
-        toast.success('Time reminders disabled');
-      }
-    } catch (error: any) {
-      console.error("Error updating time reminder settings:", error);
-      toast.error('Failed to update reminder settings');
-    }
-  };
-  
-  const handleReminderIntervalChange = async (interval: string) => {
-    if (!user?.id) return;
-    
-    const intervalMinutes = parseInt(interval);
-    
-    try {
-      const { error } = await supabase
-        .from('wallets')
-        .update({
-          reminder_interval_minutes: intervalMinutes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      
-      setSessionSettings(prev => ({
-        ...prev,
-        reminder_interval_minutes: intervalMinutes
-      }));
-      
-      toast.success(`Reminder interval updated to ${intervalMinutes === 0 ? 'disabled' : `${intervalMinutes} minutes`}`);
-    } catch (error: any) {
-      console.error("Error updating reminder interval:", error);
-      toast.error('Failed to update reminder interval');
-    }
-  };
-  
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+      <div className="flex justify-center items-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <Tabs defaultValue="limits" className="w-full">
-      <TabsList className="w-full overflow-x-auto">
-        <TabsTrigger value="limits">Deposit Limits</TabsTrigger>
-        <TabsTrigger value="exclusion">Self-Exclusion</TabsTrigger>
-        <TabsTrigger value="session">Session Limits</TabsTrigger>
-        <TabsTrigger value="tips">Responsible Gaming Tips</TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="limits">
-        <UserGamblingLimits userId={user?.id || ''} />
-      </TabsContent>
-      
-      <TabsContent value="exclusion">
-        <Card className="w-full">
-          <CardHeader className="bg-amber-500/10">
-            <div className="flex items-center gap-2">
-              <Ban className="h-5 w-5 text-amber-500" />
-              <CardTitle>Self-exclusion</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Take a break from gambling by setting a self-exclusion period. During this time, you won't be able to access your account.
-            </p>
-            
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">Responsible Gambling</h3>
+        <p className="text-sm text-muted-foreground">
+          Control your gambling behavior with these responsible gambling tools.
+        </p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="exclusion-period">Self-Exclusion Period</Label>
+          <Select 
+            value={settings.exclusionPeriod}
+            onValueChange={(value) => setSettings({ ...settings, exclusionPeriod: value })}
+          >
+            <SelectTrigger id="exclusion-period">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Exclusion</SelectItem>
+              <SelectItem value="24h">24 Hours</SelectItem>
+              <SelectItem value="7d">7 Days</SelectItem>
+              <SelectItem value="30d">30 Days</SelectItem>
+              <SelectItem value="90d">90 Days</SelectItem>
+              <SelectItem value="1y">1 Year</SelectItem>
+              <SelectItem value="permanent">Permanent</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-sm text-muted-foreground mt-1">
+            Select a period during which you won't be able to access games
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="time-reminder">Reality Check Reminders</Label>
+            <Switch 
+              id="time-reminder"
+              checked={settings.timeReminderEnabled}
+              onCheckedChange={(checked) => setSettings({ ...settings, timeReminderEnabled: checked })}
+            />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Get reminders about how long you've been playing
+          </p>
+          
+          {settings.timeReminderEnabled && (
             <div className="space-y-2">
-              <Label htmlFor="self-exclusion">Self-exclusion period</Label>
-              <Select 
-                value={selfExclusionSettings.exclusion_period || 'none'} 
-                onValueChange={handleSelfExclusion}
-              >
-                <SelectTrigger id="self-exclusion" className="w-full md:w-[240px]">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No exclusion</SelectItem>
-                  <SelectItem value="24h">24 hours</SelectItem>
-                  <SelectItem value="7d">7 days</SelectItem>
-                  <SelectItem value="30d">30 days</SelectItem>
-                  <SelectItem value="90d">90 days</SelectItem>
-                  <SelectItem value="6m">6 months</SelectItem>
-                  <SelectItem value="1y">1 year</SelectItem>
-                  <SelectItem value="permanent">Permanent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {selfExclusionSettings.exclusion_until && selfExclusionSettings.exclusion_period !== 'none' && (
-              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md">
-                <p className="text-sm flex items-center">
-                  <Clock className="h-4 w-4 mr-2 text-amber-500" />
-                  {selfExclusionSettings.exclusion_period === 'permanent' 
-                    ? 'You have permanently excluded yourself from gambling on this platform.' 
-                    : `Your exclusion period ends on ${new Date(selfExclusionSettings.exclusion_until).toLocaleDateString()}`
-                  }
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-      
-      <TabsContent value="session">
-        <Card className="w-full">
-          <CardHeader className="bg-amber-500/10">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-500" />
-              <CardTitle>Session Time Limits</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Set up reminders to take breaks during your gaming sessions
-            </p>
-            
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="time-reminder" 
-                checked={sessionSettings.time_reminder_enabled} 
-                onCheckedChange={handleTimeReminderToggle} 
+              <Label>
+                Reminder Interval: {settings.reminderIntervalMinutes} minutes
+              </Label>
+              <Slider 
+                min={15}
+                max={120}
+                step={5}
+                value={[settings.reminderIntervalMinutes]}
+                onValueChange={(value) => setSettings({ ...settings, reminderIntervalMinutes: value[0] })}
               />
-              <Label htmlFor="time-reminder">Enable session time reminders</Label>
             </div>
-            
-            {sessionSettings.time_reminder_enabled && (
-              <div className="mt-4">
-                <Label htmlFor="reminder-interval">Reminder interval</Label>
-                <Select 
-                  value={sessionSettings.reminder_interval_minutes.toString()} 
-                  onValueChange={handleReminderIntervalChange}
-                >
-                  <SelectTrigger id="reminder-interval" className="w-full md:w-[240px] mt-2">
-                    <SelectValue placeholder="Select interval" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="15">Every 15 minutes</SelectItem>
-                    <SelectItem value="30">Every 30 minutes</SelectItem>
-                    <SelectItem value="45">Every 45 minutes</SelectItem>
-                    <SelectItem value="60">Every 60 minutes</SelectItem>
-                    <SelectItem value="90">Every 90 minutes</SelectItem>
-                    <SelectItem value="120">Every 2 hours</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-      
-      <TabsContent value="tips">
-        <Card className="w-full">
-          <CardHeader className="bg-blue-500/10">
-            <div className="flex items-center gap-2">
-              <Info className="h-5 w-5 text-blue-500" />
-              <CardTitle>Responsible Gaming Tips</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-4">
-            <ul className="list-disc pl-5 space-y-2">
-              <li>Set a budget before you start playing and stick to it</li>
-              <li>Take regular breaks from gambling</li>
-              <li>Don't chase losses - accept them as part of the cost of entertainment</li>
-              <li>Don't gamble when you're upset, stressed or depressed</li>
-              <li>Balance gambling with other leisure activities</li>
-              <li>Don't view gambling as a way to make money</li>
-            </ul>
-            
-            <div className="mt-4 pt-4 border-t">
-              <p className="font-medium mb-2">Need help?</p>
-              <Button variant="outline" className="mr-2">
-                Contact Support
-              </Button>
-              <Button variant="secondary">
-                Problem Gambling Resources
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
+          )}
+        </div>
+
+        <Button onClick={handleSaveSettings} disabled={saving}>
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Settings'
+          )}
+        </Button>
+      </div>
+
+      <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+        <p className="text-sm text-blue-800 dark:text-blue-400">
+          If you believe you may have a gambling problem, please contact a gambling help organization for support and advice.
+        </p>
+      </div>
+    </div>
   );
 };
 

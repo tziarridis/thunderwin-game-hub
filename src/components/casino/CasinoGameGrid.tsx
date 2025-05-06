@@ -29,8 +29,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         const { error } = await supabase
           .from('favorite_games')
           .delete()
-          .eq('user_id', user?.id)
-          .eq('game_id', gameId);
+          .match({ user_id: user?.id, game_id: gameId });
           
         if (error) throw error;
         toast.success("Removed from favorites");

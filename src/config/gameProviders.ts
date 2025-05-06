@@ -1,153 +1,105 @@
 
-export interface GameProviderCredentials {
-  apiEndpoint: string;
-  agentId: string;
-  secretKey: string;
-  token?: string;
-  callbackUrl: string;
-}
+/**
+ * Configuration for game providers
+ */
 
 export interface GameProviderConfig {
   id: string;
   name: string;
   currency: string;
-  type: 'slots' | 'live' | 'table' | 'other';
   enabled: boolean;
-  code: string;
-  credentials: GameProviderCredentials;
+  credentials: {
+    apiEndpoint: string;
+    agentId: string;
+    secretKey?: string;
+    token?: string;
+    callbackUrl: string;
+  };
 }
 
-// Helper function to get consistent callback URL
-const getCallbackUrl = (providerId: string): string => {
-  // Use window.location.origin if available, otherwise fallback to a default URL
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
-  
-  // Map provider IDs to their callback paths
-  let providerPath;
-  if (providerId.includes('pp')) {
-    providerPath = '/api/seamless/pp';
-  } else if (providerId === 'evolution') {
-    providerPath = '/api/seamless/evolution';
-  } else if (providerId.includes('gsp')) {
-    providerPath = '/api/seamless/gsp'; 
-  } else if (providerId.includes('infin')) {
-    providerPath = '/api/seamless/infin';
-  } else {
-    providerPath = `/api/seamless/${providerId.toLowerCase()}`;
-  }
-  
-  return `${baseUrl}${providerPath}`;
-};
+// Available providers
+export const availableProviders = [
+  { id: 'ppeur', name: 'Pragmatic Play', currency: 'EUR' },
+  { id: 'ppusd', name: 'Pragmatic Play', currency: 'USD' },
+  { id: 'infineur', name: 'InfinGame', currency: 'EUR' },
+  { id: 'gspeur', name: 'GitSlotPark', currency: 'EUR' }
+];
 
-// Available game providers
-export const availableProviders: GameProviderConfig[] = [
-  {
+// Provider configurations
+const providerConfigs: Record<string, GameProviderConfig> = {
+  ppeur: {
     id: 'ppeur',
     name: 'Pragmatic Play',
     currency: 'EUR',
-    type: 'slots',
     enabled: true,
-    code: 'PP',
     credentials: {
-      apiEndpoint: 'demo.pragmaticplay.net',
-      agentId: 'testpartner',
-      secretKey: 'testsecret',
-      callbackUrl: getCallbackUrl('ppeur'),
+      apiEndpoint: 'api-euw1.pragmaticplay.net',
+      agentId: 'captaingambleEUR',
+      secretKey: 'bbd0551e144c46d19975f985e037c9b0',
+      token: '275c535c8c014b59bedb2a2d6fe7d37b',
+      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/pragmaticplay'
     }
   },
-  {
+  ppusd: {
     id: 'ppusd',
     name: 'Pragmatic Play',
     currency: 'USD',
-    type: 'slots',
     enabled: true,
-    code: 'PP',
     credentials: {
-      apiEndpoint: 'demo.pragmaticplay.net',
-      agentId: 'testpartner-usd',
-      secretKey: 'testsecret-usd',
-      callbackUrl: getCallbackUrl('ppusd'),
+      apiEndpoint: 'api-euw1.pragmaticplay.net',
+      agentId: 'captaingambleUSD',
+      secretKey: 'bbd0551e144c46d19975f985e037c9b0',
+      token: '275c535c8c014b59bedb2a2d6fe7d37b',
+      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/pragmaticplay'
     }
   },
-  {
-    id: 'evolution',
-    name: 'Evolution Gaming',
+  infineur: {
+    id: 'infineur',
+    name: 'InfinGame',
     currency: 'EUR',
-    type: 'live',
-    enabled: false,
-    code: 'EVO',
+    enabled: true,
     credentials: {
-      apiEndpoint: 'api.evolution.com',
-      agentId: 'demo',
-      secretKey: 'secret',
-      callbackUrl: getCallbackUrl('evolution'),
+      apiEndpoint: 'api-dev.infingame.com',
+      agentId: 'casinothunder',
+      secretKey: 'api-secret-key',
+      token: 'api-token-here',
+      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/infingame'
     }
   },
-  {
+  gspeur: {
     id: 'gspeur',
     name: 'GitSlotPark',
     currency: 'EUR',
-    type: 'slots',
     enabled: true,
-    code: 'GSP',
     credentials: {
       apiEndpoint: 'api.gitslotpark.com',
       agentId: 'partner123',
       secretKey: 'gsp-secret-key',
       token: 'gsp-api-token',
-      callbackUrl: getCallbackUrl('gspeur'),
-    }
-  },
-  {
-    id: 'infineur',
-    name: 'InfinGame',
-    currency: 'EUR',
-    type: 'slots',
-    enabled: true,
-    code: 'INFIN',
-    credentials: {
-      apiEndpoint: 'infinapi-docs.axis-stage.infingame.com',
-      agentId: 'casinothunder',
-      secretKey: 'secret-key-here',
-      token: 'api-token-here',
-      callbackUrl: getCallbackUrl('infineur'),
+      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/gitslotpark'
     }
   }
-];
+};
 
-// Export provider configs for other services to use
-export const gameProviderConfigs = availableProviders;
+/**
+ * Get enabled game providers
+ */
+export const getEnabledProviders = () => {
+  return Object.values(providerConfigs).filter(p => p.enabled);
+};
 
-// Get a provider configuration by ID
+/**
+ * Get a specific provider configuration
+ */
 export const getProviderConfig = (providerId: string): GameProviderConfig | undefined => {
-  return availableProviders.find(provider => provider.id === providerId);
+  return providerConfigs[providerId];
 };
 
-// Get all enabled providers
-export const getEnabledProviders = (): GameProviderConfig[] => {
-  return availableProviders.filter(provider => provider.enabled);
+/**
+ * Get all provider configurations
+ */
+export const getAllProviderConfigs = () => {
+  return providerConfigs;
 };
 
-// Utility function to update provider configuration
-export const updateProviderConfig = (
-  providerId: string, 
-  updates: Partial<GameProviderConfig>
-): boolean => {
-  const index = availableProviders.findIndex(p => p.id === providerId);
-  
-  if (index === -1) {
-    // If provider doesn't exist and we have a complete config, add it
-    if (updates.id && updates.name && updates.currency && updates.code && updates.credentials) {
-      availableProviders.push(updates as GameProviderConfig);
-      return true;
-    }
-    return false;
-  }
-  
-  availableProviders[index] = {
-    ...availableProviders[index],
-    ...updates
-  };
-  
-  return true;
-};
+export default providerConfigs;

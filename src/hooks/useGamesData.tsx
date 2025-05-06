@@ -48,7 +48,7 @@ export const useGamesData = ({
       
       if (provider) {
         query = query
-          .eq('provider.name', provider);
+          .eq('providers.name', provider);
       }
       
       if (featured) {
@@ -139,12 +139,12 @@ export const useGamesData = ({
   // Function to load more games
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
-    return fetchGames(games.length);
+    fetchGames(games.length);
   }, [fetchGames, games.length, hasMore, loading]);
 
   // Function to refresh games
   const refresh = useCallback(() => {
-    return fetchGames(0);
+    fetchGames(0);
   }, [fetchGames]);
 
   return {

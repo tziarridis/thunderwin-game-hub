@@ -1,12 +1,15 @@
 
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 
+// CORS headers for cross-origin requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 /**
  * Handles the seamless integration callback from the game provider
- * This would typically be an API route handled by your backend
- * 
- * For frontend-only implementations, this is a placeholder that can be
- * used when setting up a proper backend endpoint
  */
 export async function handleSeamlessCallback(req: Request) {
   try {
@@ -22,11 +25,13 @@ export async function handleSeamlessCallback(req: Request) {
     try {
       data = await req.json();
     } catch (error) {
-      console.error('Failed to parse request body:', error);
-      // If JSON parsing fails, try to get raw text
-      const text = await req.text();
-      console.log('Raw request body:', text);
-      throw new Error('Invalid JSON in request body');
+      console.error('Failed to parse request body as JSON:', error);
+      
+      // Try to parse as form data if JSON parsing fails
+      const formData = await req.formData();
+      data = Object.fromEntries(formData.entries());
+      
+      console.log('Parsed callback data (form format):', data);
     }
     
     console.log(`Received seamless callback for provider: ${provider}`, data);
@@ -34,13 +39,41 @@ export async function handleSeamlessCallback(req: Request) {
     // Process the callback using the game aggregator service
     const result = await gameAggregatorService.processCallback(provider, data);
     
+    // Format the response according to provider expectations
+    let responseBody;
+    
+    if (provider.includes('pragmatic') || provider.includes('pp')) {
+      responseBody = {
+        errorcode: result.success ? "0" : "1",
+        balance: result.balance || 0
+      };
+    } else if (provider.includes('infin')) {
+      responseBody = {
+        success: result.success,
+        balance: result.balance || 0,
+        error: result.success ? "" : (result.errorMessage || "Unknown error")
+      };
+    } else if (provider.includes('gsp') || provider.includes('gitslot')) {
+      responseBody = {
+        status: result.success ? "success" : "error",
+        balance: result.balance || 0,
+        currency: result.currency || "EUR",
+        message: result.success ? "Success" : (result.errorMessage || "Unknown error")
+      };
+    } else {
+      // Generic format
+      responseBody = {
+        success: result.success,
+        balance: result.balance || 0,
+        error: result.success ? "" : (result.errorMessage || "Unknown error")
+      };
+    }
+    
     // Return the result
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(responseBody), {
       headers: { 
+        ...corsHeaders,
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
       status: 200
     });
@@ -54,10 +87,8 @@ export async function handleSeamlessCallback(req: Request) {
       errorMessage: error.message || 'Unknown error'
     }), {
       headers: { 
+        ...corsHeaders,
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       },
       status: 500
     });
@@ -67,11 +98,7 @@ export async function handleSeamlessCallback(req: Request) {
 // Handle preflight OPTIONS requests for CORS
 export async function handleOptions() {
   return new Response(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers: corsHeaders,
     status: 204, // No content
   });
 }
