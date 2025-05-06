@@ -295,7 +295,7 @@ const ReportsPage = () => {
         </TabsContent>
         
         <TabsContent value="games">
-          {/* Similar structure for Game Performance tab */}
+          {/* Game Performance tab */}
           <div className="thunder-card">
             <div className="p-4 border-b border-white/10">
               <h2 className="font-semibold text-lg">Top Games by NGR</h2>

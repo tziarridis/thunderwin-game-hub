@@ -1,6 +1,6 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { AnalyticsData, GameAnalytics, UserGrowthData } from "@/types/analytics";
+import { supabase } from '@/integrations/supabase/client';
+import { AnalyticsData, GameAnalytics, UserGrowthData } from '@/types/analytics';
 
 export const fetchDailyAnalytics = async (): Promise<AnalyticsData[]> => {
   try {
