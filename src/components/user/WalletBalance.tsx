@@ -8,9 +8,11 @@ import { Wallet as WalletType } from '@/types/wallet';
 
 interface WalletBalanceProps {
   showRefresh?: boolean;
+  variant?: string;
+  className?: string;
 }
 
-const WalletBalance = ({ showRefresh = false }: WalletBalanceProps) => {
+const WalletBalance = ({ showRefresh = false, variant = 'default', className = '' }: WalletBalanceProps) => {
   const { user, refreshWalletBalance } = useAuth();
   const [loading, setLoading] = useState(false);
   const [wallet, setWallet] = useState<WalletType | null>(null);
@@ -44,8 +46,11 @@ const WalletBalance = ({ showRefresh = false }: WalletBalanceProps) => {
     setLoading(false);
   };
 
+  // Apply different styles based on variant
+  const containerClasses = `${className} text-right flex items-center`;
+
   return (
-    <div className="text-right flex items-center">
+    <div className={containerClasses}>
       <div className="mr-1">
         <span className="text-xs text-white/60 block">Balance</span>
         <span className="text-lg font-bold text-white">
