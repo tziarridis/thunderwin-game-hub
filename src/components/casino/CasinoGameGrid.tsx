@@ -62,17 +62,19 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         <GameCard 
           key={game.id}
           id={game.id}
-          title={game.title}
-          image={game.image}
+          title={game.title || game.name}
+          image={game.image || game.cover}
           provider={game.provider}
-          isPopular={game.isPopular}
-          isNew={game.isNew}
+          isPopular={game.isPopular || false}
+          isNew={game.isNew || false}
           rtp={game.rtp}
-          isFavorite={game.isFavorite}
-          minBet={game.minBet}
-          maxBet={game.maxBet}
+          isFavorite={game.isFavorite || false}
+          minBet={game.minBet || 1}
+          maxBet={game.maxBet || 100}
           onClick={onGameClick ? () => onGameClick(game) : undefined}
-          onFavoriteToggle={(e) => toggleFavorite(e, game.id, game.isFavorite || false)}
+          onFavoriteToggle={(e) => {
+            toggleFavorite(e, game.id?.toString() || '', game.isFavorite || false);
+          }}
         />
       ))}
     </div>

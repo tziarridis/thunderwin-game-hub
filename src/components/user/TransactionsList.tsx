@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { getUserTransactions } from "@/services/transactionService";
+import { transactionService } from "@/services/transactionService";
 import { Transaction } from "@/types/transaction";
 import { Loader2 } from "lucide-react";
 
@@ -25,7 +25,7 @@ const TransactionsList = ({ userId, limit = 20 }: TransactionsListProps) => {
       
       try {
         setLoading(true);
-        const result = await getUserTransactions(userId, { limit });
+        const result = await transactionService.getUserTransactions(userId, { limit });
         setTransactions(result.data);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);

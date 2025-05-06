@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getPragmaticPlayTransactions } from "@/services/transactionService";
+import { transactionService } from "@/services/transactionService";
 import { Transaction } from "@/types/transaction";
 
 const PPTransactionLogger = () => {
@@ -17,7 +18,7 @@ const PPTransactionLogger = () => {
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      const data = await getPragmaticPlayTransactions();
+      const data = await transactionService.getPragmaticPlayTransactions();
       setTransactions(data);
       setError(null);
     } catch (err) {

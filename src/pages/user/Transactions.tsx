@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getUserTransactions } from "@/services/transactionService";
+import { transactionService } from "@/services/transactionService";
 import { TransactionFilter, Transaction } from "@/types/transaction";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ const Transactions = () => {
     
     try {
       setLoading(true);
-      const result = await getUserTransactions(user.id, filters);
+      const result = await transactionService.getUserTransactions(user.id, filters);
       setTransactions(result.data);
     } catch (err) {
       console.error("Failed to fetch transactions:", err);

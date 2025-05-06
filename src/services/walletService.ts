@@ -6,11 +6,19 @@ export const walletService = {
    * Get a user's wallet by user ID
    */
   getWalletByUserId: async (userId: string) => {
-    return await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('Error fetching wallet:', error);
+      return { data: null, error };
+    }
   },
 
   /**
@@ -170,4 +178,3 @@ export const walletService = {
 };
 
 export default walletService;
-

@@ -1,105 +1,86 @@
 
-/**
- * Configuration for game providers
- */
-
 export interface GameProviderConfig {
   id: string;
   name: string;
-  currency: string;
-  enabled: boolean;
-  credentials: {
-    apiEndpoint: string;
-    agentId: string;
-    secretKey?: string;
-    token?: string;
-    callbackUrl: string;
-  };
+  logo?: string;
+  apiEndpoint?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  enabled?: boolean;
+  supportedGames?: string[];
+  description?: string;
 }
 
-// Available providers
-export const availableProviders = [
-  { id: 'ppeur', name: 'Pragmatic Play', currency: 'EUR' },
-  { id: 'ppusd', name: 'Pragmatic Play', currency: 'USD' },
-  { id: 'infineur', name: 'InfinGame', currency: 'EUR' },
-  { id: 'gspeur', name: 'GitSlotPark', currency: 'EUR' }
-];
-
-// Provider configurations
-const providerConfigs: Record<string, GameProviderConfig> = {
-  ppeur: {
-    id: 'ppeur',
+export const gameProviders: Record<string, GameProviderConfig> = {
+  pragmaticPlay: {
+    id: 'pragmaticPlay',
     name: 'Pragmatic Play',
-    currency: 'EUR',
+    logo: '/providers/pragmatic_play.png',
+    apiEndpoint: 'https://api.pragmaticplay.com',
     enabled: true,
-    credentials: {
-      apiEndpoint: 'api-euw1.pragmaticplay.net',
-      agentId: 'captaingambleEUR',
-      secretKey: 'bbd0551e144c46d19975f985e037c9b0',
-      token: '275c535c8c014b59bedb2a2d6fe7d37b',
-      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/pragmaticplay'
-    }
+    description: 'Leading provider of mobile and desktop digital casino games'
   },
-  ppusd: {
-    id: 'ppusd',
-    name: 'Pragmatic Play',
-    currency: 'USD',
-    enabled: true,
-    credentials: {
-      apiEndpoint: 'api-euw1.pragmaticplay.net',
-      agentId: 'captaingambleUSD',
-      secretKey: 'bbd0551e144c46d19975f985e037c9b0',
-      token: '275c535c8c014b59bedb2a2d6fe7d37b',
-      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/pragmaticplay'
-    }
+  evolution: {
+    id: 'evolution',
+    name: 'Evolution',
+    logo: '/providers/evolution.png',
+    apiEndpoint: 'https://api.evolution.com',
+    enabled: false,
+    description: 'World leader in live casino games and game shows'
   },
-  infineur: {
-    id: 'infineur',
-    name: 'InfinGame',
-    currency: 'EUR',
-    enabled: true,
-    credentials: {
-      apiEndpoint: 'api-dev.infingame.com',
-      agentId: 'casinothunder',
-      secretKey: 'api-secret-key',
-      token: 'api-token-here',
-      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/infingame'
-    }
+  netent: {
+    id: 'netent',
+    name: 'NetEnt',
+    logo: '/providers/netent.png',
+    apiEndpoint: 'https://api.netent.com',
+    enabled: false,
+    description: 'Premium gaming solutions to the world\'s most successful online casino operators'
   },
-  gspeur: {
-    id: 'gspeur',
+  microgaming: {
+    id: 'microgaming',
+    name: 'Microgaming',
+    logo: '/providers/microgaming.png',
+    apiEndpoint: 'https://api.microgaming.com',
+    enabled: false,
+    description: 'Pioneer in online gaming software with over 800 casino games'
+  },
+  playtech: {
+    id: 'playtech',
+    name: 'Playtech',
+    logo: '/providers/playtech.png',
+    apiEndpoint: 'https://api.playtech.com',
+    enabled: false,
+    description: 'World\'s largest supplier of online gaming and sports betting software'
+  },
+  gitSlotPark: {
+    id: 'gitSlotPark',
     name: 'GitSlotPark',
-    currency: 'EUR',
+    logo: '/providers/gitslotpark.png',
+    apiEndpoint: 'https://api.gitslotpark.com',
     enabled: true,
-    credentials: {
-      apiEndpoint: 'api.gitslotpark.com',
-      agentId: 'partner123',
-      secretKey: 'gsp-secret-key',
-      token: 'gsp-api-token',
-      callbackUrl: 'https://xucpujttrmcfnxalnuzr.supabase.co/functions/v1/game_callback/gitslotpark'
-    }
+    description: 'Custom designed slot games provider with innovative features'
   }
 };
 
-/**
- * Get enabled game providers
- */
-export const getEnabledProviders = () => {
-  return Object.values(providerConfigs).filter(p => p.enabled);
+export const GameProviderConfig = {
+  get: (providerId: string): GameProviderConfig => {
+    return gameProviders[providerId] || null;
+  },
+  getAll: (): GameProviderConfig[] => {
+    return Object.values(gameProviders);
+  },
+  updateConfig: (providerId: string, config: Partial<GameProviderConfig>): GameProviderConfig => {
+    if (!gameProviders[providerId]) {
+      throw new Error(`Provider ${providerId} not found`);
+    }
+    
+    gameProviders[providerId] = {
+      ...gameProviders[providerId],
+      ...config
+    };
+    
+    return gameProviders[providerId];
+  }
 };
 
-/**
- * Get a specific provider configuration
- */
-export const getProviderConfig = (providerId: string): GameProviderConfig | undefined => {
-  return providerConfigs[providerId];
-};
-
-/**
- * Get all provider configurations
- */
-export const getAllProviderConfigs = () => {
-  return providerConfigs;
-};
-
-export default providerConfigs;
+export default GameProviderConfig;

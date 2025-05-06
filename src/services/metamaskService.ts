@@ -1,4 +1,3 @@
-
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { addTransaction } from "./transactionService";
@@ -192,7 +191,7 @@ export class MetaMaskService {
         provider: 'Metamask'
       });
       
-      // Credit the user's wallet using the walletService instead of creditWallet
+      // Credit the user's wallet using walletService instead of creditWallet
       await walletService.updateBalance(userId, amountInEth, 'deposit');
 
       toast.success(`Transaction sent successfully! Amount: ${amountInEth} ETH`);

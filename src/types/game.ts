@@ -9,24 +9,24 @@ export interface GameProvider {
 
 export interface Game {
   id?: number | string;
-  provider_id: number;
+  provider_id?: number;
   game_server_url?: string;
-  game_id: string;
-  game_name: string;
-  game_code: string;
+  game_id?: string;
+  game_name?: string;
+  game_code?: string;
   game_type?: string;
   description?: string;
   cover?: string;
-  status: string;
+  status?: string;
   technology?: string;
-  has_lobby: boolean;
-  is_mobile: boolean;
-  has_freespins: boolean;
-  has_tables: boolean;
+  has_lobby?: boolean;
+  is_mobile?: boolean;
+  has_freespins?: boolean;
+  has_tables?: boolean;
   only_demo?: boolean;
-  rtp: number;
-  distribution: string;
-  views: number;
+  rtp?: number;
+  distribution?: string;
+  views?: number;
   is_featured?: boolean;
   show_home?: boolean;
   created_at?: string;

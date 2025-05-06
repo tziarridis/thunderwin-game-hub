@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   Card, 
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { getUserTransactions } from "@/services/transactionService";
+import { transactionService } from "@/services/transactionService";
 import { Transaction, TransactionFilter } from "@/types/transaction";
 
 const Transactions = () => {
@@ -23,7 +24,7 @@ const Transactions = () => {
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const result = await getUserTransactions('all');
+        const result = await transactionService.getUserTransactions('all');
         setTransactions(result.data);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);

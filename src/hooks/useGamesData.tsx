@@ -58,12 +58,12 @@ export const useGamesData = ({
       
       if (popular) {
         query = query
-          .eq('is_popular', true);
+          .eq('show_home', true);
       }
       
       if (latest) {
-        query = query
-          .eq('is_new', true);
+        // Order by created_at to get the latest games
+        query = query.order('created_at', { ascending: false });
       }
       
       if (searchQuery) {
@@ -98,19 +98,26 @@ export const useGamesData = ({
       }
       
       // Format games data
-      const formattedGames = data?.map(game => ({
-        id: game.id,
-        title: game.game_name,
-        provider: game.providers?.name || 'Unknown',
-        image: game.cover || '/placeholder.svg',
-        category: game.game_type,
-        rtp: game.rtp,
-        isPopular: game.is_popular,
-        isNew: game.is_new,
-        isFavorite: favorites[game.id] || false,
-        minBet: game.min_bet,
-        maxBet: game.max_bet
-      })) || [];
+      const formattedGames = data?.map(game => {
+        const gameObject: Game = {
+          id: game.id,
+          title: game.game_name,
+          name: game.game_name, // Adding name property for compatibility
+          provider: game.providers?.name || 'Unknown',
+          image: game.cover || '/placeholder.svg',
+          category: game.game_type,
+          rtp: game.rtp,
+          isPopular: game.show_home || false,
+          isNew: (new Date(game.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          isFavorite: favorites[game.id] || false,
+          minBet: 1, // Default value
+          maxBet: 100, // Default value
+          volatility: 'medium', // Default value
+          features: [],
+          tags: []
+        };
+        return gameObject;
+      }) || [];
       
       // Update state
       if (offset === 0) {
