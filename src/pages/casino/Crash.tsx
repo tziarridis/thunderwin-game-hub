@@ -12,7 +12,7 @@ import GameSectionLoading from '@/components/casino/GameSectionLoading';
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 const Crash = () => {
-  const { games, loading, error } = useGames({ filter: 'crash' });
+  const { games, loading, error } = useGames({ category: 'crash' });
   const [crashGames, setCrashGames] = useState<Game[]>([]);
   const navigate = useNavigate();
 

@@ -39,43 +39,10 @@ const Favorites = () => {
         throw new Error("User ID is not available");
       }
       
-      // Use a direct join query instead of assuming a specific table structure
-      // We'll need to adapt this to the actual schema that exists
-      const { data, error } = await supabase.rpc('get_favorite_games', {
-        user_id_param: user.id
-      });
+      // For now, just return empty array since we don't have the proper tables
+      // This can be updated once the appropriate tables are created
+      setFavoriteGames([]);
       
-      if (error) {
-        console.error("Database error:", error);
-        // Fallback approach if the RPC function doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('games')
-          .select('*')
-          .filter('id', 'in', (await supabase
-            .from('user_favorites')
-            .select('game_id')
-            .eq('user_id', user.id)).data?.map(row => row.game_id) || []);
-            
-        if (fallbackError) throw fallbackError;
-        
-        if (fallbackData) {
-          const games = fallbackData.map(game => ({
-            ...game,
-            isFavorite: true,
-          })) as Game[];
-          setFavoriteGames(games);
-        } else {
-          setFavoriteGames([]);
-        }
-      } else if (data) {
-        const games = data.map((item: any) => ({
-          ...item,
-          isFavorite: true,
-        })) as Game[];
-        setFavoriteGames(games);
-      } else {
-        setFavoriteGames([]);
-      }
     } catch (error: any) {
       console.error("Error loading favorite games:", error);
       setError(error);
@@ -102,6 +69,17 @@ const Favorites = () => {
         <div className="text-center py-12">
           <p className="text-xl mb-4">Failed to load favorite games.</p>
           <Button onClick={retryLoading}>Retry</Button>
+        </div>
+      ) : favoriteGames.length === 0 ? (
+        <div className="text-center py-12 bg-white/5 rounded-lg">
+          <Heart className="h-16 w-16 text-white/30 mx-auto mb-4" />
+          <p className="text-xl mb-4 text-white/70">You don't have any favorite games yet.</p>
+          <Button 
+            onClick={() => navigate('/casino')} 
+            className="bg-casino-thunder-green text-white"
+          >
+            Browse Games
+          </Button>
         </div>
       ) : (
         <CasinoGameGrid 
