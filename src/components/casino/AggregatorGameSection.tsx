@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import gitSlotParkService from '@/services/gitSlotParkService';
-import pragmaticPlayService from '@/services/pragmaticPlayService';
+import { pragmaticPlayService } from '@/services/pragmaticPlayService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import GameSectionLoading from './GameSectionLoading';
