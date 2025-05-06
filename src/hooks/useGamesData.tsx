@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Game } from '@/types';
+import { Game, GameProvider } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -13,6 +13,23 @@ interface UseGamesDataProps {
   latest?: boolean;
   limit?: number;
   searchQuery?: string;
+}
+
+interface DbGame {
+  id: string;
+  game_name: string;
+  cover: string;
+  game_type: string;
+  rtp: number;
+  show_home: boolean;
+  created_at: string;
+  providers?: {
+    name: string;
+  };
+  min_bet?: number;
+  max_bet?: number;
+  is_popular?: boolean;
+  is_new?: boolean;
 }
 
 export const useGamesData = ({
@@ -98,7 +115,7 @@ export const useGamesData = ({
       }
       
       // Format games data
-      const formattedGames = data?.map(game => {
+      const formattedGames = data?.map((game: DbGame) => {
         const gameObject: Game = {
           id: game.id,
           title: game.game_name,
@@ -107,11 +124,11 @@ export const useGamesData = ({
           image: game.cover || '/placeholder.svg',
           category: game.game_type,
           rtp: game.rtp,
-          isPopular: game.show_home || false,
-          isNew: (new Date(game.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+          isPopular: game.show_home || game.is_popular || false,
+          isNew: game.is_new || (new Date(game.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
           isFavorite: favorites[game.id] || false,
-          minBet: 1, // Default value
-          maxBet: 100, // Default value
+          minBet: game.min_bet || 1, // Default value
+          maxBet: game.max_bet || 100, // Default value
           volatility: 'medium', // Default value
           features: [],
           tags: []

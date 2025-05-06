@@ -9,6 +9,15 @@ export interface GameProviderConfig {
   enabled?: boolean;
   supportedGames?: string[];
   description?: string;
+  credentials?: {
+    agentId?: string;
+    token?: string;
+    secretKey?: string;
+    apiEndpoint?: string;
+    callbackUrl?: string;
+  };
+  currency?: string;
+  type?: string;
 }
 
 export const gameProviders: Record<string, GameProviderConfig> = {
@@ -18,7 +27,13 @@ export const gameProviders: Record<string, GameProviderConfig> = {
     logo: '/providers/pragmatic_play.png',
     apiEndpoint: 'https://api.pragmaticplay.com',
     enabled: true,
-    description: 'Leading provider of mobile and desktop digital casino games'
+    description: 'Leading provider of mobile and desktop digital casino games',
+    credentials: {
+      agentId: 'pragmatic_agent',
+      token: 'demo_token',
+      apiEndpoint: 'api.pragmaticplay.com',
+      callbackUrl: 'https://your-domain.com/api/callback/pragmatic-play'
+    }
   },
   evolution: {
     id: 'evolution',
@@ -58,12 +73,58 @@ export const gameProviders: Record<string, GameProviderConfig> = {
     logo: '/providers/gitslotpark.png',
     apiEndpoint: 'https://api.gitslotpark.com',
     enabled: true,
-    description: 'Custom designed slot games provider with innovative features'
+    description: 'Custom designed slot games provider with innovative features',
+    credentials: {
+      agentId: 'gsp_agent',
+      secretKey: 'demo_secret',
+      apiEndpoint: 'api.gitslotpark.com',
+      callbackUrl: 'https://your-domain.com/api/callback/gitslotpark'
+    }
+  },
+  ppeur: {
+    id: 'ppeur',
+    name: 'Pragmatic Play EUR',
+    logo: '/providers/pragmatic_play.png',
+    enabled: true,
+    description: 'Pragmatic Play EUR integration',
+    credentials: {
+      agentId: 'ppeur_agent',
+      token: 'ppeur_token',
+      apiEndpoint: 'api.pragmaticplay.com',
+      callbackUrl: 'https://your-domain.com/api/callback/pragmatic-play'
+    }
+  },
+  infineur: {
+    id: 'infineur',
+    name: 'InfinGame EUR',
+    logo: '/providers/infingame.png',
+    enabled: true,
+    description: 'InfinGame EUR integration',
+    credentials: {
+      agentId: 'infin_agent',
+      token: 'infin_token',
+      apiEndpoint: 'api.infingame.com',
+      callbackUrl: 'https://your-domain.com/api/callback/infin'
+    }
+  },
+  gspeur: {
+    id: 'gspeur',
+    name: 'GitSlotPark EUR',
+    logo: '/providers/gitslotpark.png',
+    enabled: true,
+    description: 'GitSlotPark EUR integration',
+    credentials: {
+      agentId: 'gsp_agent',
+      secretKey: 'gsp_secret',
+      apiEndpoint: 'api.gitslotpark.com',
+      callbackUrl: 'https://your-domain.com/api/callback/gitslotpark'
+    }
   }
 };
 
+// GameProviderConfig main object with utility methods
 export const GameProviderConfig = {
-  get: (providerId: string): GameProviderConfig => {
+  get: (providerId: string): GameProviderConfig | null => {
     return gameProviders[providerId] || null;
   },
   getAll: (): GameProviderConfig[] => {
@@ -82,5 +143,26 @@ export const GameProviderConfig = {
     return gameProviders[providerId];
   }
 };
+
+// Export standalone utility functions that were referenced in other files
+export const getProviderConfig = (providerId: string): GameProviderConfig | null => {
+  return GameProviderConfig.get(providerId);
+};
+
+export const updateProviderConfig = (providerId: string, config: Partial<GameProviderConfig>): GameProviderConfig => {
+  return GameProviderConfig.updateConfig(providerId, config);
+};
+
+export const getEnabledProviders = (): GameProviderConfig[] => {
+  return Object.values(gameProviders).filter(provider => provider.enabled);
+};
+
+export const availableProviders = Object.values(gameProviders)
+  .filter(provider => provider.enabled)
+  .map(provider => ({
+    id: provider.id,
+    name: provider.name,
+    logo: provider.logo || ''
+  }));
 
 export default GameProviderConfig;

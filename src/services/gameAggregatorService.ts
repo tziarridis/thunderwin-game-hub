@@ -77,14 +77,14 @@ export const gameAggregatorService = {
       }
       
       const requestBody: SessionCreationRequest = {
-        agentId: providerConfig.credentials.agentId,
-        token: providerConfig.credentials.token || providerConfig.credentials.secretKey,
+        agentId: providerConfig.credentials?.agentId || '',
+        token: providerConfig.credentials?.token || providerConfig.credentials?.secretKey || '',
         currency: currency,
         playerName: playerId,
         gameId: isInfinGame ? gameId.replace('infin_', '') : 
                 isGSP ? gameId.replace('gsp_', '') : gameId,
         platform: platform,
-        callbackUrl: providerConfig.credentials.callbackUrl,
+        callbackUrl: providerConfig.credentials?.callbackUrl || '',
         returnUrl: window.location.origin + '/casino'
       };
       
@@ -92,7 +92,7 @@ export const gameAggregatorService = {
       console.log('Creating game session with:', requestBody);
 
       // Instead of making actual API calls, we'll generate demo URLs for testing
-      const demoBaseUrls = {
+      const demoBaseUrls: Record<string, string> = {
         ppeur: 'https://demogameserver.pragmaticplay.net/gs2c/openGame.do',
         infineur: 'https://demo-games.infingame.com/launcher',
         gspeur: 'https://demo.gitslotpark.com/game/launch'
@@ -122,7 +122,7 @@ export const gameAggregatorService = {
         params.append('userId', requestBody.playerName);
       }
       
-      const demoGameUrl = `${demoBaseUrls[providerId as keyof typeof demoBaseUrls]}?${params.toString()}`;
+      const demoGameUrl = `${demoBaseUrls[providerId] || demoBaseUrls['ppeur']}?${params.toString()}`;
       
       // Log session creation in transactions - using the Supabase client directly
       await supabase.from('transactions').insert({

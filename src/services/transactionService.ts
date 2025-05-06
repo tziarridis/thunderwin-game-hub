@@ -72,9 +72,27 @@ export const transactionService = {
         
       if (error) throw error;
       
+      // Map database transactions to frontend Transaction type
+      const formattedData = data ? data.map((tx: any) => ({
+        id: tx.id,
+        userId: tx.player_id,
+        type: tx.type,
+        amount: tx.amount,
+        currency: tx.currency,
+        status: tx.status,
+        date: tx.created_at,
+        description: tx.description || '',
+        gameId: tx.game_id,
+        provider: tx.provider,
+        roundId: tx.round_id,
+        balanceBefore: tx.balance_before,
+        balanceAfter: tx.balance_after,
+        metadata: tx.metadata
+      })) : [];
+      
       return { 
         success: true, 
-        data: data || [], 
+        data: formattedData || [], 
         total: count || 0 
       };
     } catch (error: any) {
@@ -97,9 +115,27 @@ export const transactionService = {
         
       if (error) throw error;
       
+      // Map database transactions to frontend Transaction type
+      const formattedData = data ? data.map((tx: any) => ({
+        id: tx.id,
+        userId: tx.player_id,
+        type: tx.type,
+        amount: tx.amount,
+        currency: tx.currency,
+        status: tx.status,
+        date: tx.created_at,
+        description: tx.description || '',
+        gameId: tx.game_id,
+        provider: tx.provider,
+        roundId: tx.round_id,
+        balanceBefore: tx.balance_before,
+        balanceAfter: tx.balance_after,
+        metadata: tx.metadata
+      })) : [];
+      
       return { 
         success: true, 
-        data: data || [], 
+        data: formattedData || [], 
         total: count || 0 
       };
     } catch (error: any) {
@@ -122,7 +158,25 @@ export const transactionService = {
         
       if (error) throw error;
       
-      return data || [];
+      // Map database transactions to frontend Transaction type
+      const formattedData = data ? data.map((tx: any) => ({
+        id: tx.id,
+        userId: tx.player_id,
+        type: tx.type,
+        amount: tx.amount,
+        currency: tx.currency,
+        status: tx.status,
+        date: tx.created_at,
+        description: tx.description || '',
+        gameId: tx.game_id,
+        provider: tx.provider,
+        roundId: tx.round_id,
+        balanceBefore: tx.balance_before,
+        balanceAfter: tx.balance_after,
+        metadata: tx.metadata
+      })) : [];
+      
+      return formattedData;
     } catch (error: any) {
       console.error('Error fetching Pragmatic Play transactions:', error);
       throw error;

@@ -62,8 +62,8 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         <GameCard 
           key={game.id}
           id={game.id}
-          title={game.title || game.name}
-          image={game.image || game.cover}
+          title={game.title || game.name || ''}
+          image={game.image || game.cover || '/placeholder.svg'}
           provider={game.provider}
           isPopular={game.isPopular || false}
           isNew={game.isNew || false}
