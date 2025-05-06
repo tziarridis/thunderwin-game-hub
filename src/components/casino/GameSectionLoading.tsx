@@ -1,12 +1,12 @@
 
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 
 const GameSectionLoading = () => {
   return (
-    <div className="animate-pulse grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="bg-casino-thunder-gray/30 rounded-lg h-48"></div>
-      ))}
+    <div className="flex flex-col items-center justify-center py-12">
+      <Loader2 className="h-12 w-12 animate-spin text-casino-thunder-green mb-4" />
+      <p className="text-white/70">Loading games...</p>
     </div>
   );
 };

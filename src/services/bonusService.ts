@@ -4,41 +4,9 @@ import { BonusTemplate, UserBonus, VipLevel } from '@/types/bonus';
 
 export const fetchBonusTypes = async (): Promise<BonusTemplate[]> => {
   try {
-    // Check if the bonus_types table exists
-    const { error: tableCheckError } = await supabase
-      .from('bonus_types')
-      .select('count')
-      .limit(1)
-      .single();
-      
-    // If the table doesn't exist, return mock data
-    if (tableCheckError) {
-      console.warn("bonus_types table not found, returning mock data");
-      return getMockBonusTypes();
-    }
-    
-    // Fetch from database if table exists
-    const { data, error } = await supabase
-      .from('bonus_types')
-      .select('*')
-      .eq('status', 'active');
-      
-    if (error) throw error;
-    
-    if (!data) return [];
-    
-    return data.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      description: item.description,
-      type: item.type || 'deposit',
-      value: item.bonus_percentage || 0,
-      minDeposit: item.min_deposit || 0,
-      wageringRequirement: item.wagering_requirement || 0,
-      durationDays: item.duration_days || 7,
-      forVipLevels: item.for_vip_levels || [],
-      isActive: item.status === 'active'
-    }));
+    // We can see that the bonus_types table doesn't exist in the schema
+    // Return mock data only since we can't query a table that doesn't exist
+    return getMockBonusTypes();
   } catch (error) {
     console.error("Error fetching bonus types:", error);
     return getMockBonusTypes();
@@ -47,41 +15,9 @@ export const fetchBonusTypes = async (): Promise<BonusTemplate[]> => {
 
 export const fetchUserBonuses = async (userId: string): Promise<UserBonus[]> => {
   try {
-    // Check if the user_bonuses table exists
-    const { error: tableCheckError } = await supabase
-      .from('user_bonuses')
-      .select('count')
-      .limit(1)
-      .single();
-      
-    // If the table doesn't exist, return mock data
-    if (tableCheckError) {
-      console.warn("user_bonuses table not found, returning mock data");
-      return getMockUserBonuses(userId);
-    }
-    
-    // Fetch from database if table exists
-    const { data, error } = await supabase
-      .from('user_bonuses')
-      .select('*')
-      .eq('user_id', userId);
-      
-    if (error) throw error;
-    
-    if (!data) return [];
-    
-    return data.map((item: any) => ({
-      id: item.id,
-      userId: item.user_id,
-      bonusId: item.bonus_type_id,
-      type: item.type,
-      amount: item.amount,
-      status: item.status,
-      dateIssued: item.created_at,
-      expiryDate: item.expires_at,
-      wageringRequirement: item.wagering_requirement_amount,
-      wageringCompleted: item.wagering_completed_amount
-    }));
+    // user_bonuses table doesn't exist in the schema
+    // Return mock data only
+    return getMockUserBonuses(userId);
   } catch (error) {
     console.error("Error fetching user bonuses:", error);
     return getMockUserBonuses(userId);
@@ -90,39 +26,9 @@ export const fetchUserBonuses = async (userId: string): Promise<UserBonus[]> => 
 
 export const fetchVipLevels = async (): Promise<VipLevel[]> => {
   try {
-    // Check if the vip_levels table exists
-    const { error: tableCheckError } = await supabase
-      .from('vip_levels')
-      .select('count')
-      .limit(1)
-      .single();
-      
-    // If the table doesn't exist, return mock data
-    if (tableCheckError) {
-      console.warn("vip_levels table not found, returning mock data");
-      return getMockVipLevels();
-    }
-    
-    // Fetch from database if table exists
-    const { data, error } = await supabase
-      .from('vip_levels')
-      .select('*')
-      .order('points_required', { ascending: true });
-      
-    if (error) throw error;
-    
-    if (!data) return [];
-    
-    return data.map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      pointsRequired: item.points_required,
-      cashbackRate: item.cashback_rate,
-      bonusMultiplier: item.bonus_multiplier,
-      description: item.description,
-      benefits: item.benefits || [],
-      status: item.status
-    }));
+    // vip_levels table doesn't exist in the schema
+    // Return mock data only
+    return getMockVipLevels();
   } catch (error) {
     console.error("Error fetching VIP levels:", error);
     return getMockVipLevels();

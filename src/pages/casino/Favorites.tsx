@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Game } from '@/types';
 import { Heart } from 'lucide-react';
 import { toast } from 'sonner';
@@ -39,7 +38,7 @@ const Favorites = () => {
         throw new Error("User ID is not available");
       }
       
-      // For now, just return empty array since we don't have the proper tables
+      // For now, return empty array since we don't have the proper tables
       // This can be updated once the appropriate tables are created
       setFavoriteGames([]);
       

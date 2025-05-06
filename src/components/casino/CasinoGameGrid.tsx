@@ -24,9 +24,8 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
     }
     
     try {
-      // Since we can't reference tables that don't exist in the Supabase schema,
-      // we'll implement a basic toggle functionality without database operations for now
-      // This can be updated once the appropriate tables are created in the database
+      // Since we don't have a favorite_games table in the Supabase schema yet,
+      // implement a basic toggle functionality without database operations for now
       
       toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
       
