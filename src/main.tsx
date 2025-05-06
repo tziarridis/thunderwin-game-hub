@@ -1,46 +1,19 @@
-
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter as Router } from "react-router-dom";
-import { StrictMode } from 'react';
-import App from './App.tsx';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
 import './index.css';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { Toaster } from './components/ui/toaster';
-import { supabase } from './integrations/supabase/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000, // 1 minute
-    },
-  },
-});
-
-// Create a root
-const rootElement = document.getElementById("root");
-if (!rootElement) throw new Error("Failed to find the root element");
-
-// Check if we have an existing session
-supabase.auth.getSession().then(({ data: { session } }) => {
-  console.log("Supabase session:", session ? "Active" : "None");
-});
-
-// Track auth state changes
-supabase.auth.onAuthStateChange((event, session) => {
-  console.log("Auth state change:", event, session ? "Session exists" : "No session");
-});
-
-createRoot(rootElement).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <Router>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
         <AuthProvider>
           <App />
-          <Toaster />
         </AuthProvider>
-      </Router>
-    </QueryClientProvider>
-  </StrictMode>
-);
+      </ThemeProvider>
+    </BrowserRouter>
+  </React.StrictMode>,
+)

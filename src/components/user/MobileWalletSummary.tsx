@@ -1,89 +1,84 @@
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, ArrowUp } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import type { Wallet } from '@/types/wallet';
+import { useAuth } from '@/contexts/AuthContext';
+import { RefreshCw } from 'lucide-react';
+import { walletService } from '@/services/walletService';
+import { Wallet } from '@/types/wallet';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-const MobileWalletSummary = () => {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+interface MobileWalletSummaryProps {
+  showRefresh?: boolean;
+}
+
+const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) => {
   const { user, refreshWalletBalance } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
-  
+
   useEffect(() => {
-    if (user && isMobile) {
-      fetchWalletInfo();
-    }
-  }, [user, isMobile]);
-  
-  const fetchWalletInfo = async () => {
+    fetchWalletData();
+  }, [user?.id]);
+
+  const fetchWalletData = async () => {
     if (!user?.id) return;
     
     try {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      setLoading(true);
+      const walletResponse = await walletService.getWalletByUserId(user.id);
       
-      if (error) throw error;
-      
-      if (data) {
-        setWallet({
-          id: data.id,
-          userId: data.user_id,
-          balance: data.balance || 0,
-          currency: data.currency || 'USD',
-          symbol: data.symbol || '$',
-          vipLevel: data.vip_level || 0,
-          bonusBalance: data.balance_bonus || 0,
-          cryptoBalance: data.balance_cryptocurrency || 0,
-          demoBalance: data.balance_demo || 1000,
-          isActive: data.active || false
-        });
+      if (walletResponse.data) {
+        const walletData = walletService.mapDatabaseWalletToWallet(walletResponse.data);
+        setWallet(walletData);
       }
     } catch (error) {
-      console.error('Error fetching wallet:', error);
+      console.error("Error fetching wallet data:", error);
+    } finally {
+      setLoading(false);
     }
   };
-  
+
   const handleRefresh = async () => {
-    setIsRefreshing(true);
+    setLoading(true);
     await refreshWalletBalance();
-    await fetchWalletInfo();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 1000);
+    await fetchWalletData();
+    setLoading(false);
   };
-  
-  if (!isMobile || !wallet) return null;
+
+  if (!isMobile) return null;
 
   return (
-    <Card className="bg-gradient-to-r from-slate-800 to-slate-900 m-4 sticky top-[72px] z-10">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center">
-          <div className="flex flex-col">
-            <span className="text-sm text-white/70">Total Balance</span>
-            <span className="text-2xl font-bold">{wallet.symbol}{wallet.balance.toFixed(2)}</span>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </Button>
-            
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700">
-              <ArrowUp className="mr-1 h-3 w-3" />
-              Deposit
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-3 mb-4 flex items-center justify-between">
+      <div>
+        <span className="text-xs text-white/60 block">Your Balance</span>
+        <span className="text-lg font-bold text-white">
+          {user?.balance?.toLocaleString() || wallet?.balance?.toLocaleString() || '0'} {wallet?.currency || 'USD'}
+        </span>
+      </div>
+      
+      <div className="flex gap-2">
+        {showRefresh && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-white/70 hover:text-white"
+            onClick={handleRefresh}
+            disabled={loading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        )}
+        
+        <Button 
+          size="sm" 
+          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+        >
+          Deposit
+        </Button>
+      </div>
+    </div>
   );
 };
 
