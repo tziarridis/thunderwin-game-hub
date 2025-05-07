@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Home, Shield, User, LockKeyhole } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 const adminLoginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -41,19 +41,16 @@ const AdminLogin = () => {
   const onSubmit = async (values: AdminLoginValues) => {
     setIsSubmitting(true);
     try {
-      await adminLogin(values.username, values.password);
-      toast({
-        title: "Login successful",
-        description: "Welcome to the admin dashboard",
-      });
-      navigate("/admin");
-    } catch (error) {
+      const result = await adminLogin(values.username, values.password);
+      
+      if (!result.success) {
+        throw new Error(result.error || "Login failed");
+      }
+      
+      // Success is handled in adminLogin function (toast and navigation)
+    } catch (error: any) {
       console.error("Admin login failed:", error);
-      toast({
-        title: "Login failed",
-        description: "Invalid username or password",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Invalid username or password");
     } finally {
       setIsSubmitting(false);
     }

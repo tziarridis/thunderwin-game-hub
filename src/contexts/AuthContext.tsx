@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -19,6 +18,7 @@ export interface AuthUser {
   vipLevel?: number;
   balance?: number;
   currency?: string;
+  name?: string; // Adding name property
 }
 
 export interface AuthContextType {
@@ -27,7 +27,7 @@ export interface AuthContextType {
   isLoading: boolean;
   error?: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  adminLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   reset: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -124,6 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           vipLevel: 0, // Default value, will be updated from wallet
           balance: 0,   // Default value, will be updated from wallet
           currency: 'USD',
+          name: userDetails.username || userDetails.email.split('@')[0], // Set the name field
         };
         
         setUser(authUser);
@@ -196,10 +197,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const adminLogin = async (email: string, password: string) => {
+  // Modified admin login function to support hardcoded demo credentials
+  const adminLogin = async (username: string, password: string) => {
     try {
       setLoading(true);
-      const result = await login(email, password);
+      
+      // Special case for demo admin credentials
+      if (username === "admin" && password === "admin") {
+        // Create a demo admin user
+        const demoAdminUser: AuthUser = {
+          id: "demo-admin-id",
+          username: "admin",
+          email: "admin@example.com",
+          name: "Demo Admin",
+          isAdmin: true,
+          isVerified: true,
+          balance: 10000,
+          vipLevel: 10,
+          currency: "USD",
+          role: "admin"
+        };
+        
+        // Set the user and authentication state
+        setUser(demoAdminUser);
+        setIsAuthenticated(true);
+        setIsAdmin(true);
+        
+        // Show success message
+        toast.success('Admin login successful!');
+        navigate('/admin');
+        return { success: true };
+      }
+      
+      // Regular authentication flow if not using demo credentials
+      const result = await login(username, password);
       
       // Check if the user is an admin
       if (result.success && user?.isAdmin) {
@@ -215,6 +246,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       return result;
     } catch (error: any) {
+      toast.error(error.message || "Login failed");
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
