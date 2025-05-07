@@ -1,6 +1,6 @@
 
 import { ReactNode, useState, useEffect } from "react";
-import { Outlet, Navigate, useNavigate } from "react-router-dom";
+import { Outlet, Navigate, useNavigate, useLocation } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -13,9 +13,17 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) => {
   const { isAuthenticated, isAdmin, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   
   useEffect(() => {
+    // Prevent redirection loops by checking current path
+    const isLoginPage = location.pathname === '/admin/login';
+    if (isLoginPage) {
+      setIsChecking(false);
+      return;
+    }
+    
     // Small delay to ensure auth state is properly loaded
     const timer = setTimeout(() => {
       setIsChecking(false);
@@ -23,16 +31,18 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
       console.log("AdminLayout - Auth state:", { 
         isAuthenticated, 
         isAdmin: isAdmin(), 
-        user 
+        user,
+        path: location.pathname
       });
       
+      // Only redirect if not already on the login page
       if (!isAuthenticated || !isAdmin()) {
         navigate('/admin/login');
       }
     }, 500); // Increased timeout for better stability
     
     return () => clearTimeout(timer);
-  }, [isAuthenticated, isAdmin, navigate, user]);
+  }, [isAuthenticated, isAdmin, navigate, user, location.pathname]);
   
   // Show loading while checking authentication
   if (isChecking) {

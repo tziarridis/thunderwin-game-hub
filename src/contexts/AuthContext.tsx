@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -127,7 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Modified admin login function to support hardcoded demo credentials
+  // Modified admin login function to support hardcoded demo credentials 
   const adminLogin = async (username: string, password: string) => {
     try {
       setLoading(true);
@@ -139,7 +138,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (username === "admin" && password === "admin") {
         console.log("Demo admin credentials detected");
         
-        // Create a demo admin user
+        // Create a demo admin user with all required fields
         const demoAdminUser: AuthUser = {
           id: "demo-admin-id",
           username: "admin",
@@ -150,7 +149,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           balance: 10000,
           vipLevel: 10,
           currency: "USD",
-          role: "admin"
+          role: "admin",
+          firstName: "Demo", 
+          lastName: "Admin",
+          avatar: "/placeholder.svg"
         };
         
         // Set the user and authentication state
@@ -163,10 +165,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Use a longer timeout to ensure state is updated before navigation
         console.log("Admin login successful, navigating to admin dashboard");
+        
+        // Navigate with a timeout to allow state updates to complete
         setTimeout(() => {
           console.log("Now navigating to /admin/dashboard");
           navigate('/admin/dashboard');
-        }, 500); // Increased timeout for better stability
+        }, 1000); // Increased timeout for better stability
         
         return { success: true };
       }

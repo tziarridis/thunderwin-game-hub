@@ -30,13 +30,9 @@ const AdminLogin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
-  // Redirect if already logged in as admin
-  if (isAuthenticated && isAdmin()) {
-    console.log("Already authenticated as admin, redirecting to dashboard");
-    navigate('/admin/dashboard');
-    return null;
-  }
-
+  // Don't use navigate inside the component body - it causes state updates during render
+  // Instead, use useEffect to handle redirections
+  
   const form = useForm<AdminLoginValues>({
     resolver: zodResolver(adminLoginSchema),
     defaultValues: {
@@ -50,7 +46,6 @@ const AdminLogin = () => {
     
     setIsSubmitting(true);
     try {
-      // Direct console log to debug
       console.log("Attempting admin login with:", values.username, values.password);
       
       // Call the adminLogin function
