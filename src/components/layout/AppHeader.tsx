@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -90,7 +89,7 @@ const AppHeader = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8 border border-casino-thunder-green">
-                        <AvatarImage src={user?.avatarUrl || ""} alt={user?.username} />
+                        <AvatarImage src={user?.avatar || ""} alt={user?.username} />
                         <AvatarFallback className="bg-casino-thunder-green text-black">
                           {user?.username?.charAt(0).toUpperCase() || "U"}
                         </AvatarFallback>

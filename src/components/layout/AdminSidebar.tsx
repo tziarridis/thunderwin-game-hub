@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   LayoutDashboard,
@@ -330,8 +329,8 @@ const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-                  {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.name} className="h-full w-full object-cover" />
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
                   ) : (
                     <span className="text-sm font-medium text-white">{user.name?.charAt(0) || "A"}</span>
                   )}
