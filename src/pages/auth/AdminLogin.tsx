@@ -44,15 +44,17 @@ const AdminLogin = () => {
       // Direct console log to debug
       console.log("Attempting admin login with:", values.username, values.password);
       
+      // Call the adminLogin function
       const result = await adminLogin(values.username, values.password);
+      
+      console.log("Admin login result:", result);
       
       if (!result.success) {
         throw new Error(result.error || "Login failed");
       }
       
-      // This line is unnecessary since navigation is handled in adminLogin function
-      // Leave this commented out as a reminder
-      // navigate('/admin');
+      // Do not navigate here - adminLogin handles navigation
+      console.log("Admin login successful, navigation handled by AuthContext");
       
     } catch (error: any) {
       console.error("Admin login failed:", error);

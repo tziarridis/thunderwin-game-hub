@@ -1,6 +1,6 @@
 
-import { ReactNode, useState } from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { ReactNode, useState, useEffect } from "react";
+import { Outlet, Navigate, useNavigate } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -11,10 +11,38 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) => {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
+  const navigate = useNavigate();
+  const [isChecking, setIsChecking] = useState(true);
+  
+  useEffect(() => {
+    // Small delay to ensure auth state is properly loaded
+    const timer = setTimeout(() => {
+      setIsChecking(false);
+      
+      console.log("AdminLayout - Auth state:", { 
+        isAuthenticated, 
+        isAdmin: isAdmin(), 
+        user 
+      });
+      
+      if (!isAuthenticated || !isAdmin()) {
+        navigate('/admin/login');
+      }
+    }, 200);
+    
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isAdmin, navigate, user]);
+  
+  // Show loading while checking authentication
+  if (isChecking) {
+    return <div className="flex min-h-screen bg-slate-900 items-center justify-center">
+      <div className="text-white">Loading admin panel...</div>
+    </div>;
+  }
   
   // Redirect to admin login if not authenticated or not an admin
-  if (!isAuthenticated || !isAdmin) {
+  if (!isAuthenticated || !isAdmin()) {
     return <Navigate to="/admin/login" replace />;
   }
   
