@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { addTransaction } from '@/services/transactionService';
+import { trackEvent } from '@/utils/analytics';
 import { getProviderConfig } from '@/config/gameProviders';
 
 // Interface for session creation request
@@ -56,6 +56,12 @@ export const gameAggregatorService = {
   ): Promise<SessionCreationResponse> => {
     try {
       console.log(`Creating game session for player ${playerId}, game ${gameId}`);
+      
+      // Track analytics event
+      trackEvent('game_session_create', {
+        gameId,
+        platform
+      });
       
       // Determine which provider to use based on the game ID
       const isInfinGame = gameId.startsWith('infin_');
@@ -128,7 +134,7 @@ export const gameAggregatorService = {
       
       const demoGameUrl = `${demoBaseUrls[providerId] || demoBaseUrls['ppeur']}?${params.toString()}`;
       
-      // Log session creation in transactions - using the Supabase client directly
+      // Log session creation in transactions
       await supabase.from('transactions').insert({
         player_id: playerId,
         game_id: gameId,
@@ -140,6 +146,11 @@ export const gameAggregatorService = {
       });
       
       console.log(`Generated game URL: ${demoGameUrl}`);
+      trackEvent('game_session_success', { 
+        provider: providerId,
+        gameId,
+        platform
+      });
       
       return {
         success: true,
@@ -151,6 +162,9 @@ export const gameAggregatorService = {
       
       // Show error to user
       toast.error(`Failed to launch game: ${error.message || 'Unknown error'}`);
+      trackEvent('game_session_error', { 
+        error: error.message || 'Unknown error'
+      });
       
       return {
         success: false,
@@ -169,6 +183,10 @@ export const gameAggregatorService = {
   processCallback: async (provider: string, callbackData: any) => {
     try {
       console.log(`Processing callback for provider ${provider}:`, callbackData);
+      trackEvent('game_callback', {
+        provider,
+        type: determineTransactionType(provider.toLowerCase(), callbackData)
+      });
       
       // Normalize provider identifier
       const providerCode = provider.toLowerCase();
@@ -180,6 +198,10 @@ export const gameAggregatorService = {
       const playerId = extractPlayerId(providerCode, callbackData);
       
       if (!playerId) {
+        trackEvent('game_callback_error', {
+          provider,
+          error: 'Invalid player ID'
+        });
         return { 
           success: false, 
           errorCode: 'INVALID_PLAYER',
@@ -196,6 +218,10 @@ export const gameAggregatorService = {
         
       if (walletError || !walletData) {
         console.error('Error fetching wallet:', walletError);
+        trackEvent('game_callback_error', {
+          provider,
+          error: 'Wallet not found'
+        });
         return { 
           success: false, 
           errorCode: 'WALLET_NOT_FOUND',
@@ -216,6 +242,11 @@ export const gameAggregatorService = {
       if (transactionType === 'bet') {
         // Check if player has enough balance
         if (currentBalance < amount) {
+          trackEvent('game_callback_error', {
+            provider,
+            error: 'Insufficient funds',
+            transactionType
+          });
           return { 
             success: false, 
             errorCode: 'INSUFFICIENT_FUNDS',
@@ -237,10 +268,11 @@ export const gameAggregatorService = {
       }
       else if (transactionType === 'balance') {
         // Just return current balance
-        return {
-          success: true,
-          balance: currentBalance
-        };
+        trackEvent('game_callback_success', {
+          provider,
+          transactionType: 'balance'
+        });
+        return formatBalanceResponse(providerCode, currentBalance, callbackData);
       }
       
       // Update wallet balance
@@ -251,6 +283,11 @@ export const gameAggregatorService = {
         
       if (updateError) {
         console.error('Error updating wallet balance:', updateError);
+        trackEvent('game_callback_error', {
+          provider,
+          error: 'Database error',
+          transactionType
+        });
         return { 
           success: false, 
           errorCode: 'DATABASE_ERROR',
@@ -282,34 +319,21 @@ export const gameAggregatorService = {
         // In a production system, this should be handled more gracefully
       }
       
+      // Track successful transaction
+      trackEvent('game_callback_success', {
+        provider,
+        transactionType,
+        amount
+      });
+      
       // Return successful response with new balance according to provider specs
-      if (providerCode.includes('infin')) {
-        // InfinGame format as per docs
-        return {
-          status: "success",
-          balance: newBalance,
-          currency: extractCurrency(providerCode, callbackData) || 'EUR',
-          transactionId: `tx-${Date.now()}`
-        };
-      } else if (providerCode.includes('gsp') || providerCode.includes('gitslot')) {
-        // GitSlotPark format as per docs
-        return {
-          success: true,
-          balance: newBalance,
-          currency: extractCurrency(providerCode, callbackData) || 'EUR',
-          transactionId: `tx-${Date.now()}`
-        };
-      } else {
-        // Generic format
-        return {
-          success: true,
-          balance: newBalance,
-          currency: extractCurrency(providerCode, callbackData) || 'EUR',
-          transactionId: `tx-${Date.now()}`
-        };
-      }
+      return formatSuccessResponse(providerCode, newBalance, transactionType, callbackData);
     } catch (error: any) {
       console.error('Error processing callback:', error);
+      trackEvent('game_callback_error', {
+        provider,
+        error: error.message || 'Unknown error'
+      });
       return { 
         success: false, 
         errorCode: 'INTERNAL_ERROR',
@@ -370,6 +394,10 @@ export const gameAggregatorService = {
   syncGamesFromProviders: async () => {
     try {
       console.log('Starting game synchronization from providers...');
+      trackEvent('admin_action', {
+        action: 'sync_games'
+      });
+      
       // In a real implementation, this would call provider APIs
       // But for demo purposes, we'll just return success
       
@@ -381,6 +409,10 @@ export const gameAggregatorService = {
       };
     } catch (error: any) {
       console.error('Error syncing games from providers:', error);
+      trackEvent('admin_action_error', {
+        action: 'sync_games',
+        error: error.message || 'Unknown error'
+      });
       return {
         success: false,
         message: error.message || 'Failed to sync games'
@@ -403,14 +435,15 @@ function determineTransactionType(provider: string, data: any): string {
     // InfinGame format as per docs
     return data.operationType === 'credit' ? 'win' : 
            data.operationType === 'debit' ? 'bet' : 
-           data.operationType === 'rollback' ? 'refund' : 'balance';
+           data.operationType === 'rollback' ? 'refund' : 
+           data.operationType === 'getBalance' ? 'balance' : 'unknown';
   }
   else if (provider.includes('gsp') || provider.includes('gitslot')) {
     // GitSlotPark format as per docs
     return data.operation === 'win' ? 'win' : 
            data.operation === 'bet' ? 'bet' : 
            data.operation === 'refund' ? 'refund' : 
-           data.operation === 'balance' ? 'balance' : 'bet';
+           data.operation === 'balance' ? 'balance' : 'unknown';
   }
   // Default behavior
   return 'unknown';
@@ -504,6 +537,71 @@ function extractSessionId(provider: string, data: any): string {
     return data.sessionId || data.session_id || '';
   }
   return '';
+}
+
+// Format balance response according to provider specs
+function formatBalanceResponse(provider: string, balance: number, data: any): any {
+  if (provider.includes('infin')) {
+    // InfinGame format as per docs
+    return {
+      status: "success",
+      balance: balance,
+      currency: extractCurrency(provider, data)
+    };
+  } else if (provider.includes('gsp') || provider.includes('gitslot')) {
+    // GitSlotPark format as per docs
+    return {
+      success: true,
+      balance: balance,
+      currency: extractCurrency(provider, data)
+    };
+  } else if (provider.includes('pragmatic') || provider.includes('pp')) {
+    // Pragmatic Play format
+    return {
+      errorcode: "0", // 0 means success
+      balance: balance
+    };
+  }
+  
+  // Default format
+  return {
+    success: true,
+    balance: balance
+  };
+}
+
+// Format success response according to provider specs
+function formatSuccessResponse(provider: string, balance: number, type: string, data: any): any {
+  if (provider.includes('infin')) {
+    // InfinGame format as per docs
+    return {
+      status: "success",
+      balance: balance,
+      currency: extractCurrency(provider, data),
+      transactionId: `infin-tx-${Date.now()}`
+    };
+  } else if (provider.includes('gsp') || provider.includes('gitslot')) {
+    // GitSlotPark format as per docs
+    return {
+      success: true,
+      balance: balance,
+      currency: extractCurrency(provider, data),
+      transactionId: `gsp-tx-${Date.now()}`
+    };
+  } else if (provider.includes('pragmatic') || provider.includes('pp')) {
+    // Pragmatic Play format
+    return {
+      errorcode: "0", // 0 means success
+      balance: balance
+    };
+  }
+  
+  // Default format
+  return {
+    success: true,
+    balance: balance,
+    transactionId: `tx-${Date.now()}`
+  };
 }
 
 export default gameAggregatorService;

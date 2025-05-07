@@ -115,7 +115,7 @@ async function handleGitSlotParkCallback(data: any) {
     };
   }
   
-  // Mock successful transaction
+  // According to GitSlotPark documentation, these are the required response formats
   if (data.operation === "balance") {
     return {
       success: true,
@@ -141,9 +141,9 @@ async function handleGitSlotParkCallback(data: any) {
   }
   
   return {
-    success: true,
-    balance: 100.00,
-    transactionId: `gsp-tx-${Date.now()}`
+    success: false,
+    errorCode: "UNKNOWN_OPERATION",
+    message: `Unknown operation: ${data.operation}`
   };
 }
 
@@ -161,7 +161,7 @@ async function handleInfinCallback(data: any) {
     };
   }
   
-  // Mock successful transaction based on operation type
+  // InfinGame operations per documentation
   if (data.operationType === "getBalance") {
     return {
       status: "success",
@@ -171,6 +171,7 @@ async function handleInfinCallback(data: any) {
   }
   
   if (data.operationType === "debit") {
+    // Check if there's enough balance for the debit
     return {
       status: "success",
       balance: 95.00, // Reduced after debit
@@ -186,10 +187,18 @@ async function handleInfinCallback(data: any) {
     };
   }
   
+  if (data.operationType === "rollback") {
+    return {
+      status: "success",
+      balance: 100.00,
+      transactionId: `infin-tx-${Date.now()}`
+    };
+  }
+  
   return {
-    status: "success",
-    balance: 100.00,
-    transactionId: `infin-tx-${Date.now()}`
+    status: "error",
+    errorCode: "UNKNOWN_OPERATION",
+    message: `Unknown operation: ${data.operationType}`
   };
 }
 

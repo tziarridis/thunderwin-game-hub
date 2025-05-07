@@ -40,9 +40,35 @@ export const trackEngagement = (metrics: { timeOnPage?: number; scrollDepth?: nu
   // In production, this would send engagement metrics to an analytics service
 };
 
+/**
+ * Track game play sessions
+ * @param gameId The ID of the game being played
+ * @param provider The provider of the game
+ * @param duration The duration of the gameplay in seconds
+ * @param mode The game mode (demo or real)
+ */
+export const trackGamePlay = (gameId: string, provider: string, duration: number, mode: 'demo' | 'real') => {
+  console.log(`Analytics: Game play - ${gameId} (${provider}) for ${duration}s in ${mode} mode`);
+  // In production, this would send game play analytics to the analytics service
+};
+
+/**
+ * Track wallet transactions
+ * @param type The type of transaction
+ * @param amount The amount of the transaction
+ * @param currency The currency of the transaction
+ * @param status The status of the transaction
+ */
+export const trackTransaction = (type: string, amount: number, currency: string, status: string) => {
+  console.log(`Analytics: Transaction - ${type} ${amount} ${currency} (${status})`);
+  // In production, this would send transaction data to the analytics service
+};
+
 export default {
   trackPageView,
   trackEvent,
   incrementViews,
-  trackEngagement
+  trackEngagement,
+  trackGamePlay,
+  trackTransaction
 };

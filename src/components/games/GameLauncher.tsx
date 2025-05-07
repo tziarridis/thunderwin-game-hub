@@ -7,9 +7,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
+import { trackEvent } from "@/utils/analytics";
 
 interface GameLauncherProps {
-  gameId: string;
+  game?: Game;
+  gameId?: string;
   gameName?: string;
   buttonText?: string;
   variant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
@@ -19,6 +21,7 @@ interface GameLauncherProps {
 }
 
 const GameLauncher = ({
+  game,
   gameId,
   gameName = "Game",
   buttonText = "Play Now",
@@ -41,47 +44,68 @@ const GameLauncher = ({
     try {
       setIsLaunching(true);
       
-      // Find the game in our games list, or create a fully compliant Game object
-      const gameData = games.find(g => g.id === gameId) || {
-        id: gameId,
-        title: gameName,
-        name: gameName,
-        provider: "unknown",
-        category: "slots",
-        image: "/placeholder.svg",
-        rtp: 96.0,
-        volatility: "medium",
-        minBet: 0.1,
-        maxBet: 100,
-        isPopular: false,
-        isNew: false,
-        isFavorite: false,
-        jackpot: false,
-        releaseDate: new Date().toISOString(),
-        features: [],
-        tags: [],
-        description: ""
-      } as Game;
-      
-      // Launch the game using useGames hook
-      const gameUrl = await launchGame(gameData, {
-        playerId: user.id,
-        mode: 'real',
-        currency,
-        language: 'en',
-        platform,
-        returnUrl: window.location.href
+      // Track analytics event
+      trackEvent('game_launch_click', {
+        gameId: game?.id || gameId || 'unknown',
+        gameName: game?.title || gameName || 'Unknown Game',
       });
       
-      if (gameUrl) {
-        window.open(gameUrl, "_blank");
-        toast.success(`Launching ${gameName}`);
-      } else {
-        throw new Error("Failed to generate game URL");
+      // Use provided game object, or find the game in our games list if only gameId is provided
+      const gameData = game || (gameId ? games.find(g => g.id === gameId) : null);
+      
+      if (!gameData && !gameId) {
+        throw new Error("Game information not provided");
+      }
+      
+      // If we have a game object, use launchGame hook method
+      if (gameData) {
+        const gameUrl = await launchGame(gameData, {
+          playerId: user.id,
+          mode: 'real',
+          currency,
+          language: 'en',
+          platform,
+          returnUrl: window.location.href
+        });
+        
+        if (gameUrl) {
+          window.open(gameUrl, "_blank");
+          toast.success(`Launching ${gameData.title}`);
+          trackEvent('game_launch_success', {
+            gameId: gameData.id,
+            gameName: gameData.title
+          });
+        } else {
+          throw new Error("Failed to generate game URL");
+        }
+      } 
+      // If we only have gameId, use gameAggregatorService directly
+      else if (gameId) {
+        const response = await gameAggregatorService.createSession(
+          gameId,
+          user.id,
+          currency,
+          platform as 'web' | 'mobile'
+        );
+        
+        if (response.success && response.gameUrl) {
+          window.open(response.gameUrl, "_blank");
+          toast.success(`Launching ${gameName}`);
+          trackEvent('game_launch_success', {
+            gameId,
+            gameName
+          });
+        } else {
+          throw new Error(response.errorMessage || "Failed to generate game URL");
+        }
       }
     } catch (error: any) {
       console.error("Error launching game:", error);
       toast.error(error.message || "Failed to launch game");
+      trackEvent('game_launch_error', {
+        gameId: game?.id || gameId || 'unknown',
+        error: error.message || "Unknown error"
+      });
     } finally {
       setIsLaunching(false);
     }
