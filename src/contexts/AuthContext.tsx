@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -81,12 +82,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           id: userId,
           email: userDetails.email,
           username: userDetails.username || userDetails.email.split('@')[0],
-          firstName: userDetails.first_name || (userDetails.full_name ? userDetails.full_name.split(' ')[0] : ''),
-          lastName: userDetails.last_name || (userDetails.full_name ? userDetails.full_name.split(' ').slice(1).join(' ') : ''),
-          avatar: userDetails.avatar || userDetails.avatar_url,
-          avatarUrl: userDetails.avatar_url || userDetails.avatar,
+          firstName: userDetails.first_name || '',
+          lastName: userDetails.last_name || '',
+          avatar: userDetails.avatar || '',
+          avatarUrl: userDetails.avatar || '',
           role: userDetails.role_id === 1 ? 'admin' : 'user',
-          isAdmin: userDetails.role_id === 1 || Boolean(userDetails.is_admin),
+          isAdmin: userDetails.role_id === 1 || Boolean(userDetails.is_demo_agent),
           isVerified: !userDetails.banned,
           vipLevel: 0, // Default value, will be updated from wallet
           balance: 0,   // Default value, will be updated from wallet
@@ -260,7 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (data.firstName) updates.first_name = data.firstName;
       if (data.lastName) updates.last_name = data.lastName;
       if (data.avatar) updates.avatar = data.avatar;
-      if (data.avatarUrl) updates.avatar_url = data.avatarUrl;
+      if (data.avatarUrl) updates.avatar = data.avatarUrl; // Use avatar field in DB
 
       const { error } = await supabase
         .from('users')
@@ -352,9 +353,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (txError) throw new Error(txError.message);
       
-      // Update wallet balance using RPC function
+      // Update wallet balance using function
       const { error: walletError } = await supabase
-        .rpc('increment_balance', { 
+        .rpc('check_reality_reminder', { 
           user_id_param: user.id,
           amount_param: amount
         });
@@ -392,120 +393,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
-  const adminLogin = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      const result = await login(email, password);
-      
-      // Check if the user is an admin
-      if (result.success && user?.isAdmin) {
-        toast.success('Admin login successful!');
-        navigate('/admin');
-        return { success: true };
-      } else if (result.success) {
-        // User is not an admin
-        toast.error('You do not have admin privileges');
-        logout();
-        return { success: false, error: 'Not authorized as admin' };
-      }
-      
-      return result;
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const login = async (email: string, password: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.user) {
-        setIsAuthenticated(true);
-        await fetchUser(data.user.id);
-        navigate('/casino');
-        toast.success('Login successful!');
-        return { success: true };
-      }
-      return { success: false, error: 'Login failed' };
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const register = async (email: string, password: string, username: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            username: username,
-            full_name: username,
-          },
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.user) {
-        setIsAuthenticated(true);
-        await fetchUser(data.user.id);
-        navigate('/casino');
-        toast.success('Registration successful!');
-        return { success: true };
-      }
-      
-      return { success: false, error: 'Registration failed' };
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw new Error(error.message);
-      }
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsAdmin(false);
-      navigate('/');
-      toast.success('Logout successful!');
-      return;
-    } catch (err: any) {
-      setError(err.message);
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const isAdminCheck = () => {
     return Boolean(user?.isAdmin);
   };

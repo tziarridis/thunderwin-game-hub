@@ -153,3 +153,21 @@ export interface WalletResponse {
   data: Wallet | null;
   error: string | null;
 }
+
+export interface GameFilters {
+  category?: string;
+  provider?: string;
+  search?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  hasJackpot?: boolean;
+  isLive?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GameResponse {
+  data: Game[];
+  count: number;
+  error: string | null;
+}

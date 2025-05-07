@@ -1,13 +1,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { Wallet, WalletTransaction, WalletResponse } from "@/types/wallet";
-import { toast } from "sonner";
+import { Wallet, WalletResponse } from "@/types";
 
 export const walletService = {
-  /**
-   * Get the wallet for a given user ID
-   */
-  getWalletByUserId: async (userId: string): Promise<WalletResponse> => {
+  async getWalletByUserId(userId: string): Promise<WalletResponse> {
     try {
       const { data, error } = await supabase
         .from('wallets')
@@ -15,84 +11,74 @@ export const walletService = {
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        return { data: null, error: error.message };
+      }
 
-      const wallet = walletService.mapDatabaseWalletToWallet(data);
+      return { data, error: null };
+    } catch (err: any) {
+      console.error("Error fetching wallet:", err);
+      return { data: null, error: err.message || 'Failed to fetch wallet' };
+    }
+  },
+
+  async updateWalletBalance(userId: string, amount: number, type: 'deposit' | 'withdraw'): Promise<WalletResponse> {
+    try {
+      let response;
       
-      return { data: wallet, error: null };
-    } catch (error: any) {
-      console.error('Error fetching wallet:', error);
-      return { data: null, error: error.message };
+      if (type === 'deposit') {
+        // For deposit, use increment
+        const { data, error } = await supabase.rpc('check_reality_reminder', {
+          user_id_param: userId,
+          amount_param: amount
+        });
+        
+        if (error) throw error;
+        
+        response = await this.getWalletByUserId(userId);
+      } else {
+        // For withdrawal, only proceed if balance is sufficient
+        const currentWallet = await this.getWalletByUserId(userId);
+        
+        if (!currentWallet.data || currentWallet.data.balance < amount) {
+          return { 
+            data: null, 
+            error: 'Insufficient balance for withdrawal' 
+          };
+        }
+        
+        const { data, error } = await supabase
+          .from('wallets')
+          .update({ 
+            balance: currentWallet.data.balance - amount 
+          })
+          .eq('user_id', userId);
+        
+        if (error) throw error;
+        
+        response = await this.getWalletByUserId(userId);
+      }
+      
+      return response;
+    } catch (err: any) {
+      console.error(`Error ${type === 'deposit' ? 'depositing to' : 'withdrawing from'} wallet:`, err);
+      return { data: null, error: err.message };
     }
   },
-
-  /**
-   * Map database wallet to Wallet type
-   */
-  mapDatabaseWalletToWallet: (dbWallet: any): Wallet => ({
-    id: dbWallet.id,
-    userId: dbWallet.user_id,
-    balance: dbWallet.balance || 0,
-    currency: dbWallet.currency || 'USD',
-    symbol: dbWallet.symbol || '$',
-    vipLevel: dbWallet.vip_level || 0,
-    bonusBalance: dbWallet.balance_bonus || 0,
-    cryptoBalance: dbWallet.balance_cryptocurrency || 0,
-    demoBalance: dbWallet.balance_demo || 0,
-    isActive: dbWallet.active || false
-  }),
-
-  /**
-   * Update the wallet balance for a user
-   */
-  updateWalletBalance: async (userId: string, amount: number): Promise<WalletResponse> => {
-    try {
-      const { data, error } = await supabase.rpc('increment_balance', {
-        user_id_param: userId,
-        amount_param: amount
-      });
-
-      if (error) throw error;
-
-      // Fetch the updated wallet
-      return await walletService.getWalletByUserId(userId);
-    } catch (error: any) {
-      console.error('Error updating wallet balance:', error);
-      toast.error('Failed to update wallet balance');
-      return { data: null, error: error.message };
-    }
-  },
-
-  /**
-   * Get recent transactions for a user
-   */
-  getTransactions: async (userId: string, limit = 10): Promise<WalletTransaction[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('player_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) throw error;
-
-      return data.map(tx => ({
-        id: tx.id,
-        userId: tx.player_id,
-        type: tx.type,
-        amount: tx.amount,
-        currency: tx.currency,
-        status: tx.status,
-        date: tx.created_at,
-        gameId: tx.game_id,
-        gameName: tx.game_id, // Would need to fetch game name from games table
-        provider: tx.provider
-      }));
-    } catch (error: any) {
-      console.error('Error fetching transactions:', error);
-      return [];
-    }
+  
+  mapDatabaseWalletToWallet(dbWallet: any): Wallet {
+    return {
+      id: dbWallet.id,
+      userId: dbWallet.user_id,
+      balance: dbWallet.balance || 0,
+      currency: dbWallet.currency || 'USD',
+      symbol: dbWallet.symbol || '$',
+      vipLevel: dbWallet.vip_level || 0,
+      bonusBalance: dbWallet.balance_bonus || 0,
+      cryptoBalance: dbWallet.balance_cryptocurrency || 0,
+      demoBalance: dbWallet.balance_demo || 0,
+      isActive: dbWallet.active || false
+    };
   }
 };
 

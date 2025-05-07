@@ -1,7 +1,7 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameCategory, GameLaunchOptions, GamesContextType } from '@/types';
+import { Game, GameCategory, GameLaunchOptions, GamesContextType, GameFilters } from '@/types';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { toast } from 'sonner';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
@@ -45,9 +45,12 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const loadGames = async () => {
     try {
       setLoading(true);
-      const fetchedGames = await gamesDatabaseService.getAllGames();
-      setGames(fetchedGames);
-      setTotalCount(fetchedGames.length);
+      const gamesResponse = await gamesDatabaseService.getGames();
+      if (gamesResponse.error) {
+        throw new Error(gamesResponse.error);
+      }
+      setGames(gamesResponse.data);
+      setTotalCount(gamesResponse.count);
     } catch (err: any) {
       console.error('Error loading games:', err);
       setError(err.message || 'Failed to load games');
