@@ -24,11 +24,18 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
       return;
     }
     
+    console.log("AdminLayout - Initial auth state:", { 
+      isAuthenticated, 
+      isAdmin: isAdmin(), 
+      user,
+      path: location.pathname
+    });
+    
     // Small delay to ensure auth state is properly loaded
     const timer = setTimeout(() => {
       setIsChecking(false);
       
-      console.log("AdminLayout - Auth state:", { 
+      console.log("AdminLayout - Auth state after delay:", { 
         isAuthenticated, 
         isAdmin: isAdmin(), 
         user,
@@ -37,9 +44,10 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
       
       // Only redirect if not already on the login page
       if (!isAuthenticated || !isAdmin()) {
+        console.log("AdminLayout - Not authenticated or not admin, redirecting to login");
         navigate('/admin/login');
       }
-    }, 500); // Increased timeout for better stability
+    }, 300); // Shorter timeout for better responsiveness
     
     return () => clearTimeout(timer);
   }, [isAuthenticated, isAdmin, navigate, user, location.pathname]);
@@ -53,6 +61,7 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
   
   // Redirect to admin login if not authenticated or not an admin
   if (!isAuthenticated || !isAdmin()) {
+    console.log("AdminLayout - Redirecting to login due to auth check");
     return <Navigate to="/admin/login" replace />;
   }
   

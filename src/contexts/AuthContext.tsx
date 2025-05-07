@@ -37,7 +37,8 @@ export interface AuthContextType {
   isAdmin: () => boolean;
 }
 
-// Create the auth context with a default value
+// Keep existing code (user interfaces and types)
+
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
@@ -66,6 +67,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       
+      console.log("AuthContext - Checking session:", data?.session ? "Session exists" : "No session");
+      
       if (data?.session) {
         setIsAuthenticated(true);
         await fetchUser(data.session.user.id);
@@ -80,6 +83,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("AuthContext - Auth state changed:", event);
+      
       if (session) {
         setIsAuthenticated(true);
         await fetchUser(session.user.id);
@@ -126,7 +131,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Modified admin login function to support hardcoded demo credentials 
+  // Modified admin login function to handle demo admin user better
   const adminLogin = async (username: string, password: string) => {
     try {
       setLoading(true);
@@ -155,22 +160,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           avatar: "/placeholder.svg"
         };
         
-        // Set the user and authentication state
+        // Set the user and authentication state immediately
         setUser(demoAdminUser);
         setIsAuthenticated(true);
         setIsAdmin(true);
         
+        console.log("Auth state immediately after demo login:", {
+          isAuthenticated: true,
+          user: demoAdminUser,
+          isAdmin: true
+        });
+        
         // Show success message
         toast.success('Admin login successful!');
         
-        // Use a longer timeout to ensure state is updated before navigation
-        console.log("Admin login successful, navigating to admin dashboard");
-        
-        // Navigate with a timeout to allow state updates to complete
+        // Short timeout to ensure state updates are processed
         setTimeout(() => {
           console.log("Now navigating to /admin/dashboard");
-          navigate('/admin/dashboard');
-        }, 1000); // Increased timeout for better stability
+          navigate('/admin/dashboard', { replace: true });
+        }, 100);
         
         return { success: true };
       }
@@ -211,6 +219,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return { success: false, error: 'Login failed' };
     } catch (error: any) {
       console.error("Admin login error:", error);
+      setIsAuthenticated(false);
+      setUser(null);
+      setIsAdmin(false);
       toast.error(error.message || "Login failed");
       return { success: false, error: error.message };
     } finally {
@@ -517,6 +528,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     reset,
     isAdmin: isAdminCheck
   };
+
+  // Log auth context value for debugging
+  console.log("AuthContext - Current context value:", {
+    isAuthenticated,
+    isAdmin: isAdminCheck(),
+    hasUser: !!user,
+    isLoading: loading
+  });
 
   return (
     <AuthContext.Provider value={value}>

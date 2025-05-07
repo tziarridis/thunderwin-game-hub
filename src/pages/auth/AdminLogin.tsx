@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,9 +29,22 @@ const AdminLogin = () => {
   const { adminLogin, isAuthenticated, isAdmin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-
-  // Don't use navigate inside the component body - it causes state updates during render
-  // Instead, use useEffect to handle redirections
+  const location = useLocation();
+  
+  // Check authentication status with useEffect
+  useEffect(() => {
+    const checkAuth = async () => {
+      console.log("AdminLogin - Checking auth state:", { isAuthenticated, isAdmin: isAdmin() });
+      
+      // Only redirect if already authenticated as admin
+      if (isAuthenticated && isAdmin()) {
+        console.log("AdminLogin - Already authenticated as admin, redirecting to dashboard");
+        navigate('/admin/dashboard');
+      }
+    };
+    
+    checkAuth();
+  }, [isAuthenticated, isAdmin, navigate]);
   
   const form = useForm<AdminLoginValues>({
     resolver: zodResolver(adminLoginSchema),
@@ -45,23 +58,23 @@ const AdminLogin = () => {
     if (isSubmitting) return;
     
     setIsSubmitting(true);
+    console.log("AdminLogin - Login attempt with:", values.username);
+    
     try {
-      console.log("Attempting admin login with:", values.username, values.password);
-      
       // Call the adminLogin function
       const result = await adminLogin(values.username, values.password);
       
-      console.log("Admin login result:", result);
+      console.log("AdminLogin - Login result:", result);
       
       if (!result.success) {
         throw new Error(result.error || "Login failed");
       }
       
-      // Do not navigate here - adminLogin handles navigation
-      console.log("Admin login successful, navigation handled by AuthContext");
+      // Don't navigate here - adminLogin will handle navigation
+      console.log("AdminLogin - Login successful, navigation handled by AuthContext");
       
     } catch (error: any) {
-      console.error("Admin login failed:", error);
+      console.error("AdminLogin - Login failed:", error);
       toast.error(error.message || "Invalid username or password");
     } finally {
       setIsSubmitting(false);
