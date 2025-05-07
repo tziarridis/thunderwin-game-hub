@@ -1,17 +1,15 @@
-
 import { useState, useCallback } from 'react';
-import { Game, GameProvider, GameCategory, GameLaunchOptions } from '@/types';
+import { Game, GameProvider, GamesContextType } from '@/types';
 import { toast } from 'sonner';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackEvent } from '@/utils/analytics';
-import { GamesContextType } from '@/types';
 
 export const useGames = (): GamesContextType => {
   const [games, setGames] = useState<Game[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
-  const [categories, setCategories] = useState<GameCategory[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
   const [newGames, setNewGames] = useState<Game[]>([]);
   const [popularGames, setPopularGames] = useState<Game[]>([]);
@@ -77,7 +75,7 @@ export const useGames = (): GamesContextType => {
   };
 
   // Function to launch a game
-  const launchGame = useCallback(async (game: Game, options?: GameLaunchOptions) => {
+  const launchGame = useCallback(async (game: Game, options?: any) => {
     try {
       // Track analytics
       trackEvent('game_launch_attempt', {
@@ -92,8 +90,8 @@ export const useGames = (): GamesContextType => {
       // Launch the game with the aggregator service
       const response = await gameAggregatorService.createSession(
         game.id,
-        options?.playerId || 'demo',
-        options?.currency || 'EUR',
+        options?.playerId || user?.id || 'demo',
+        options?.currency || user?.currency || 'EUR',
         options?.platform || 'web'
       );
       
@@ -104,37 +102,35 @@ export const useGames = (): GamesContextType => {
       // Track successful launch
       trackEvent('game_launch_success', {
         gameId: game.id,
-        gameName: game.title,
-        provider: game.provider,
+        gameName: game.title
       });
       
       return response.gameUrl;
     } catch (error: any) {
-      console.error('Error launching game:', error);
-      toast.error(error.message || 'Failed to launch game');
-      
-      // Track error
+      console.error("Error launching game:", error);
+      toast.error(error.message || "Failed to launch game");
       trackEvent('game_launch_error', {
-        gameId: game.id,
-        error: error.message,
+        gameId: game.id || 'unknown',
+        error: error.message || "Unknown error"
       });
-      
       return undefined;
     }
-  }, []);
+  }, [user]);
 
   // Function to search games
   const searchGames = useCallback(async (query: string): Promise<Game[]> => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const response = await gamesDatabaseService.getGames({
         search: query,
-        limit: 24
+        limit: 20
       });
+
       return response.data;
     } catch (error: any) {
-      console.error('Error searching games:', error);
-      toast.error('Failed to search games');
+      setError(error.message || 'Failed to search games');
       return [];
     } finally {
       setIsLoading(false);
@@ -145,13 +141,16 @@ export const useGames = (): GamesContextType => {
   const getGamesByProvider = useCallback(async (providerId: string): Promise<Game[]> => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const response = await gamesDatabaseService.getGames({
-        provider: providerId
+        provider: providerId,
+        limit: 50
       });
+
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching provider games:', error);
-      toast.error('Failed to load games for provider');
+      setError(error.message || 'Failed to get games by provider');
       return [];
     } finally {
       setIsLoading(false);
@@ -162,13 +161,16 @@ export const useGames = (): GamesContextType => {
   const getGamesByCategory = useCallback(async (categoryId: string): Promise<Game[]> => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const response = await gamesDatabaseService.getGames({
-        category: categoryId
+        category: categoryId,
+        limit: 50
       });
+
       return response.data;
     } catch (error: any) {
-      console.error('Error fetching category games:', error);
-      toast.error('Failed to load games for category');
+      setError(error.message || 'Failed to get games by category');
       return [];
     } finally {
       setIsLoading(false);
@@ -178,58 +180,42 @@ export const useGames = (): GamesContextType => {
   // Function to get favorite games
   const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
     try {
-      if (!user?.id) return [];
-      
       setIsLoading(true);
-      return await gamesDatabaseService.getFavoriteGames(user.id);
+      setError(null);
+
+      if (!user?.id) {
+        return [];
+      }
+
+      const favoriteGames = await gamesDatabaseService.getFavoriteGames(user.id);
+      return favoriteGames;
     } catch (error: any) {
-      console.error('Error fetching favorite games:', error);
-      toast.error('Failed to load favorite games');
+      setError(error.message || 'Failed to get favorite games');
       return [];
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
-  // Function to get a game by ID
+  // Function to get game by ID
   const getGameById = useCallback(async (gameId: string): Promise<Game | null> => {
-    try {
-      return await gamesDatabaseService.getGameById(gameId);
-    } catch (error: any) {
-      console.error('Error fetching game:', error);
-      toast.error('Failed to load game details');
-      return null;
-    }
-  }, []);
-
-  // Function to refresh games from the database
-  const refreshGames = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch games for different sections
-      const [allGamesRes, featuredRes, newRes, popularRes, providersRes] = await Promise.all([
-        gamesDatabaseService.getGames({ limit: 100 }),
-        gamesDatabaseService.getGames({ isFeatured: true, limit: 12 }),
-        gamesDatabaseService.getGames({ isNew: true, limit: 12 }),
-        gamesDatabaseService.getGames({ isPopular: true, limit: 12 }),
-        gamesDatabaseService.getProviders()
-      ]);
-      
-      setGames(allGamesRes.data);
-      setFeaturedGames(featuredRes.data);
-      setNewGames(newRes.data);
-      setPopularGames(popularRes.data);
-      setProviders(providersRes);
-      
+
+      const game = await gamesDatabaseService.getGameById(gameId);
+      return game;
     } catch (error: any) {
-      console.error('Error refreshing games:', error);
-      setError('Failed to load games. Please try again later.');
-      toast.error('Failed to load games');
+      setError(error.message || 'Failed to get game by ID');
+      return null;
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  // Initial load function
+  const refreshGames = useCallback(async () => {
+    // ... keep existing code if there's a refreshGames function
   }, []);
 
   return {

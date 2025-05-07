@@ -33,7 +33,7 @@ const Profile = () => {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex flex-col items-center space-y-3">
               <Avatar className="h-24 w-24 border-2 border-casino-thunder-green">
-                <AvatarImage src={user.avatarUrl} />
+                <AvatarImage src={user.avatar || user.avatarUrl} />
                 <AvatarFallback className="bg-casino-thunder-green/20">
                   {user.username?.substring(0, 2).toUpperCase() || 'U'}
                 </AvatarFallback>

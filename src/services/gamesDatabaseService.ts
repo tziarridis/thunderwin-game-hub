@@ -133,7 +133,8 @@ export const gamesDatabaseService = {
       if (error) throw error;
 
       // Format games data
-      const formattedGames = (data || []).map(mapDbGameToGame);
+      const games = data || [];
+      const formattedGames = games.map(mapDbGameToGame);
 
       return {
         data: formattedGames,
@@ -185,8 +186,9 @@ export const gamesDatabaseService = {
       return data?.map(provider => ({
         id: provider.id,
         name: provider.name,
-        status: provider.status,
-        logo: provider.logo || null
+        logo: provider.logo || null,
+        gamesCount: 0, // Will be populated separately if needed
+        isPopular: false // Will be populated separately if needed
       })) || [];
     } catch (error: any) {
       console.error('Error fetching providers:', error);

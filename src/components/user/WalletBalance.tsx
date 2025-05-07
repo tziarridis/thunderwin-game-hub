@@ -54,7 +54,7 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
       <div className="mr-1">
         <span className="text-xs text-white/60 block">Balance</span>
         <span className="text-lg font-bold text-white">
-          {user?.balance?.toLocaleString() || wallet?.balance?.toLocaleString() || '0'} {wallet?.currency || 'USD'}
+          {user?.balance?.toLocaleString() || wallet?.balance?.toLocaleString() || '0'} {wallet?.currency || user?.currency || 'USD'}
         </span>
       </div>
       

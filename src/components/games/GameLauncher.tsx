@@ -9,15 +9,6 @@ import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
 import { trackEvent } from "@/utils/analytics";
 
-interface GameLaunchOptions {
-  playerId: string;
-  mode: 'demo' | 'real';
-  currency: string;
-  language: string;
-  platform: 'web' | 'mobile';
-  returnUrl: string;
-}
-
 interface GameLauncherProps {
   game?: Game;
   gameId?: string;
@@ -68,10 +59,10 @@ const GameLauncher = ({
       
       // If we have a game object, use launchGame hook method
       if (gameData) {
-        const launchOptions: GameLaunchOptions = {
+        const launchOptions = {
           playerId: user.id,
           mode: 'real',
-          currency,
+          currency: currency || user.currency || 'EUR',
           language: 'en',
           platform,
           returnUrl: window.location.href
@@ -95,7 +86,7 @@ const GameLauncher = ({
         const response = await gameAggregatorService.createSession(
           gameId,
           user.id,
-          currency,
+          currency || user.currency || 'EUR',
           platform as 'web' | 'mobile'
         );
         

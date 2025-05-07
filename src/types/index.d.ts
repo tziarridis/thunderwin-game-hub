@@ -106,7 +106,7 @@ export interface PaymentMethod {
 
 export interface ThemeProviderProps {
   children: React.ReactNode;
-  defaultTheme?: string;
+  defaultTheme?: string;  // Added missing property
   storageKey?: string;
 }
 

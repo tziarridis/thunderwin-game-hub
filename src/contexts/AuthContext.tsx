@@ -1,47 +1,24 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-
-// AuthUser represents the authenticated user
-export interface AuthUser {
-  id: string;
-  email: string;
-  username?: string;
-  name?: string;
-  avatar?: string;  // Keep the original property name
-  role?: string;
-  isDemo?: boolean;
-  currency?: string;
-  isAdmin?: boolean;
-}
-
-// AuthContextType represents the shape of the auth context
-export interface AuthContextType {
-  isAuthenticated: boolean;
-  user: AuthUser | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username: string) => Promise<void>;
-  logout: () => void;
-  loading: boolean;
-  error: string | null;
-  updateUser: (data: Partial<AuthUser>) => void;
-  refreshWalletBalance: () => Promise<void>;
-  isAdmin: boolean; // Added the isAdmin property
-}
+import { AuthUser, AuthContextType } from '@/types';
 
 // Create the auth context with a default value
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
-  login: async () => {},
-  register: async () => {},
-  logout: () => {},
-  loading: false,
-  error: null,
-  updateUser: async () => {},
-  refreshWalletBalance: async () => Promise.resolve(),
-  isAdmin: false,
+  isLoading: false,
+  login: async () => ({ success: false }),
+  adminLogin: async () => ({ success: false }),
+  register: async () => ({ success: false }),
+  logout: async () => {},
+  reset: async () => ({ success: false }),
+  updateProfile: async () => ({ success: false }),
+  refreshWalletBalance: async () => {},
+  deposit: async () => ({ success: false }),
+  isAdmin: () => false
 });
 
 // AuthProvider component that wraps the app and provides the auth context
@@ -54,37 +31,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const session = supabase.auth.getSession();
-
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.session) {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      if (data?.session) {
         setIsAuthenticated(true);
-        await fetchUser(session.session.user.id);
+        await fetchUser(data.session.user.id);
       } else {
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
       }
       setLoading(false);
-    })
+    };
 
-    if (session) {
-      setLoading(true);
-      if (session.data?.session?.user) {
+    checkSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
         setIsAuthenticated(true);
-        fetchUser(session.data.session.user.id).then(() => setLoading(false));
+        await fetchUser(session.user.id);
       } else {
         setIsAuthenticated(false);
         setUser(null);
         setIsAdmin(false);
-        setLoading(false);
       }
-    } else {
-      setIsAuthenticated(false);
-      setUser(null);
-      setIsAdmin(false);
       setLoading(false);
-    }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const fetchUser = async (userId: string) => {
@@ -105,17 +82,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           id: userId,
           email: userDetails.email,
           username: userDetails.username || userDetails.email.split('@')[0],
-          name: userDetails.full_name || userDetails.username || userDetails.email.split('@')[0],
-          avatar: userDetails.avatar_url,
-          role: userDetails.role,
-          isDemo: userDetails.is_demo,
-          currency: userDetails.currency,
-          isAdmin: userDetails.is_admin || false,
+          firstName: userDetails.first_name || userDetails.full_name?.split(' ')[0],
+          lastName: userDetails.last_name || userDetails.full_name?.split(' ').slice(1).join(' '),
+          avatar: userDetails.avatar || userDetails.avatar_url,
+          avatarUrl: userDetails.avatar_url || userDetails.avatar,
+          role: userDetails.role_id === 1 ? 'admin' : 'user',
+          isAdmin: userDetails.role_id === 1 || Boolean(userDetails.is_admin),
+          isVerified: !userDetails.banned,
+          vipLevel: 0, // Default value, will be updated from wallet
+          balance: 0,   // Default value, will be updated from wallet
+          currency: 'USD',
         };
+        
         setUser(authUser);
         setIsAdmin(authUser.isAdmin || false);
+        
+        // Fetch wallet information to get balance and vipLevel
+        try {
+          const { data: walletData } = await supabase
+            .from('wallets')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+            
+          if (walletData) {
+            setUser(prevUser => ({
+              ...prevUser as AuthUser,
+              balance: walletData.balance,
+              vipLevel: walletData.vip_level,
+              currency: walletData.currency
+            }));
+          }
+        } catch (walletError) {
+          console.warn("Couldn't fetch wallet data:", walletError);
+        }
       } else {
-        // Handle the case where user details are not found
         console.warn("User details not found for ID:", userId);
         setUser(null);
         setIsAdmin(false);
@@ -148,10 +149,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchUser(data.user.id);
         navigate('/casino');
         toast.success('Login successful!');
+        return { success: true };
       }
+      return { success: false, error: 'Login failed' };
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const adminLogin = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      const result = await login(email, password);
+      
+      // Check if the user is an admin
+      if (result.success && user?.isAdmin) {
+        toast.success('Admin login successful!');
+        navigate('/admin');
+        return { success: true };
+      } else if (result.success) {
+        // User is not an admin
+        toast.error('You do not have admin privileges');
+        logout();
+        return { success: false, error: 'Not authorized as admin' };
+      }
+      
+      return result;
+    } catch (error: any) {
+      return { success: false, error: error.message };
     } finally {
       setLoading(false);
     }
@@ -181,10 +210,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         await fetchUser(data.user.id);
         navigate('/casino');
         toast.success('Registration successful!');
+        return { success: true };
       }
+      
+      return { success: false, error: 'Registration failed' };
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -203,6 +236,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsAdmin(false);
       navigate('/');
       toast.success('Logout successful!');
+      return;
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
@@ -211,11 +245,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const updateUser = async (data: Partial<AuthUser>) => {
+  const updateProfile = async (data: Partial<AuthUser>) => {
     if (!user) {
       console.error("No user is currently logged in.");
       toast.error("No user is currently logged in.");
-      return;
+      return { success: false, error: "No user logged in" };
     }
 
     try {
@@ -224,8 +258,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Prepare the update object based on the data passed in
       const updates: { [key: string]: any } = {};
       if (data.username) updates.username = data.username;
-      if (data.name) updates.full_name = data.name;
-      if (data.avatar) updates.avatar_url = data.avatar; // Map 'avatar' to 'avatar_url'
+      if (data.firstName) updates.first_name = data.firstName;
+      if (data.lastName) updates.last_name = data.lastName;
+      if (data.avatar) updates.avatar = data.avatar;
+      if (data.avatarUrl) updates.avatar_url = data.avatarUrl;
 
       const { error } = await supabase
         .from('users')
@@ -239,10 +275,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Fetch the updated user data
       await fetchUser(user.id);
       toast.success('Profile updated successfully!');
+      return { success: true };
     } catch (err: any) {
       console.error("Error updating user:", err.message);
       setError(err.message);
       toast.error(err.message);
+      return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
@@ -258,14 +296,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       setLoading(true);
 
-      // Mock fetching wallet balance (replace with actual API call)
-      const mockBalance = Math.floor(Math.random() * 1000);
+      // Fetch the latest wallet balance
+      const { data: walletData, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (error) {
+        throw new Error(error.message);
+      }
 
-      // Update user object with the new balance
-      const updatedUser = { ...user, balance: mockBalance };
-      setUser(updatedUser);
+      if (walletData) {
+        // Update user object with the new balance
+        setUser({
+          ...user,
+          balance: walletData.balance,
+          vipLevel: walletData.vip_level,
+          currency: walletData.currency
+        });
 
-      toast.success('Wallet balance refreshed!');
+        toast.success('Wallet balance refreshed!');
+      }
     } catch (err: any) {
       console.error("Error refreshing wallet balance:", err.message);
       setError(err.message);
@@ -274,6 +326,80 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setLoading(false);
     }
   };
+  
+  const deposit = async (amount: number, method: string) => {
+    if (!user) {
+      console.error("No user is currently logged in.");
+      toast.error("No user is currently logged in.");
+      return { success: false, error: "No user is logged in" };
+    }
+
+    try {
+      setLoading(true);
+      
+      // Create deposit transaction
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .insert({
+          player_id: user.id,
+          amount: amount,
+          type: 'deposit',
+          currency: user.currency || 'USD',
+          status: 'completed',
+          provider: method
+        })
+        .select()
+        .single();
+      
+      if (txError) throw new Error(txError.message);
+      
+      // Update wallet balance
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .update({ 
+          balance: supabase.rpc('increment_balance', { 
+            user_id_param: user.id,
+            amount_param: amount
+          })
+        })
+        .eq('user_id', user.id);
+        
+      if (walletError) throw new Error(walletError.message);
+      
+      // Refresh the user's balance
+      await refreshWalletBalance();
+      
+      toast.success(`Successfully deposited ${amount} ${user.currency || 'USD'}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error("Error depositing funds:", err.message);
+      toast.error(err.message || "Failed to process deposit");
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const reset = async (email: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      
+      if (error) throw new Error(error.message);
+      
+      toast.success("Password reset email sent. Please check your inbox.");
+      return { success: true };
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reset email");
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const isAdminCheck = () => {
+    return Boolean(user?.isAdmin);
+  };
 
   const value: AuthContextType = {
     isAuthenticated,
@@ -281,11 +407,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     register,
     logout,
-    loading,
+    isLoading: loading,
     error,
-    updateUser,
+    updateProfile,
     refreshWalletBalance,
-    isAdmin,
+    deposit,
+    adminLogin,
+    reset,
+    isAdmin: isAdminCheck
   };
 
   return (
