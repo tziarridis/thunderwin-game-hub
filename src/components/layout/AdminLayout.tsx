@@ -29,7 +29,7 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
       if (!isAuthenticated || !isAdmin()) {
         navigate('/admin/login');
       }
-    }, 200);
+    }, 500); // Increased timeout for better stability
     
     return () => clearTimeout(timer);
   }, [isAuthenticated, isAdmin, navigate, user]);

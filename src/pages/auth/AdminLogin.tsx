@@ -26,9 +26,16 @@ const adminLoginSchema = z.object({
 type AdminLoginValues = z.infer<typeof adminLoginSchema>;
 
 const AdminLogin = () => {
-  const { adminLogin } = useAuth();
+  const { adminLogin, isAuthenticated, isAdmin } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  // Redirect if already logged in as admin
+  if (isAuthenticated && isAdmin()) {
+    console.log("Already authenticated as admin, redirecting to dashboard");
+    navigate('/admin/dashboard');
+    return null;
+  }
 
   const form = useForm<AdminLoginValues>({
     resolver: zodResolver(adminLoginSchema),
@@ -39,6 +46,8 @@ const AdminLogin = () => {
   });
 
   const onSubmit = async (values: AdminLoginValues) => {
+    if (isSubmitting) return;
+    
     setIsSubmitting(true);
     try {
       // Direct console log to debug

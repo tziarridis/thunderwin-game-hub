@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
@@ -18,7 +19,7 @@ export interface AuthUser {
   vipLevel?: number;
   balance?: number;
   currency?: string;
-  name?: string; // Adding name property
+  name?: string;
 }
 
 export interface AuthContextType {
@@ -165,7 +166,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setTimeout(() => {
           console.log("Now navigating to /admin/dashboard");
           navigate('/admin/dashboard');
-        }, 100);
+        }, 500); // Increased timeout for better stability
         
         return { success: true };
       }
@@ -192,7 +193,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setTimeout(() => {
             console.log("Now navigating to /admin/dashboard");
             navigate('/admin/dashboard');
-          }, 100);
+          }, 500); // Increased timeout for better stability
           
           return { success: true };
         } else {
