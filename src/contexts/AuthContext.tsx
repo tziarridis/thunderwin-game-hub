@@ -159,7 +159,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Show success message
         toast.success('Admin login successful!');
-        navigate('/admin');
+        
+        // Explicitly navigate to admin dashboard
+        setTimeout(() => {
+          navigate('/admin/dashboard');
+        }, 0);
+        
         return { success: true };
       }
       
@@ -180,7 +185,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (user?.isAdmin) {
           toast.success('Admin login successful!');
-          navigate('/admin');
+          
+          // Explicitly navigate to admin dashboard
+          setTimeout(() => {
+            navigate('/admin/dashboard');
+          }, 0);
+          
           return { success: true };
         } else {
           // User is not an admin

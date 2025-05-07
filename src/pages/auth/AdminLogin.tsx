@@ -50,7 +50,10 @@ const AdminLogin = () => {
         throw new Error(result.error || "Login failed");
       }
       
-      // Navigation is handled in adminLogin function
+      // This line is unnecessary since navigation is handled in adminLogin function
+      // Leave this commented out as a reminder
+      // navigate('/admin');
+      
     } catch (error: any) {
       console.error("Admin login failed:", error);
       toast.error(error.message || "Invalid username or password");
