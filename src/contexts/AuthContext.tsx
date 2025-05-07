@@ -37,8 +37,6 @@ export interface AuthContextType {
   isAdmin: () => boolean;
 }
 
-// Keep existing code (user interfaces and types)
-
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
@@ -63,7 +61,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const navigate = useNavigate();
   const [isAdminUser, setIsAdmin] = useState(false);
 
+  // Check for demo admin in localStorage on initial load
   useEffect(() => {
+    const isDemoAdmin = localStorage.getItem('demo-admin') === 'true';
+    if (isDemoAdmin) {
+      console.log("Restoring demo admin session from localStorage");
+      const demoAdminUser: AuthUser = {
+        id: "demo-admin-id",
+        username: "admin",
+        email: "admin@example.com",
+        name: "Demo Admin",
+        isAdmin: true,
+        isVerified: true,
+        balance: 10000,
+        vipLevel: 10,
+        currency: "USD",
+        role: "admin",
+        firstName: "Demo", 
+        lastName: "Admin",
+        avatar: "/placeholder.svg"
+      };
+      
+      setUser(demoAdminUser);
+      setIsAuthenticated(true);
+      setIsAdmin(true);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Skip Supabase session check if we already have a demo admin
+    const isDemoAdmin = localStorage.getItem('demo-admin') === 'true';
+    if (isDemoAdmin) {
+      return;
+    }
+    
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       
@@ -164,6 +196,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(demoAdminUser);
         setIsAuthenticated(true);
         setIsAdmin(true);
+        
+        // Store demo admin status in localStorage for persistence
+        localStorage.setItem('demo-admin', 'true');
         
         console.log("Auth state immediately after demo login:", {
           isAuthenticated: true,
@@ -270,6 +305,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(true);
     setError(null);
     try {
+      // Clear demo admin state if it exists
+      if (localStorage.getItem('demo-admin') === 'true') {
+        localStorage.removeItem('demo-admin');
+      }
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw new Error(error.message);
@@ -510,7 +550,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
   
   const isAdminCheck = () => {
-    return Boolean(user?.isAdmin);
+    // Check both user.isAdmin and localStorage for demo admin
+    const isDemoAdmin = localStorage.getItem('demo-admin') === 'true';
+    return Boolean(user?.isAdmin) || isDemoAdmin;
   };
 
   const value: AuthContextType = {

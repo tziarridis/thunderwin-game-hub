@@ -33,17 +33,13 @@ const AdminLogin = () => {
   
   // Check authentication status with useEffect
   useEffect(() => {
-    const checkAuth = async () => {
-      console.log("AdminLogin - Checking auth state:", { isAuthenticated, isAdmin: isAdmin() });
-      
-      // Only redirect if already authenticated as admin
-      if (isAuthenticated && isAdmin()) {
-        console.log("AdminLogin - Already authenticated as admin, redirecting to dashboard");
-        navigate('/admin/dashboard');
-      }
-    };
+    console.log("AdminLogin - Checking auth state:", { isAuthenticated, isAdmin: isAdmin() });
     
-    checkAuth();
+    // Only redirect if already authenticated as admin
+    if (isAuthenticated && isAdmin()) {
+      console.log("AdminLogin - Already authenticated as admin, redirecting to dashboard");
+      navigate('/admin/dashboard', { replace: true });
+    }
   }, [isAuthenticated, isAdmin, navigate]);
   
   const form = useForm<AdminLoginValues>({
@@ -70,8 +66,8 @@ const AdminLogin = () => {
         throw new Error(result.error || "Login failed");
       }
       
-      // Don't navigate here - adminLogin will handle navigation
-      console.log("AdminLogin - Login successful, navigation handled by AuthContext");
+      // Navigate to dashboard after successful login
+      // Let the Auth Context handle the navigation to avoid race conditions
       
     } catch (error: any) {
       console.error("AdminLogin - Login failed:", error);

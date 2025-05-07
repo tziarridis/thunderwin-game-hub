@@ -31,6 +31,9 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
       path: location.pathname
     });
     
+    // Use local storage to persist demo admin state
+    const isDemoAdmin = localStorage.getItem('demo-admin') === 'true';
+    
     // Small delay to ensure auth state is properly loaded
     const timer = setTimeout(() => {
       setIsChecking(false);
@@ -39,15 +42,22 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
         isAuthenticated, 
         isAdmin: isAdmin(), 
         user,
+        isDemoAdmin,
         path: location.pathname
       });
       
-      // Only redirect if not already on the login page
+      // If we have a demo admin in localStorage, don't redirect
+      if (isDemoAdmin) {
+        console.log("AdminLayout - Using demo admin from localStorage");
+        return;
+      }
+      
+      // Only redirect if not already on the login page and not authenticated
       if (!isAuthenticated || !isAdmin()) {
         console.log("AdminLayout - Not authenticated or not admin, redirecting to login");
-        navigate('/admin/login');
+        navigate('/admin/login', { replace: true });
       }
-    }, 300); // Shorter timeout for better responsiveness
+    }, 500); // Longer timeout for better stability
     
     return () => clearTimeout(timer);
   }, [isAuthenticated, isAdmin, navigate, user, location.pathname]);
@@ -59,8 +69,11 @@ const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) =>
     </div>;
   }
   
-  // Redirect to admin login if not authenticated or not an admin
-  if (!isAuthenticated || !isAdmin()) {
+  // Check for demo admin in localStorage
+  const isDemoAdmin = localStorage.getItem('demo-admin') === 'true';
+  
+  // Only redirect to login if not authenticated or admin AND not demo admin
+  if (!isDemoAdmin && (!isAuthenticated || !isAdmin())) {
     console.log("AdminLayout - Redirecting to login due to auth check");
     return <Navigate to="/admin/login" replace />;
   }
