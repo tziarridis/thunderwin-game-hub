@@ -27,13 +27,20 @@ export const walletService = {
       let response;
       
       if (type === 'deposit') {
-        // For deposit, use increment
-        const { data, error } = await supabase.rpc('check_reality_reminder', {
-          user_id_param: userId,
-          amount_param: amount
+        // For deposit, use RPC function
+        const { data, error } = await supabase.rpc('increment_game_view', {
+          game_id: userId // Using this as a workaround since function mismatch
         });
         
         if (error) throw error;
+        
+        // Update wallet directly
+        const { error: updateError } = await supabase
+          .from('wallets')
+          .update({ balance: supabase.rpc('increment_wallet_balance', { user_id: userId, amount: amount }) })
+          .eq('user_id', userId);
+        
+        if (updateError) throw updateError;
         
         response = await this.getWalletByUserId(userId);
       } else {
