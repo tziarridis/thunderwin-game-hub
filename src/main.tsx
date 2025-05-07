@@ -11,7 +11,7 @@ import { ThemeProvider } from './components/theme-provider';
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <Router>
-      <ThemeProvider>
+      <ThemeProvider defaultTheme="dark" storageKey="casino-theme">
         <AuthProvider>
           <App />
           <Toaster position="top-center" richColors />

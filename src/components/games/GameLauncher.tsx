@@ -62,7 +62,7 @@ const GameLauncher = ({
         const launchOptions = {
           playerId: user.id,
           mode: 'real',
-          currency: currency || user.currency || 'EUR',
+          currency: currency || user?.currency || 'EUR',
           language: 'en',
           platform,
           returnUrl: window.location.href
@@ -86,7 +86,7 @@ const GameLauncher = ({
         const response = await gameAggregatorService.createSession(
           gameId,
           user.id,
-          currency || user.currency || 'EUR',
+          currency || user?.currency || 'EUR',
           platform as 'web' | 'mobile'
         );
         

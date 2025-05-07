@@ -16,6 +16,18 @@ export const trackEvent = (eventName: string, properties?: Record<string, any>) 
 };
 
 /**
+ * Increment view count for a game
+ * @param gameName The name of the game to increment views for
+ */
+export const incrementViews = async (gameName: string) => {
+  trackEvent('game_viewed', { gameName });
+  
+  // You can also add server-side logic to increment views in the database
+  // For now, we'll just log the event
+  console.log(`[ANALYTICS] Incrementing views for game: ${gameName}`);
+};
+
+/**
  * Initialize analytics tracking
  */
 export const initAnalytics = () => {
@@ -29,5 +41,6 @@ export const initAnalytics = () => {
 
 export default {
   trackEvent,
+  incrementViews,
   initAnalytics
 };

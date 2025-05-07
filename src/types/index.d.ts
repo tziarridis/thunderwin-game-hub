@@ -1,155 +1,49 @@
+
+// Common Types
+export interface User {
+  id: string;
+  name?: string;
+  username: string;
+  email: string;
+  balance: number;
+  isAdmin: boolean;
+  avatar?: string;
+  avatarUrl?: string;
+  vipLevel: number;
+  isVerified: boolean;
+  status?: 'Active' | 'Pending' | 'Inactive';
+  joined?: string;
+  role?: string;
+  favoriteGames?: string[];
+  phone?: string;
+  lastLogin?: string;
+  createdAt?: string;
+  firstName?: string;
+  lastName?: string;
+  currency?: string;
+}
+
 export interface AuthUser {
   id: string;
+  username: string;
   email: string;
-  username?: string;
   firstName?: string;
   lastName?: string;
   avatar?: string;
-  avatarUrl?: string; // Added for backward compatibility
+  avatarUrl?: string;
   role?: string;
   isAdmin?: boolean;
   isVerified?: boolean;
   vipLevel?: number;
   balance?: number;
   currency?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface Game {
-  id: string;
-  title: string;
-  name: string;
-  description?: string;
-  provider: string;
-  category: string;
-  image: string;
-  rtp: number;
-  volatility: 'low' | 'medium' | 'high';
-  minBet: number;
-  maxBet: number;
-  isPopular: boolean;
-  isNew: boolean;
-  isFavorite?: boolean;
-  jackpot?: boolean;
-  releaseDate?: string;
-  tags: string[];
-  features: string[];
-}
-
-export interface GameProvider {
-  id: string;
-  name: string;
-  logo: string;
-  gamesCount: number;
-  isPopular: boolean;
-}
-
-export interface GameCategory {
-  id: string;
-  name: string;
-  slug: string;
-  image?: string;
-  icon?: string;
-  gamesCount?: number;
-}
-
-export interface GameDataResponse {
-  data: Game[];
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-  }
-}
-
-export interface GameProviderResponse {
-  data: GameProvider[];
-  meta?: {
-    total: number;
-  }
-}
-
-export interface GameCategoryResponse {
-  data: GameCategory[];
-  meta?: {
-    total: number;
-  }
-}
-
-export interface WalletTransaction {
-  id: string;
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund';
-  amount: number;
-  currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  createdAt: string;
-  gameId?: string;
-  gameName?: string;
-  provider?: string;
-  balanceBefore?: number;
-  balanceAfter?: number;
-}
-
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  type: 'crypto' | 'fiat' | 'card' | 'voucher' | 'bank';
-  logo: string;
-  minDeposit: number;
-  maxDeposit: number;
-  currency: string;
-  processingTime: string;
-  fee: number | string;
-  isPopular?: boolean;
-}
-
-export interface ThemeProviderProps {
-  children: React.ReactNode;
-  defaultTheme?: string;  // Added missing property
-  storageKey?: string;
-}
-
-export interface PromotionCard {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  link: string;
-  endDate?: string;
-  type: 'welcome' | 'deposit' | 'freespin' | 'cashback' | 'vip' | 'special';
-  isActive: boolean;
-  termsAndConditions?: string[];
-}
-
-export interface VIPLevelInfo {
-  level: number;
-  name: string;
-  requiredPoints: number;
-  benefits: string[];
-  cashbackRate: number;
-  color?: string;
-  icon?: string;
-  nextLevel?: {
-    name: string;
-    requiredPoints: number;
-    progress: number;
-  };
-}
-
-export interface GameList {
-  id: string;
-  name: string;
-  slug: string;
-  games: Game[];
-  totalGames: number;
-  isCustom?: boolean;
 }
 
 export interface AuthContextType {
-  user: AuthUser | null;
   isAuthenticated: boolean;
+  user: AuthUser | null;
   isLoading: boolean;
+  error?: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
@@ -161,71 +55,101 @@ export interface AuthContextType {
   isAdmin: () => boolean;
 }
 
-export interface Card {
+export interface Game {
+  id: string;
+  title: string;
+  description?: string;
+  provider: string;
+  category: string;
+  image: string;
+  minBet?: number;
+  maxBet?: number;
+  rtp?: number;
+  volatility?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  isFavorite?: boolean;
+  jackpot?: boolean;
+  isLive?: boolean;
+  views?: number;
+  gameIdentifier?: string;
+  gameCode?: string;
+  technology?: string;
+  launchUrl?: string;
+  supportedDevices?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GameCategory {
   id: string;
   name: string;
-  type: string;
-  last4: string;
-  expMonth: string;
-  expYear: string;
-  isDefault: boolean;
-}
-
-export interface DepositStep {
-  id: string;
-  title: string;
-  description: string;
+  slug: string;
+  icon?: string;
   image?: string;
-  status: 'pending' | 'active' | 'completed' | 'failed';
-}
-
-export interface WithdrawStep {
-  id: string;
-  title: string;
-  description: string;
-  image?: string;
-  status: 'pending' | 'active' | 'completed' | 'failed';
+  showHome: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface GameLaunchOptions {
+  playerId: string;
+  mode: 'real' | 'demo';
+  currency: string;
+  language: string;
+  platform: 'web' | 'mobile';
+  returnUrl: string;
   providerId?: string;
-  mode?: 'demo' | 'real';
-  playerId?: string;
-  language?: string;
-  currency?: string;
-  platform?: 'web' | 'mobile';
-  returnUrl?: string;
-}
-
-export interface GameConfigProvider {
-  id: string;
-  name: string;
-  type: string;
-  currency?: string;
-  enabled: boolean;
-  credentials?: {
-    apiEndpoint?: string;
-    agentId?: string;
-    secretKey?: string;
-    token?: string;
-    callbackUrl?: string;
-  };
 }
 
 export interface GamesContextType {
   games: Game[];
-  providers: GameProvider[];
   categories: GameCategory[];
-  featuredGames: Game[];
-  newGames: Game[];
-  popularGames: Game[];
-  isLoading: boolean;
+  loading: boolean;
   error: string | null;
-  toggleFavorite: (gameId: string) => Promise<void>;
-  launchGame: (game: Game, options?: GameLaunchOptions) => Promise<string | void>;
-  searchGames: (query: string) => Promise<Game[]>;
-  getGamesByProvider: (providerId: string) => Promise<Game[]>;
-  getGamesByCategory: (categoryId: string) => Promise<Game[]>;
-  getFavoriteGames: () => Promise<Game[]>;
-  getGameById: (gameId: string) => Promise<Game | null>;
+  popularGames: Game[];
+  newGames: Game[];
+  jackpotGames: Game[];
+  liveGames: Game[];
+  loadingMore: boolean;
+  loadMore: () => void;
+  hasMore: boolean;
+  visibleCount: number;
+  totalCount: number;
+  toggleFavorite: (gameId: string) => Promise<boolean>;
+  filterGames: (category: string, searchTerm: string) => Game[];
+  loadGame: (id: string) => Promise<Game | null>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string>;
+}
+
+export interface Wallet {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
+}
+
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  date: string;
+  gameId?: string;
+  gameName?: string;
+  provider?: string;
+}
+
+export interface WalletResponse {
+  data: Wallet | null;
+  error: string | null;
 }
