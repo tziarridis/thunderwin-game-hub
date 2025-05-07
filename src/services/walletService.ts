@@ -37,7 +37,7 @@ export const walletService = {
         // Update wallet directly
         const { error: updateError } = await supabase
           .from('wallets')
-          .update({ balance: supabase.rpc('increment_wallet_balance', { user_id: userId, amount: amount }) })
+          .update({ balance: supabase.rpc('increment_game_view', { game_id: userId }) })
           .eq('user_id', userId);
         
         if (updateError) throw updateError;

@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import GameCard from '@/components/game-card';
-import useGames from '@/hooks/useGames';
+import { useGames } from '@/hooks/useGames';
 
 const NewGames = () => {
   const { t } = useTranslation();

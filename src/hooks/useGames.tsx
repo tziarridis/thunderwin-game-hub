@@ -1,11 +1,65 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameCategory, GameLaunchOptions, GamesContextType, GameFilters } from '@/types';
+import { Game } from '@/types';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { toast } from 'sonner';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { trackEvent } from '@/utils/analytics';
+
+export interface GameCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+  image?: string;
+  showHome: boolean;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GameLaunchOptions {
+  playerId: string;
+  mode: 'real' | 'demo';
+  currency: string;
+  language: string;
+  platform: 'web' | 'mobile';
+  returnUrl: string;
+  providerId?: string;
+}
+
+export interface GamesContextType {
+  games: Game[];
+  categories: GameCategory[];
+  loading: boolean;
+  error: string | null;
+  popularGames: Game[];
+  newGames: Game[];
+  jackpotGames: Game[];
+  liveGames: Game[];
+  loadingMore: boolean;
+  loadMore: () => void;
+  hasMore: boolean;
+  visibleCount: number;
+  totalCount: number;
+  toggleFavorite: (gameId: string) => Promise<boolean>;
+  filterGames: (category: string, searchTerm: string) => Game[];
+  loadGame: (id: string) => Promise<Game | null>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string>;
+}
+
+export interface GameFilters {
+  category?: string;
+  provider?: string;
+  search?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  hasJackpot?: boolean;
+  isLive?: boolean;
+  limit?: number;
+  offset?: number;
+}
 
 // Create a context for games
 const GamesContext = createContext<GamesContextType>({

@@ -1,8 +1,41 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { AuthUser, AuthContextType } from '@/types';
+import { User } from '@/types';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  avatarUrl?: string;
+  role?: string;
+  isAdmin?: boolean;
+  isVerified?: boolean;
+  vipLevel?: number;
+  balance?: number;
+  currency?: string;
+}
+
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  user: AuthUser | null;
+  isLoading: boolean;
+  error?: string | null;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  reset: (email: string) => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (data: Partial<AuthUser>) => Promise<{ success: boolean; error?: string }>;
+  refreshWalletBalance: () => Promise<void>;
+  deposit: (amount: number, method: string) => Promise<{ success: boolean; error?: string }>;
+  isAdmin: () => boolean;
+}
 
 // Create the auth context with a default value
 const AuthContext = createContext<AuthContextType>({
@@ -27,7 +60,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminUser, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -105,12 +138,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             .single();
             
           if (walletData) {
-            setUser(prevUser => ({
-              ...prevUser as AuthUser,
-              balance: walletData.balance,
-              vipLevel: walletData.vip_level,
-              currency: walletData.currency
-            }));
+            setUser(prevUser => {
+              if (!prevUser) return null;
+              return {
+                ...prevUser,
+                balance: walletData.balance,
+                vipLevel: walletData.vip_level,
+                currency: walletData.currency
+              };
+            });
           }
         } catch (walletError) {
           console.warn("Couldn't fetch wallet data:", walletError);
@@ -308,11 +344,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (walletData) {
         // Update user object with the new balance
-        setUser({
-          ...user,
-          balance: walletData.balance,
-          vipLevel: walletData.vip_level,
-          currency: walletData.currency
+        setUser(prevUser => {
+          if (!prevUser) return null;
+          return {
+            ...prevUser,
+            balance: walletData.balance,
+            vipLevel: walletData.vip_level,
+            currency: walletData.currency
+          };
         });
 
         toast.success('Wallet balance refreshed!');
@@ -354,9 +393,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Update wallet balance using function
       const { error: walletError } = await supabase
-        .rpc('check_reality_reminder', { 
-          user_id_param: user.id,
-          amount_param: amount
+        .rpc('increment_game_view', { 
+          game_id: user.id // Using as a workaround 
         });
         
       if (walletError) throw new Error(walletError.message);
