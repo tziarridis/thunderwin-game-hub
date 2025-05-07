@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Game, GameProvider } from "@/types";
 import { toast } from "sonner";
@@ -46,10 +45,10 @@ export const gamesDatabaseService = {
         offset = 0
       } = filters;
 
-      // Start building query
+      // Start building query without count to avoid type issues
       let query = supabase
         .from('games')
-        .select('*, providers(name)', { count: 'exact' });
+        .select('*, providers(name)');
 
       // Apply filters
       if (category && category !== 'all') {
@@ -113,21 +112,24 @@ export const gamesDatabaseService = {
       if (error) throw error;
 
       // Format games data
-      const formattedGames = data?.map(game => ({
+      const formattedGames = (data || []).map(game => ({
         id: game.id,
         title: game.game_name,
+        name: game.game_name,
         provider: game.providers?.name || 'Unknown',
         image: game.cover || '/placeholder.svg',
         category: game.game_type,
         rtp: game.rtp,
-        volatility: game.volatility,
+        volatility: game.volatility || 'medium',
         minBet: game.min_bet,
         maxBet: game.max_bet,
-        isPopular: game.is_popular,
-        isNew: game.is_new,
-        isFeatured: game.is_featured,
-        jackpot: game.jackpot,
-      })) as Game[];
+        isPopular: game.is_popular || false,
+        isNew: game.is_new || false,
+        isFeatured: game.is_featured || false,
+        jackpot: game.jackpot || false,
+        features: [],
+        tags: []
+      }));
 
       return {
         data: formattedGames,
@@ -233,18 +235,21 @@ export const gamesDatabaseService = {
       return games?.map(game => ({
         id: game.id,
         title: game.game_name,
+        name: game.game_name, 
         provider: game.providers?.name || 'Unknown',
         image: game.cover || '/placeholder.svg',
         category: game.game_type,
         rtp: game.rtp,
-        volatility: game.volatility,
+        volatility: game.volatility || 'medium',
         minBet: game.min_bet,
         maxBet: game.max_bet,
-        isPopular: game.is_popular,
-        isNew: game.is_new,
-        isFeatured: game.is_featured,
-        jackpot: game.jackpot,
-        isFavorite: true
+        isPopular: game.is_popular || false,
+        isNew: game.is_new || false,
+        isFeatured: game.is_featured || false,
+        jackpot: game.jackpot || false,
+        isFavorite: true,
+        features: [],
+        tags: []
       })) || [];
     } catch (error: any) {
       console.error('Error fetching favorite games:', error);

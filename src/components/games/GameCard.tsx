@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Play, Star, Info, Zap, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ interface GameCardProps {
   minBet?: number;
   maxBet?: number;
   isFavorite?: boolean;
-  onFavoriteToggle?: () => void;
+  onFavoriteToggle?: (e: React.MouseEvent) => void;
   className?: string;
   game?: Game;
   onClick?: () => void;
@@ -70,7 +69,7 @@ const GameCard = ({
     
     // If parent provided a handler, use it
     if (onFavoriteToggle) {
-      onFavoriteToggle();
+      onFavoriteToggle(e);
     } else {
       // Fallback to local state
       setIsFav(!isFav);
