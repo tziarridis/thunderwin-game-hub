@@ -1,4 +1,3 @@
-
 export interface AuthUser {
   id: string;
   email: string;
@@ -6,6 +5,7 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   avatar?: string;
+  avatarUrl?: string; // Added for backward compatibility
   role?: string;
   isAdmin?: boolean;
   isVerified?: boolean;

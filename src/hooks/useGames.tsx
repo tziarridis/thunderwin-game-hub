@@ -1,239 +1,254 @@
 
-import { useState, useEffect, useCallback } from "react";
-import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
-import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
-import { useToast } from "@/components/ui/use-toast";
-import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
-import { clientGamesApi } from "@/services/gamesService";
-import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
-import { availableProviders } from "@/config/gameProviders";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useCallback } from 'react';
+import { Game, GameProvider, GameCategory, GameLaunchOptions } from '@/types';
+import { toast } from 'sonner';
+import { gamesDatabaseService } from '@/services/gamesDatabaseService';
+import { gameAggregatorService } from '@/services/gameAggregatorService';
+import { useAuth } from '@/contexts/AuthContext';
+import { trackEvent } from '@/utils/analytics';
+import { GamesContextType } from '@/types';
 
-export const useGames = (initialParams: GameListParams = {}) => {
-  const [games, setGames] = useState<UIGame[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [params, setParams] = useState<GameListParams>(initialParams);
-  const [totalGames, setTotalGames] = useState(0);
-  const [providers, setProviders] = useState<UIGameProvider[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(false);
-  const [launchingGame, setLaunchingGame] = useState(false);
-  const { toast } = useToast();
+export const useGames = (): GamesContextType => {
+  const [games, setGames] = useState<Game[]>([]);
+  const [providers, setProviders] = useState<GameProvider[]>([]);
+  const [categories, setCategories] = useState<GameCategory[]>([]);
+  const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
+  const [newGames, setNewGames] = useState<Game[]>([]);
+  const [popularGames, setPopularGames] = useState<Game[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   
-  const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
-    try {
-      setLoading(true);
-      // Use supabase to fetch games in the future
-      const response = await clientGamesApi.getGames(queryParams);
-      
-      // Convert API game format to UI game format
-      const adaptedGames = adaptGamesForUI(response.data);
-      setGames(adaptedGames);
-      setTotalGames(response.total);
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching games:", err);
-      setError(err as Error);
-      toast({
-        title: "Error",
-        description: "Failed to load games. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [params, toast]);
-  
-  const fetchProviders = useCallback(async () => {
-    try {
-      setLoadingProviders(true);
-      const data = await clientGamesApi.getProviders();
-      // Convert API provider format to UI provider format
-      const adaptedProviders = adaptProvidersForUI(data);
-      setProviders(adaptedProviders);
-    } catch (err) {
-      console.error("Error fetching providers:", err);
-      toast({
-        title: "Error",
-        description: "Failed to load game providers.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingProviders(false);
-    }
-  }, [toast]);
+  const { user } = useAuth();
 
-  const updateParams = useCallback((newParams: Partial<GameListParams>) => {
-    setParams(prev => {
-      const updated = { ...prev, ...newParams };
-      fetchGames(updated);
-      return updated;
-    });
-  }, [fetchGames]);
-  
-  const addGame = async (gameData: Omit<UIGame, 'id'>) => {
+  // Function to toggle favorite status for a game
+  const toggleFavorite = useCallback(async (gameId: string) => {
     try {
-      // Convert UI game to API game format
-      const apiGame = adaptGameForAPI(gameData as UIGame);
-      const result = await clientGamesApi.addGame(apiGame);
-      // Convert the result back to UI format
-      const uiGame = adaptGameForUI(result);
-      setGames(prev => [uiGame, ...prev]);
-      toast({
-        title: "Success",
-        description: "Game added successfully",
-      });
-      return uiGame;
-    } catch (err) {
-      console.error("Error adding game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to add game",
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-  
-  const updateGame = async (game: UIGame) => {
-    try {
-      // Convert UI game to API game format
-      const apiGame = {
-        id: parseInt(game.id),
-        ...adaptGameForAPI(game)
-      };
-      
-      const result = await clientGamesApi.updateGame(apiGame);
-      // Convert the result back to UI format
-      const uiGame = adaptGameForUI(result);
-      setGames(prev => prev.map(g => g.id === game.id ? uiGame : g));
-      toast({
-        title: "Success",
-        description: "Game updated successfully",
-      });
-      return uiGame;
-    } catch (err) {
-      console.error("Error updating game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to update game",
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-  
-  const deleteGame = async (id: string | number) => {
-    try {
-      await clientGamesApi.deleteGame(id);
-      setGames(prev => prev.filter(g => g.id !== id.toString()));
-      toast({
-        title: "Success",
-        description: "Game deleted successfully",
-      });
-    } catch (err) {
-      console.error("Error deleting game:", err);
-      toast({
-        title: "Error",
-        description: "Failed to delete game",
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-  
-  const toggleGameFeature = async (id: string | number, feature: 'is_featured' | 'show_home', value: boolean) => {
-    try {
-      const numericId = typeof id === 'string' ? parseInt(id) : id;
-      const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
-      const adaptedGame = adaptGameForUI(updatedGame);
-      
-      setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
-      toast({
-        title: "Success",
-        description: `Game ${feature === 'is_featured' ? 'featured status' : 'home visibility'} updated`,
-      });
-      return adaptedGame;
-    } catch (err) {
-      console.error(`Error toggling ${feature} for game:`, err);
-      toast({
-        title: "Error",
-        description: `Failed to update game ${feature}`,
-        variant: "destructive",
-      });
-      throw err;
-    }
-  };
-
-  // Fix the mode type issue in launchGame
-  const launchGame = async (game: UIGame, options: Partial<GameLaunchOptions> = {}) => {
-    try {
-      setLaunchingGame(true);
-      
-      // Determine provider ID
-      let providerId = options.providerId || "ppeur"; // Default to Pragmatic Play EUR as requested
-      
-      // Prepare launch options
-      const launchOptions: GameLaunchOptions = {
-        gameId: game.id,
-        providerId,
-        mode: options.mode || "demo",
-        playerId: options.playerId || "demo_player",
-        language: options.language || "en",
-        currency: options.currency || "USD",
-        returnUrl: options.returnUrl || window.location.href
-      };
-      
-      // Get game URL from provider service
-      const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
-      
-      // Launch the game in appropriate way
-      if (options.mode === "real" || options.mode === "demo") {
-        // For real money or demo mode, open in new window/tab
-        window.open(gameUrl, "_blank");
-        toast({
-          title: "Game Launched",
-          description: `${game.title} is opening in a new window`,
-        });
-        return gameUrl;
-      } else {
-        // For any other mode, return URL to be used as needed
-        return gameUrl;
+      if (!user?.id) {
+        toast.error('Please log in to add favorites');
+        return;
       }
-    } catch (err: any) {
-      console.error("Error launching game:", err);
-      toast({
-        title: "Error",
-        description: `Failed to launch game: ${err.message || "Unknown error"}`,
-        variant: "destructive",
-      });
-      throw err;
-    } finally {
-      setLaunchingGame(false);
+
+      // Find game in our state
+      const gameIndex = games.findIndex(g => g.id === gameId);
+      if (gameIndex === -1) return;
+      
+      const game = games[gameIndex];
+      const currentFavoriteStatus = game.isFavorite || false;
+      
+      // Optimistically update the UI
+      const updatedGames = [...games];
+      updatedGames[gameIndex] = {
+        ...game,
+        isFavorite: !currentFavoriteStatus
+      };
+      setGames(updatedGames);
+      
+      // Also update in other game lists
+      updateGameInLists(gameId, { isFavorite: !currentFavoriteStatus });
+      
+      // Call API to toggle favorite
+      await gamesDatabaseService.toggleFavorite(gameId, user.id, currentFavoriteStatus);
+      
+      // Show toast
+      if (!currentFavoriteStatus) {
+        toast.success(`${game.title} added to favorites`);
+        trackEvent('game_favorite_add', { gameId: game.id, gameName: game.title });
+      } else {
+        toast.success(`${game.title} removed from favorites`);
+        trackEvent('game_favorite_remove', { gameId: game.id, gameName: game.title });
+      }
+    } catch (error: any) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorites');
+      
+      // Revert the optimistic update
+      refreshGames();
     }
+  }, [games, user]);
+
+  // Helper function to update a game in all lists
+  const updateGameInLists = (gameId: string, updates: Partial<Game>) => {
+    const updateGameInList = (list: Game[]) => 
+      list.map(g => g.id === gameId ? { ...g, ...updates } : g);
+    
+    setFeaturedGames(updateGameInList(featuredGames));
+    setNewGames(updateGameInList(newGames));
+    setPopularGames(updateGameInList(popularGames));
   };
 
-  // Initial fetch
-  useEffect(() => {
-    fetchGames();
-    fetchProviders();
-  }, [fetchGames, fetchProviders]);
+  // Function to launch a game
+  const launchGame = useCallback(async (game: Game, options?: GameLaunchOptions) => {
+    try {
+      // Track analytics
+      trackEvent('game_launch_attempt', {
+        gameId: game.id,
+        gameName: game.title,
+        provider: game.provider,
+      });
+      
+      // Increment game views in the database
+      gamesDatabaseService.incrementGameViews(game.id);
+      
+      // Launch the game with the aggregator service
+      const response = await gameAggregatorService.createSession(
+        game.id,
+        options?.playerId || 'demo',
+        options?.currency || 'EUR',
+        options?.platform || 'web'
+      );
+      
+      if (!response.success || !response.gameUrl) {
+        throw new Error(response.errorMessage || 'Failed to launch game');
+      }
+      
+      // Track successful launch
+      trackEvent('game_launch_success', {
+        gameId: game.id,
+        gameName: game.title,
+        provider: game.provider,
+      });
+      
+      return response.gameUrl;
+    } catch (error: any) {
+      console.error('Error launching game:', error);
+      toast.error(error.message || 'Failed to launch game');
+      
+      // Track error
+      trackEvent('game_launch_error', {
+        gameId: game.id,
+        error: error.message,
+      });
+      
+      return undefined;
+    }
+  }, []);
+
+  // Function to search games
+  const searchGames = useCallback(async (query: string): Promise<Game[]> => {
+    try {
+      setIsLoading(true);
+      const response = await gamesDatabaseService.getGames({
+        search: query,
+        limit: 24
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error searching games:', error);
+      toast.error('Failed to search games');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Function to get games by provider
+  const getGamesByProvider = useCallback(async (providerId: string): Promise<Game[]> => {
+    try {
+      setIsLoading(true);
+      const response = await gamesDatabaseService.getGames({
+        provider: providerId
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching provider games:', error);
+      toast.error('Failed to load games for provider');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Function to get games by category
+  const getGamesByCategory = useCallback(async (categoryId: string): Promise<Game[]> => {
+    try {
+      setIsLoading(true);
+      const response = await gamesDatabaseService.getGames({
+        category: categoryId
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching category games:', error);
+      toast.error('Failed to load games for category');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Function to get favorite games
+  const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
+    try {
+      if (!user?.id) return [];
+      
+      setIsLoading(true);
+      return await gamesDatabaseService.getFavoriteGames(user.id);
+    } catch (error: any) {
+      console.error('Error fetching favorite games:', error);
+      toast.error('Failed to load favorite games');
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Function to get a game by ID
+  const getGameById = useCallback(async (gameId: string): Promise<Game | null> => {
+    try {
+      return await gamesDatabaseService.getGameById(gameId);
+    } catch (error: any) {
+      console.error('Error fetching game:', error);
+      toast.error('Failed to load game details');
+      return null;
+    }
+  }, []);
+
+  // Function to refresh games from the database
+  const refreshGames = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch games for different sections
+      const [allGamesRes, featuredRes, newRes, popularRes, providersRes] = await Promise.all([
+        gamesDatabaseService.getGames({ limit: 100 }),
+        gamesDatabaseService.getGames({ isFeatured: true, limit: 12 }),
+        gamesDatabaseService.getGames({ isNew: true, limit: 12 }),
+        gamesDatabaseService.getGames({ isPopular: true, limit: 12 }),
+        gamesDatabaseService.getProviders()
+      ]);
+      
+      setGames(allGamesRes.data);
+      setFeaturedGames(featuredRes.data);
+      setNewGames(newRes.data);
+      setPopularGames(popularRes.data);
+      setProviders(providersRes);
+      
+    } catch (error: any) {
+      console.error('Error refreshing games:', error);
+      setError('Failed to load games. Please try again later.');
+      toast.error('Failed to load games');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   return {
     games,
-    loading,
-    launchingGame,
-    error,
-    params,
-    totalGames,
     providers,
-    loadingProviders,
-    updateParams,
-    fetchGames,
-    addGame,
-    updateGame,
-    deleteGame,
-    toggleGameFeature,
-    launchGame
+    categories,
+    featuredGames,
+    newGames,
+    popularGames,
+    isLoading,
+    error,
+    toggleFavorite,
+    launchGame,
+    searchGames,
+    getGamesByProvider,
+    getGamesByCategory,
+    getFavoriteGames,
+    getGameById
   };
 };
+
+export default useGames;

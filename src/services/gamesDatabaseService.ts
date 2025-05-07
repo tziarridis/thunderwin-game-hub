@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Game, GameProvider } from "@/types";
 import { toast } from "sonner";
@@ -24,6 +25,26 @@ export interface GameResponse {
   limit: number;
 }
 
+// Helper function to map DB game to Game interface
+const mapDbGameToGame = (game: any): Game => ({
+  id: game.id,
+  title: game.game_name,
+  name: game.game_name,
+  provider: game.providers?.name || 'Unknown',
+  image: game.cover || '/placeholder.svg',
+  category: game.game_type || 'slots',
+  rtp: game.rtp || 95,
+  volatility: game.volatility || 'medium',
+  minBet: game.min_bet || 0.10,
+  maxBet: game.max_bet || 100,
+  isPopular: game.is_popular || game.show_home || false,
+  isNew: game.is_new || (new Date(game.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000),
+  isFavorite: game.isFavorite || false,
+  jackpot: game.jackpot || false,
+  features: [],
+  tags: []
+});
+
 export const gamesDatabaseService = {
   /**
    * Get games from the database with filters
@@ -45,10 +66,10 @@ export const gamesDatabaseService = {
         offset = 0
       } = filters;
 
-      // Start building query without count to avoid type issues
+      // Start building query
       let query = supabase
         .from('games')
-        .select('*, providers(name)');
+        .select('*, providers(name)', { count: 'exact' });
 
       // Apply filters
       if (category && category !== 'all') {
@@ -112,24 +133,7 @@ export const gamesDatabaseService = {
       if (error) throw error;
 
       // Format games data
-      const formattedGames = (data || []).map(game => ({
-        id: game.id,
-        title: game.game_name,
-        name: game.game_name,
-        provider: game.providers?.name || 'Unknown',
-        image: game.cover || '/placeholder.svg',
-        category: game.game_type,
-        rtp: game.rtp,
-        volatility: game.volatility || 'medium',
-        minBet: game.min_bet,
-        maxBet: game.max_bet,
-        isPopular: game.is_popular || false,
-        isNew: game.is_new || false,
-        isFeatured: game.is_featured || false,
-        jackpot: game.jackpot || false,
-        features: [],
-        tags: []
-      }));
+      const formattedGames = (data || []).map(mapDbGameToGame);
 
       return {
         data: formattedGames,
@@ -158,21 +162,7 @@ export const gamesDatabaseService = {
 
       if (!data) return null;
 
-      return {
-        id: data.id,
-        title: data.game_name,
-        provider: data.providers?.name || 'Unknown',
-        image: data.cover || '/placeholder.svg',
-        category: data.game_type,
-        rtp: data.rtp,
-        volatility: data.volatility,
-        minBet: data.min_bet,
-        maxBet: data.max_bet,
-        isPopular: data.is_popular,
-        isNew: data.is_new,
-        isFeatured: data.is_featured,
-        jackpot: data.jackpot,
-      } as Game;
+      return mapDbGameToGame(data);
     } catch (error: any) {
       console.error('Error fetching game:', error);
       return null;
@@ -233,23 +223,8 @@ export const gamesDatabaseService = {
       if (gamesError) throw gamesError;
 
       return games?.map(game => ({
-        id: game.id,
-        title: game.game_name,
-        name: game.game_name, 
-        provider: game.providers?.name || 'Unknown',
-        image: game.cover || '/placeholder.svg',
-        category: game.game_type,
-        rtp: game.rtp,
-        volatility: game.volatility || 'medium',
-        minBet: game.min_bet,
-        maxBet: game.max_bet,
-        isPopular: game.is_popular || false,
-        isNew: game.is_new || false,
-        isFeatured: game.is_featured || false,
-        jackpot: game.jackpot || false,
-        isFavorite: true,
-        features: [],
-        tags: []
+        ...mapDbGameToGame(game),
+        isFavorite: true
       })) || [];
     } catch (error: any) {
       console.error('Error fetching favorite games:', error);

@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import MobileWalletSummary from "@/components/user/MobileWalletSummary";
 import { useNavigate } from "react-router-dom";
+import { gamesDatabaseService } from "@/services/gamesDatabaseService";
 
 const Favorites = () => {
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
@@ -30,48 +31,10 @@ const Favorites = () => {
 
     try {
       setLoading(true);
-      // First, get the user's favorite game IDs
-      const { data: favorites, error: favError } = await supabase
-        .from('favorite_games')
-        .select('game_id')
-        .eq('user_id', user.id);
-
-      if (favError) throw favError;
-
-      if (!favorites || favorites.length === 0) {
-        setFavoriteGames([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get the game details for the favorite games
-      const gameIds = favorites.map(fav => fav.game_id);
-      const { data: games, error: gamesError } = await supabase
-        .from('games')
-        .select('*, providers(name)')
-        .in('id', gameIds);
-
-      if (gamesError) throw gamesError;
-
-      const formattedGames: Game[] = games?.map(game => ({
-        id: game.id,
-        title: game.game_name,
-        name: game.game_name,
-        provider: game.providers?.name || 'Unknown',
-        image: game.cover || '/placeholder.svg',
-        category: game.game_type,
-        rtp: game.rtp,
-        volatility: game.volatility || 'medium',
-        minBet: game.min_bet || 1,
-        maxBet: game.max_bet || 100,
-        isPopular: game.is_popular || false, 
-        isNew: game.is_new || false,
-        isFavorite: true,
-        features: [],
-        tags: []
-      })) || [];
-
-      setFavoriteGames(formattedGames);
+      
+      // Use the database service to get favorite games
+      const games = await gamesDatabaseService.getFavoriteGames(user.id);
+      setFavoriteGames(games);
     } catch (error: any) {
       console.error('Error fetching favorite games:', error);
       toast.error('Failed to load favorite games');
@@ -86,10 +49,7 @@ const Favorites = () => {
 
   const handleUnfavorite = async (game: Game) => {
     try {
-      await supabase
-        .from('favorite_games')
-        .delete()
-        .match({ user_id: user?.id, game_id: game.id });
+      await gamesDatabaseService.toggleFavorite(game.id, user?.id || '', true);
       
       // Update the list by removing the unfavorited game
       setFavoriteGames(prev => prev.filter(g => g.id !== game.id));

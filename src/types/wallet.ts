@@ -1,34 +1,51 @@
 
 export interface Wallet {
   id: string;
-  user_id: string;
+  userId: string;
   balance: number;
   currency: string;
   symbol: string;
-  active: boolean;
-  created_at: string;
-  updated_at?: string;
-  balance_bonus?: number;
-  total_won?: number;
-  total_bet?: number;
-  total_lose?: number;
-  vip_level: number | null;
-  vip_points?: number | null;
+  vipLevel: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
 }
 
 export interface WalletTransaction {
   id: string;
-  user_id: string;
+  userId: string;
+  type: string;
   amount: number;
   currency: string;
-  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
-  status: 'pending' | 'completed' | 'failed';
-  created_at: string;
+  status: string;
+  date: string;
+  gameId?: string;
+  gameName?: string;
   provider?: string;
-  game_id?: string;
-  round_id?: string;
-  description?: string;
-  payment_method?: string;
-  bonus_id?: string;
-  reference_id?: string;
+}
+
+export interface WalletFilter {
+  type?: string;
+  startDate?: Date;
+  endDate?: Date;
+  status?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  type: string;
+  logo: string;
+  minAmount: number;
+  maxAmount: number;
+  fee: number | string;
+  processingTime: string;
+  currency: string[];
+  isActive: boolean;
+}
+
+export interface WalletResponse {
+  data: any;
+  error: any;
 }
