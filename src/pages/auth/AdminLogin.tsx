@@ -41,13 +41,16 @@ const AdminLogin = () => {
   const onSubmit = async (values: AdminLoginValues) => {
     setIsSubmitting(true);
     try {
+      // Direct console log to debug
+      console.log("Attempting admin login with:", values.username, values.password);
+      
       const result = await adminLogin(values.username, values.password);
       
       if (!result.success) {
         throw new Error(result.error || "Login failed");
       }
       
-      // Success is handled in adminLogin function (toast and navigation)
+      // Navigation is handled in adminLogin function
     } catch (error: any) {
       console.error("Admin login failed:", error);
       toast.error(error.message || "Invalid username or password");

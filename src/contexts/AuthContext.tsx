@@ -96,77 +96,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, [navigate]);
 
-  const fetchUser = async (userId: string) => {
-    try {
-      setLoading(true);
-      const { data: userDetails, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (userError) {
-        throw new Error(userError.message);
-      }
-
-      if (userDetails) {
-        const authUser: AuthUser = {
-          id: userId,
-          email: userDetails.email,
-          username: userDetails.username || userDetails.email.split('@')[0],
-          firstName: userDetails.first_name || '',
-          lastName: userDetails.last_name || '',
-          avatar: userDetails.avatar || '',
-          avatarUrl: userDetails.avatar || '',
-          role: userDetails.role_id === 1 ? 'admin' : 'user',
-          isAdmin: userDetails.role_id === 1 || Boolean(userDetails.is_demo_agent),
-          isVerified: !userDetails.banned,
-          vipLevel: 0, // Default value, will be updated from wallet
-          balance: 0,   // Default value, will be updated from wallet
-          currency: 'USD',
-          name: userDetails.username || userDetails.email.split('@')[0], // Set the name field
-        };
-        
-        setUser(authUser);
-        setIsAdmin(authUser.isAdmin || false);
-        
-        // Fetch wallet information to get balance and vipLevel
-        try {
-          const { data: walletData } = await supabase
-            .from('wallets')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
-            
-          if (walletData) {
-            setUser(prevUser => {
-              if (!prevUser) return null;
-              return {
-                ...prevUser,
-                balance: walletData.balance,
-                vipLevel: walletData.vip_level,
-                currency: walletData.currency
-              };
-            });
-          }
-        } catch (walletError) {
-          console.warn("Couldn't fetch wallet data:", walletError);
-        }
-      } else {
-        console.warn("User details not found for ID:", userId);
-        setUser(null);
-        setIsAdmin(false);
-      }
-    } catch (err: any) {
-      console.error("Error fetching user:", err.message);
-      setError(err.message);
-      setUser(null);
-      setIsAdmin(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const login = async (email: string, password: string) => {
     setLoading(true);
     setError(null);
@@ -201,9 +130,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const adminLogin = async (username: string, password: string) => {
     try {
       setLoading(true);
+      setError(null);
+      
+      console.log("Admin login attempt:", username, password);
       
       // Special case for demo admin credentials
       if (username === "admin" && password === "admin") {
+        console.log("Demo admin credentials detected");
+        
         // Create a demo admin user
         const demoAdminUser: AuthUser = {
           id: "demo-admin-id",
@@ -230,22 +164,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       
       // Regular authentication flow if not using demo credentials
-      const result = await login(username, password);
-      
-      // Check if the user is an admin
-      if (result.success && user?.isAdmin) {
-        toast.success('Admin login successful!');
-        navigate('/admin');
-        return { success: true };
-      } else if (result.success) {
-        // User is not an admin
-        toast.error('You do not have admin privileges');
-        logout();
-        return { success: false, error: 'Not authorized as admin' };
+      console.log("Using regular auth flow for admin");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: username,
+        password: password,
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data.user) {
+        setIsAuthenticated(true);
+        await fetchUser(data.user.id);
+        
+        if (user?.isAdmin) {
+          toast.success('Admin login successful!');
+          navigate('/admin');
+          return { success: true };
+        } else {
+          // User is not an admin
+          toast.error('You do not have admin privileges');
+          logout();
+          return { success: false, error: 'Not authorized as admin' };
+        }
       }
       
-      return result;
+      return { success: false, error: 'Login failed' };
     } catch (error: any) {
+      console.error("Admin login error:", error);
       toast.error(error.message || "Login failed");
       return { success: false, error: error.message };
     } finally {
@@ -457,6 +404,77 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err: any) {
       toast.error(err.message || "Failed to send reset email");
       return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchUser = async (userId: string) => {
+    try {
+      setLoading(true);
+      const { data: userDetails, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (userError) {
+        throw new Error(userError.message);
+      }
+
+      if (userDetails) {
+        const authUser: AuthUser = {
+          id: userId,
+          email: userDetails.email,
+          username: userDetails.username || userDetails.email.split('@')[0],
+          firstName: userDetails.first_name || '',
+          lastName: userDetails.last_name || '',
+          avatar: userDetails.avatar || '',
+          avatarUrl: userDetails.avatar || '',
+          role: userDetails.role_id === 1 ? 'admin' : 'user',
+          isAdmin: userDetails.role_id === 1 || Boolean(userDetails.is_demo_agent),
+          isVerified: !userDetails.banned,
+          vipLevel: 0, // Default value, will be updated from wallet
+          balance: 0,   // Default value, will be updated from wallet
+          currency: 'USD',
+          name: userDetails.username || userDetails.email.split('@')[0], // Set the name field
+        };
+        
+        setUser(authUser);
+        setIsAdmin(authUser.isAdmin || false);
+        
+        // Fetch wallet information to get balance and vipLevel
+        try {
+          const { data: walletData } = await supabase
+            .from('wallets')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+            
+          if (walletData) {
+            setUser(prevUser => {
+              if (!prevUser) return null;
+              return {
+                ...prevUser,
+                balance: walletData.balance,
+                vipLevel: walletData.vip_level,
+                currency: walletData.currency
+              };
+            });
+          }
+        } catch (walletError) {
+          console.warn("Couldn't fetch wallet data:", walletError);
+        }
+      } else {
+        console.warn("User details not found for ID:", userId);
+        setUser(null);
+        setIsAdmin(false);
+      }
+    } catch (err: any) {
+      console.error("Error fetching user:", err.message);
+      setError(err.message);
+      setUser(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
