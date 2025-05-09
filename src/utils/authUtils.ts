@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { User, AuthUser } from "@/types";
 
@@ -65,6 +66,10 @@ export const signIn = async (
       return { user: null, error: 'User not found' };
     }
     
+    // Add delay before fetching user data from our custom users table
+    // This ensures database triggers have time to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Get user details from our custom users table
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -76,6 +81,7 @@ export const signIn = async (
       .single();
       
     if (userError || !userData) {
+      console.error("Error fetching user data after login:", userError);
       return { user: null, error: userError?.message || 'User data not found' };
     }
     
@@ -93,6 +99,7 @@ export const signIn = async (
     
     return { user: authUser, error: null };
   } catch (error: any) {
+    console.error("Error during sign in:", error);
     return { user: null, error: error.message || 'An error occurred during sign in' };
   }
 };
@@ -104,28 +111,105 @@ export const signUp = async (
   username: string
 ): Promise<{ user: AuthUser | null; error: string | null }> => {
   try {
+    console.log("Starting signup process for:", email);
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          username
-        }
+          username,
+          full_name: username,
+        },
       }
     });
     
     if (error) {
+      console.error("Signup error:", error);
       return { user: null, error: error.message };
     }
     
     if (!data.user) {
+      console.error("No user data returned from signup");
       return { user: null, error: 'Failed to create user' };
     }
     
-    // User will be created via database trigger
-    // Get the user data - it might not be available immediately
-    // so we'll return a basic user object
+    console.log("User created with ID:", data.user.id);
     
+    // Add a delay to ensure database triggers complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check if the user record is properly created in users table
+    const { data: newUserData, error: userCheckError } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (userCheckError || !newUserData) {
+      console.error("User record not created in users table:", userCheckError);
+      
+      // Manually create the user record if it doesn't exist
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          username: username,
+          email: email,
+          role_id: 3, // Default to regular user role
+          status: 'Active'
+        });
+        
+      if (insertError) {
+        console.error("Failed to manually create user record:", insertError);
+      } else {
+        console.log("Manually created user record");
+        
+        // Create wallet for user
+        const { error: walletError } = await supabase
+          .from('wallets')
+          .insert({
+            user_id: data.user.id,
+            currency: 'USD',
+            symbol: '$',
+            active: true
+          });
+          
+        if (walletError) {
+          console.error("Failed to create wallet:", walletError);
+        } else {
+          console.log("Created wallet for user");
+        }
+      }
+    } else {
+      console.log("User record exists, checking for wallet");
+      
+      // Check if wallet exists, create if not
+      const { data: walletData, error: walletCheckError } = await supabase
+        .from('wallets')
+        .select('id')
+        .eq('user_id', data.user.id)
+        .single();
+        
+      if (walletCheckError || !walletData) {
+        console.log("Creating wallet for user");
+        const { error: walletCreateError } = await supabase
+          .from('wallets')
+          .insert({
+            user_id: data.user.id,
+            currency: 'USD',
+            symbol: '$',
+            active: true
+          });
+          
+        if (walletCreateError) {
+          console.error("Failed to create wallet:", walletCreateError);
+        }
+      }
+    }
+    
+    // Return basic user object even if we couldn't confirm creation,
+    // since the database trigger might still be processing
     const authUser: AuthUser = {
       id: data.user.id,
       name: username,
@@ -139,6 +223,7 @@ export const signUp = async (
     
     return { user: authUser, error: null };
   } catch (error: any) {
+    console.error("Exception during signup:", error);
     return { user: null, error: error.message || 'An error occurred during sign up' };
   }
 };

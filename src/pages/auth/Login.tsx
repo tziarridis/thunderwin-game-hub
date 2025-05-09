@@ -15,8 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Home, Shield, Mail, LockKeyhole } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
+import { Loader2, Mail, LockKeyhole, Home } from "lucide-react";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -41,19 +41,19 @@ const Login = () => {
   const onSubmit = async (values: LoginValues) => {
     setIsSubmitting(true);
     try {
-      await login(values.email, values.password);
-      toast({
-        title: "Login successful",
-        description: "Welcome to ThunderWin Casino!",
-      });
-      navigate("/");
-    } catch (error) {
+      console.log("Attempting login with email:", values.email);
+      const result = await login(values.email, values.password);
+      
+      if (result.error) {
+        console.error("Login error:", result.error);
+        throw new Error(result.error);
+      }
+      
+      toast.success("Login successful!");
+      navigate("/casino");
+    } catch (error: any) {
       console.error("Login failed:", error);
-      toast({
-        title: "Login failed",
-        description: "Invalid email or password. Please try again.",
-        variant: "destructive"
-      });
+      toast.error(error.message || "Login failed. Please check your credentials.");
     } finally {
       setIsSubmitting(false);
     }
@@ -71,8 +71,8 @@ const Login = () => {
                 className="h-12 thunder-glow mx-auto mb-4"
               />
             </Link>
-            <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
-            <p className="mt-2 text-sm text-white/60">Sign in to your account to continue</p>
+            <h1 className="text-2xl font-bold text-white">Sign In</h1>
+            <p className="mt-2 text-sm text-white/60">Welcome back to ThunderWin</p>
           </div>
           
           <div className="px-6 py-8">
@@ -126,19 +126,8 @@ const Login = () => {
                   )}
                 />
                 
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-white/20 bg-white/5 text-casino-thunder-green focus:ring-casino-thunder-green"
-                    />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-white/70">
-                      Remember me
-                    </label>
-                  </div>
-                  
-                  <Link to="/forgot-password" className="text-sm text-casino-thunder-green hover:text-casino-thunder-highlight transition-colors">
+                <div className="flex justify-end">
+                  <Link to="/reset-password" className="text-sm text-casino-thunder-green hover:text-casino-thunder-highlight">
                     Forgot password?
                   </Link>
                 </div>
@@ -165,32 +154,16 @@ const Login = () => {
               </Link>
             </div>
             
-            <div className="mt-3 text-center text-xs text-white/40">
-              Demo account: demo@example.com / password123
-            </div>
-            
-            <div className="mt-8 pt-6 border-t border-white/10 flex justify-between">
+            <div className="mt-8 pt-6 border-t border-white/10">
               <Button 
                 variant="outline" 
                 size="sm" 
                 asChild
-                className="text-white/70 hover:text-white border-white/10 hover:bg-white/5 hover:border-white/20"
+                className="w-full text-white/70 hover:text-white border-white/10 hover:bg-white/5 hover:border-white/20"
               >
                 <Link to="/">
                   <Home className="mr-2 h-4 w-4" />
                   Back to Home
-                </Link>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                asChild
-                className="text-white/70 hover:text-yellow-400 border-white/10 hover:bg-white/5 hover:border-yellow-400/30"
-              >
-                <Link to="/admin/login">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Admin Access
                 </Link>
               </Button>
             </div>
