@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { RefreshCw } from 'lucide-react';
 import { walletService } from '@/services/walletService';
-import { Wallet as WalletType } from '@/types/wallet';
+import { Wallet } from '@/types/wallet';
+import { toast } from 'sonner';
 
 interface WalletBalanceProps {
   showRefresh?: boolean;
@@ -15,10 +16,12 @@ interface WalletBalanceProps {
 const WalletBalance = ({ showRefresh = false, variant = 'default', className = '' }: WalletBalanceProps) => {
   const { user, refreshWalletBalance } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
 
   useEffect(() => {
-    fetchWalletData();
+    if (user?.id) {
+      fetchWalletData();
+    }
   }, [user?.id]);
 
   const fetchWalletData = async () => {
@@ -31,6 +34,9 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
       if (walletResponse.data) {
         const walletData = walletService.mapDatabaseWalletToWallet(walletResponse.data);
         setWallet(walletData);
+        console.log("Wallet data loaded:", walletData);
+      } else {
+        console.log("No wallet data returned:", walletResponse.error);
       }
     } catch (error) {
       console.error("Error fetching wallet data:", error);
@@ -41,9 +47,18 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
 
   const handleRefresh = async () => {
     setLoading(true);
-    await refreshWalletBalance();
-    await fetchWalletData();
-    setLoading(false);
+    try {
+      if (refreshWalletBalance) {
+        await refreshWalletBalance();
+      }
+      await fetchWalletData();
+      toast.success("Wallet balance refreshed");
+    } catch (error) {
+      console.error("Error refreshing wallet:", error);
+      toast.error("Failed to refresh wallet balance");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Apply different styles based on variant
@@ -54,7 +69,13 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
       <div className="mr-1">
         <span className="text-xs text-white/60 block">Balance</span>
         <span className="text-lg font-bold text-white">
-          {user?.balance?.toLocaleString() || wallet?.balance?.toLocaleString() || '0'} {wallet?.currency || user?.currency || 'USD'}
+          {loading ? (
+            <span className="opacity-50">Loading...</span>
+          ) : (
+            <>
+              {wallet?.symbol || '$'}{(wallet?.balance || user?.balance || 0).toLocaleString()} {wallet?.currency || user?.currency || 'USD'}
+            </>
+          )}
         </span>
       </div>
       

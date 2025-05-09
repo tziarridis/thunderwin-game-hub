@@ -49,3 +49,22 @@ export interface WalletResponse {
   data: any;
   error: any;
 }
+
+export interface WalletDeposit {
+  userId: string;
+  amount: number;
+  method: string;
+  currency: string;
+  status: string;
+  transactionId?: string;
+}
+
+export interface WalletWithdrawal {
+  userId: string;
+  amount: number;
+  method: string;
+  currency: string;
+  status: string;
+  address?: string;
+  transactionId?: string;
+}

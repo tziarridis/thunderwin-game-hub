@@ -6,6 +6,8 @@ import { RefreshCw } from 'lucide-react';
 import { walletService } from '@/services/walletService';
 import { Wallet } from '@/types/wallet';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 interface MobileWalletSummaryProps {
   showRefresh?: boolean;
@@ -18,7 +20,9 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   useEffect(() => {
-    fetchWalletData();
+    if (user?.id) {
+      fetchWalletData();
+    }
   }, [user?.id]);
 
   const fetchWalletData = async () => {
@@ -31,9 +35,12 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
       if (walletResponse.data) {
         const walletData = walletService.mapDatabaseWalletToWallet(walletResponse.data);
         setWallet(walletData);
+        console.log("Mobile wallet data loaded:", walletData);
+      } else {
+        console.log("No mobile wallet data returned:", walletResponse.error);
       }
     } catch (error) {
-      console.error("Error fetching wallet data:", error);
+      console.error("Error fetching mobile wallet data:", error);
     } finally {
       setLoading(false);
     }
@@ -41,9 +48,18 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
 
   const handleRefresh = async () => {
     setLoading(true);
-    await refreshWalletBalance();
-    await fetchWalletData();
-    setLoading(false);
+    try {
+      if (refreshWalletBalance) {
+        await refreshWalletBalance();
+      }
+      await fetchWalletData();
+      toast.success("Wallet balance refreshed");
+    } catch (error) {
+      console.error("Error refreshing wallet:", error);
+      toast.error("Failed to refresh wallet balance");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isMobile) return null;
@@ -52,9 +68,13 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
     <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-3 mb-4 flex items-center justify-between">
       <div>
         <span className="text-xs text-white/60 block">Your Balance</span>
-        <span className="text-lg font-bold text-white">
-          {user?.balance?.toLocaleString() || wallet?.balance?.toLocaleString() || '0'} {wallet?.currency || user?.currency || 'USD'}
-        </span>
+        {loading ? (
+          <span className="text-lg font-bold text-white opacity-50">Loading...</span>
+        ) : (
+          <span className="text-lg font-bold text-white">
+            {wallet?.symbol || '$'}{(wallet?.balance || user?.balance || 0).toLocaleString()} {wallet?.currency || user?.currency || 'USD'}
+          </span>
+        )}
       </div>
       
       <div className="flex gap-2">
@@ -74,8 +94,11 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
         <Button 
           size="sm" 
           className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+          asChild
         >
-          Deposit
+          <Link to="/payment/deposit">
+            Deposit
+          </Link>
         </Button>
       </div>
     </div>

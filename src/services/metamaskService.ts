@@ -13,7 +13,12 @@ export const metamaskService = {
   isInstalled: (): boolean => {
     return window.ethereum !== undefined;
   },
-
+  
+  // Added aliases for compatibility with existing code
+  isMetaMaskAvailable: (): boolean => {
+    return window.ethereum !== undefined;
+  },
+  
   async connectWallet(): Promise<string | null> {
     try {
       if (!this.isInstalled()) {
@@ -36,6 +41,34 @@ export const metamaskService = {
     }
   },
 
+  // Alias for compatibility
+  connectToMetaMask(): Promise<string | null> {
+    return this.connectWallet();
+  },
+  
+  // Alias for compatibility
+  requestAccounts(): Promise<string | null> {
+    return this.connectWallet();
+  },
+  
+  // Added for compatibility with existing code
+  async getConnectedAccount(): Promise<string | null> {
+    try {
+      if (!this.isInstalled()) return null;
+      
+      const provider = new ethers.providers.Web3Provider(window.ethereum!);
+      const accounts = await provider.listAccounts();
+      
+      if (accounts.length > 0) {
+        return accounts[0];
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting connected account:', error);
+      return null;
+    }
+  },
+
   async getBalance(address: string): Promise<string | null> {
     try {
       if (!address) return null;
@@ -51,7 +84,7 @@ export const metamaskService = {
     }
   },
 
-  async sendTransaction(toAddress: string, amount: string): Promise<boolean> {
+  async sendTransaction(toAddress: string, amount: string, options?: any): Promise<boolean> {
     try {
       if (!this.isInstalled()) {
         toast.error('MetaMask is not installed');
@@ -64,6 +97,7 @@ export const metamaskService = {
       const tx = await signer.sendTransaction({
         to: toAddress,
         value: ethers.utils.parseEther(amount),
+        ...(options || {})
       });
       
       toast.success('Transaction sent! Waiting for confirmation...');
@@ -81,6 +115,41 @@ export const metamaskService = {
     } catch (error: any) {
       console.error('Transaction error:', error);
       toast.error(error.message || 'Transaction failed');
+      return false;
+    }
+  },
+  
+  // Added for compatibility with existing code
+  setupMetaMaskListeners(callback: () => void): void {
+    if (!this.isInstalled()) return;
+    
+    const ethereum = window.ethereum;
+    if (!ethereum) return;
+    
+    // Add listeners for account changes
+    ethereum.on?.('accountsChanged', () => {
+      if (callback) callback();
+    });
+    
+    ethereum.on?.('chainChanged', () => {
+      if (callback) callback();
+    });
+  },
+  
+  // Added for compatibility with existing code
+  async switchToEthereumMainnet(): Promise<boolean> {
+    try {
+      if (!this.isInstalled()) return false;
+      
+      const provider = new ethers.providers.Web3Provider(window.ethereum!);
+      
+      await provider.send('wallet_switchEthereumChain', [
+        { chainId: '0x1' }, // Ethereum Mainnet
+      ]);
+      
+      return true;
+    } catch (error) {
+      console.error('Error switching network:', error);
       return false;
     }
   }
