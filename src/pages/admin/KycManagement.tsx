@@ -40,25 +40,21 @@ import {
   Check, 
   X, 
   Eye, 
-  UserCheck, 
   Search, 
   Clock, 
-  AlertTriangle, 
-  FileText 
 } from "lucide-react";
-import { KycRequest, KycStatus } from "@/types";
+import { KycRequest, KycStatus } from "@/types"; // KycStatus is a type alias for string literals
 
 export const KycManagement = () => {
   const [requests, setRequests] = useState<KycRequest[]>([]);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<string>("all"); // filter can be 'all' or a KycStatus
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState<string>("pending"); // activeTab can be 'all' or a KycStatus
   const [selectedRequest, setSelectedRequest] = useState<KycRequest | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   
   useEffect(() => {
-    // Mock data for KYC requests
     const mockRequests: KycRequest[] = [
       {
         id: "1",
@@ -69,7 +65,7 @@ export const KycManagement = () => {
         documentNumber: "P12345678",
         submissionDate: "2023-06-15T14:30:00Z",
         submittedDate: "2023-06-15T14:30:00Z",
-        status: KycStatus.PENDING,
+        status: 'pending', // Changed from KycStatus.PENDING
         documentImage: "https://example.com/documents/passport1.jpg",
         documentFiles: ["https://example.com/documents/passport1.jpg"],
         documentUrls: ["https://example.com/documents/passport1.jpg"],
@@ -84,7 +80,7 @@ export const KycManagement = () => {
         documentNumber: "ID98765432",
         submissionDate: "2023-06-10T09:45:00Z",
         submittedDate: "2023-06-10T09:45:00Z",
-        status: KycStatus.VERIFIED,
+        status: 'verified', // Changed from KycStatus.VERIFIED
         verificationDate: "2023-06-12T11:20:00Z",
         documentImage: "https://example.com/documents/id1.jpg",
         documentFiles: ["https://example.com/documents/id1.jpg", "https://example.com/documents/id1_back.jpg"],
@@ -100,7 +96,7 @@ export const KycManagement = () => {
         documentNumber: "DL12345678",
         submissionDate: "2023-06-08T16:15:00Z",
         submittedDate: "2023-06-08T16:15:00Z",
-        status: KycStatus.REJECTED,
+        status: 'rejected', // Changed from KycStatus.REJECTED
         documentImage: "https://example.com/documents/license1.jpg",
         documentFiles: ["https://example.com/documents/license1.jpg"],
         documentUrls: ["https://example.com/documents/license1.jpg"],
@@ -111,13 +107,12 @@ export const KycManagement = () => {
     setRequests(mockRequests);
   }, []);
   
-  // Handle approval
   const handleApprove = (kycRequest: KycRequest) => {
     const updatedRequests = requests.map((req) => {
       if (req.id === kycRequest.id) {
         return {
           ...req,
-          status: KycStatus.VERIFIED,
+          status: 'verified' as KycStatus, // Ensure type compatibility
           verificationDate: new Date().toISOString()
         };
       }
@@ -126,7 +121,6 @@ export const KycManagement = () => {
     setRequests(updatedRequests);
   };
   
-  // Handle rejection
   const handleReject = () => {
     if (!selectedRequest || !rejectionReason) return;
     
@@ -134,7 +128,7 @@ export const KycManagement = () => {
       if (req.id === selectedRequest.id) {
         return {
           ...req,
-          status: KycStatus.REJECTED,
+          status: 'rejected' as KycStatus, // Ensure type compatibility
           rejectionReason: rejectionReason
         };
       }
@@ -147,25 +141,21 @@ export const KycManagement = () => {
     setSelectedRequest(null);
   };
   
-  // Show rejection dialog
   const openRejectDialog = (kycRequest: KycRequest) => {
     setSelectedRequest(kycRequest);
     setIsDialogOpen(true);
   };
   
-  // View KYC details
   const viewDetails = (kycRequest: KycRequest) => {
     alert(`Viewing details for ${kycRequest.userName}`);
-    // In a real app, navigate to a details page or open a modal with details
   };
   
-  // Filter requests by status and search query
   const filteredRequests = requests.filter((req) => {
     const matchesStatus = filter === "all" || req.status === filter;
     const matchesSearch = 
       searchQuery.trim() === "" || 
       req.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      req.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (req.email && req.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
       req.userId.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
@@ -187,7 +177,7 @@ export const KycManagement = () => {
         
         <Select
           value={filter}
-          onValueChange={setFilter}
+          onValueChange={(value) => setFilter(value as KycStatus | "all")}
         >
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Filter Status" />
@@ -197,13 +187,14 @@ export const KycManagement = () => {
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="verified">Verified</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
+            {/* Add other KycStatus values if needed, e.g., 'not_submitted', 'resubmit_required' */}
           </SelectContent>
         </Select>
       </div>
       
       <Tabs 
         value={activeTab} 
-        onValueChange={setActiveTab}
+        onValueChange={(value) => setActiveTab(value as KycStatus | "all")}
       >
         <TabsList className="mb-4">
           <TabsTrigger value="pending" className="flex items-center">
@@ -221,7 +212,6 @@ export const KycManagement = () => {
           <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
         
-        {/* Tab content */}
         {["pending", "verified", "rejected", "all"].map((tabValue) => (
           <TabsContent key={tabValue} value={tabValue}>
             <Card>
@@ -252,7 +242,7 @@ export const KycManagement = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredRequests
-                      .filter((req) => tabValue === "all" || req.status.toString() === tabValue)
+                      .filter((req) => tabValue === "all" || req.status === tabValue) // req.status is already KycStatus (string literal)
                       .map((request) => (
                         <TableRow key={request.id}>
                           <TableCell className="font-medium">
@@ -266,19 +256,19 @@ export const KycManagement = () => {
                             {new Date(request.submissionDate || request.submittedDate || "").toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            {request.status === KycStatus.PENDING && (
+                            {request.status === 'pending' && ( // Direct string comparison
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                                 <Clock className="w-3 h-3 mr-1" />
                                 Pending
                               </span>
                             )}
-                            {request.status === KycStatus.VERIFIED && (
+                            {request.status === 'verified' && ( // Direct string comparison
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                                 <Check className="w-3 h-3 mr-1" />
                                 Verified
                               </span>
                             )}
-                            {request.status === KycStatus.REJECTED && (
+                            {request.status === 'rejected' && ( // Direct string comparison
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                 <X className="w-3 h-3 mr-1" />
                                 Rejected
@@ -295,7 +285,7 @@ export const KycManagement = () => {
                                 <Eye className="h-4 w-4" />
                               </Button>
                               
-                              {request.status === KycStatus.PENDING && (
+                              {request.status === 'pending' && ( // Direct string comparison
                                 <>
                                   <Button
                                     variant="ghost"

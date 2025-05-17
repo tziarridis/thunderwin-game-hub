@@ -42,6 +42,7 @@ export interface AuthUser {
   // Add other relevant fields from User that are needed in auth context
   firstName?: string;
   lastName?: string;
+  name?: string;
 }
 
 export interface Profile {
@@ -70,18 +71,18 @@ export interface UserPreferences {
 export interface GameProvider {
   id: string;
   name: string;
-  slug: string; // Ensure slug is here
+  slug: string; 
   logo?: string;
-  description?: string; // Added from additional.ts
-  isActive: boolean; // Changed from status for consistency if needed
-  order: number; // from original index.d.ts
-  games_count?: number; // from original index.d.ts
-  status: 'active' | 'inactive'; // from additional.ts
-  api_endpoint?: string; // from additional.ts
-  api_key?: string; // from additional.ts
-  api_secret?: string; // from additional.ts
-  created_at?: string; // from additional.ts
-  updated_at?: string; // from additional.ts
+  description?: string; 
+  isActive: boolean; 
+  order: number; 
+  games_count?: number; 
+  status: 'active' | 'inactive'; 
+  api_endpoint?: string; 
+  api_key?: string; 
+  api_secret?: string; 
+  created_at?: string; 
+  updated_at?: string; 
 }
 
 // Updated GameCategory interface
@@ -89,16 +90,16 @@ export interface GameCategory {
   id: string;
   name: string;
   slug: string;
-  description?: string; // from original index.d.ts
+  description?: string; 
   icon?: string;
   image?: string;
-  order?: number; // from original index.d.ts
-  isActive?: boolean; // from original index.d.ts (maps to status)
-  status: 'active' | 'inactive'; // from additional.ts
+  order?: number; 
+  isActive?: boolean; 
+  status: 'active' | 'inactive'; 
   show_home?: boolean;
   created_at?: string;
   updated_at?: string;
-  games?: Game[]; // from additional.ts
+  games?: Game[]; 
 }
 
 // Updated Game interface
@@ -454,17 +455,30 @@ export interface KycDocument {
   reviewedBy?: string; // Admin user ID
 }
 
+// Updated KycRequest to align with KycManagement.tsx mock data
 export interface KycRequest {
   id: string;
   userId: string;
+  userName: string; // Added from mock
+  email?: string; // Added from mock
+  documentType: string; // Added from mock, simplified to string for now
+  documentNumber?: string; // Added from mock
+  submissionDate: string; // Added from mock (use this or submittedDate)
+  submittedDate?: string; // Kept if used distinctly, alias for submissionDate
   status: KycStatus;
-  documents: KycDocument[]; // Or references to document IDs
+  verificationDate?: string; // Added from mock
+  documentImage?: string; // Added from mock
+  documentFiles?: string[]; // Added from mock
+  documentUrls?: string[]; // Added from mock
+  rejectionReason?: string; // Added from mock
+  // Original fields if still needed, though 'documents' array might be redundant with flat structure
+  documents?: KycDocument[]; // This might be for a more detailed view not used by the main table
   notes?: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string; // If different from submissionDate
+  updatedAt?: string;
 }
 
-// Add 'name' to User interface
+// Single User interface definition
 export interface User {
   id: string;
   email: string;
@@ -472,7 +486,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   displayName?: string;
-  name?: string; // Added optional name
+  name?: string; // Ensured 'name' is here
   avatar?: string;
   role: 'user' | 'admin' | 'moderator';
   isActive: boolean; 
@@ -487,10 +501,11 @@ export interface User {
   address?: string;
   phone?: string;
   birthDate?: string;
-  kycStatus?: KycStatus; // Use the defined KycStatus type
+  kycStatus?: KycStatus; 
   twoFactorEnabled?: boolean;
   emailVerified?: boolean; 
   preferences?: UserPreferences;
   referralCode?: string;
   referredBy?: string;
 }
+// Removed duplicate User interface declaration that was at the end of the file.

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion }) => {
           />
         )}
         <p className="text-sm text-muted-foreground">
-          Type: {promotion.type}
+          Type: {promotion.promotionType} {/* Changed from promotion.type */}
         </p>
         {promotion.bonusPercentage && (
           <p className="text-sm text-muted-foreground">
@@ -60,3 +61,4 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion }) => {
 };
 
 export default PromotionCard;
+

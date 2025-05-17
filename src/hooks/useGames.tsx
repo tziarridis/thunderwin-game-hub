@@ -26,32 +26,25 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     if (typeof rawCategorySlugs === 'string') {
       categorySlugsArray = rawCategorySlugs.split(',').map(s => s.trim()).filter(Boolean);
     } else if (Array.isArray(rawCategorySlugs)) {
-      // Filter out any non-string values just in case, though type should prevent this
       categorySlugsArray = rawCategorySlugs.filter(s => typeof s === 'string');
     }
-    // If rawCategorySlugs is null or undefined, categorySlugsArray remains empty
 
     return {
-      // Spread DbGame first, then override with specific Game properties
       ...dbGame, 
       id: dbGame.id, 
       title: dbGame.title, 
-      provider: dbGame.provider_slug, // This should ideally be mapped to provider name
+      provider: dbGame.provider_slug, 
       category_slugs: categorySlugsArray,
-      image: dbGame.image_url || dbGame.cover, // Prioritize image_url then cover
+      image: dbGame.image_url || dbGame.cover, 
       isPopular: !!dbGame.is_popular,
       isNew: !!dbGame.is_new,
       is_featured: !!dbGame.is_featured,
       show_home: !!dbGame.show_home,
       rtp: dbGame.rtp,
-      // Game specific fields that might not be in DbGame or need transformation
-      minBet: undefined, // These might come from elsewhere or specific logic
+      minBet: undefined, 
       maxBet: undefined,
       jackpot: undefined,
-      // Ensure all required Game fields are present
-      name: dbGame.title, // if 'name' is an alias for 'title'
-      // category: categorySlugsArray.length > 0 ? categorySlugsArray[0] : undefined, // Example: if single category needed
-      // Ensure all other Game fields are correctly mapped or defaulted
+      name: dbGame.title, 
     };
   };
   
@@ -59,7 +52,10 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const [gamesResponse, providersResponse, categoriesResponse] = await Promise.all([
+      // gamesDatabaseService.getAllGames returns ApiResponse<DbGame[]>
+      // Assuming gameProviderService.getProviders() returns GameProvider[] directly
+      // Assuming gameCategoryService.getCategories() returns GameCategory[] directly
+      const [gamesResponse, providersData, categoriesData] = await Promise.all([
         gamesDatabaseService.getAllGames({ limit: 500 }),
         gameProviderService.getProviders(), 
         gameCategoryService.getCategories(),
@@ -73,18 +69,17 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         setError(gamesResponse.error || "Failed to load games.");
       }
 
-      // Assuming providersResponse and categoriesResponse are ApiResponse<T>
-      if (providersResponse && (providersResponse as ApiResponse<GameProvider[]>).success && (providersResponse as ApiResponse<GameProvider[]>).data) {
-        setProviders((providersResponse as ApiResponse<GameProvider[]>).data!);
+      if (providersData) { // Assuming providersData is GameProvider[]
+        setProviders(providersData);
       } else {
-        const err = (providersResponse as ApiResponse<GameProvider[]>)?.error || "Failed to load providers.";
+        const err = "Failed to load providers."; // Simplified error
         setError(prev => prev ? `${prev} ${err}` : err);
       }
       
-      if (categoriesResponse && (categoriesResponse as ApiResponse<GameCategory[]>).success && (categoriesResponse as ApiResponse<GameCategory[]>).data) {
-        setCategories((categoriesResponse as ApiResponse<GameCategory[]>).data!);
+      if (categoriesData) { // Assuming categoriesData is GameCategory[]
+        setCategories(categoriesData);
       } else {
-        const err = (categoriesResponse as ApiResponse<GameCategory[]>)?.error || "Failed to load categories.";
+        const err = "Failed to load categories."; // Simplified error
         setError(prev => prev ? `${prev} ${err}` : err);
       }
 
