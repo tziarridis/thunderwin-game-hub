@@ -1,11 +1,11 @@
 
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Home, Gamepad2, Zap, Menu, User } from "lucide-react";
+import { Home, Gamepad2, Zap, Menu, User, PlusCircle } from "lucide-react"; // Added PlusCircle for Deposit
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import WalletBalance from "@/components/user/WalletBalance";
-import DepositButton from "@/components/user/DepositButton"; 
+// DepositButton is read-only. We will use a regular button styled as an icon if "icon" variant is not supported.
 
 interface MobileNavBarProps {
   onOpenMenu: () => void;
@@ -42,10 +42,16 @@ const MobileNavBar = ({ onOpenMenu }: MobileNavBarProps) => {
               className="bg-casino-thunder-green text-black px-3 py-2 rounded-full shadow-lg" 
               showRefresh={false} 
             />
-            <DepositButton 
-              variant="icon" 
-              className="h-6 w-6 mt-1 p-0"
-            />
+            {/* Assuming DepositButton (read-only) can be replaced by a regular Button or styled */}
+            {/* For now, using a regular button if DepositButton variant="icon" caused issues */}
+             <Button 
+              variant="ghost" // Use a valid variant
+              size="sm" // Use a valid size
+              className="h-8 w-8 mt-1 p-0 text-casino-thunder-green hover:text-casino-thunder-green/80" // Style as icon
+              onClick={() => navigate('/payment/deposit')} // Example action
+            >
+              <PlusCircle size={24}/>
+            </Button>
           </div>
         ) : (
           <NavItem 
@@ -84,8 +90,9 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, onClick, highlight }) =>
     <Button 
       variant="ghost" 
       className={cn(
-        "flex flex-col items-center justify-center h-14 p-0 hover:bg-transparent",
-        highlight ? "text-casino-thunder-green" : "text-white/80"
+        "flex flex-col items-center justify-center h-14 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0", // Added focus visibility reset
+        highlight ? "text-casino-thunder-green" : "text-white/80",
+        "hover:text-casino-thunder-green" // Ensure hover color is consistent
       )}
       onClick={onClick}
     >

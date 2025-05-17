@@ -62,7 +62,8 @@ import Register from "./pages/auth/Register";
 import Crash from "./pages/casino/Crash";
 
 function App() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // AdminLayout manages its own sidebar state, so these are not needed here.
+  // const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // Initialize theme from localStorage or default to dark
@@ -134,7 +135,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
-          element={<AdminLayout />}
+          element={<AdminLayout />} // Removed sidebarCollapsed and onToggleSidebar props
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

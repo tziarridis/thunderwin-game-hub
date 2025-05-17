@@ -10,6 +10,7 @@ declare module "." {
 
   interface AuthUser {
     name?: string;
+    role?: 'user' | 'admin'; // Added role
   }
 
   // It's generally better to define new properties directly in index.d.ts
@@ -23,4 +24,3 @@ declare module "." {
   //   isActive?: boolean;
   // }
 }
-

@@ -1,26 +1,27 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
-import { Game, GameCategory, GameProvider as GameProviderType } from '@/types'; // Renamed GameProvider to avoid conflict
-import GameGrid from '@/components/casino/GameGrid';
-import GameCategories from '@/components/casino/GameCategories'; // Read-only, assuming props: categories, onSelectCategory, selectedCategory
-import PopularProviders from '@/components/casino/PopularProviders'; // Read-only, assuming props: providers
-import PromoBanner from '@/components/casino/PromoBanner'; // Read-only, assuming some props or self-contained
+import { Game, GameCategory, GameProvider as GameProviderType } from '@/types';
+import GameGrid from '@/components/casino/GameGrid'; // Assuming this is the correct GameGrid
+import GameCategories from '@/components/casino/GameCategories'; 
+import PopularProviders from '@/components/casino/PopularProviders';
+import PromoBanner from '@/components/casino/PromoBanner';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom'; // For navigation on login
+import { useNavigate } from 'react-router-dom';
 
 const CasinoMain = () => {
   const { 
-    games, 
+    games: allGamesData, // Renamed to avoid conflict with filteredGames if used directly
     isLoading, 
     error, 
-    filterGames, 
+    filterGames, // This function from useGames context filters 'allGames' within the context
     providers, 
     categories,
-    filteredGames,
+    filteredGames: contextFilteredGames, // Games filtered by context's filterGames
     launchGame,
   } = useGames();
   const { isAuthenticated, user } = useAuth();
@@ -29,7 +30,9 @@ const CasinoMain = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
+  // Use the filteredGames from the context, which are updated by filterGames call
   useEffect(() => {
+    // console.log("CasinoMain: SearchTerm or SelectedCategory changed. Calling filterGames.", { searchTerm, selectedCategory });
     filterGames(searchTerm, selectedCategory);
   }, [searchTerm, selectedCategory, filterGames]);
   
@@ -39,76 +42,98 @@ const CasinoMain = () => {
 
   const handleCategoryChange = (categorySlug: string | undefined) => {
     setSelectedCategory(categorySlug);
-    // setSearchTerm(''); // Reset search term when category changes -- user might want to keep it
+    // console.log("CasinoMain: Category changed to:", categorySlug);
   };
 
   const handleGameClick = async (game: Game) => {
     if (!isAuthenticated || !user) {
-      toast.error("Please log in to play.");
-      navigate('/login'); // Navigate to login page
+      toast.info("Please log in to play games.", {
+        action: {
+          label: "Login",
+          onClick: () => navigate('/login'),
+        },
+      });
       return;
     }
-    // Ensure game.id is a string if launchGame expects it
-    const gameIdToLaunch = game.id ? String(game.id) : (game.game_id || "");
+    
+    const gameIdToLaunch = game.game_id || game.id; // Prefer game_id if available
     if (!gameIdToLaunch) {
         toast.error("Game ID is missing, cannot launch.");
         return;
     }
 
-    const gameUrl = await launchGame({ ...game, id: gameIdToLaunch }, { // Pass game with ensured string ID
+    // Ensure all necessary user details are present
+    if (!user.id || !user.currency) {
+        toast.error("User details incomplete. Cannot launch game.");
+        console.error("Missing user ID or currency for game launch.", user);
+        return;
+    }
+
+    const gameUrl = await launchGame(game, { 
       mode: 'real',
-      playerId: user.id,
-      currency: user.currency || 'EUR',
+      playerId: String(user.id), // Ensure string
+      currency: user.currency,
       platform: 'web',
     });
+
     if (gameUrl) {
-      window.open(gameUrl, '_blank');
+      // For production, consider opening in a new tab or an iframe within the site
+      // window.open(gameUrl, '_blank', 'noopener,noreferrer');
+      // Or navigate to a dedicated game launch page:
+      navigate(`/casino/game/${game.id}?launchUrl=${encodeURIComponent(gameUrl)}`);
+    } else {
+      // Error toast is handled by launchGame
     }
   };
 
-  const popularGames = useMemo(() => games.filter(game => game.isPopular).slice(0, 12), [games]);
-  const newGames = useMemo(() => games.filter(game => game.isNew).slice(0, 12), [games]);
+  const popularGames = useMemo(() => allGamesData.filter(game => game.isPopular).slice(0, 12), [allGamesData]);
+  const newGames = useMemo(() => allGamesData.filter(game => game.isNew).slice(0, 12), [allGamesData]);
+  const allGamesForGrid = useMemo(() => allGamesData.slice(0, 18), [allGamesData]);
 
-  if (error) {
-    return <p className="text-red-500 text-center py-10">Error loading games: {error}</p>;
+
+  if (error && !isLoading) { // Show error only if not loading and error exists
+    return (
+      <div className="container mx-auto py-10 px-4 text-center">
+        <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+        <p className="text-xl text-red-400">Oops! Something went wrong.</p>
+        <p className="text-muted-foreground">We encountered an error loading game data: {error}</p>
+        <p className="text-muted-foreground mt-2">Please try refreshing the page or contact support if the issue persists.</p>
+      </div>
+    );
   }
-
-  // Assuming PromoBanner, GameCategories, PopularProviders are read-only and might not take specific props
-  // or take very generic ones. If they are essential and need specific props, this might still error.
-  // For now, providing minimal or no props.
+  
+  const currentGamesToDisplay = searchTerm || selectedCategory ? contextFilteredGames : allGamesData;
 
   return (
-    <div className="space-y-8 lg:space-y-12 px-2 sm:px-4 md:px-6 lg:px-8 py-6">
-      {/* If PromoBanner is self-contained or takes no props / optional props */}
+    <div className="space-y-8 lg:space-y-12 px-2 sm:px-4 md:px-6 lg:px-8 py-6 min-h-screen">
       <PromoBanner 
-        // title="Welcome!" description="Check out our latest offers." buttonText="Explore" onButtonClick={() => navigate('/promotions')} 
+        // title="Epic Wins Await!" description="Dive into our thrilling selection of games and grab your welcome bonus!" buttonText="Sign Up & Play" onButtonClick={() => navigate('/register')} 
       />
 
-      <div className="flex flex-col md:flex-row gap-4 items-center">
+      <div className="flex flex-col md:flex-row gap-4 items-center sticky top-16 md:top-0 z-30 bg-casino-thunder-darker py-3 -mx-2 sm:-mx-4 md:-mx-6 lg:-mx-8 px-2 sm:px-4 md:px-6 lg:px-8 shadow-md">
         <div className="relative flex-grow w-full md:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search games..."
-            className="pl-10 w-full bg-card border-border focus:ring-primary"
+            placeholder="Search for games or providers..."
+            className="pl-10 w-full bg-card border-border/50 focus:ring-casino-neon-green focus:border-casino-neon-green rounded-full h-11"
             value={searchTerm}
             onChange={handleSearchChange}
           />
         </div>
       </div>
       
-      {/* Assuming GameCategories takes these props */}
       <GameCategories 
-        categories={categories as GameCategory[]} // Cast if necessary, ensure type compatibility
+        categories={categories as GameCategory[]}
         onSelectCategory={handleCategoryChange} 
         selectedCategory={selectedCategory} 
       />
 
-      {isLoading && !filteredGames.length && !searchTerm && !selectedCategory ? (
+      {isLoading && currentGamesToDisplay.length === 0 ? ( // Show skeleton only when loading and no games yet for the current filter
         <div>
           <Skeleton className="h-8 w-1/4 mb-4" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-md" />)}
+            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-56 w-full rounded-md bg-muted/20" />)}
           </div>
         </div>
       ) : (
@@ -121,36 +146,41 @@ const CasinoMain = () => {
                  categories.find(c=>c.slug === selectedCategory)?.name || "Filtered Games" }
               </h2>
               <GameGrid 
-                games={filteredGames} 
-                loading={isLoading} 
+                games={contextFilteredGames} 
+                loading={isLoading && contextFilteredGames.length === 0} // Show loading in grid only if still fetching for this specific filter
                 onGameClick={handleGameClick} 
-                emptyMessage="No games found for your criteria."
+                emptyMessage="No games match your criteria. Try a different search or category!"
               />
             </section>
           ) : (
             <>
-              <section>
-                <h2 className="text-2xl font-semibold mb-4 text-white">Popular Games</h2>
-                <GameGrid games={popularGames} loading={isLoading} onGameClick={handleGameClick} />
-              </section>
-              <section>
-                <h2 className="text-2xl font-semibold mb-4 text-white">New Releases</h2>
-                <GameGrid games={newGames} loading={isLoading} onGameClick={handleGameClick} />
-              </section>
+              {popularGames.length > 0 && (
+                <section>
+                  <h2 className="text-2xl font-semibold mb-4 text-white">Popular Games</h2>
+                  <GameGrid games={popularGames} loading={isLoading && popularGames.length === 0} onGameClick={handleGameClick} />
+                </section>
+              )}
+              {newGames.length > 0 && (
+                <section>
+                  <h2 className="text-2xl font-semibold mb-4 text-white">New Releases</h2>
+                  <GameGrid games={newGames} loading={isLoading && newGames.length === 0} onGameClick={handleGameClick} />
+                </section>
+              )}
             </>
           )}
         </>
       )}
       
-      {/* Assuming PopularProviders takes these props */}
-      <PopularProviders 
-        providers={providers.slice(0, 5) as GameProviderType[]} // Cast if necessary
-      /> 
+      {providers.length > 0 && (
+         <PopularProviders 
+            providers={providers.filter(p => p.isActive).slice(0, 10) as GameProviderType[]} // Show more active providers
+         /> 
+      )}
       
-      {!selectedCategory && !searchTerm && !isLoading && (
+      {!selectedCategory && !searchTerm && !isLoading && allGamesForGrid.length > 0 && (
          <section>
             <h2 className="text-2xl font-semibold mb-4 text-white">All Games</h2>
-            <GameGrid games={games.slice(0, 18)} loading={isLoading} onGameClick={handleGameClick}/> 
+            <GameGrid games={allGamesForGrid} loading={false} onGameClick={handleGameClick}/> 
          </section>
       )}
     </div>
