@@ -1,13 +1,16 @@
-
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Game, GameProvider } from '@/types';
-import { GameLaunchOptions, GameCategory } from '@/types/additional';
+// Use types from index.d.ts as the single source of truth
+import { Game, GameProvider, GameCategory as GameCategoryType, GamesContextType as IGamesContextType } from '@/types'; 
+import { GameLaunchOptions } from '@/types/additional'; // Keep this for specific launch options if different
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
-import { gameAggregatorService } from '@/services/gameAggregatorService'; // Assuming this exists
+import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-export interface GamesContextType {
+// This local GamesContextType should ideally be removed or be identical to the one in index.d.ts
+// For now, we will ensure this provider implements IGamesContextType from index.d.ts
+/*
+export interface GamesContextType { // This is now defined in index.d.ts
   games: Game[];
   filteredGames: Game[];
   providers: GameProvider[];
@@ -22,14 +25,15 @@ export interface GamesContextType {
   favoriteGameIds: Set<string>;
   incrementGameView: (gameId: string) => Promise<void>;
 }
+*/
 
-const GamesContext = createContext<GamesContextType | undefined>(undefined);
+const GamesContext = createContext<IGamesContextType | undefined>(undefined);
 
 export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
-  const [categories, setCategories] = useState<GameCategory[]>([]);
+  const [categories, setCategories] = useState<GameCategoryType[]>([]); // Use GameCategoryType
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -40,7 +44,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const [gamesData, providersData, categoriesData] = await Promise.all([
-        gamesDatabaseService.getAllGames(), // Changed from getGames
+        gamesDatabaseService.getAllGames(),
         gamesDatabaseService.getGameProviders(),
         gamesDatabaseService.getGameCategories(),
       ]);
@@ -69,12 +73,11 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string) => {
     let tempGames = [...games];
     if (categorySlug) {
-      // This filtering logic might need refinement based on how categories are linked to games
-      // For now, assuming Game type has a category_slugs: string[] or similar
+      // Game.category_slugs should now exist due to type update in index.d.ts
       tempGames = tempGames.filter(game => game.category_slugs?.includes(categorySlug));
     }
     if (providerSlug) {
-      // Assuming Game type has a provider_slug: string
+      // Game.provider_slug should now exist
       tempGames = tempGames.filter(game => game.provider_slug === providerSlug);
     }
     if (searchTerm) {
@@ -90,38 +93,34 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
         toast.error("Please log in to play for real money.");
         return null;
     }
-    setIsLoading(true);
+    setIsLoading(true); // This property should now be recognized by IGamesContextType
     try {
         const launchData = {
-            gameId: game.id,
+            gameId: game.id, // game.id should be fine
             playerId: options.mode === 'demo' ? 'demo_player' : user?.id || 'unknown_player',
             currency: options.currency || user?.currency || "EUR",
             platform: options.platform || "web",
             returnUrl: options.returnUrl || window.location.href,
             language: options.language || "en",
-            // ... any other options from GameLaunchOptions or game specific data
         };
-        const gameUrl = await gameAggregatorService.createSession(
+        const gameUrlResponse = await gameAggregatorService.createSession(
             launchData.gameId, 
             launchData.playerId, 
             launchData.currency, 
-            launchData.platform as 'web' | 'mobile', // Cast as gameAggregatorService expects this
-            // Ensure all required parameters for createSession are passed
+            launchData.platform as 'web' | 'mobile',
         );
 
-        if (gameUrl && gameUrl.gameUrl) {
-             // If in demo mode or for specific providers, open in new tab
-            // For real mode, sometimes it's better to launch in an iframe or redirect
-            // This logic can be customized
-            window.open(gameUrl.gameUrl, '_blank');
+        // Assuming createSession returns { gameUrl?: string, errorMessage?: string, success: boolean }
+        if (gameUrlResponse.success && gameUrlResponse.gameUrl) {
+            window.open(gameUrlResponse.gameUrl, '_blank');
             toast.success(`Launching ${game.title}`);
-            return gameUrl.gameUrl;
+            return gameUrlResponse.gameUrl;
         } else {
-            toast.error(gameUrl.errorMessage || `Failed to launch ${game.title}`);
+            toast.error(gameUrlResponse.errorMessage || `Failed to launch ${game.title}`);
             return null;
         }
     } catch (err: any) {
-        setError(err.message);
+        setError(err.message); // This property should now be recognized
         toast.error(err.message || 'Game launch failed.');
         return null;
     } finally {
@@ -130,7 +129,17 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const getGameById = async (id: string): Promise<Game | null> => {
-    return gamesDatabaseService.getGameById(id);
+    setIsLoading(true);
+    try {
+      const game = await gamesDatabaseService.getGameById(id);
+      return game;
+    } catch (err: any) {
+      setError(err.message || `Failed to fetch game ${id}`);
+      toast.error(err.message || `Failed to load game ${id}`);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleFavoriteGame = async (gameId: string) => {
@@ -152,8 +161,12 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
           }
           return newFavs;
         });
+        toast.success(isCurrentlyFavorite ? "Removed from favorites" : "Added to favorites");
+      } else {
+        toast.error("Failed to update favorites");
       }
     } catch (err: any) {
+      setError(err.message || "Failed to update favorites");
       toast.error(err.message || "Failed to update favorites");
     } finally {
       setIsLoading(false);
@@ -163,39 +176,40 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const incrementGameView = async (gameId: string) => {
     try {
       await gamesDatabaseService.incrementGameView(gameId);
-    } catch (err: any) {
-      // Silently fail or log, user doesn't need a toast for this
+    } catch (err: any)
+    {
       console.error("Failed to increment game view:", err);
     }
   };
 
+  // Ensure the context value matches IGamesContextType from index.d.ts
+  const contextValue: IGamesContextType = { 
+    games, 
+    filteredGames, 
+    providers, 
+    categories, 
+    isLoading, 
+    error, 
+    fetchGamesAndProviders, 
+    filterGames, 
+    launchGame,
+    getGameById,
+    toggleFavoriteGame,
+    favoriteGameIds,
+    incrementGameView
+  };
 
   return (
-    <GamesContext.Provider value={{ 
-        games, 
-        filteredGames, 
-        providers, 
-        categories, 
-        isLoading, 
-        error, 
-        fetchGamesAndProviders, 
-        filterGames, 
-        launchGame,
-        getGameById,
-        toggleFavoriteGame,
-        favoriteGameIds,
-        incrementGameView
-    }}>
+    <GamesContext.Provider value={contextValue}>
       {children}
     </GamesContext.Provider>
   );
 };
 
-export const useGames = (): GamesContextType => {
+export const useGames = (): IGamesContextType => {
   const context = useContext(GamesContext);
   if (context === undefined) {
     throw new Error('useGames must be used within a GamesProvider');
   }
   return context;
 };
-

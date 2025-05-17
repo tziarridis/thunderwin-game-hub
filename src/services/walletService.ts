@@ -1,6 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { Wallet, WalletResponse } from "@/types/wallet"; // Assuming WalletTransaction will be here or in additional
-import { WalletTransaction } from "@/types/additional"; // Using the new type
+import { Wallet, WalletResponse } from "@/types/wallet"; // Assuming Wallet type here is now correct or also updated.
+// If "@/types/wallet" also defines Wallet, it needs to be synced with "@/types/index.d.ts"
+// For now, assuming Wallet from index.d.ts (via types/wallet if it re-exports) will be used by TS checker.
+import { WalletTransaction } from "@/types"; // Using WalletTransaction from index.d.ts (re-exported from additional)
 import { toast } from "sonner";
 
 export const walletService = {
@@ -18,6 +21,10 @@ export const walletService = {
 
       if (error) {
         console.error("Error fetching wallet:", error);
+        // Check if error is "PGRST116" (No rows found), not necessarily an error to toast
+        if (error.code === 'PGRST116') {
+            return { data: null, error: "Wallet not found for user." };
+        }
         return { data: null, error: error.message };
       }
 
@@ -44,12 +51,16 @@ export const walletService = {
       
       const currentWalletResponse = await this.getWalletByUserId(userId);
       
-      if (!currentWalletResponse.data) {
+      if (currentWalletResponse.error && !currentWalletResponse.data) {
         return { 
           data: null, 
-          error: `Wallet not found for user ${userId}` 
+          error: currentWalletResponse.error || `Wallet not found for user ${userId}` 
         };
       }
+      if (!currentWalletResponse.data) {
+         return { data: null, error: `Wallet not found for user ${userId}` };
+      }
+
       const currentWallet = currentWalletResponse.data;
       
       if (type === 'withdraw' && currentWallet.balance < amount) {
@@ -70,7 +81,7 @@ export const walletService = {
           updated_at: new Date().toISOString()
         })
         .eq('user_id', userId)
-        .select() // ensure select returns data
+        .select()
         .single();
       
       if (updateError || !updatedWalletData) {
@@ -78,16 +89,15 @@ export const walletService = {
         return { data: null, error: updateError?.message || "Failed to update wallet data" };
       }
       
-      // Create transaction record
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert({
-          player_id: userId, // Ensure this matches your DB column name
+          player_id: userId,
           amount: amount,
           currency: currentWallet.currency || 'USD',
-          type: type, // Direct assignment
+          type: type,
           provider: options?.provider || 'system',
-          game_id: options?.gameId, // Ensure this matches your DB column name
+          game_id: options?.gameId,
           status: 'completed',
           balance_before: currentWallet.balance,
           balance_after: newBalance,
@@ -96,6 +106,7 @@ export const walletService = {
       
       if (transactionError) {
         console.error("Error creating transaction record:", transactionError);
+        // Potentially return an error or partial success here
       }
       
       return { data: this.mapDatabaseWalletToWallet(updatedWalletData), error: null };
@@ -105,9 +116,6 @@ export const walletService = {
     }
   },
   
-  /**
-   * Process wallet deposit
-   */
   async depositToWallet(
     userId: string, 
     amount: number, 
@@ -120,9 +128,6 @@ export const walletService = {
     });
   },
   
-  /**
-   * Process wallet withdrawal
-   */
   async withdrawFromWallet(
     userId: string, 
     amount: number, 
@@ -144,7 +149,7 @@ export const walletService = {
       const { data, error, count } = await supabase
         .from('transactions')
         .select('*', { count: 'exact' })
-        .eq('player_id', userId) // Ensure this matches your DB column name
+        .eq('player_id', userId)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
       
@@ -152,16 +157,15 @@ export const walletService = {
         return { data: [], error: error.message, total: 0 };
       }
       
-      const transactions: WalletTransaction[] = data.map((tx: any) => ({ // tx is any from DB
+      const transactions: WalletTransaction[] = data.map((tx: any) => ({
         id: tx.id,
-        userId: tx.player_id, // map from player_id
+        userId: tx.player_id,
         type: tx.type,
         amount: tx.amount,
         currency: tx.currency,
         status: tx.status,
         date: tx.created_at,
         gameId: tx.game_id,
-        // gameName: tx.game_name, // game_name might not be on transactions table directly
         provider: tx.provider,
         description: tx.description,
         balance_before: tx.balance_before,
@@ -176,23 +180,20 @@ export const walletService = {
       return { data: [], error: err.message || 'Failed to get wallet transactions', total: 0 };
     }
   },
-  
-  /**
-   * Map database wallet object to frontend Wallet model
-   */
+
   mapDatabaseWalletToWallet(dbWallet: any): Wallet {
+    // Ensure this mapping matches the Wallet interface in src/types/index.d.ts
     return {
       id: dbWallet.id,
       userId: dbWallet.user_id,
       balance: dbWallet.balance || 0,
       currency: dbWallet.currency || 'USD',
-      symbol: dbWallet.symbol || '$', // You might need to derive symbol from currency
+      symbol: dbWallet.symbol || '$',
       vipLevel: dbWallet.vip_level || 0,
       bonusBalance: dbWallet.balance_bonus || 0,
       cryptoBalance: dbWallet.balance_cryptocurrency || 0,
       demoBalance: dbWallet.balance_demo || 0,
       isActive: dbWallet.active || false,
-      // Ensure all Wallet interface fields are covered
       balance_bonus_rollover: dbWallet.balance_bonus_rollover,
       balance_deposit_rollover: dbWallet.balance_deposit_rollover,
       balance_withdrawal: dbWallet.balance_withdrawal,
@@ -211,8 +212,8 @@ export const walletService = {
       time_reminder_enabled: dbWallet.time_reminder_enabled,
       reminder_interval_minutes: dbWallet.reminder_interval_minutes,
       exclusion_period: dbWallet.exclusion_period,
-      createdAt: dbWallet.created_at, // Add if in Wallet type
-      updatedAt: dbWallet.updated_at, // Add if in Wallet type
+      createdAt: dbWallet.created_at,
+      updatedAt: dbWallet.updated_at,
     };
   }
 };

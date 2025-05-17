@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +26,8 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
   const [ethBalance, setEthBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
-  const [depositAmount, setDepositAmount] = useState("100");
+  // Changed depositAmount state to string to match MetaMaskDeposit component's props
+  const [depositAmount, setDepositAmount] = useState<string>("100"); 
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const { user, refreshWalletBalance } = useAuth();
 
@@ -38,8 +38,9 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
       
       if (installed) {
         try {
-          // Check if already connected
-          const account = await metamaskService.getConnectedAccount();
+          // Assuming getConnectedAccount does not take arguments. 
+          // If it does, this needs to be fixed in metamaskService.ts (read-only)
+          const account = await metamaskService.getConnectedAccount(); 
           if (account) {
             setIsConnected(true);
             setAccountAddress(account);
@@ -53,13 +54,19 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
     
     checkMetaMaskStatus();
     
-    // Setup MetaMask event listeners
+    // The errors TS1345 and TS2349 for setupMetaMaskListeners are in metamaskService.ts (read-only).
+    // This component can't fix how setupMetaMaskListeners is defined or called if it returns void/never.
+    // Assuming it's meant to return a cleanup function or nothing.
     const cleanup = metamaskService.setupMetaMaskListeners();
     return () => {
-      if (cleanup) cleanup();
+      // If cleanup is a function, call it. If it's void, this is fine.
+      if (typeof cleanup === 'function') {
+        cleanup();
+      }
     };
   }, []);
 
+  // ... keep existing code (fetchEthBalance, handleConnect, handleDeposit, handleDepositSuccess, getShortAddress)
   const fetchEthBalance = async (address: string) => {
     try {
       const balance = await metamaskService.getBalance(address);
@@ -104,16 +111,13 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
 
   const handleDepositSuccess = async () => {
     setIsDepositDialogOpen(false);
-    // Refresh the wallet balance
     await refreshWalletBalance();
-    
-    // If connected to MetaMask, also refresh ETH balance
     if (accountAddress) {
       fetchEthBalance(accountAddress);
     }
   };
 
-  const getShortAddress = (address: string) => {
+  const getShortAddress = (address: string | null): string => {
     if (!address) return "";
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
@@ -166,7 +170,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-white/60">Address:</span>
-                <span className="font-mono">{getShortAddress(accountAddress || "")}</span>
+                <span className="font-mono">{getShortAddress(accountAddress)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-white/60">ETH Balance:</span>
@@ -192,7 +196,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
                 </DialogHeader>
                 <MetaMaskDeposit 
                   amount={depositAmount}
-                  setAmount={setDepositAmount}
+                  setAmount={setDepositAmount} // Now expects string, depositAmount is string
                   onSuccess={handleDepositSuccess}
                   onProcessing={setIsProcessingDeposit}
                 />
