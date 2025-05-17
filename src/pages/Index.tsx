@@ -1,382 +1,189 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { navigateByButtonName } from "@/utils/navigationUtils";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Gamepad2, Zap, Trophy, Gift, CreditCard, HelpCircle, UserPlus } from "lucide-react";
-import { useGames } from "@/hooks/useGames";
-import FeaturedGames from "@/components/casino/FeaturedGames";
-import GameCategories from "@/components/casino/GameCategories";
-import PromoBanner from "@/components/casino/PromoBanner";
-import PopularProviders from "@/components/casino/PopularProviders";
-import RecentWinners from "@/components/casino/RecentWinners";
-import GameCard from "@/components/games/GameCard";
-import RecentBigWins from "@/components/casino/RecentBigWins";
 import { useAuth } from "@/contexts/AuthContext";
-import { scrollToTop } from "@/utils/scrollUtils";
-import WalletBalance from "@/components/user/WalletBalance";
-import DepositButton from "@/components/user/DepositButton";
-import { useIsMobile } from "@/hooks/use-mobile";
-import GameLauncher from "@/components/games/GameLauncher";
+import { toast } from "sonner";
+import { Game, GameLaunchOptions } from "@/types"; // Added GameLaunchOptions
+import { gamesDatabaseService } from "@/services/gamesDatabaseService";
+import GameCard from "@/components/game/GameCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const Index = () => {
+const IndexPage = () => {
+  const [trendingGames, setTrendingGames] = useState<Game[]>([]);
+  const [newGames, setNewGames] = useState<Game[]>([]);
+  const [jackpotGames, setJackpotGames] = useState<Game[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { games, loading, error, launchGame } = useGames();
+  const { games, loading: gamesLoading, error: gamesError, launchGame } = useGames();
   const { isAuthenticated, user } = useAuth();
-  const isMobile = useIsMobile();
-  
-  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const buttonName = e.currentTarget.textContent?.trim() || "";
-    
-    // If the user is not authenticated and clicks on buttons that require authentication
-    if (!isAuthenticated && (buttonName === "Play Now" || buttonName === "Claim Bonus" || buttonName === "Bonuses" || buttonName === "Deposit")) {
-      navigate('/register');
-      scrollToTop();
+
+  useEffect(() => {
+    const fetchGamesData = async () => {
+      try {
+        setLoading(true);
+        const trending = await gamesDatabaseService.getPopularGames(6);
+        const newG = await gamesDatabaseService.getNewGames(6);
+        const jackpot = games?.filter((game) => game.jackpot).slice(0, 6) || [];
+
+        setTrendingGames(trending);
+        setNewGames(newG);
+        setJackpotGames(jackpot);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGamesData();
+  }, [games]);
+
+  const handlePlayGame = async (selectedGame: Game) => {
+    if (!isAuthenticated || !user) {
+      toast.error("Please log in to play.");
+      navigate("/login");
       return;
     }
-    
-    navigateByButtonName(buttonName, navigate);
+    if (selectedGame) {
+      try {
+        const launchOptions: GameLaunchOptions = { // Explicitly type launchOptions
+            mode: 'real',
+            playerId: user.id,
+            currency: user.currency || 'EUR',
+            language: 'en',
+            platform: 'web',
+            returnUrl: window.location.href // Added default returnUrl
+        };
+        const gameUrl = await launchGame(selectedGame, launchOptions);
+        if (gameUrl) {
+          window.open(gameUrl, "_blank");
+          toast.success(`Launching ${selectedGame.title}`);
+        } else {
+          toast.error("Could not launch game. Please try again.");
+        }
+      } catch (err) {
+        toast.error(`Failed to launch game: ${(err as Error).message}`);
+      }
+    }
   };
 
-  // Direct navigation handlers
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    scrollToTop();
-  };
-  
-  // Game launch handler for aggregator games
-  const handleGameLaunch = async (game: any) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      scrollToTop();
-      return;
-    }
-    
-    try {
-      const gameUrl = await launchGame(game, {
-        mode: 'real',
-        playerId: user?.id || 'guest',
-        currency: 'USD',
-        language: 'en',
-        platform: isMobile ? 'mobile' : 'web'
-      });
-      
-      if (gameUrl) {
-        window.open(gameUrl, '_blank');
-      }
-    } catch (error) {
-      console.error("Error launching game:", error);
-    }
-  };
-  
-  // Filter games for different sections
-  const popularGames = games.filter(game => game.isPopular).slice(0, 12);
-  const newGames = games.filter(game => game.isNew).slice(0, 6);
-  const slotGames = games.filter(game => game.category === "slots").slice(0, 12);
-  const tableGames = games.filter(game => game.category === "table").slice(0, 6);
-  const jackpotGames = games.filter(game => game.jackpot).slice(0, 6);
-  
   return (
-    <div className="relative min-h-screen bg-casino-thunder-darker overflow-hidden">
-      <div className="container mx-auto px-4 py-8 pt-20">
-        {/* Hero Banner */}
-        <div className="relative rounded-xl overflow-hidden mb-8">
-          <img 
-            src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
-            alt="ThunderWin Casino" 
-            className="w-full h-auto md:h-[400px] object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 to-transparent flex flex-col justify-center px-8">
-            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 thunder-glow">
-              Welcome to ThunderWin
-            </h1>
-            <p className="text-lg md:text-xl text-white/80 mb-6 max-w-md">
-              Experience the thrill of over 1000+ games and massive jackpots
-            </p>
-            
-            {isAuthenticated ? (
-              <div className="flex flex-col md:flex-row gap-4 mb-4">
-                <div className="bg-black/40 backdrop-blur p-4 rounded-lg">
-                  <WalletBalance showRefresh={true} />
+    <div className="container mx-auto py-8">
+      {error && (
+        <div className="text-red-500 text-center mb-4">Error: {error}</div>
+      )}
+
+      {/* Trending Games Section */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Trending Games</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {loading ? (
+            // Skeleton loaders while loading
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-[150px] w-full rounded-md" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
                 </div>
-                <DepositButton variant="highlight" className="md:self-start" />
               </div>
-            ) : (
-              <div className="flex flex-wrap gap-4">
-                <Button 
-                  size="lg" 
-                  className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-bold"
-                  onClick={() => {
-                    navigate('/register');
-                    scrollToTop();
-                  }}
-                >
-                  <UserPlus className="h-5 w-5 mr-2" />
-                  Join Now
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-white text-white hover:bg-white/10"
-                  onClick={() => {
-                    navigate('/login');
-                    scrollToTop();
-                  }}
-                >
-                  Learn More
-                </Button>
+            ))
+          ) : trendingGames.length > 0 ? (
+            // Display trending games
+            trendingGames.map((game) => (
+              <div key={game.id} className="relative">
+                <GameCard game={game} />
+                <div className="absolute bottom-2 left-2 w-full">
+                  <Button onClick={() => game && handlePlayGame(game)} className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">Play Now</Button>
+                </div>
               </div>
-            )}
-          </div>
+            ))
+          ) : (
+            // Message if no trending games
+            <div className="text-gray-500 text-center">No trending games available.</div>
+          )}
         </div>
-        
-        {/* Quick Links */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-12">
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigation('/casino/slots')}
-          >
-            <Gamepad2 className="h-8 w-8 mb-2" />
-            <span>Slots</span>
+      </section>
+
+      {/* New Games Section */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">New Games</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {loading ? (
+            // Skeleton loaders while loading
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-[150px] w-full rounded-md" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
+              </div>
+            ))
+          ) : newGames.length > 0 ? (
+            // Display new games
+            newGames.map((game) => (
+              <div key={game.id} className="relative">
+                <GameCard game={game} />
+                <div className="absolute bottom-2 left-2 w-full">
+                  <Button onClick={() => game && handlePlayGame(game)} className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">Play Now</Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            // Message if no new games
+            <div className="text-gray-500 text-center">No new games available.</div>
+          )}
+        </div>
+      </section>
+
+      {/* Jackpot Games Section */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Jackpot Games</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {loading ? (
+            // Skeleton loaders while loading
+            [...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-[150px] w-full rounded-md" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[200px]" />
+                </div>
+              </div>
+            ))
+          ) : jackpotGames.length > 0 ? (
+            // Display jackpot games
+            jackpotGames.map((game) => (
+              <div key={game.id} className="relative">
+                <GameCard game={game} />
+                <div className="absolute bottom-2 left-2 w-full">
+                  <Button onClick={() => game && handlePlayGame(game)} className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">Play Now</Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            // Message if no jackpot games
+            <div className="text-gray-500 text-center">No jackpot games available.</div>
+          )}
+        </div>
+      </section>
+
+      {/* Call to Action Section */}
+      <section className="text-center">
+        <h2 className="text-3xl font-bold mb-4">Ready to Play?</h2>
+        <p className="text-gray-500 mb-8">
+          Join our community and experience the thrill of online gaming.
+        </p>
+        <Link to="/register">
+          <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
+            Get Started Now
           </Button>
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigation('/casino/live-casino')}
-          >
-            <Zap className="h-8 w-8 mb-2" />
-            <span>Live Casino</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigation('/casino/jackpots')}
-          >
-            <Trophy className="h-8 w-8 mb-2" />
-            <span>Jackpots</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => {
-              if (!isAuthenticated) {
-                navigate('/register');
-                scrollToTop();
-              } else {
-                navigate('/bonuses');
-                scrollToTop();
-              }
-            }}
-          >
-            <Gift className="h-8 w-8 mb-2" />
-            <span>{!isAuthenticated ? "Join Now" : "Bonuses"}</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => handleNavigation('/support/help')}
-          >
-            <HelpCircle className="h-8 w-8 mb-2" />
-            <span>Help Center</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            className="flex flex-col items-center justify-center h-24 bg-casino-thunder-dark hover:bg-casino-thunder-highlight hover:text-black border-white/10"
-            onClick={() => {
-              if (!isAuthenticated) {
-                navigate('/register');
-                scrollToTop();
-              } else {
-                navigate('/profile');
-                scrollToTop();
-              }
-            }}
-          >
-            <CreditCard className="h-8 w-8 mb-2" />
-            <span>{!isAuthenticated ? "Join Now" : "Deposit"}</span>
-          </Button>
-        </div>
-        
-        {/* Recent Big Wins - Full Width */}
-        <div className="mb-12">
-          <RecentBigWins />
-        </div>
-        
-        {/* Featured Games */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Featured Games</h2>
-          <FeaturedGames games={popularGames.slice(0, 5)} />
-        </div>
-        
-        {/* Game Categories */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-          <GameCategories onCategoryClick={(category) => {
-            navigate(`/casino/${category}`);
-            scrollToTop();
-          }} />
-        </div>
-        
-        {/* Popular Games */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold thunder-glow">Popular Games</h2>
-            <Button 
-              variant="link" 
-              className="text-casino-thunder-green"
-              onClick={() => handleNavigation('/casino/popular')}
-            >
-              View All
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {popularGames.map(game => (
-              <GameCard 
-                key={game.id}
-                id={game.id}
-                title={game.title}
-                image={game.image}
-                provider={game.provider}
-                isPopular={game.isPopular}
-                isNew={game.isNew}
-                rtp={game.rtp}
-                isFavorite={game.isFavorite}
-                minBet={game.minBet}
-                maxBet={game.maxBet}
-                onClick={() => handleGameLaunch(game)}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Promo Banner */}
-        <div className="mb-12">
-          <PromoBanner 
-            title="Welcome Bonus" 
-            description="Get 100% up to $500 + 100 Free Spins on your first deposit!" 
-            buttonText="Claim Now"
-            onButtonClick={() => {
-              if (!isAuthenticated) {
-                navigate('/register');
-                scrollToTop();
-              } else {
-                navigate('/bonuses');
-                scrollToTop();
-              }
-            }}
-          />
-        </div>
-        
-        {/* New Games */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold thunder-glow">New Games</h2>
-            <Button 
-              variant="link" 
-              className="text-casino-thunder-green"
-              onClick={() => handleNavigation('/casino/new')}
-            >
-              View All
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {newGames.map(game => (
-              <GameCard 
-                key={game.id}
-                id={game.id}
-                title={game.title}
-                image={game.image}
-                provider={game.provider}
-                isPopular={game.isPopular}
-                isNew={game.isNew}
-                rtp={game.rtp}
-                isFavorite={game.isFavorite}
-                minBet={game.minBet}
-                maxBet={game.maxBet}
-                onClick={() => handleNavigation(`/casino/game/${game.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Popular Providers */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Popular Providers</h2>
-          <PopularProviders onProviderClick={(provider) => handleNavigation(`/casino/provider/${provider}`)} />
-        </div>
-        
-        {/* Jackpot Games */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold thunder-glow">Jackpot Games</h2>
-            <Button 
-              variant="link" 
-              className="text-casino-thunder-green"
-              onClick={() => handleNavigation('/casino/jackpots')}
-            >
-              View All
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {jackpotGames.map(game => (
-              <GameCard 
-                key={game.id}
-                id={game.id}
-                title={game.title}
-                image={game.image}
-                provider={game.provider}
-                isPopular={game.isPopular}
-                isNew={game.isNew}
-                rtp={game.rtp}
-                isFavorite={game.isFavorite}
-                minBet={game.minBet}
-                maxBet={game.maxBet}
-                onClick={() => handleNavigation(`/casino/game/${game.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* Recent Winners */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Winners</h2>
-          <RecentWinners />
-        </div>
-        
-        {/* Table Games */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold thunder-glow">Table Games</h2>
-            <Button 
-              variant="link" 
-              className="text-casino-thunder-green"
-              onClick={() => handleNavigation('/casino/table-games')}
-            >
-              View All
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {tableGames.map(game => (
-              <GameCard 
-                key={game.id}
-                id={game.id}
-                title={game.title}
-                image={game.image}
-                provider={game.provider}
-                isPopular={game.isPopular}
-                isNew={game.isNew}
-                rtp={game.rtp}
-                isFavorite={game.isFavorite}
-                minBet={game.minBet}
-                maxBet={game.maxBet}
-                onClick={() => handleNavigation(`/casino/game/${game.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+        </Link>
+      </section>
     </div>
   );
 };
 
-export default Index;
+export default IndexPage;

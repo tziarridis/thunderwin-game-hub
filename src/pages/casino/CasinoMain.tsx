@@ -52,13 +52,14 @@ const CasinoMain = () => {
   }, [games, searchText, activeTab]);
 
   const applyFilters = () => {
-    let filtered = [...games];
+    let currentGames = games || [];
+    let filtered = [...currentGames];
 
     // Apply search filter
     if (searchText) {
       filtered = filtered.filter(game => 
         game.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        game.provider.toLowerCase().includes(searchText.toLowerCase())
+        (game.provider && game.provider.toLowerCase().includes(searchText.toLowerCase()))
       );
     }
 
@@ -75,11 +76,13 @@ const CasinoMain = () => {
           case "table":
             return game.category === "table";
           case "live":
-            return game.category === "live";
+            return game.category === "live"; // or game.isLive
           case "jackpots":
-            return game.jackpot;
+            return !!game.jackpot; // Check if jackpot data exists
           case "favorites":
-            return game.isFavorite;
+            // Favorites logic might be handled differently, e.g., user-specific
+            // For now, assuming Game type has an isFavorite property
+            return game.isFavorite; 
           default:
             return true;
         }
@@ -94,13 +97,16 @@ const CasinoMain = () => {
   };
 
   if (loading) {
-    return <div className="container mx-auto px-4 py-12">Loading games...</div>;
+    return <div className="container mx-auto px-4 py-12 text-center">Loading games...</div>;
   }
 
   if (error) {
-    return <div className="container mx-auto px-4 py-12">Error loading games: {error.message}</div>;
+    // Ensure error is treated as a string or an object with a message
+    const errorMessage = typeof error === 'string' ? error : (error as Error)?.message || "Unknown error occurred";
+    return <div className="container mx-auto px-4 py-12 text-center text-red-500">Error loading games: {errorMessage}</div>;
   }
-
+  
+  // ... keep existing code (JSX structure)
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
       <div className="container mx-auto px-4 py-8 pt-20">
@@ -197,12 +203,12 @@ const CasinoMain = () => {
               <TabsTrigger value="table">Table Games</TabsTrigger>
               <TabsTrigger value="live">Live Casino</TabsTrigger>
               <TabsTrigger value="jackpots">Jackpots</TabsTrigger>
-              <TabsTrigger value="favorites">Favorites</TabsTrigger>
+              {isAuthenticated && <TabsTrigger value="favorites">Favorites</TabsTrigger>}
             </TabsList>
           </Tabs>
         </div>
         
-        {filteredGames.length === 0 ? (
+        {filteredGames.length === 0 && searchText ? (
           <div className="text-center py-12">
             <p className="text-xl mb-4">No games match your search criteria.</p>
             <Button 
@@ -210,9 +216,20 @@ const CasinoMain = () => {
               className="border-casino-thunder-green text-casino-thunder-green"
               onClick={handleClearSearch}
             >
-              Clear Filters
+              Clear Search & Filters
             </Button>
           </div>
+        ) : filteredGames.length === 0 && activeTab !== "all" ? (
+            <div className="text-center py-12">
+                <p className="text-xl mb-4">No games found in this category.</p>
+                <Button 
+                variant="outline" 
+                className="border-casino-thunder-green text-casino-thunder-green"
+                onClick={() => setActiveTab("all")}
+                >
+                Show All Games
+                </Button>
+            </div>
         ) : (
           <CasinoGameGrid
             games={filteredGames}
