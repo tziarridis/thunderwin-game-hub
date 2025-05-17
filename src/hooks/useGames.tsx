@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions } from '@/types'; // Will use consolidated types
+import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions } from '@/types';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,12 +10,14 @@ const GamesContext = createContext<GamesContextType | undefined>(undefined);
 export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  const [newGamesList, setNewGamesList] = useState<Game[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
   const [categories, setCategories] = useState<GameCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
+  const [totalGamesCount, setTotalGamesCount] = useState(0);
 
 
   const fetchGamesAndProviders = useCallback(async () => {
@@ -28,18 +30,25 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
         gamesDatabaseService.getGameCategories(),
       ]);
       
-      // Ensure gamesData is an array before setting
       const validGamesData = Array.isArray(gamesData) ? gamesData : [];
       setGames(validGamesData);
       setFilteredGames(validGamesData);
+      setTotalGamesCount(validGamesData.length);
+      // Example: Define new games (e.g., recently added or flagged as new)
+      setNewGamesList(validGamesData.filter(g => g.isNew).slice(0, 10));
+
 
       const validProvidersData = Array.isArray(providersData) ? providersData : [];
       setProviders(validProvidersData);
       
-      const validCategoriesData = Array.isArray(categoriesData) ? categoriesData : [];
+      // Ensure categoriesData is an array and items match GameCategory structure
+      const validCategoriesData = (Array.isArray(categoriesData) ? categoriesData : []).map(cat => ({
+        ...cat,
+        status: cat.status || 'inactive', // Default status if missing, or ensure DB provides it
+      })) as GameCategory[];
       setCategories(validCategoriesData);
 
-      if (user?.id) { // user.id should be the ID for fetching favorites
+      if (user?.id) {
         const favGames = await gamesDatabaseService.getFavoriteGames(user.id);
         setFavoriteGameIds(new Set(favGames.map(g => g.id)));
       }
@@ -59,11 +68,9 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string) => {
     let tempGames = [...games];
     if (categorySlug) {
-      // Ensure game.category_slugs exists and is an array
       tempGames = tempGames.filter(game => Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug));
     }
     if (providerSlug) {
-      // Ensure game.provider_slug exists
       tempGames = tempGames.filter(game => game.provider_slug === providerSlug);
     }
     if (searchTerm) {
@@ -81,11 +88,10 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     }
     setIsLoading(true);
     try {
-        // game.game_id is the external game identifier for aggregator
-        const gameIdForAggregator = game.game_id || game.gameCode || game.id; // Fallback if game_id is not present
+        const gameIdForAggregator = game.game_id || game.gameCode || game.id;
         const launchData = {
             gameId: gameIdForAggregator,
-            playerId: options.mode === 'demo' ? 'demo_player' : user?.id || 'unknown_player', // user.id should be player's ID
+            playerId: options.mode === 'demo' ? 'demo_player' : user?.id || 'unknown_player',
             currency: options.currency || user?.currency || "EUR",
             platform: options.platform || "web",
             returnUrl: options.returnUrl || window.location.href,
@@ -94,6 +100,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
 
         if (!launchData.gameId) {
             toast.error("Game identifier is missing. Cannot launch game.");
+            setIsLoading(false);
             return null;
         }
 
@@ -107,17 +114,18 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
         if (gameUrlResponse.success && gameUrlResponse.gameUrl) {
             window.open(gameUrlResponse.gameUrl, '_blank');
             toast.success(`Launching ${game.title}`);
+            setIsLoading(false);
             return gameUrlResponse.gameUrl;
         } else {
             toast.error(gameUrlResponse.errorMessage || `Failed to launch ${game.title}`);
+            setIsLoading(false);
             return null;
         }
     } catch (err: any) {
         setError(err.message);
         toast.error(err.message || 'Game launch failed.');
-        return null;
-    } finally {
         setIsLoading(false);
+        return null;
     }
   };
   const getGameById = async (id: string): Promise<Game | null> => {
@@ -135,14 +143,13 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const toggleFavoriteGame = async (gameId: string) => {
-    if (!user?.id) { // user.id should be the ID for managing favorites
+    if (!user?.id) {
       toast.error("Please log in to manage favorites.");
       return;
     }
     setIsLoading(true);
     try {
       const isCurrentlyFavorite = favoriteGameIds.has(gameId);
-      // gamesDatabaseService.toggleFavorite expects the user's ID (from your 'users' table if that's what it uses)
       const success = await gamesDatabaseService.toggleFavorite(gameId, user.id, isCurrentlyFavorite);
       if (success) {
         setFavoriteGameIds(prev => {
@@ -172,16 +179,37 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     } catch (err: any)
     {
       console.error("Failed to increment game view:", err);
-      // Optionally toast an error if this is user-facing critical
     }
   };
+
+  // Stub implementations for admin functions
+  const addGame = async (gameData: Partial<Game>): Promise<Game | null> => {
+    console.warn("addGame function is a stub", gameData);
+    toast.info("Add game functionality not fully implemented yet.");
+    // Example: return gamesDatabaseService.createGame(gameData);
+    return null;
+  };
+  const updateGame = async (gameId: string, gameData: Partial<Game>): Promise<Game | null> => {
+    console.warn("updateGame function is a stub", gameId, gameData);
+    toast.info("Update game functionality not fully implemented yet.");
+    // Example: return gamesDatabaseService.updateGame(gameId, gameData);
+    return null;
+  };
+  const deleteGame = async (gameId: string): Promise<boolean> => {
+    console.warn("deleteGame function is a stub", gameId);
+    toast.info("Delete game functionality not fully implemented yet.");
+    // Example: return gamesDatabaseService.deleteGame(gameId);
+    return false;
+  };
+
 
   const contextValue: GamesContextType = { 
     games, 
     filteredGames, 
     providers, 
     categories, 
-    isLoading, 
+    isLoading,
+    loading: isLoading, // Provide 'loading' for consumers expecting it
     error, 
     fetchGamesAndProviders, 
     filterGames, 
@@ -189,7 +217,12 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     getGameById,
     toggleFavoriteGame,
     favoriteGameIds,
-    incrementGameView
+    incrementGameView,
+    totalGames: totalGamesCount,
+    newGames: newGamesList,
+    addGame,
+    updateGame,
+    deleteGame,
   };
 
   return (

@@ -1,228 +1,121 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, FilterX } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { useGames } from "@/hooks/useGames";
-import { Game } from "@/types";
-import RecentBigWins from "@/components/casino/RecentBigWins";
-import GameCategories from "@/components/casino/GameCategories";
-import AggregatorGameSection from "@/components/casino/AggregatorGameSection";
-import { useAuth } from "@/contexts/AuthContext";
-import { scrollToTop } from "@/utils/scrollUtils";
-import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
-
-// Mock data for configurable banners from backend
-const banners = [
-  {
-    id: 1,
-    title: "Welcome Bonus",
-    description: "Get 100% up to $500 + 100 Free Spins on your first deposit!",
-    imageUrl: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81",
-    ctaText: "Claim Now",
-    ctaUrl: "/promotions",
-    backgroundColor: "from-purple-900 to-blue-900",
-    textColor: "text-white"
-  },
-  {
-    id: 2,
-    title: "Casino Tournament",
-    description: "Win big in our weekly casino tournament with $10,000 prize pool",
-    imageUrl: "https://images.unsplash.com/photo-1518998053901-5348d3961a04",
-    ctaText: "Join Now",
-    ctaUrl: "/tournaments",
-    backgroundColor: "from-green-800 to-blue-900",
-    textColor: "text-white"
-  }
-];
+import React, { useEffect, useState, useMemo } from 'react';
+import { useGames } from '@/hooks/useGames';
+import { Game } from '@/types';
+import GameGrid from '@/components/casino/GameGrid'; // Ensure this is the correct GameGrid
+import GameCategories from '@/components/casino/GameCategories';
+import PopularProviders from '@/components/casino/PopularProviders';
+import PromoBanner from '@/components/casino/PromoBanner';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, Filter } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+// ... other imports
 
 const CasinoMain = () => {
-  const { games, loading, error } = useGames();
-  const [searchText, setSearchText] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { 
+    games, 
+    isLoading, // Use isLoading
+    error, 
+    filterGames, 
+    providers, 
+    categories,
+    filteredGames, // Use filteredGames from context
+  } = useGames();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  // ... other state variables
 
   useEffect(() => {
-    if (games) {
-      applyFilters();
-    }
-  }, [games, searchText, activeTab]);
+    filterGames(searchTerm, selectedCategory);
+  }, [searchTerm, selectedCategory, filterGames]);
 
-  const applyFilters = () => {
-    let filtered = [...games];
-
-    // Apply search filter
-    if (searchText) {
-      filtered = filtered.filter(game => 
-        game.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        game.provider.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-
-    // Apply category filter
-    if (activeTab !== "all") {
-      filtered = filtered.filter(game => {
-        switch (activeTab) {
-          case "popular":
-            return game.isPopular;
-          case "new":
-            return game.isNew;
-          case "slots":
-            return game.category === "slots";
-          case "table":
-            return game.category === "table";
-          case "live":
-            return game.category === "live";
-          case "jackpots":
-            return game.jackpot;
-          case "favorites":
-            return game.isFavorite;
-          default:
-            return true;
-        }
-      });
-    }
-
-    setFilteredGames(filtered);
+  // ... keep existing code for handleSearchChange, handleCategoryChange, etc.
+  
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
   };
 
-  const handleClearSearch = () => {
-    setSearchText("");
+  const handleCategoryChange = (categorySlug: string | undefined) => {
+    setSelectedCategory(categorySlug);
   };
 
-  if (loading) {
-    return <div className="container mx-auto px-4 py-12">Loading games...</div>;
-  }
+
+  const popularGames = useMemo(() => games.filter(game => game.isPopular).slice(0, 10), [games]);
+  const newGames = useMemo(() => games.filter(game => game.isNew).slice(0, 10), [games]);
 
   if (error) {
-    return <div className="container mx-auto px-4 py-12">Error loading games: {error.message}</div>;
+    // Error: Property 'message' does not exist on type 'string'.
+    // 'error' from useGames is already string | null.
+    // So, if it's a string, it *is* the message.
+    return <p className="text-red-500 text-center py-10">Error loading games: {error}</p>;
   }
 
+
   return (
-    <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
-      <div className="container mx-auto px-4 py-8 pt-20">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Casino Games</h1>
-          <p className="text-white/70 max-w-2xl mx-auto">
-            Explore our vast selection of casino games, from slots to table games and live dealer experiences.
-          </p>
-        </div>
-        
-        {/* Configurable Banners Section - Added at top */}
-        <div className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {banners.map(banner => (
-              <div
-                key={banner.id}
-                className={`rounded-lg overflow-hidden relative h-60 bg-gradient-to-r ${banner.backgroundColor}`}
-              >
-                <div className="absolute inset-0 opacity-60 bg-black">
-                  <img 
-                    src={banner.imageUrl} 
-                    alt={banner.title} 
-                    className="w-full h-full object-cover mix-blend-overlay"
-                  />
-                </div>
-                <div className="absolute inset-0 flex flex-col justify-center p-8 z-10">
-                  <h3 className={`text-2xl font-bold mb-2 ${banner.textColor}`}>
-                    {banner.title}
-                  </h3>
-                  <p className={`${banner.textColor} mb-4 opacity-80 max-w-md`}>
-                    {banner.description}
-                  </p>
-                  <div>
-                    <Button 
-                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-                      onClick={() => navigate(banner.ctaUrl)}
-                    >
-                      {banner.ctaText}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        {/* Game Categories */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
-          <GameCategories onCategoryClick={(category) => {
-            navigate(`/casino/${category}`);
-            scrollToTop();
-          }} />
-        </div>
-        
-        {/* Aggregator Game Section - NEW SECTION */}
-        <div className="mb-8">
-          <AggregatorGameSection />
-        </div>
-        
-        {/* Recent Big Wins */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Big Wins</h2>
-          <RecentBigWins />
-        </div>
-        
-        <div className="mb-6">
-          <div className="relative mb-4">
-            <Input
-              type="text"
-              placeholder="Search games or providers..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            {searchText && (
-              <Button 
-                variant="ghost" 
-                className="absolute right-2 top-1/2 transform -translate-y-1/2" 
-                onClick={handleClearSearch}
-              >
-                <FilterX size={18} />
-              </Button>
-            )}
-          </div>
-          
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full flex overflow-x-auto py-2 justify-start">
-              <TabsTrigger value="all">All Games</TabsTrigger>
-              <TabsTrigger value="popular">Popular</TabsTrigger>
-              <TabsTrigger value="new">New</TabsTrigger>
-              <TabsTrigger value="slots">Slots</TabsTrigger>
-              <TabsTrigger value="table">Table Games</TabsTrigger>
-              <TabsTrigger value="live">Live Casino</TabsTrigger>
-              <TabsTrigger value="jackpots">Jackpots</TabsTrigger>
-              <TabsTrigger value="favorites">Favorites</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        
-        {filteredGames.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-xl mb-4">No games match your search criteria.</p>
-            <Button 
-              variant="outline" 
-              className="border-casino-thunder-green text-casino-thunder-green"
-              onClick={handleClearSearch}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        ) : (
-          <CasinoGameGrid
-            games={filteredGames}
-            onGameClick={(game) => {
-              navigate(`/casino/game/${game.id}`);
-              scrollToTop();
-            }}
+    <div className="space-y-8 lg:space-y-12 px-2 sm:px-4 md:px-6 lg:px-8 py-6">
+      <PromoBanner />
+
+      <div className="flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-grow w-full md:w-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search games..."
+            className="pl-10 w-full"
+            value={searchTerm}
+            onChange={handleSearchChange}
           />
-        )}
+        </div>
+        {/* Add filter button for mobile if needed */}
       </div>
+      
+      <GameCategories categories={categories} onSelectCategory={handleCategoryChange} selectedCategory={selectedCategory} />
+
+      {isLoading && !filteredGames.length ? (
+        <div>
+          <Skeleton className="h-8 w-1/4 mb-4" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-48 w-full" />)}
+          </div>
+        </div>
+      ) : (
+        <>
+          {selectedCategory || searchTerm ? (
+            <section>
+              <h2 className="text-2xl font-semibold mb-4">
+                {searchTerm && selectedCategory ? `Results for "${searchTerm}" in ${categories.find(c=>c.slug === selectedCategory)?.name || selectedCategory}` : 
+                 searchTerm ? `Search Results for "${searchTerm}"` : 
+                 `Games in ${categories.find(c=>c.slug === selectedCategory)?.name || selectedCategory}` }
+              </h2>
+              <GameGrid games={filteredGames} isLoading={isLoading} />
+              {filteredGames.length === 0 && !isLoading && <p>No games found for your criteria.</p>}
+            </section>
+          ) : (
+            <>
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">Popular Games</h2>
+                <GameGrid games={popularGames} isLoading={isLoading} />
+              </section>
+              <section>
+                <h2 className="text-2xl font-semibold mb-4">New Releases</h2>
+                <GameGrid games={newGames} isLoading={isLoading} />
+              </section>
+            </>
+          )}
+        </>
+      )}
+      
+      <PopularProviders providers={providers.slice(0, 5)} /> 
+      
+      {/* Optionally, a section for all games if no filters are applied initially */}
+      {!selectedCategory && !searchTerm && !isLoading && (
+         <section>
+            <h2 className="text-2xl font-semibold mb-4">All Games</h2>
+            <GameGrid games={games.slice(0, 24)} isLoading={isLoading} /> 
+            {/* Consider pagination or "View All" button */}
+         </section>
+      )}
     </div>
   );
 };

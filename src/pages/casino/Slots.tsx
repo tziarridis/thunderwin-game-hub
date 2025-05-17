@@ -1,98 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
 import { Game } from '@/types';
-import GameCard from '@/components/game/GameCard';
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
-import { Skeleton } from "@/components/ui/skeleton"
+import GameGrid from '@/components/casino/GameGrid';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from '@/components/ui/skeleton';
+import { Search } from 'lucide-react';
 
 const Slots = () => {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const { games, categories, loading, filterGames } = useGames();
+  const { 
+    games, 
+    isLoading, // use isLoading
+    error, 
+    filterGames, 
+    providers,
+    filteredGames // Use filteredGames from context
+  } = useGames();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string | undefined>(undefined);
+  
+  // Filter specifically for slots category if your Game type or categories allow it.
+  // For this example, we assume 'slots' is a category slug.
+  const slotsCategorySlug = 'slots'; 
 
   useEffect(() => {
-    if (games && games.length > 0) {
-      setFilteredGames(filterGames(activeCategory, searchTerm));
-    }
-  }, [games, activeCategory, searchTerm, filterGames]);
+    // Call filterGames from context. It will update 'filteredGames'.
+    filterGames(searchTerm, slotsCategorySlug, selectedProvider);
+  }, [searchTerm, selectedProvider, filterGames, slotsCategorySlug]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
+  // displayedGames will be the 'filteredGames' from the context.
+  // No need for a separate 'displayedGames' state if using context's filteredGames directly.
+  const displayedGames = useMemo(() => {
+    // If you need further client-side filtering on top of context's filteredGames:
+    // return filteredGames.filter(game => game.category_slugs?.includes(slotsCategorySlug));
+    // For now, assuming context's filteredGames already considers the category
+    return filteredGames;
+  }, [filteredGames]);
 
-  const handleCategoryClick = (category: string) => {
-    setActiveCategory(category);
-  };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">{t('casino.slots')}</h1>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="space-y-3">
-              <Skeleton className="h-[150px] w-full rounded-md" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[200px]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  if (error) return <p className="text-red-500 text-center py-10">Error loading slot games: {error}</p>;
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">{t('casino.slots')}</h1>
-        <Input
-          type="text"
-          placeholder={t('casino.search_games')}
-          value={searchTerm}
-          onChange={handleSearchChange}
-          className="max-w-md"
-        />
-      </div>
-
-      <ScrollArea className="mb-4">
-        <div className="flex space-x-2 p-2">
-          <Button
-            variant={activeCategory === 'all' ? 'default' : 'outline'}
-            onClick={() => handleCategoryClick('all')}
-          >
-            {t('casino.all_games')}
-          </Button>
-          {categories &&
-            categories.map((category, index) => (
-              <div key={`category-${index}`}>
-                <Button
-                  variant={activeCategory === category.slug ? 'default' : 'outline'}
-                  onClick={() => handleCategoryClick(category.slug)}
-                >
-                  {category.name}
-                </Button>
-              </div>
-            ))}
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6 text-center">Slot Games</h1>
+      
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input 
+            type="search"
+            placeholder="Search slot games..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
         </div>
-      </ScrollArea>
-      <Separator className="mb-4" />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredGames &&
-          filteredGames.map((game) => (
-            <GameCard key={game.id} game={game} onClick={() => navigate(`/game/${game.id}`)} />
-          ))}
+        <Select value={selectedProvider} onValueChange={(value) => setSelectedProvider(value === 'all' ? undefined : value)}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <SelectValue placeholder="All Providers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Providers</SelectItem>
+            {providers.map(provider => (
+              <SelectItem key={provider.id} value={provider.slug}>{provider.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {isLoading && displayedGames.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg" />)}
+        </div>
+      ) : displayedGames.length === 0 ? (
+        <p className="text-center text-muted-foreground">No slot games found matching your criteria.</p>
+      ) : (
+        <GameGrid games={displayedGames} isLoading={isLoading} />
+      )}
     </div>
   );
 };
