@@ -1,7 +1,6 @@
 
 import React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import MobileNavBar from "@/components/layout/MobileNavBar";
 import MobileTabBar from "@/components/layout/MobileTabBar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResponsiveContainer } from "@/components/ui/responsive-container";
@@ -34,12 +33,8 @@ const UserLayout = ({
             </ResponsiveContainer>
           )}
         </div>
-        {isMobile && !hideMobileNav && (
-          <MobileTabBar onOpenMenu={() => setMobileMenuOpen(true)} />
-        )}
+        {/* Mobile menu is now handled by AppLayout */}
       </ScrollArea>
-      
-      {/* Mobile menu would be here */}
     </div>
   );
 };

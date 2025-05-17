@@ -251,6 +251,7 @@ export interface GameLaunchOptions {
     playerId: string;
     currency: string;
     platform: 'web' | 'mobile';
+    language?: string;  // Added language property
     // Add other options as needed
 }
 
@@ -274,3 +275,15 @@ export interface GamesContextType {
   updateGame: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>;
   deleteGame: (gameId: string) => Promise<boolean>;
 }
+
+// Add missing types referenced in error messages
+export interface Affiliate {
+    id: string;
+    name: string;
+    code: string;
+    commission: number;
+    // Add other necessary properties
+}
+
+// Alias for Wallet to fix the DbWallet error
+export type DbWallet = Wallet;

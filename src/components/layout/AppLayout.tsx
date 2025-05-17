@@ -3,9 +3,12 @@ import React, { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import Footer from "./Footer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import MobileTabBar from "./MobileTabBar";
 
 const AppLayout = () => {
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   // Effect to scroll to top when location changes
   useEffect(() => {
@@ -22,9 +25,10 @@ const AppLayout = () => {
       <div className="fixed top-1/2 -right-40 w-80 h-80 bg-purple-500/20 rounded-full filter blur-[100px] opacity-20"></div>
       
       <AppHeader />
-      <main className="flex-1 relative z-10 pt-16">
+      <main className="flex-1 relative z-10 pt-16 pb-16">
         <Outlet />
       </main>
+      {isMobile && <MobileTabBar onOpenMenu={() => {}} />}
       <Footer />
     </div>
   );
