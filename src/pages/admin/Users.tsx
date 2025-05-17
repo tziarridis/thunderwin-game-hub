@@ -8,19 +8,20 @@ import {
   ChevronRight,
   Eye,
   Lock,
-  User,
-  Users,
+  User, // This import is fine if User icon is used elsewhere, but UserType is the type alias
+  Users, // Icon
   Shield,
   UserCheck,
   Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User as UserType } from "@/types";
+import { User as UserType } from "@/types"; // UserType is the alias for the type
 import { usersApi } from "@/services/apiService";
-import UserForm from "@/components/admin/UserForm";
-import { useToast } from "@/components/ui/use-toast";
+import UserForm from "@/components/admin/UserForm"; // Read-only
+import { useToast } from "@/components/ui/use-toast"; // Corrected path
 import { useNavigate } from "react-router-dom";
+import { format } from 'date-fns'; // For formatting dates
 
 const AdminUsers = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -88,43 +89,47 @@ const AdminUsers = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
-    filterUsers(query, statusFilter);
+    // Ensure statusFilter contains values compatible with UserType['status']
+    filterUsersLocal(query, statusFilter as UserType['status'][]);
   };
   
   const toggleStatusFilter = (status: string) => {
-    const newStatusFilter = statusFilter.includes(status)
-      ? statusFilter.filter(s => s !== status)
-      : [...statusFilter, status];
+    // Ensure status is a valid UserType['status'] before adding/removing
+    const validStatus = status.toLowerCase() as UserType['status']; 
+    const newStatusFilter = statusFilter.includes(validStatus)
+      ? statusFilter.filter(s => s !== validStatus)
+      : [...statusFilter, validStatus];
       
     setStatusFilter(newStatusFilter);
-    filterUsers(searchQuery, newStatusFilter);
+    filterUsersLocal(searchQuery, newStatusFilter as UserType['status'][]);
   };
   
-  const filterUsers = (query: string, statuses: string[]) => {
+  // Renamed to avoid confusion if a context filterUsers exists
+  const filterUsersLocal = (query: string, statuses: (UserType['status'])[]) => {
     let results = users;
     
-    // Apply search query
     if (query) {
       results = results.filter(user => 
-        user.name.toLowerCase().includes(query) || 
+        (user.name && user.name.toLowerCase().includes(query)) || 
         user.email.toLowerCase().includes(query) ||
         user.id.toLowerCase().includes(query)
       );
     }
     
-    // Apply status filters
     if (statuses.length > 0) {
-      results = results.filter(user => statuses.includes(user.status));
+      // Ensure user.status is treated as potentially undefined as per UserType
+      results = results.filter(user => user.status && statuses.includes(user.status));
     }
     
     setFilteredUsers(results);
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1); 
   };
   
   const clearFilters = () => {
     setStatusFilter([]);
     setSearchQuery("");
     setFilteredUsers(users);
+    setCurrentPage(1);
   };
   
   const handleEditUser = (user: UserType) => {
@@ -211,7 +216,8 @@ const AdminUsers = () => {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-white/60 text-sm">Active Users</p>
-              <h3 className="text-2xl font-bold">{users.filter(user => user.status === 'Active').length}</h3>
+              {/* Compare with 'active' (lowercase) and ensure user.status is checked */}
+              <h3 className="text-2xl font-bold">{users.filter(user => user.status === 'active').length}</h3>
             </div>
             <div className="bg-white/10 p-3 rounded-full">
               <UserCheck className="h-6 w-6 text-green-500" />
@@ -250,17 +256,25 @@ const AdminUsers = () => {
           <div>
             <h4 className="text-white/80 mb-2 text-sm font-medium">User Status</h4>
             <div className="flex flex-wrap gap-2">
-              {["Active", "Pending", "Inactive"].map(status => (
+              {/* Use lowercase status values matching UserType['status'] */}
+              {/* Ensure keys are unique if status values can repeat, e.g. use index if labels are different from values */}
+              {/* Labels can be capitalized, but the value passed to toggleStatusFilter should be lowercase */}
+              {[
+                { label: "Active", value: "active" }, 
+                { label: "Pending", value: "pending_verification" }, 
+                { label: "Inactive", value: "inactive" },
+                { label: "Suspended", value: "suspended" }
+              ].map(statusObj => (
                 <Button 
-                  key={status}
+                  key={statusObj.value}
                   variant="outline"
                   size="sm"
                   className={`capitalize ${
-                    statusFilter.includes(status) ? "border-casino-thunder-green text-casino-thunder-green" : ""
+                    statusFilter.includes(statusObj.value) ? "border-casino-thunder-green text-casino-thunder-green" : ""
                   }`}
-                  onClick={() => toggleStatusFilter(status)}
+                  onClick={() => toggleStatusFilter(statusObj.value)}
                 >
-                  {status}
+                  {statusObj.label}
                 </Button>
               ))}
             </div>
@@ -350,17 +364,24 @@ const AdminUsers = () => {
                     <td className="px-4 py-4 whitespace-nowrap text-sm">{user.email}</td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.status === 'Active' 
+                        user.status === 'active' 
                           ? 'bg-green-100 text-green-800' 
-                          : user.status === 'Pending' 
+                          : user.status === 'pending_verification' // Corrected status check
                             ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-red-100 text-red-800'
+                            : user.status === 'suspended'
+                              ? 'bg-orange-100 text-orange-800' // Example for suspended
+                              : 'bg-red-100 text-red-800' // Default for inactive or other statuses
                       }`}>
-                        {user.status}
+                        {user.status ? user.status.replace('_', ' ') : 'N/A'}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{formatBalance(user.balance)}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/60">{user.joined}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      {user.balance !== undefined ? formatBalance(user.balance) : 'N/A'}
+                    </td>
+                    {/* Use createdAt for Joined date, and format it */}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/60">
+                      {user.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'N/A'}
+                    </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
                         <Button 

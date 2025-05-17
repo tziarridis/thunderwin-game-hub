@@ -515,30 +515,36 @@ export interface User {
 }
 
 // Bonus types
-export type BonusType = 'deposit_match' | 'free_spins' | 'no_deposit' | 'cashback' | 'loyalty_points';
+// Updated BonusType to include values used in the form
+export type BonusType = 'deposit' | 'reload' | 'cashback' | 'free_spins' | 'deposit_match' | 'no_deposit' | 'loyalty_points';
 
-export interface Bonus {
+// Updated BonusTemplate interface to align with VipBonusManagement.tsx form usage
+export interface BonusTemplate {
   id: string;
   name: string;
   description: string;
   type: BonusType;
   amount?: number; // For fixed amount bonuses
-  percentage?: number; // For percentage-based bonuses (e.g., deposit match)
-  maxAmount?: number; // Max bonus amount for percentage bonuses
+  percentage?: number; // For percentage-based bonuses
+  maxAmount?: number; // Maximum bonus amount (was maxBonus in form)
   freeSpinsCount?: number; // For free spins bonuses
-  wageringRequirement: number; // e.g., 30 for 30x
-  gameRestrictions?: string[]; // IDs of games bonus can be used on
-  validUntil: string; // ISO date string
-  status: 'active' | 'expired' | 'used' | 'pending';
-  promoCode?: string;
-  minDeposit?: number; // Minimum deposit to qualify (if applicable)
-  userId?: string; // If it's a user-specific claimed bonus
-  claimedAt?: string;
+  wageringRequirement: number; // (was wagering in form)
+  gameRestrictions?: string[]; // Game slugs or IDs (form uses comma-separated string)
+  durationDays?: number; // How many days the bonus is valid (was expiryDays in form)
+  minDeposit?: number; // Minimum deposit to qualify
+  promoCode?: string; // (was code in form)
+  targetVipLevel?: number; // (was vipLevelRequired in form)
+  isActive?: boolean; // Status of the template
+
+  // Internal management fields, may not be directly on simple forms
+  targetUserGroup?: 'all' | 'vip_level' | 'specific_users';
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Bonus Template types (for VIP / Admin creation)
-export interface BonusTemplate {
-  id: string;
+// Updated BonusTemplateFormData to represent the form structure accurately
+export interface BonusTemplateFormData {
   name: string;
   description: string;
   type: BonusType;
@@ -547,16 +553,10 @@ export interface BonusTemplate {
   maxAmount?: number;
   freeSpinsCount?: number;
   wageringRequirement: number;
-  gameRestrictions?: string[]; // Game slugs or IDs
-  durationDays?: number; // How many days the bonus is valid after claim/issue
+  gameRestrictions: string; // Comma-separated string, parse to string[] on submit
+  durationDays?: number;
   minDeposit?: number;
-  targetUserGroup?: 'all' | 'vip_level' | 'specific_users';
-  targetVipLevel?: number; // if targetUserGroup is 'vip_level'
-  isArchived?: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface BonusTemplateFormData extends Omit<BonusTemplate, 'id' | 'createdAt' | 'updatedAt' | 'isArchived'> {
-  // Add any form specific fields if necessary
+  promoCode?: string;
+  targetVipLevel?: number;
+  isActive: boolean;
 }

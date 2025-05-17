@@ -1,105 +1,234 @@
-import React from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { CircleDollarSign, User, Gift, Calendar, ShieldCheck } from "lucide-react"; // Added ShieldCheck
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Edit, Settings, LogOut, CreditCard, User, Shield, Clock } from "lucide-react";
 import WalletBalance from "@/components/user/WalletBalance";
-import DepositButton from "@/components/user/DepositButton";
-import TransactionsList from "@/components/user/TransactionsList";
+import TransactionHistory from "@/components/user/TransactionHistory";
+import UserStats from "@/components/user/UserStats";
+import VipProgress from "@/components/user/VipProgress";
+import { Separator } from "@/components/ui/separator";
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   
   if (!user) {
-    return (
-      <div className="flex justify-center items-center h-[60vh]">
-        <p>Please log in to view your profile.</p>
-      </div>
-    );
+    navigate('/login');
+    return null;
   }
   
-  const kycStatusText = (status?: 'pending' | 'verified' | 'rejected' | 'not_submitted') => {
-    switch (status) {
-      case 'verified': return 'Verified';
-      case 'pending': return 'Pending Verification';
-      case 'rejected': return 'Verification Rejected';
-      case 'not_submitted':
-      default:
-        return 'Not Verified';
-    }
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
   };
-
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase();
+  };
+  
+  const userInitials = user.name ? getInitials(user.name) : user.email ? user.email[0].toUpperCase() : 'U';
+  
   return (
-    <div className="space-y-6">
-      <Card className="bg-casino-thunder-dark border-casino-thunder-gray/20">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>My Profile</CardTitle>
-          <div>
-            <WalletBalance showRefresh={true} />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex flex-col items-center space-y-3">
-              <Avatar className="h-24 w-24 border-2 border-casino-thunder-green">
-                <AvatarImage src={user.avatar} /> {/* Use user.avatar directly */}
-                <AvatarFallback className="bg-casino-thunder-green/20">
-                  {user.displayName?.substring(0, 2).toUpperCase() || user.username?.substring(0, 2).toUpperCase() || 'U'}
+    <div className="container mx-auto py-8 px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* User Profile Card */}
+        <Card className="lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xl font-bold">Profile</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/settings')}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center pt-6">
+            <Avatar className="h-24 w-24 mb-4">
+              {user.avatar ? (
+                <AvatarImage src={user.avatar} alt={user.name || user.email} />
+              ) : (
+                <AvatarFallback className="bg-casino-thunder-green text-black text-xl">
+                  {userInitials}
                 </AvatarFallback>
-              </Avatar>
-              <div className="text-center">
-                <h3 className="font-medium">{user.displayName || user.username}</h3>
-                <p className="text-sm text-white/60">{user.email}</p>
-              </div>
-              <DepositButton variant="small" />
+              )}
+            </Avatar>
+            <h2 className="text-2xl font-bold">{user.name || 'User'}</h2>
+            <p className="text-muted-foreground">{user.email}</p>
+            
+            <div className="flex items-center mt-2">
+              <Badge variant={user.role === 'admin' ? "destructive" : "secondary"} className="mr-2">
+                {user.role === 'admin' ? 'Admin' : 'Player'}
+              </Badge>
+              {user.kycStatus === 'verified' && (
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                  Verified
+                </Badge>
+              )}
             </div>
             
-            <Separator orientation="vertical" className="hidden md:block" />
+            <Separator className="my-6" />
             
-            <div className="flex-1 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-casino-thunder-green/20 flex items-center justify-center">
-                    <CircleDollarSign className="h-5 w-5 text-casino-thunder-green" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-white/60">Balance</p>
-                    {/* Balance comes from AuthUser, which is updated by refreshWalletBalance */}
-                    <p className="font-medium">{user.currency === 'USD' ? '$' : user.currency === 'EUR' ? '€' : user.currency || '$'}{user.balance?.toLocaleString() || '0.00'}</p>
-                  </div>
-                </div>
+            <div className="w-full space-y-4">
+              <WalletBalance variant="full" showRefresh={true} />
+              
+              <VipProgress level={user.vipLevel || 0} />
+              
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => navigate('/settings')}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full text-red-500 hover:text-red-600 hover:bg-red-500/10" 
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Main Content Area */}
+        <div className="lg:col-span-2 space-y-6">
+          <UserStats />
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Activity</CardTitle>
+              <CardDescription>View your recent transactions and activity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="transactions">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="transactions" className="flex items-center">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Transactions
+                  </TabsTrigger>
+                  <TabsTrigger value="game-history" className="flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
+                    Game History
+                  </TabsTrigger>
+                  <TabsTrigger value="bonuses" className="flex items-center">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Bonuses
+                  </TabsTrigger>
+                </TabsList>
                 
-                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Gift className="h-5 w-5 text-purple-500" />
+                <TabsContent value="transactions" className="pt-4">
+                  <TransactionHistory limit={5} />
+                  <div className="flex justify-center mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => navigate('/transactions')}
+                    >
+                      View All Transactions
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-xs text-white/60">VIP Level</p>
-                    <p className="font-medium">Level {user.vipLevel || 0}</p>
-                  </div>
-                </div>
+                </TabsContent>
                 
-                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                     {/* Using ShieldCheck for KYC status */}
-                    <ShieldCheck className="h-5 w-5 text-blue-500" />
+                <TabsContent value="game-history" className="pt-4">
+                  <p className="text-center text-muted-foreground py-8">
+                    Game history will be available soon.
+                  </p>
+                </TabsContent>
+                
+                <TabsContent value="bonuses" className="pt-4">
+                  <p className="text-center text-muted-foreground py-8">
+                    No active bonuses found. Visit the promotions page to claim bonuses.
+                  </p>
+                  <div className="flex justify-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => navigate('/promotions')}
+                    >
+                      View Promotions
+                    </Button>
                   </div>
-                  <div>
-                    <p className="text-xs text-white/60">Account Status</p>
-                    <p className="font-medium">{kycStatusText(user.kycStatus)}</p>
-                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>Your personal and account details</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Full Name</h3>
+                  <p>{user.name || 'Not provided'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
+                  <p>{user.email}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Country</h3>
+                  <p>{user.country || 'Not provided'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Phone</h3>
+                  <p>{user.phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">KYC Status</h3>
+                  <p className={
+                    user.kycStatus === 'verified' ? 'text-green-500' :
+                    user.kycStatus === 'pending' ? 'text-yellow-500' :
+                    user.kycStatus === 'rejected' ? 'text-red-500' :
+                    'text-muted-foreground'
+                  }>
+                    {user.kycStatus === 'verified' ? 'Verified' :
+                     user.kycStatus === 'pending' ? 'Pending Verification' :
+                     user.kycStatus === 'rejected' ? 'Verification Failed' :
+                     'Not Submitted'}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">2FA Status</h3>
+                  <p>{user.twoFactorEnabled ? 'Enabled' : 'Disabled'}</p>
                 </div>
               </div>
               
-              <div>
-                <h3 className="text-lg font-medium mb-3">Recent Transactions</h3>
-                <TransactionsList userId={user.id} limit={5} />
+              <div className="mt-6 flex justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/kyc')}
+                  className="mr-2"
+                >
+                  {user.kycStatus === 'verified' ? 'View KYC Status' : 'Complete KYC'}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/settings')}
+                >
+                  Manage Account
+                </Button>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };

@@ -96,14 +96,14 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
         {isAdmin && (
           <div className="flex space-x-2 w-full">
             {onEdit && promotion.id && (
-              <Button variant="outline" size="xs" onClick={() => onEdit(promotion.id)}>
+              <Button variant="outline" size="sm" onClick={() => onEdit(promotion.id)}> {/* Changed size to "sm" */}
                 <Edit className="mr-1 h-3.5 w-3.5" /> Edit
               </Button>
             )}
             {onToggleActive && promotion.id && (
               <Button 
                 variant="outline" 
-                size="xs" 
+                size="sm" // Changed size to "sm"
                 onClick={() => onToggleActive(promotion.id, !promotion.isActive)}
                 className={promotion.isActive ? "hover:bg-red-500/10 hover:text-red-500" : "hover:bg-green-500/10 hover:text-green-500"}
               >
@@ -112,7 +112,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
               </Button>
             )}
             {onDelete && promotion.id && (
-              <Button variant="destructive" size="xs" onClick={() => onDelete(promotion.id)}>
+              <Button variant="destructive" size="sm" onClick={() => onDelete(promotion.id)}> {/* Changed size to "sm" */}
                 <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
               </Button>
             )}

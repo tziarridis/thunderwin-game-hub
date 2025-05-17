@@ -42,92 +42,81 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
-import { BonusTemplate, BonusTemplateFormData, VipLevel } from "@/types";
-import { getVipLevels } from "@/services/apiService";
+import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from "@/types";
+import { getVipLevels, vipLevelsApi } from "@/services/apiService";
 import VipLevelManager from "@/components/admin/VipLevelManager";
 import { useToast } from "@/components/ui/use-toast";
-import { vipLevelsApi } from "@/services/apiService";
 
 const VipBonusManagement = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedBonusTemplate, setSelectedBonusTemplate] =
-    useState<BonusTemplate | null>(null);
+  const [selectedBonusTemplate, setSelectedBonusTemplate] = useState<BonusTemplate | null>(null);
   const [activeTab, setActiveTab] = useState("bonus-templates");
   const { toast } = useToast();
-  const [formData, setFormData] = useState<BonusTemplateFormData>({
+
+  // Initial form data state according to BonusTemplateFormData
+  const initialFormData: BonusTemplateFormData = {
     name: "",
     description: "",
-    type: "",
-    value: 0,
+    type: "deposit", // Default to a valid BonusType
+    amount: 0,
+    percentage: 0,
+    maxAmount: 0,
     wageringRequirement: 0,
     durationDays: 0,
-    forVipLevels: [],
-    isActive: true,
-    bonusType: "deposit",
-    amount: 0,
-    wagering: 0,
-    expiryDays: 0,
-    percentage: 0,
+    gameRestrictions: "", // Comma-separated string
     minDeposit: 0,
-    maxBonus: 0,
-    vipLevelRequired: 0,
-    allowedGames: "",
-    code: "",
-  });
+    promoCode: "",
+    targetVipLevel: 0, // Or undefined if optional initially
+    isActive: true,
+    freeSpinsCount: 0,
+  };
+
+  const [formData, setFormData] = useState<BonusTemplateFormData>(initialFormData);
 
   useEffect(() => {
-    // Mock bonus templates for demonstration
+    // Mock bonus templates conforming to the updated BonusTemplate structure
     const mockBonusTemplates: BonusTemplate[] = [
       {
         id: "1",
         name: "VIP Welcome Bonus",
         description: "Exclusive welcome bonus for VIP members",
-        type: "deposit",
-        value: 200,
+        type: "deposit", // Valid BonusType
+        amount: 200, // Fixed amount or part of percentage calculation
+        percentage: 100,
+        maxAmount: 500,
         wageringRequirement: 30,
         durationDays: 30,
-        forVipLevels: [5],
+        targetVipLevel: 5,
         isActive: true,
-        bonusType: "deposit",
-        amount: 200,
-        wagering: 30,
-        expiryDays: 30,
-        percentage: 100,
-        minDeposit: 50,
-        maxBonus: 500,
-        vipLevelRequired: 5,
-        allowedGames: "slots",
-        code: "VIPWELCOME",
+        gameRestrictions: ["slots"], // Array of strings
+        promoCode: "VIPWELCOME",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
       {
         id: "2",
         name: "VIP Reload Bonus",
         description: "Weekly reload bonus for VIP members",
-        type: "reload",
-        value: 50,
+        type: "reload", // Valid BonusType
+        amount: 50,
+        percentage: 50,
+        maxAmount: 200,
         wageringRequirement: 25,
         durationDays: 7,
-        forVipLevels: [3],
+        targetVipLevel: 3,
         isActive: true,
-        bonusType: "reload",
-        amount: 50,
-        wagering: 25,
-        expiryDays: 7,
-        percentage: 50,
-        minDeposit: 20,
-        maxBonus: 200,
-        vipLevelRequired: 3,
-        allowedGames: "all",
-        code: "VIPRELOAD",
+        gameRestrictions: ["all"], // Array of strings
+        promoCode: "VIPRELOAD",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       },
     ];
 
     setBonusTemplates(mockBonusTemplates);
 
-    // Fetch VIP levels from API
     const fetchVipLevels = async () => {
       try {
         const levels = await getVipLevels();
@@ -145,43 +134,43 @@ const VipBonusManagement = () => {
     fetchVipLevels();
   }, [toast]);
 
-  // Fix: Separate handlers for different input types to avoid TypeScript errors
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    const numericFields = ['amount', 'percentage', 'maxAmount', 'wageringRequirement', 'durationDays', 'minDeposit', 'targetVipLevel', 'freeSpinsCount'];
     setFormData((prevData) => ({
       ...prevData,
-      [name]: value,
+      [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value,
     }));
   };
 
-  const handleCheckboxChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const { name, checked } = e.target;
+  const handleSwitchChange = (name: string, checked: boolean) => {
     setFormData((prevData) => ({
       ...prevData,
       [name]: checked,
     }));
   };
-
+  
   const handleSelectChange = (name: string, value: string) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    if (name === "type") {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value as BonusType, // Cast to BonusType
+      }));
+    } else if (name === "targetVipLevel") {
+        setFormData((prevData) => ({
+          ...prevData,
+          [name]: parseInt(value, 10) || 0,
+        }));
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value,
+      }));
+    }
   };
-
-  const handleAllowedGamesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const allowedGames = e.target.value.split(",").map((game) => game.trim());
-    setFormData((prevData) => ({
-      ...prevData,
-      allowedGames: e.target.value,
-    }));
-  };
-
-  // Fix the type error by ensuring we convert to string before passing to updateVipLevel
+  
   const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
     try {
       await vipLevelsApi.updateVipLevel(String(updatedLevel.id), updatedLevel);
@@ -225,152 +214,91 @@ const VipBonusManagement = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate form data
+    // Basic Validations (can be more sophisticated with a library like Zod)
     if (!formData.name || !formData.description) {
-      alert("Name and description are required.");
+      toast({ title: "Validation Error", description: "Name and description are required.", variant: "destructive"});
       return;
     }
-
-    if (formData.amount <= 0 && formData.percentage <= 0) {
-      alert("Amount or percentage must be greater than zero.");
-      return;
+    if ((formData.type === 'deposit' || formData.type === 'reload' || formData.type === 'deposit_match') && (formData.amount === undefined || formData.amount <= 0) && (formData.percentage === undefined || formData.percentage <= 0) ) {
+        toast({ title: "Validation Error", description: "For deposit/reload bonuses, amount or percentage must be greater than zero.", variant: "destructive"});
+        return;
     }
-
-    if (formData.wagering < 0) {
-      alert("Wagering requirement cannot be negative.");
-      return;
+    if (formData.type === 'free_spins' && (formData.freeSpinsCount === undefined || formData.freeSpinsCount <=0)) {
+        toast({ title: "Validation Error", description: "For free spins, count must be greater than zero.", variant: "destructive"});
+        return;
     }
+    // Add more validations as needed
 
-    if (formData.expiryDays <= 0) {
-      alert("Expiry days must be greater than zero.");
-      return;
-    }
-
-    if (formData.minDeposit < 0) {
-      alert("Minimum deposit cannot be negative.");
-      return;
-    }
-
-    if (formData.maxBonus < 0) {
-      alert("Maximum bonus cannot be negative.");
-      return;
-    }
-
-    if (!formData.vipLevelRequired) {
-      alert("VIP level is required.");
-      return;
-    }
-
-    if (!formData.allowedGames) {
-      alert("Allowed games are required.");
-      return;
-    }
-
-    // Create or update bonus template
-    const bonusTemplate: BonusTemplate = {
-      id: isEditMode && selectedBonusTemplate ? selectedBonusTemplate.id : Date.now().toString(),
+    const newBonusTemplate: Omit<BonusTemplate, 'id' | 'createdAt' | 'updatedAt' | 'isArchived' | 'targetUserGroup'> = {
       name: formData.name,
       description: formData.description,
-      type: formData.type || formData.bonusType || "deposit",
-      value: formData.value || formData.amount || 0,
-      wageringRequirement: formData.wageringRequirement || formData.wagering || 0,
-      durationDays: formData.durationDays || formData.expiryDays || 0,
-      forVipLevels: formData.forVipLevels || [Number(formData.vipLevelRequired) || 0],
-      isActive: formData.isActive,
-      bonusType: formData.bonusType,
+      type: formData.type,
       amount: formData.amount,
-      wagering: formData.wagering,
-      expiryDays: formData.expiryDays,
       percentage: formData.percentage,
+      maxAmount: formData.maxAmount,
+      freeSpinsCount: formData.freeSpinsCount,
+      wageringRequirement: formData.wageringRequirement,
+      gameRestrictions: formData.gameRestrictions.split(',').map(s => s.trim()).filter(s => s),
+      durationDays: formData.durationDays,
       minDeposit: formData.minDeposit,
-      maxBonus: formData.maxBonus,
-      vipLevelRequired: formData.vipLevelRequired,
-      allowedGames: formData.allowedGames,
-      code: formData.code
+      promoCode: formData.promoCode,
+      targetVipLevel: formData.targetVipLevel,
+      isActive: formData.isActive,
     };
 
-    // Create or update bonus template
     if (isEditMode && selectedBonusTemplate) {
-      // Update existing bonus template
-      const updatedBonusTemplates = bonusTemplates.map((template) =>
-        template.id === selectedBonusTemplate.id
-          ? bonusTemplate
-          : template
-      );
-      setBonusTemplates(updatedBonusTemplates);
+      const updatedTemplate: BonusTemplate = {
+        ...selectedBonusTemplate,
+        ...newBonusTemplate,
+        updatedAt: new Date().toISOString(),
+      };
+      setBonusTemplates(bonusTemplates.map((template) =>
+        template.id === selectedBonusTemplate.id ? updatedTemplate : template
+      ));
       toast({
         title: "Success",
         description: `Bonus template "${formData.name}" has been updated.`,
       });
     } else {
-      // Create new bonus template
-      setBonusTemplates([...bonusTemplates, bonusTemplate]);
+      const completeNewTemplate: BonusTemplate = {
+        id: Date.now().toString(), // Simple ID generation for mock
+        ...newBonusTemplate,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setBonusTemplates([...bonusTemplates, completeNewTemplate]);
       toast({
         title: "Success",
         description: `Bonus template "${formData.name}" has been created.`,
       });
     }
 
-    // Reset form and close dialog
-    setFormData({
-      name: "",
-      description: "",
-      type: "",
-      value: 0,
-      wageringRequirement: 0,
-      durationDays: 0,
-      forVipLevels: [],
-      isActive: true,
-      bonusType: "deposit",
-      amount: 0,
-      wagering: 0,
-      expiryDays: 0,
-      percentage: 0,
-      minDeposit: 0,
-      maxBonus: 0,
-      vipLevelRequired: 0,
-      allowedGames: "",
-      code: "",
-    });
     setIsDialogOpen(false);
     setIsEditMode(false);
     setSelectedBonusTemplate(null);
+    setFormData(initialFormData); // Reset form
   };
 
   const handleEdit = (bonusTemplate: BonusTemplate) => {
     setSelectedBonusTemplate(bonusTemplate);
     setIsEditMode(true);
     setIsDialogOpen(true);
+    // Map BonusTemplate to BonusTemplateFormData for editing
     setFormData({
       name: bonusTemplate.name,
       description: bonusTemplate.description,
-      type: bonusTemplate.type || "",
-      value: bonusTemplate.value,
-      wageringRequirement: bonusTemplate.wageringRequirement,
-      durationDays: bonusTemplate.durationDays,
-      forVipLevels: bonusTemplate.forVipLevels,
-      isActive: bonusTemplate.isActive,
-      bonusType: bonusTemplate.bonusType || "deposit",
+      type: bonusTemplate.type,
       amount: bonusTemplate.amount || 0,
-      wagering: bonusTemplate.wagering || 0,
-      expiryDays: bonusTemplate.expiryDays || 0,
       percentage: bonusTemplate.percentage || 0,
+      maxAmount: bonusTemplate.maxAmount || 0,
+      freeSpinsCount: bonusTemplate.freeSpinsCount || 0,
+      wageringRequirement: bonusTemplate.wageringRequirement,
+      gameRestrictions: bonusTemplate.gameRestrictions?.join(', ') || "",
+      durationDays: bonusTemplate.durationDays || 0,
       minDeposit: bonusTemplate.minDeposit || 0,
-      maxBonus: bonusTemplate.maxBonus || 0,
-      vipLevelRequired: bonusTemplate.vipLevelRequired || 0,
-      allowedGames: bonusTemplate.allowedGames || "",
-      code: bonusTemplate.code || "",
-    });
-  };
-
-  const handleDelete = (bonusTemplateId: string) => {
-    const updatedBonusTemplates = bonusTemplates.filter(
-      (template) => template.id !== bonusTemplateId
-    );
-    setBonusTemplates(updatedBonusTemplates);
-    toast({
-      title: "Bonus Template Deleted",
-      description: "The bonus template has been successfully deleted.",
+      promoCode: bonusTemplate.promoCode || "",
+      targetVipLevel: bonusTemplate.targetVipLevel || 0,
+      isActive: bonusTemplate.isActive === undefined ? true : bonusTemplate.isActive,
     });
   };
 
@@ -378,27 +306,9 @@ const VipBonusManagement = () => {
     setIsDialogOpen(true);
     setIsEditMode(false);
     setSelectedBonusTemplate(null);
-    setFormData({
-      name: "",
-      description: "",
-      type: "",
-      value: 0,
-      wageringRequirement: 0,
-      durationDays: 0,
-      forVipLevels: [],
-      isActive: true,
-      bonusType: "deposit",
-      amount: 0,
-      wagering: 0,
-      expiryDays: 0,
-      percentage: 0,
-      minDeposit: 0,
-      maxBonus: 0,
-      vipLevelRequired: 0,
-      allowedGames: "",
-      code: "",
-    });
+    setFormData(initialFormData); // Reset to initial state
   };
+
 
   return (
     
@@ -439,11 +349,10 @@ const VipBonusManagement = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[200px]">Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Bonus Type</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount/Percentage</TableHead> {/* Combined for brevity */}
                     <TableHead>Wagering</TableHead>
-                    <TableHead>Expiry Days</TableHead>
+                    <TableHead>Duration (Days)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -452,15 +361,19 @@ const VipBonusManagement = () => {
                   {bonusTemplates.map((bonusTemplate) => (
                     <TableRow key={bonusTemplate.id}>
                       <TableCell className="font-medium">{bonusTemplate.name}</TableCell>
-                      <TableCell>{bonusTemplate.description}</TableCell>
-                      <TableCell>{bonusTemplate.bonusType}</TableCell>
-                      <TableCell>{bonusTemplate.amount}</TableCell>
-                      <TableCell>{bonusTemplate.wagering}</TableCell>
-                      <TableCell>{bonusTemplate.expiryDays}</TableCell>
+                      <TableCell>{bonusTemplate.type}</TableCell>
+                      <TableCell>
+                        {bonusTemplate.type === 'free_spins' ? `${bonusTemplate.freeSpinsCount || 0} spins` : 
+                         bonusTemplate.amount ? `$${bonusTemplate.amount}` : 
+                         bonusTemplate.percentage ? `${bonusTemplate.percentage}%` : 'N/A'}
+                        {bonusTemplate.maxAmount ? ` (Max $${bonusTemplate.maxAmount})` : ''}
+                      </TableCell>
+                      <TableCell>{bonusTemplate.wageringRequirement}x</TableCell>
+                      <TableCell>{bonusTemplate.durationDays || 'N/A'}</TableCell>
                       <TableCell>
                         {bonusTemplate.isActive ? "Active" : "Inactive"}
                       </TableCell>
-                      <TableCell className="text-right">
+                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -484,7 +397,7 @@ const VipBonusManagement = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="vip-levels">
+         <TabsContent value="vip-levels">
           <VipLevelManager 
             levels={vipLevels} 
             onUpdate={handleVipLevelUpdate}
@@ -506,158 +419,86 @@ const VipBonusManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            
             <div>
               <Label htmlFor="name">Name</Label>
-              <Input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                required
-              />
+              <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
             </div>
             <div>
               <Label htmlFor="description">Description</Label>
-              <Input
-                type="text"
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                required
-              />
+              <Input id="description" name="description" value={formData.description} onChange={handleInputChange} required />
             </div>
             <div>
-              <Label htmlFor="bonusType">Bonus Type</Label>
-              <Select
-                value={formData.bonusType}
-                onValueChange={(value) => handleSelectChange("bonusType", value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a bonus type" />
-                </SelectTrigger>
+              <Label htmlFor="type">Bonus Type</Label>
+              <Select name="type" value={formData.type} onValueChange={(value) => handleSelectChange("type", value)}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select a bonus type" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="deposit">Deposit</SelectItem>
                   <SelectItem value="reload">Reload</SelectItem>
                   <SelectItem value="cashback">Cashback</SelectItem>
                   <SelectItem value="free_spins">Free Spins</SelectItem>
+                  <SelectItem value="deposit_match">Deposit Match</SelectItem>
+                  <SelectItem value="no_deposit">No Deposit</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                type="number"
-                id="amount"
-                name="amount"
-                value={formData.amount}
-                onChange={handleInputChange}
-              />
+
+            {formData.type === 'free_spins' ? (
+              <div>
+                <Label htmlFor="freeSpinsCount">Free Spins Count</Label>
+                <Input type="number" id="freeSpinsCount" name="freeSpinsCount" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="amount">Amount (fixed)</Label>
+                  <Input type="number" id="amount" name="amount" value={formData.amount || ''} onChange={handleInputChange} />
+                </div>
+                <div>
+                  <Label htmlFor="percentage">Percentage</Label>
+                  <Input type="number" id="percentage" name="percentage" value={formData.percentage || ''} onChange={handleInputChange} />
+                </div>
+              </>
+            )}
+             <div>
+                <Label htmlFor="maxAmount">Maximum Bonus Amount</Label>
+                <Input type="number" id="maxAmount" name="maxAmount" value={formData.maxAmount || ''} onChange={handleInputChange}/>
             </div>
             <div>
-              <Label htmlFor="percentage">Percentage</Label>
-              <Input
-                type="number"
-                id="percentage"
-                name="percentage"
-                value={formData.percentage}
-                onChange={handleInputChange}
-              />
+              <Label htmlFor="wageringRequirement">Wagering Requirement (x)</Label>
+              <Input type="number" id="wageringRequirement" name="wageringRequirement" value={formData.wageringRequirement} onChange={handleInputChange} required />
             </div>
             <div>
-              <Label htmlFor="wagering">Wagering Requirement</Label>
-              <Input
-                type="number"
-                id="wagering"
-                name="wagering"
-                value={formData.wagering}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="expiryDays">Expiry Days</Label>
-              <Input
-                type="number"
-                id="expiryDays"
-                name="expiryDays"
-                value={formData.expiryDays}
-                onChange={handleInputChange}
-                required
-              />
+              <Label htmlFor="durationDays">Duration (Days)</Label>
+              <Input type="number" id="durationDays" name="durationDays" value={formData.durationDays || ''} onChange={handleInputChange} required />
             </div>
             <div>
               <Label htmlFor="minDeposit">Minimum Deposit</Label>
-              <Input
-                type="number"
-                id="minDeposit"
-                name="minDeposit"
-                value={formData.minDeposit}
-                onChange={handleInputChange}
-              />
+              <Input type="number" id="minDeposit" name="minDeposit" value={formData.minDeposit || ''} onChange={handleInputChange} />
             </div>
             <div>
-              <Label htmlFor="maxBonus">Maximum Bonus</Label>
-              <Input
-                type="number"
-                id="maxBonus"
-                name="maxBonus"
-                value={formData.maxBonus}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="vipLevelRequired">VIP Level Required</Label>
-              <Select
-                value={String(formData.vipLevelRequired)}
-                onValueChange={(value) =>
-                  handleSelectChange("vipLevelRequired", value)
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a VIP level" />
-                </SelectTrigger>
+              <Label htmlFor="targetVipLevel">VIP Level Required</Label>
+              <Select name="targetVipLevel" value={String(formData.targetVipLevel || 0)} onValueChange={(value) => handleSelectChange("targetVipLevel", value)}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select a VIP level" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="0">None</SelectItem>
                   {vipLevels.map((level) => (
                     <SelectItem key={level.id} value={String(level.level)}>
-                      {level.name}
+                      {level.name} (Level {level.level})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="allowedGames">Allowed Games (comma-separated)</Label>
-              <Input
-                type="text"
-                id="allowedGames"
-                name="allowedGames"
-                value={formData.allowedGames}
-                onChange={handleInputChange}
-                required
-              />
+              <Label htmlFor="gameRestrictions">Allowed Games (comma-separated slugs or IDs)</Label>
+              <Input id="gameRestrictions" name="gameRestrictions" value={formData.gameRestrictions} onChange={handleInputChange} />
             </div>
             <div>
-              <Label htmlFor="code">Bonus Code</Label>
-              <Input
-                type="text"
-                id="code"
-                name="code"
-                value={formData.code}
-                onChange={handleInputChange}
-              />
+              <Label htmlFor="promoCode">Bonus Code</Label>
+              <Input id="promoCode" name="promoCode" value={formData.promoCode || ''} onChange={handleInputChange} />
             </div>
             <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                name="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData((prevData) => ({ ...prevData, isActive: checked }))
-                }
-              />
+              <Switch id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => handleSwitchChange("isActive", checked)} />
               <Label htmlFor="isActive">Active</Label>
             </div>
             <div className="flex justify-end">
