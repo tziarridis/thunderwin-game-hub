@@ -1,13 +1,12 @@
-
 import { useState, useEffect } from "react";
 import CasinoGameGrid from "@/components/casino/CasinoGameGrid";
 import { Game } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import MobileWalletSummary from "@/components/user/MobileWalletSummary";
 import { useNavigate } from "react-router-dom";
 import { gamesDatabaseService } from "@/services/gamesDatabaseService";
+import { Button } from "@/components/ui/button"; // Import Button
 
 const Favorites = () => {
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
@@ -16,23 +15,27 @@ const Favorites = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // If not authenticated, redirect to login
     if (!isAuthenticated) {
       toast.error("Please log in to view your favorites");
       navigate("/auth/login");
       return;
     }
 
-    fetchFavoriteGames();
-  }, [isAuthenticated, user]);
+    // Add user dependency to refetch if user changes
+    if (user?.id) {
+        fetchFavoriteGames();
+    } else if (isAuthenticated && !user?.id) {
+        // User is authenticated but user object might still be loading
+        setLoading(true); 
+    }
+
+  }, [isAuthenticated, user, navigate]); // Added user and navigate to dependency array
 
   const fetchFavoriteGames = async () => {
     if (!user?.id) return;
 
     try {
       setLoading(true);
-      
-      // Use the database service to get favorite games
       const games = await gamesDatabaseService.getFavoriteGames(user.id);
       setFavoriteGames(games);
     } catch (error: any) {
@@ -48,12 +51,21 @@ const Favorites = () => {
   };
 
   const handleUnfavorite = async (game: Game) => {
+    if (!user?.id) {
+        toast.error("User not found.");
+        return;
+    }
     try {
-      await gamesDatabaseService.toggleFavorite(game.id, user?.id || '', true);
+      // gamesDatabaseService.toggleFavorite expects (gameId, userId, isCurrentlyFavorite)
+      // Here, we are unfavoriting, so isCurrentlyFavorite is true.
+      const success = await gamesDatabaseService.toggleFavorite(game.id, user.id, true); 
       
-      // Update the list by removing the unfavorited game
-      setFavoriteGames(prev => prev.filter(g => g.id !== game.id));
-      toast.success(`${game.title} removed from favorites`);
+      if (success) {
+        setFavoriteGames(prev => prev.filter(g => g.id !== game.id));
+        toast.success(`${game.title} removed from favorites`);
+      } else {
+        toast.error('Failed to remove from favorites');
+      }
     } catch (error: any) {
       console.error('Error removing favorite:', error);
       toast.error('Failed to remove from favorites');
@@ -79,16 +91,22 @@ const Favorites = () => {
         <CasinoGameGrid 
           games={favoriteGames} 
           onGameClick={handleGameClick}
+          // Pass handleUnfavorite to CasinoGameGrid if it supports it,
+          // or CasinoGameGrid needs an onFavoriteToggle prop.
+          // For now, assuming CasinoGameGrid's GameCard handles its own unfavorite button
+          // or this page renders cards that can call handleUnfavorite.
+          // If CasinoGameGrid itself needs this:
+          // onUnfavoriteClick={handleUnfavorite} 
         />
       ) : (
         <div className="text-center py-12">
           <p className="text-xl mb-4">You don't have any favorite games yet.</p>
-          <button 
+          <Button // Use imported Button
             onClick={() => navigate('/casino')}
             className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-medium px-6 py-3 rounded-md"
           >
             Explore Games
-          </button>
+          </Button>
         </div>
       )}
     </div>

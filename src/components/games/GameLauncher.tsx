@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -7,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { useGames } from "@/hooks/useGames";
 import { Game } from "@/types";
+import { GameLaunchOptions } from "@/types/additional"; // Use new type
 import { trackEvent } from "@/utils/analytics";
 
 interface GameLauncherProps {
@@ -32,7 +32,7 @@ const GameLauncher = ({
 }: GameLauncherProps) => {
   const [isLaunching, setIsLaunching] = useState(false);
   const { user, isAuthenticated } = useAuth();
-  const { launchGame, games } = useGames();
+  const { launchGame, games } = useGames(); // games list from useGames
   
   const handleLaunchGame = async () => {
     // Check if user is logged in
@@ -50,26 +50,36 @@ const GameLauncher = ({
         gameName: game?.title || gameName || 'Unknown Game',
       });
       
-      // Use provided game object, or find the game in our games list if only gameId is provided
       const gameData = game || (gameId ? games.find(g => g.id === gameId) : null);
       
       if (!gameData && !gameId) {
-        throw new Error("Game information not provided");
+        // throw new Error("Game information not provided");
+        // Fallback to gameName if gameId is also not available
+        if (!gameName || gameName === "Game") {
+            throw new Error("Game information not provided");
+        }
+        // If only gameName is provided, we cannot launch, but can avoid throwing if it's just for display
+        console.warn("Attempting to launch with minimal info, might fail:", { gameName });
+        // Potentially, we might not have a gameData object here if only gameName is passed.
+        // The logic below assumes we have at least gameId or gameData.
       }
       
       // If we have a game object, use launchGame hook method
       if (gameData) {
-        const launchOptions = {
+        const launchOptions: GameLaunchOptions = { // Use GameLaunchOptions
           playerId: user.id,
-          mode: 'real',
+          mode: 'real', // Assuming real mode for this launcher
           currency: currency || user?.currency || 'EUR',
-          language: 'en',
+          language: 'en', // Default or from user profile
           platform,
           returnUrl: window.location.href
         };
         
-        const gameUrl = await launchGame(gameData, launchOptions);
+        const gameUrl = await launchGame(gameData, launchOptions); // Pass options
         
+        // If in demo mode or for specific providers, open in new tab
+        // For real mode, sometimes it's better to launch in an iframe or redirect
+        // This logic can be customized
         if (gameUrl) {
           window.open(gameUrl, "_blank");
           toast.success(`Launching ${gameData.title}`);
@@ -78,11 +88,13 @@ const GameLauncher = ({
             gameName: gameData.title
           });
         } else {
-          throw new Error("Failed to generate game URL");
+          // Error already toasted by launchGame
+          // throw new Error("Failed to generate game URL"); 
         }
       } 
       // If we only have gameId, use gameAggregatorService directly
       else if (gameId) {
+        // ... keep existing code (gameAggregatorService.createSession, window.open, toast, trackEvent)
         const response = await gameAggregatorService.createSession(
           gameId,
           user.id,
@@ -92,7 +104,7 @@ const GameLauncher = ({
         
         if (response.success && response.gameUrl) {
           window.open(response.gameUrl, "_blank");
-          toast.success(`Launching ${gameName}`);
+          toast.success(`Launching ${gameName}`); // Use gameName if gameData is not available
           trackEvent('game_launch_success', {
             gameId,
             gameName
@@ -100,8 +112,11 @@ const GameLauncher = ({
         } else {
           throw new Error(response.errorMessage || "Failed to generate game URL");
         }
+      } else {
+         throw new Error("Game data or Game ID is required to launch.");
       }
     } catch (error: any) {
+      // ... keep existing code (console.error, toast.error, trackEvent)
       console.error("Error launching game:", error);
       toast.error(error.message || "Failed to launch game");
       trackEvent('game_launch_error', {
@@ -114,11 +129,12 @@ const GameLauncher = ({
   };
   
   return (
+    // ... keep existing code (Button JSX)
     <Button 
       onClick={handleLaunchGame} 
       variant={variant} 
       className={className}
-      disabled={isLaunching}
+      disabled={isLaunching || (!game && !gameId)} // Disable if no game/gameId
     >
       {isLaunching ? (
         <>
