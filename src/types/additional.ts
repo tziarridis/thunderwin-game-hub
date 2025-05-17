@@ -1,3 +1,4 @@
+
 import { Game } from "."; 
 
 // GameLaunchOptions is already defined in src/types/index.d.ts
@@ -63,5 +64,10 @@ import { Game } from ".";
 declare module "." {
   interface Game {
     isLive?: boolean;
+    features?: string[]; // Add features property to fix mock-games.ts
+  }
+
+  interface AuthUser {
+    name?: string; // Add name property to fix KycForm
   }
 }

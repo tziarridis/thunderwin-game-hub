@@ -134,7 +134,7 @@ function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"
-          element={<AdminLayout collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />}
+          element={<AdminLayout />}
         >
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

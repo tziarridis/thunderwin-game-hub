@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
+import { useAuth } from '@/contexts/AuthContext'; // Add missing import
 import { Game } from '@/types';
 import GameGrid from '@/components/casino/GameGrid'; // This is the one from /components/casino
 import GameCategories from '@/components/casino/GameCategories';

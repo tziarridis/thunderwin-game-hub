@@ -1,246 +1,255 @@
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { CreditCard, Check } from "lucide-react";
-import { motion } from "framer-motion";
+import React, { useState } from 'react';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { CreditCard, DollarSign } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
 interface CardDepositProps {
-  amount: string;
-  setAmount: (value: string) => void;
-  onSuccess: () => void;
-  onProcessing: (isProcessing: boolean) => void;
+  onComplete?: () => void;
+  className?: string;
 }
 
-const CardDeposit = ({ amount, setAmount, onSuccess, onProcessing }: CardDepositProps) => {
-  const { deposit, user } = useAuth();
-  const [cardNumber, setCardNumber] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [nameOnCard, setNameOnCard] = useState("");
-  const [saveCard, setSaveCard] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  
-  // Predefined deposit amounts
-  const depositAmounts = ["50", "100", "200", "500", "1000"];
-  
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || "";
-    const parts = [];
+// Define deposit form validation schema
+const depositSchema = z.object({
+  amount: z.number().min(10).max(10000),
+  cardNumber: z.string().regex(/^\d{16}$/, "Card number must be 16 digits"),
+  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry must be in MM/YY format"),
+  cvv: z.string().regex(/^\d{3}$/, "CVV must be 3 digits")
+});
 
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
+type DepositFormData = z.infer<typeof depositSchema>;
 
-    if (parts.length) {
-      return parts.join(" ");
-    } else {
-      return value;
-    }
-  };
-  
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
+const CardDeposit: React.FC<CardDepositProps> = ({ onComplete, className }) => {
+  const { user, refreshWalletBalance } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState<Partial<DepositFormData>>({
+    amount: 100,
+    cardNumber: '',
+    expiryDate: '',
+    cvv: ''
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [depositSuccess, setDepositSuccess] = useState(false);
+
+  // Handle input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     
-    if (v.length >= 2) {
-      return `${v.substring(0, 2)}/${v.substring(2, 4)}`;
+    // Format card number with spaces
+    if (name === 'cardNumber') {
+      const formatted = value.replace(/\s/g, '').substr(0, 16);
+      setFormData({ ...formData, [name]: formatted });
+      return;
     }
     
-    return v;
+    // Format expiry date with /
+    if (name === 'expiryDate') {
+      // Allow only digits and format as MM/YY
+      const formatted = value
+        .replace(/\D/g, '')
+        .replace(/^(\d{2})(\d)/, '$1/$2')
+        .substr(0, 5);
+      setFormData({ ...formData, [name]: formatted });
+      return;
+    }
+    
+    // Handle amount special case
+    if (name === 'amount') {
+      // Convert to number for amount
+      const numValue = parseFloat(value);
+      setFormData({ ...formData, [name]: isNaN(numValue) ? undefined : numValue });
+      return;
+    }
+    
+    // Default handling for other fields
+    setFormData({ ...formData, [name]: value });
   };
-  
-  const handleAmountSelect = (selectedAmount: string) => {
-    setAmount(selectedAmount);
-  };
-  
-  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    // Only allow numbers and one decimal point
-    if (/^\d*\.?\d*$/.test(value) || value === '') {
-      setAmount(value);
+
+  const validateForm = () => {
+    try {
+      depositSchema.parse({
+        amount: formData.amount || 0,
+        cardNumber: formData.cardNumber || '',
+        expiryDate: formData.expiryDate || '',
+        cvv: formData.cvv || ''
+      });
+      setErrors({});
+      return true;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          if (err.path[0]) {
+            newErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(newErrors);
+      }
+      return false;
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!amount || parseFloat(amount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
+    if (!validateForm()) return;
     
-    if (!cardNumber || cardNumber.length < 16) {
-      toast.error("Please enter a valid card number");
-      return;
-    }
+    setIsLoading(true);
     
-    if (!expiryDate || expiryDate.length < 5) {
-      toast.error("Please enter a valid expiry date");
-      return;
-    }
-    
-    if (!cvv || cvv.length < 3) {
-      toast.error("Please enter a valid CVV");
-      return;
-    }
-    
-    if (!nameOnCard) {
-      toast.error("Please enter the name on your card");
-      return;
-    }
-
     try {
-      setIsProcessing(true);
-      onProcessing(true);
+      // Simulate API call with a 1.5 second delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Use the deposit function from auth context
-      const result = await deposit(parseFloat(amount), "card");
+      // Mock successful deposit
+      // In a real implementation, this would be a call to your deposit API
+      // For example: const result = await depositService.processDeposit(formData);
+      const mockResult = { 
+        success: true, 
+        message: "Deposit successful",
+        transaction: {
+          id: `tx-${Date.now()}`,
+          amount: formData.amount,
+          currency: user?.currency || 'USD',
+          date: new Date().toISOString(),
+        }
+      };
       
-      if (result.success) {
-        setIsSuccess(true);
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
+      if (mockResult.success) {
+        // Refresh wallet balance
+        await refreshWalletBalance();
+        
+        toast.success("Deposit successful!", {
+          description: `$${formData.amount} has been added to your wallet.`
+        });
+        
+        setDepositSuccess(true);
+        
+        // Clear form
+        setFormData({
+          amount: 100,
+          cardNumber: '',
+          expiryDate: '',
+          cvv: ''
+        });
+        
+        // Call onComplete callback if provided
+        if (onComplete) {
+          onComplete();
+        }
       } else {
-        throw new Error(result.error || "Transaction failed");
+        toast.error("Deposit failed", {
+          description: mockResult.message || "Please try again later."
+        });
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to process payment");
+    } catch (error) {
+      console.error("Deposit error:", error);
+      toast.error("Deposit failed", { 
+        description: "An error occurred while processing your deposit."
+      });
     } finally {
-      setIsProcessing(false);
-      onProcessing(false);
+      setIsLoading(false);
     }
   };
-  
-  if (isSuccess) {
-    return (
-      <motion.div 
-        className="flex flex-col items-center justify-center py-8"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="h-16 w-16 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
-          <Check className="h-8 w-8 text-green-500" />
-        </div>
-        <h3 className="text-xl font-medium mb-2">Payment Successful!</h3>
-        <p className="text-white/60 text-center mb-6">
-          ${parseFloat(amount).toFixed(2)} has been added to your account.
-        </p>
-      </motion.div>
-    );
-  }
-  
+
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="space-y-4">
-        <div className="mb-4">
-          <Label className="mb-2 block">Select Amount</Label>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {depositAmounts.map(amt => (
-              <Button
-                key={amt}
-                type="button"
-                variant={amount === amt ? "default" : "outline"}
-                onClick={() => handleAmountSelect(amt)}
-                className={amount === amt ? "bg-casino-thunder-green text-black" : ""}
-              >
-                ${amt}
-              </Button>
-            ))}
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="h-5 w-5" />
+          Card Deposit
+        </CardTitle>
+        <CardDescription>Add funds to your casino wallet using your credit or debit card.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="amount">Amount ({user?.currency || 'USD'})</Label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                id="amount"
+                name="amount"
+                type="number"
+                placeholder="100"
+                className="pl-9"
+                value={formData.amount || ''}
+                onChange={handleInputChange}
+                min={10}
+                max={10000}
+              />
+            </div>
+            {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount}</p>}
           </div>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50">$</span>
-            <Input
-              type="text"
-              value={amount}
-              onChange={handleCustomAmountChange}
-              className="pl-7"
-              placeholder="Custom amount"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <Label htmlFor="cardNumber">Card Number</Label>
-          <div className="relative">
-            <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 h-4 w-4" />
-            <Input
+          
+          <div className="space-y-1">
+            <Label htmlFor="cardNumber">Card Number</Label>
+            <Input 
               id="cardNumber"
-              value={cardNumber}
-              onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-              className="pl-9"
-              placeholder="1234 5678 9012 3456"
-              maxLength={19}
+              name="cardNumber"
+              placeholder="0000 0000 0000 0000"
+              value={formData.cardNumber}
+              onChange={handleInputChange}
             />
+            {errors.cardNumber && <p className="text-xs text-destructive mt-1">{errors.cardNumber}</p>}
           </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="expiryDate">Expiry Date</Label>
-            <Input
-              id="expiryDate"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
-              placeholder="MM/YY"
-              maxLength={5}
-            />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="expiryDate">Expiry Date</Label>
+              <Input 
+                id="expiryDate"
+                name="expiryDate"
+                placeholder="MM/YY"
+                value={formData.expiryDate}
+                onChange={handleInputChange}
+              />
+              {errors.expiryDate && <p className="text-xs text-destructive mt-1">{errors.expiryDate}</p>}
+            </div>
+            
+            <div className="space-y-1">
+              <Label htmlFor="cvv">CVV</Label>
+              <Input 
+                id="cvv"
+                name="cvv"
+                type="password" 
+                placeholder="123"
+                maxLength={3}
+                value={formData.cvv}
+                onChange={handleInputChange}
+              />
+              {errors.cvv && <p className="text-xs text-destructive mt-1">{errors.cvv}</p>}
+            </div>
           </div>
-          <div>
-            <Label htmlFor="cvv">CVV</Label>
-            <Input
-              id="cvv"
-              value={cvv}
-              onChange={(e) => setCvv(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="123"
-              maxLength={4}
-              type="password"
-            />
+        
+          <div className="pt-2">
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading}
+            >
+              {isLoading ? "Processing..." : "Deposit Funds"}
+            </Button>
           </div>
+        </form>
+      </CardContent>
+      <CardFooter className="flex flex-col space-y-2">
+        <div className="text-xs text-muted-foreground">
+          Your payment information is processed securely. We do not store your card details.
         </div>
-        
-        <div>
-          <Label htmlFor="nameOnCard">Name on Card</Label>
-          <Input
-            id="nameOnCard"
-            value={nameOnCard}
-            onChange={(e) => setNameOnCard(e.target.value)}
-            placeholder="John Doe"
-          />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="saveCard"
-            checked={saveCard}
-            onCheckedChange={setSaveCard}
-          />
-          <Label htmlFor="saveCard" className="text-sm">Save this card for future payments</Label>
-        </div>
-        
-        <Button 
-          type="submit" 
-          className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-          disabled={isProcessing}
-        >
-          {isProcessing ? (
-            <>
-              <div className="mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-              Processing...
-            </>
-          ) : (
-            `Deposit $${parseFloat(amount || "0").toFixed(2)}`
-          )}
-        </Button>
-      </div>
-    </form>
+      </CardFooter>
+    </Card>
   );
 };
 
