@@ -48,23 +48,34 @@ const Register = () => {
   const onSubmit = async (values: RegisterValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Submitting registration form:", values.email);
-      const result = await register(values.username, values.email, values.password);
+      await register(values.username, values.email, values.password);
       
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      // Store user in localStorage for admin panel
+      const mockUsers = JSON.parse(localStorage.getItem('mockUsers') || '[]');
+      const newUserId = `USR-${1000 + mockUsers.length + 1}`;
       
-      console.log("Registration successful, user:", result.user);
+      const newUser = {
+        id: newUserId,
+        name: values.username,
+        username: values.username,
+        email: values.email,
+        status: 'Active',
+        balance: 0,
+        joined: new Date().toISOString().split('T')[0],
+        favoriteGames: [],
+        role: 'user',
+        vipLevel: 0,
+        isVerified: false
+      };
+      
+      mockUsers.push(newUser);
+      localStorage.setItem('mockUsers', JSON.stringify(mockUsers));
+      
       toast.success("Account created successfully!");
-      
-      // Wait briefly before redirecting to allow time for database operations
-      setTimeout(() => {
-        navigate("/login");
-      }, 1500);
-    } catch (error: any) {
+      navigate("/");
+    } catch (error) {
       console.error("Registration failed:", error);
-      toast.error(error.message || "Registration failed. Please try again.");
+      toast.error("Registration failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

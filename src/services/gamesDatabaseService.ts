@@ -1,170 +1,240 @@
 
+import { Game } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameCategory, GameProvider } from '@/types'; // Assuming Game is defined in @/types
-import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
-// Helper to map DB game to Game type
-const mapDbGameToGameType = (dbGame: any): Game => {
-  // Fallback for missing name field, use title.
-  const title = dbGame.title || dbGame.game_name || 'Unknown Game';
-  return {
-    id: dbGame.id || dbGame.game_id,
-    title: title,
-    name: dbGame.name || title, // Ensure name is populated
-    description: dbGame.description || '',
-    provider: dbGame.provider || dbGame.provider_name || 'Unknown Provider',
-    category: dbGame.category || dbGame.category_name || 'general',
-    image: dbGame.image || dbGame.cover || '/placeholder.svg',
-    rtp: dbGame.rtp || 0,
-    minBet: dbGame.min_bet || dbGame.minBet || 0,
-    maxBet: dbGame.max_bet || dbGame.maxBet || 0,
-    volatility: dbGame.volatility || 'medium',
-    isPopular: dbGame.is_popular || dbGame.isPopular || false,
-    isNew: dbGame.is_new || dbGame.isNew || false,
-    jackpot: dbGame.jackpot || dbGame.has_jackpot || null, // or some default if it's a specific type
-    isLive: dbGame.is_live || dbGame.is_live_game || false,
-    views: dbGame.views || 0,
-    features: dbGame.features || [], // Ensure features is an array
-    tags: dbGame.tags || [], // Ensure tags is an array
-    url: dbGame.url || dbGame.game_server_url || '',
-    createdAt: dbGame.created_at || new Date().toISOString(),
-    updatedAt: dbGame.updated_at || new Date().toISOString(),
-  };
-};
+export interface GameResponse {
+  data: Game[];
+  count: number;
+  error: string | null;
+}
 
 export const gamesDatabaseService = {
-  // Fetch all games
-  async getAllGames(): Promise<Game[]> {
-    const { data, error } = await supabase.from('games').select('*');
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
+  async getGames(filters?: any): Promise<GameResponse> {
+    try {
+      let query = supabase
+        .from('games')
+        .select('*', { count: 'exact' });
+
+      if (filters?.category) {
+        query = query.eq('category', filters.category);
+      }
+      if (filters?.provider) {
+        query = query.eq('provider', filters.provider);
+      }
+      if (filters?.search) {
+        query = query.ilike('title', `%${filters.search}%`);
+      }
+      if (filters?.isPopular) {
+        query = query.eq('is_popular', filters.isPopular);
+      }
+      if (filters?.isNew) {
+        query = query.eq('is_new', filters.isNew);
+      }
+      if (filters?.hasJackpot) {
+        query = query.eq('jackpot', filters.hasJackpot);
+      }
+      if (filters?.isLive) {
+        query = query.eq('is_live', filters.isLive);
+      }
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+      if (filters?.offset) {
+        query = query.range(filters.offset, (filters.offset + filters.limit) - 1);
+      }
+
+      const { data, error, count } = await query;
+
+      if (error) {
+        console.error('Error fetching games:', error);
+        return { data: [], count: 0, error: error.message };
+      }
+
+      // Map database fields to our Game interface
+      const mappedGames: Game[] = data.map(game => ({
+        id: game.id,
+        title: game.title || game.game_name || '',
+        description: game.description || '',
+        provider: game.provider || '',
+        category: game.category || game.game_type || '',
+        image: game.image || game.cover || '',
+        rtp: game.rtp || 0,
+        minBet: game.min_bet || 0,
+        maxBet: game.max_bet || 0,
+        volatility: game.volatility || '',
+        isPopular: game.is_popular || false,
+        isNew: game.is_new || false,
+        jackpot: game.jackpot || false,
+        isLive: game.is_live || false,
+        views: game.views || 0,
+        gameIdentifier: game.game_id || '',
+        gameCode: game.game_code || '',
+        technology: game.technology || '',
+        createdAt: game.created_at || '',
+        updatedAt: game.updated_at || '',
+      }));
+
+      return { data: mappedGames, count: count || 0, error: null };
+    } catch (error: any) {
+      console.error('Error fetching games:', error);
+      return { data: [], count: 0, error: error.message };
+    }
   },
 
-  // Fetch a single game by ID
   async getGameById(id: string): Promise<Game | null> {
-    const { data, error }: PostgrestSingleResponse<any> = await supabase
-      .from('games')
-      .select('*')
-      .eq('id', id)
-      .single();
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-    return data ? mapDbGameToGameType(data) : null;
-  },
-  
-  // Fetch games by category
-  async getGamesByCategory(categorySlug: string): Promise<Game[]> {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('category', categorySlug); // Assuming 'category' column stores slug or name
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
-  },
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-  // Fetch games by provider
-  async getGamesByProvider(providerSlug: string): Promise<Game[]> {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('provider', providerSlug); // Assuming 'provider' column stores slug or name
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
-  },
+      if (error) {
+        console.error('Error fetching game by ID:', error);
+        return null;
+      }
 
-  // Fetch popular games
-  async getPopularGames(limit: number = 10): Promise<Game[]> {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('is_popular', true)
-      .limit(limit);
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
-  },
+      if (!data) return null;
 
-  // Fetch new games
-  async getNewGames(limit: number = 10): Promise<Game[]> {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('is_new', true)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
-  },
+      // Map database fields to our Game interface
+      const game: Game = {
+        id: data.id,
+        title: data.title || data.game_name || '',
+        description: data.description || '',
+        provider: data.provider || '',
+        category: data.category || data.game_type || '',
+        image: data.image || data.cover || '',
+        rtp: data.rtp || 0,
+        minBet: data.min_bet || 0,
+        maxBet: data.max_bet || 0,
+        volatility: data.volatility || '',
+        isPopular: data.is_popular || false,
+        isNew: data.is_new || false,
+        jackpot: data.jackpot || false,
+        isLive: data.is_live || false,
+        views: data.views || 0,
+        gameIdentifier: data.game_id || '',
+        gameCode: data.game_code || '',
+        technology: data.technology || '',
+        createdAt: data.created_at || '',
+        updatedAt: data.updated_at || '',
+      };
 
-  // Search games
-  async searchGames(searchTerm: string): Promise<Game[]> {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .or(`title.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,category.ilike.%${searchTerm}%`);
-    if (error) throw error;
-    return data ? data.map(mapDbGameToGameType) : [];
-  },
-  
-  // Increment game view count
-  async incrementGameView(gameId: string): Promise<void> {
-    const { error } = await supabase.rpc('increment_game_view', { game_id: gameId });
-    if (error) {
-      console.error('Error incrementing game view:', error);
-      // Don't throw, as it's not critical for game play
+      return game;
+    } catch (error) {
+      console.error('Error fetching game by ID:', error);
+      return null;
     }
   },
 
-  // Fetch all game categories
-  async getGameCategories(): Promise<GameCategory[]> {
-    // This might need to fetch from a 'categories' table or derive from 'games'
-    // For now, let's assume a 'game_categories' table
-    const { data, error } = await supabase.from('game_categories').select('*');
-    if (error) throw error;
-    return data || [];
+  async toggleFavorite(gameId: string, userId: string, isFavorite: boolean): Promise<boolean> {
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from('favorite_games')
+          .delete()
+          .eq('game_id', gameId)
+          .eq('user_id', userId);
+
+        if (error) {
+          console.error('Error removing from favorites:', error);
+          return false;
+        }
+      } else {
+        // Add to favorites
+        const { error } = await supabase
+          .from('favorite_games')
+          .insert([{ game_id: gameId, user_id: userId }]);
+
+        if (error) {
+          console.error('Error adding to favorites:', error);
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      return false;
+    }
   },
 
-  // Fetch all game providers
-  async getGameProviders(): Promise<GameProvider[]> {
-    // Similar to categories, assuming a 'game_providers' table
-    const { data, error } = await supabase.from('game_providers').select('*');
-    if (error) throw error;
-    return data || [];
-  },
-  
-  // Add more functions as needed for CRUD operations, if required by admin panel
-  // Example: Add a new game (ensure gameData matches Game type partially, id generated by DB)
-  async addGame(gameData: Omit<Game, 'id' | 'createdAt' | 'updatedAt' | 'views'>): Promise<Game | null> {
-    const { data, error }: PostgrestSingleResponse<any> = await supabase
-      .from('games')
-      .insert([gameData])
-      .select()
-      .single();
-    if (error) throw error;
-    return data ? mapDbGameToGameType(data) : null;
+  async getFavoriteGames(userId: string): Promise<GameResponse> {
+    try {
+      const { data: favoriteIds, error: favError } = await supabase
+        .from('favorite_games')
+        .select('game_id')
+        .eq('user_id', userId);
+
+      if (favError) {
+        console.error('Error fetching favorite game IDs:', favError);
+        return { data: [], count: 0, error: favError.message };
+      }
+
+      if (!favoriteIds || favoriteIds.length === 0) {
+        return { data: [], count: 0, error: null };
+      }
+
+      const gameIds = favoriteIds.map(fav => fav.game_id);
+      
+      const { data, error, count } = await supabase
+        .from('games')
+        .select('*', { count: 'exact' })
+        .in('id', gameIds);
+
+      if (error) {
+        console.error('Error fetching favorite games:', error);
+        return { data: [], count: 0, error: error.message };
+      }
+
+      // Map database fields to our Game interface
+      const mappedGames: Game[] = data.map(game => ({
+        id: game.id,
+        title: game.title || game.game_name || '',
+        description: game.description || '',
+        provider: game.provider || '',
+        category: game.category || game.game_type || '',
+        image: game.image || game.cover || '',
+        rtp: game.rtp || 0,
+        minBet: game.min_bet || 0,
+        maxBet: game.max_bet || 0,
+        volatility: game.volatility || '',
+        isPopular: game.is_popular || false,
+        isNew: game.is_new || false,
+        jackpot: game.jackpot || false,
+        isLive: game.is_live || false,
+        views: game.views || 0,
+        isFavorite: true,
+        gameIdentifier: game.game_id || '',
+        gameCode: game.game_code || '',
+        technology: game.technology || '',
+        createdAt: game.created_at || '',
+        updatedAt: game.updated_at || '',
+      }));
+
+      return { data: mappedGames, count: count || 0, error: null };
+    } catch (error: any) {
+      console.error('Error fetching favorite games:', error);
+      return { data: [], count: 0, error: error.message };
+    }
   },
 
-  // Example: Update an existing game
-  async updateGame(gameId: string, updates: Partial<Game>): Promise<Game | null> {
-    const { data, error }: PostgrestSingleResponse<any> = await supabase
-      .from('games')
-      .update(updates)
-      .eq('id', gameId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data ? mapDbGameToGameType(data) : null;
-  },
-
-  // Example: Delete a game
-  async deleteGame(gameId: string): Promise<boolean> {
-    const { error } = await supabase
-      .from('games')
-      .delete()
-      .eq('id', gameId);
-    if (error) throw error;
-    return true;
-  },
+  async incrementGameViews(gameId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.rpc('increment_game_view', { game_id: gameId });
+      
+      if (error) {
+        console.error('Error incrementing game views:', error);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error incrementing game views:', error);
+      return false;
+    }
+  }
 };
 
+export default gamesDatabaseService;

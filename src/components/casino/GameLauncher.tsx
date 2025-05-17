@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Game, GameLaunchOptions } from '@/types';
+import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,16 +25,13 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
   const handleLaunch = async () => {
     try {
       setLoading(true);
-      const launchOptions: GameLaunchOptions = {
+      await launchGame(game, {
         providerId: selectedProvider,
         mode,
         playerId: 'demo_player',
         language: selectedLanguage,
-        currency: selectedCurrency,
-        platform: 'web', // Added default platform
-        returnUrl: window.location.href // Added default returnUrl
-      };
-      await launchGame(game, launchOptions);
+        currency: selectedCurrency
+      });
     } catch (error) {
       console.error('Error launching game:', error);
     } finally {
@@ -106,4 +103,3 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
 };
 
 export default GameLauncher;
-

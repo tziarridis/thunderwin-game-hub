@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { gameAggregatorService } from "@/services/gameAggregatorService";
 import { useGames } from "@/hooks/useGames";
-import { Game, GameLaunchOptions } from "@/types"; // Added GameLaunchOptions
+import { Game } from "@/types";
 import { trackEvent } from "@/utils/analytics";
 
 interface GameLauncherProps {
@@ -59,9 +59,9 @@ const GameLauncher = ({
       
       // If we have a game object, use launchGame hook method
       if (gameData) {
-        const launchOptions: GameLaunchOptions = { // Explicitly type launchOptions
+        const launchOptions = {
           playerId: user.id,
-          mode: 'real', // This is 'real' | 'demo', so it's fine
+          mode: 'real',
           currency: currency || user?.currency || 'EUR',
           language: 'en',
           platform,
@@ -133,4 +133,3 @@ const GameLauncher = ({
 };
 
 export default GameLauncher;
-
