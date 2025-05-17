@@ -1,48 +1,43 @@
 import { supabase } from "@/integrations/supabase/client";
-import { Game } from "@/types"; // Game type from index.d.ts (now updated)
-import { GameCategory, GameProvider } from "@/types/additional";
+import { Game } from "@/types";
+import { GameCategory, GameProvider } from "@/types";
 import { toast } from "sonner";
 
 // Helper function to map Supabase game data to our Game type
 const mapSupabaseGameToGame = (dbGame: any): Game => {
   return {
     id: dbGame.id,
-    provider_id: dbGame.provider_id, // Mapped to Game.provider_id
+    provider_id: dbGame.provider_id,
     name: dbGame.game_name,
     title: dbGame.game_name,
-    slug: dbGame.game_code, // Game.slug
-    image: dbGame.cover, // Game.image
-    cover: dbGame.cover, // Game.cover (can be same as image or specific)
-    category_slugs: dbGame.category_slugs || [], // Populate if available from DB, else default
-    provider_slug: dbGame.provider_slug || '', // Populate if available, else default
-    // category: field for actual category name/slug might need separate logic or join
-    provider: dbGame.provider_name || '', // Assuming provider_name might come from a join or needs mapping
-    tags: dbGame.tags || [], // Assuming tags is an array
+    slug: dbGame.game_code,
+    image: dbGame.cover,
+    cover: dbGame.cover,
+    category_slugs: dbGame.category_slugs || [],
+    provider_slug: dbGame.provider_slug || '',
+    provider: dbGame.provider_name || '',
     rtp: dbGame.rtp,
     views: dbGame.views,
-    is_featured: dbGame.is_featured, // Mapped to Game.is_featured
-    show_home: dbGame.show_home, // Mapped to Game.show_home
-    created_at: dbGame.created_at, // Mapped to Game.createdAt
-    updated_at: dbGame.updated_at, // Mapped to Game.updatedAt
-    game_type: dbGame.game_type, // Mapped to Game.game_type
+    is_featured: dbGame.is_featured,
+    show_home: dbGame.show_home,
+    game_type: dbGame.game_type,
     description: dbGame.description,
-    status: dbGame.status, // Mapped to Game.status
-    technology: dbGame.technology, // Mapped to Game.technology
-    distribution: dbGame.distribution, // Mapped to Game.distribution
-    game_server_url: dbGame.game_server_url, // Mapped to Game.game_server_url
-    game_id: dbGame.game_id, // Mapped to Game.game_id
-    game_code: dbGame.game_code, // Mapped to Game.gameCode (also slug)
-    has_lobby: dbGame.has_lobby, // Mapped to Game.has_lobby
-    is_mobile: dbGame.is_mobile, // Mapped to Game.is_mobile
-    has_freespins: dbGame.has_freespins, // Mapped to Game.has_freespins
-    has_tables: dbGame.has_tables, // Mapped to Game.has_tables
-    only_demo: dbGame.only_demo, // Mapped to Game.only_demo
+    status: dbGame.status,
+    technology: dbGame.technology,
+    distribution: dbGame.distribution,
+    game_server_url: dbGame.game_server_url,
+    game_id: dbGame.game_id,
+    gameCode: dbGame.game_code,
+    has_lobby: dbGame.has_lobby,
+    is_mobile: dbGame.is_mobile,
+    has_freespins: dbGame.has_freespins,
+    has_tables: dbGame.has_tables,
+    only_demo: dbGame.only_demo,
     isLive: dbGame.is_live, 
-    // Ensure all properties of Game type are covered or optional
-    // minBet, maxBet, volatility, isPopular, isNew, jackpot, launchUrl, supportedDevices not directly in games table schema shown
+    createdAt: dbGame.created_at,
+    updatedAt: dbGame.updated_at
   };
 };
-
 
 export const gamesDatabaseService = {
   async getAllGames(): Promise<Game[]> {
@@ -90,9 +85,9 @@ export const gamesDatabaseService = {
     try {
       console.warn(`getGamesByProviderSlug for ${providerSlug} is not fully implemented.`);
        const { data: providerData, error: providerError } = await supabase
-        .from('providers') // Assuming 'providers' table has a slug column or identifiable name
+        .from('providers')
         .select('id')
-        .eq('slug', providerSlug) // Adjust if slug is in 'name' or another column
+        .eq('slug', providerSlug)
         .single();
 
       if (providerError || !providerData) {
@@ -197,30 +192,30 @@ export const gamesDatabaseService = {
     }
   },
 
-  async addGame(gameData: Omit<Game, "id" | "createdAt" | "updatedAt" | "views">): Promise<Game | null> {
+  async addGame(gameData: any): Promise<Game | null> {
     try {
-      // Map Game type (from index.d.ts) to Supabase 'games' table structure
+      // Map Game type to Supabase 'games' table structure
       const dbGameData = {
         provider_id: gameData.provider_id,
-        game_name: gameData.name, // Game.name
-        game_code: gameData.gameCode || gameData.slug, // Game.gameCode or Game.slug
-        cover: gameData.image || gameData.cover, // Game.image or Game.cover
+        game_name: gameData.name,
+        game_code: gameData.gameCode || gameData.slug,
+        cover: gameData.image || gameData.cover,
         rtp: gameData.rtp,
-        is_featured: gameData.is_featured, // Game.is_featured
-        show_home: gameData.show_home, // Game.show_home
-        game_type: gameData.game_type, // Game.game_type
+        is_featured: gameData.is_featured,
+        show_home: gameData.show_home,
+        game_type: gameData.game_type,
         description: gameData.description,
-        status: gameData.status, // Game.status
-        technology: gameData.technology, // Game.technology
-        distribution: gameData.distribution, // Game.distribution
-        game_server_url: gameData.game_server_url, // Game.game_server_url
-        game_id: gameData.game_id, // Game.game_id (external game_id)
-        has_lobby: gameData.has_lobby, // Game.has_lobby
-        is_mobile: gameData.is_mobile, // Game.is_mobile
-        has_freespins: gameData.has_freespins, // Game.has_freespins
-        has_tables: gameData.has_tables, // Game.has_tables
-        only_demo: gameData.only_demo, // Game.only_demo
-        is_live: gameData.isLive, // Game.isLive
+        status: gameData.status,
+        technology: gameData.technology,
+        distribution: gameData.distribution,
+        game_server_url: gameData.game_server_url,
+        game_id: gameData.game_id,
+        has_lobby: gameData.has_lobby,
+        is_mobile: gameData.is_mobile,
+        has_freespins: gameData.has_freespins,
+        has_tables: gameData.has_tables,
+        only_demo: gameData.only_demo,
+        is_live: gameData.isLive,
       };
       const { data, error } = await supabase.from("games").insert(dbGameData).select().single();
       if (error) throw error;
@@ -232,12 +227,12 @@ export const gamesDatabaseService = {
     }
   },
 
-  async updateGame(gameId: string, updates: Partial<Game>): Promise<Game | null> {
+  async updateGame(gameId: string, updates: any): Promise<Game | null> {
     try {
       const dbUpdates: { [key: string]: any } = {};
       if (updates.provider_id !== undefined) dbUpdates.provider_id = updates.provider_id;
       if (updates.name !== undefined) dbUpdates.game_name = updates.name;
-      if (updates.slug !== undefined) dbUpdates.game_code = updates.slug; // map slug to game_code
+      if (updates.slug !== undefined) dbUpdates.game_code = updates.slug;
       if (updates.gameCode !== undefined) dbUpdates.game_code = updates.gameCode;
       if (updates.image !== undefined) dbUpdates.cover = updates.image;
       if (updates.cover !== undefined) dbUpdates.cover = updates.cover;
@@ -250,7 +245,7 @@ export const gamesDatabaseService = {
       if (updates.technology !== undefined) dbUpdates.technology = updates.technology;
       if (updates.distribution !== undefined) dbUpdates.distribution = updates.distribution;
       if (updates.game_server_url !== undefined) dbUpdates.game_server_url = updates.game_server_url;
-      if (updates.game_id !== undefined) dbUpdates.game_id = updates.game_id; // external game_id
+      if (updates.game_id !== undefined) dbUpdates.game_id = updates.game_id;
       if (updates.has_lobby !== undefined) dbUpdates.has_lobby = updates.has_lobby;
       if (updates.is_mobile !== undefined) dbUpdates.is_mobile = updates.is_mobile;
       if (updates.has_freespins !== undefined) dbUpdates.has_freespins = updates.has_freespins;
@@ -330,18 +325,15 @@ export const gamesDatabaseService = {
           .delete()
           .match({ user_id: userId, game_id: gameId });
         if (error) throw error;
-        // toast.success('Removed from favorites.'); // Toast handled in useGames hook
       } else { 
         const { error } = await supabase
           .from('favorite_games')
           .insert({ user_id: userId, game_id: gameId });
         if (error) throw error;
-        // toast.success('Added to favorites.'); // Toast handled in useGames hook
       }
       return true;
     } catch (error: any) {
       console.error('Error toggling favorite:', error);
-      // toast.error('Failed to update favorites.'); // Toast handled in useGames hook
       return false;
     }
   },

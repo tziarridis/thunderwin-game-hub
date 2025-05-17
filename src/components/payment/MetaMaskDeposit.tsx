@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,9 +74,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
           onSuccess();
         }
         
-        // Simplified toast message to avoid potential issues with complex template literals
-        const successMessage = `Successfully deposited ${ethAmount.toFixed(6)} ETH. Your balance has been updated.`;
-        toast.success(successMessage);
+        toast.success(`Successfully deposited ${ethAmount.toFixed(6)} ETH`);
       }
     } catch (error: any) {
       console.error("MetaMask deposit error:", error);

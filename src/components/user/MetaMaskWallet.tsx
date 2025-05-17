@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,6 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
   const [ethBalance, setEthBalance] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
-  // Changed depositAmount state to string to match MetaMaskDeposit component's props
   const [depositAmount, setDepositAmount] = useState<string>("100"); 
   const [isProcessingDeposit, setIsProcessingDeposit] = useState(false);
   const { user, refreshWalletBalance } = useAuth();
@@ -38,9 +38,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
       
       if (installed) {
         try {
-          // Assuming getConnectedAccount does not take arguments. 
-          // If it does, this needs to be fixed in metamaskService.ts (read-only)
-          const account = await metamaskService.getConnectedAccount(); 
+          const account = await metamaskService.getConnectedAccount();
           if (account) {
             setIsConnected(true);
             setAccountAddress(account);
@@ -54,19 +52,18 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
     
     checkMetaMaskStatus();
     
-    // The errors TS1345 and TS2349 for setupMetaMaskListeners are in metamaskService.ts (read-only).
-    // This component can't fix how setupMetaMaskListeners is defined or called if it returns void/never.
-    // Assuming it's meant to return a cleanup function or nothing.
-    const cleanup = metamaskService.setupMetaMaskListeners();
+    try {
+      // Handle the potential issue with setupMetaMaskListeners
+      metamaskService.setupMetaMaskListeners();
+    } catch (error) {
+      console.error("Error setting up MetaMask listeners:", error);
+    }
+    
     return () => {
-      // If cleanup is a function, call it. If it's void, this is fine.
-      if (typeof cleanup === 'function') {
-        cleanup();
-      }
+      // Cleanup if needed
     };
   }, []);
 
-  // ... keep existing code (fetchEthBalance, handleConnect, handleDeposit, handleDepositSuccess, getShortAddress)
   const fetchEthBalance = async (address: string) => {
     try {
       const balance = await metamaskService.getBalance(address);
@@ -196,7 +193,7 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
                 </DialogHeader>
                 <MetaMaskDeposit 
                   amount={depositAmount}
-                  setAmount={setDepositAmount} // Now expects string, depositAmount is string
+                  setAmount={setDepositAmount}
                   onSuccess={handleDepositSuccess}
                   onProcessing={setIsProcessingDeposit}
                 />

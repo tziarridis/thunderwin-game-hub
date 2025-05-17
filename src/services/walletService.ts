@@ -1,9 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { Wallet, WalletResponse } from "@/types/wallet"; // Assuming Wallet type here is now correct or also updated.
-// If "@/types/wallet" also defines Wallet, it needs to be synced with "@/types/index.d.ts"
-// For now, assuming Wallet from index.d.ts (via types/wallet if it re-exports) will be used by TS checker.
-import { WalletTransaction } from "@/types"; // Using WalletTransaction from index.d.ts (re-exported from additional)
+import { Wallet, WalletResponse } from "@/types";
+import { WalletTransaction } from "@/types";
 import { toast } from "sonner";
 
 export const walletService = {
@@ -182,7 +179,7 @@ export const walletService = {
   },
 
   mapDatabaseWalletToWallet(dbWallet: any): Wallet {
-    // Ensure this mapping matches the Wallet interface in src/types/index.d.ts
+    // Ensure this mapping matches the Wallet interface
     return {
       id: dbWallet.id,
       userId: dbWallet.user_id,

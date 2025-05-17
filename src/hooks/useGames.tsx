@@ -1,39 +1,20 @@
+
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-// Use types from index.d.ts as the single source of truth
-import { Game, GameProvider, GameCategory as GameCategoryType, GamesContextType as IGamesContextType } from '@/types'; 
-import { GameLaunchOptions } from '@/types/additional'; // Keep this for specific launch options if different
+// Use types from index.d.ts
+import { Game, GameProvider, GameCategory, GamesContextType } from '@/types'; 
+import { GameLaunchOptions } from '@/types';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
-// This local GamesContextType should ideally be removed or be identical to the one in index.d.ts
-// For now, we will ensure this provider implements IGamesContextType from index.d.ts
-/*
-export interface GamesContextType { // This is now defined in index.d.ts
-  games: Game[];
-  filteredGames: Game[];
-  providers: GameProvider[];
-  categories: GameCategory[];
-  isLoading: boolean;
-  error: string | null;
-  fetchGamesAndProviders: () => Promise<void>;
-  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string) => void;
-  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
-  getGameById: (id: string) => Promise<Game | null>;
-  toggleFavoriteGame: (gameId: string) => Promise<void>;
-  favoriteGameIds: Set<string>;
-  incrementGameView: (gameId: string) => Promise<void>;
-}
-*/
-
-const GamesContext = createContext<IGamesContextType | undefined>(undefined);
+const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
 export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
-  const [categories, setCategories] = useState<GameCategoryType[]>([]); // Use GameCategoryType
+  const [categories, setCategories] = useState<GameCategory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -73,11 +54,9 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string) => {
     let tempGames = [...games];
     if (categorySlug) {
-      // Game.category_slugs should now exist due to type update in index.d.ts
       tempGames = tempGames.filter(game => game.category_slugs?.includes(categorySlug));
     }
     if (providerSlug) {
-      // Game.provider_slug should now exist
       tempGames = tempGames.filter(game => game.provider_slug === providerSlug);
     }
     if (searchTerm) {
@@ -93,10 +72,10 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
         toast.error("Please log in to play for real money.");
         return null;
     }
-    setIsLoading(true); // This property should now be recognized by IGamesContextType
+    setIsLoading(true);
     try {
         const launchData = {
-            gameId: game.id, // game.id should be fine
+            gameId: game.id,
             playerId: options.mode === 'demo' ? 'demo_player' : user?.id || 'unknown_player',
             currency: options.currency || user?.currency || "EUR",
             platform: options.platform || "web",
@@ -110,7 +89,6 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
             launchData.platform as 'web' | 'mobile',
         );
 
-        // Assuming createSession returns { gameUrl?: string, errorMessage?: string, success: boolean }
         if (gameUrlResponse.success && gameUrlResponse.gameUrl) {
             window.open(gameUrlResponse.gameUrl, '_blank');
             toast.success(`Launching ${game.title}`);
@@ -120,7 +98,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
             return null;
         }
     } catch (err: any) {
-        setError(err.message); // This property should now be recognized
+        setError(err.message);
         toast.error(err.message || 'Game launch failed.');
         return null;
     } finally {
@@ -182,8 +160,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Ensure the context value matches IGamesContextType from index.d.ts
-  const contextValue: IGamesContextType = { 
+  const contextValue: GamesContextType = { 
     games, 
     filteredGames, 
     providers, 
@@ -206,7 +183,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export const useGames = (): IGamesContextType => {
+export const useGames = (): GamesContextType => {
   const context = useContext(GamesContext);
   if (context === undefined) {
     throw new Error('useGames must be used within a GamesProvider');
