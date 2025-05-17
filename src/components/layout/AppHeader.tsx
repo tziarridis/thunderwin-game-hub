@@ -1,12 +1,11 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme as useNextTheme } from 'next-themes';
-import UserMenu from '@/components/user/UserMenu';
+import UserMenu from '@/components/user/UserMenu'; // Corrected import
 import { useAuth } from '@/contexts/AuthContext';
-import MobileMenu from './MobileMenu';
+import MobileMenu from './MobileMenu'; // Corrected import
 
 const AppHeader = () => {
   const { theme, setTheme } = useNextTheme();

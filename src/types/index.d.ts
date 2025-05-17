@@ -306,9 +306,9 @@ export interface QueryOptions {
 
 export interface DbGame {
   id: string;
-  title: string;
+  title: string; // Changed from game_name to align with Game type and usage
   provider_slug: string;
-  category_slugs: string[] | string;
+  category_slugs: string[]; // Ensure this is string[]
   image_url?: string;
   cover?: string;
   description?: string;
@@ -317,9 +317,9 @@ export interface DbGame {
   is_popular?: boolean;
   is_new?: boolean;
   status?: 'active' | 'inactive' | 'maintenance';
-  external_game_id?: string;
-  game_id?: string;
-  game_code?: string;
+  external_game_id?: string; // Keep if used
+  game_id?: string; // Provider's game ID
+  game_code?: string; // Specific code for launching or reference
   slug?: string;
   is_featured?: boolean;
   show_home?: boolean;
@@ -335,6 +335,7 @@ export interface DbGame {
   views?: number;
   created_at: string;
   updated_at: string;
+  launch_url?: string; // Added from GameForm
 }
 
 export interface GameTag {
@@ -362,6 +363,10 @@ export interface Affiliate {
   createdAt: string;
   updatedAt?: string;
   // potentially add campaign_id if you have multiple campaigns per affiliate
+  name?: string; // Added to fix Affiliates.tsx
+  email?: string; // Added to fix Affiliates.tsx
+  status?: 'active' | 'pending' | 'rejected'; // Added to fix Affiliates.tsx
+  totalCommissions?: number; // Added to fix Affiliates.tsx
 }
 
 export interface Promotion {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useContext, createContext } from 'react';
-import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions, DbGame } from '@/types'; // GameCategory should be available now
+import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions, DbGame } from '@/types';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
-import { gamesDatabaseService } from '@/services/gamesDatabaseService'; 
+import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameProviderService } from '@/services/gameProviderService';
 import { gameCategoryService } from '@/services/gameCategoryService';
 import { toast } from 'sonner';
@@ -21,32 +21,29 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
 
   const mapDbGameToGame = (dbGame: DbGame): Game => {
+    // Ensure category_slugs is an array of strings
+    let categorySlugsArray: string[] = [];
+    if (typeof dbGame.category_slugs === 'string') {
+      categorySlugsArray = dbGame.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (Array.isArray(dbGame.category_slugs)) {
+      categorySlugsArray = dbGame.category_slugs.filter(s => typeof s === 'string');
+    }
+
     return {
       ...dbGame, // Spread DbGame first
       id: dbGame.id, // Ensure id from DbGame is used
-      title: dbGame.title || dbGame.game_name || '',
-      provider: dbGame.provider_slug, // This is provider_slug, UI might need provider name
-      // Ensure category_slugs is an array of strings
-      category_slugs: typeof dbGame.category_slugs === 'string' 
-                      ? dbGame.category_slugs.split(',').map(s => s.trim()).filter(Boolean) 
-                      : Array.isArray(dbGame.category_slugs) ? dbGame.category_slugs : [],
-      image: dbGame.image_url || dbGame.cover, // Use image_url first, then cover
-      // Map other fields from DbGame to Game as necessary
+      title: dbGame.title, // Use title from DbGame
+      provider: dbGame.provider_slug,
+      category_slugs: categorySlugsArray,
+      image: dbGame.image_url || dbGame.cover,
       isPopular: !!dbGame.is_popular,
       isNew: !!dbGame.is_new,
-      is_featured: !!dbGame.is_featured, // Ensure this exists on Game type
-      show_home: !!dbGame.show_home, // Ensure this exists on Game type
+      is_featured: !!dbGame.is_featured,
+      show_home: !!dbGame.show_home,
       rtp: dbGame.rtp,
-      // Game specific properties that might not be on DbGame
-      // or need specific mapping if DbGame has different names
       minBet: undefined, 
       maxBet: undefined,
       jackpot: undefined,
-      // Ensure all Game interface fields are considered
-      // provider_slug: dbGame.provider_slug, // Already part of spread if DbGame has it
-      // game_id: dbGame.game_id, // Already part of spread
-      // game_code: dbGame.game_code, // Already part of spread
-      // slug: dbGame.slug, // Already part of spread
     };
   };
   
@@ -54,14 +51,14 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
+      // Corrected service method names
       const [gamesResponse, providersResponse, categoriesResponse] = await Promise.all([
         gamesDatabaseService.getAllGames({ limit: 500 }),
-        gameProviderService.getAllProviders(),
-        gameCategoryService.getAllCategories(),
+        gameProviderService.getProviders(), // Corrected
+        gameCategoryService.getCategories(), // Corrected
       ]);
 
       if (gamesResponse.success && gamesResponse.data) {
-        // Ensure gamesResponse.data is DbGame[] before mapping
         const mappedGames = (gamesResponse.data as DbGame[]).map(mapDbGameToGame);
         setAllGames(mappedGames);
         setFilteredGames(mappedGames);
@@ -101,12 +98,11 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     if (lowerSearchTerm) {
       tempGames = tempGames.filter(game => 
         game.title?.toLowerCase().includes(lowerSearchTerm) || 
-        game.provider?.toLowerCase().includes(lowerSearchTerm) || // provider here is provider_slug from mapDbGameToGame
-        (game.provider_slug && game.provider_slug.toLowerCase().includes(lowerSearchTerm)) // explicit check for provider_slug
+        game.provider?.toLowerCase().includes(lowerSearchTerm) ||
+        (game.provider_slug && game.provider_slug.toLowerCase().includes(lowerSearchTerm))
       );
     }
     if (categorySlug) {
-      // Ensure game.category_slugs is checked correctly
       tempGames = tempGames.filter(game => game.category_slugs && game.category_slugs.includes(categorySlug));
     }
     if (providerSlug) {
@@ -121,9 +117,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         toast.error("Please log in to play games.");
         return null;
     }
-    // game.id should be the game's unique identifier used by aggregator
-    // This might be game.game_id, game.game_code, or game.id itself depending on setup
-    const gameIdForLaunch = game.game_id || game.id; // Prioritize game_id if available
+    const gameIdForLaunch = game.game_id || game.id; 
     if (!gameIdForLaunch) {
         toast.error("Game identifier for launch is missing.");
         return null;
@@ -135,9 +129,6 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
             options.playerId || user.id,
             options.currency || user.currency || 'EUR',
             options.platform || 'web',
-            // options.mode, // Mode is now part of GameLaunchOptions passed in
-            // options.language,
-            // options.returnUrl
         );
         if (response.success && response.gameUrl) {
             toast.success(`Launching ${game.title}`);
@@ -156,10 +147,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   const getGameById = async (id: string): Promise<Game | null> => {
     setIsLoading(true);
     try {
-        // This fetches DbGame, then maps to Game
         const response = await gamesDatabaseService.getGameById(id); 
         if (response.success && response.data) {
-            return mapDbGameToGame(response.data as DbGame); // Ensure data is DbGame
+            return mapDbGameToGame(response.data as DbGame);
         }
         toast.error(response.error || `Game with ID ${id} not found.`);
         return null;
@@ -172,14 +162,11 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
     
-  // Placeholder admin functions - these should operate on DbGame ideally
   const addGame = async (gameData: Partial<DbGame>): Promise<DbGame | null> => {
     console.log("addGame called with data:", gameData);
-    // Implement actual logic using gamesDatabaseService.createGame
-    // This is just a placeholder
     const response = await gamesDatabaseService.createGame(gameData);
     if (response.success && response.data) {
-      fetchGamesAndProviders(); // Refresh games list
+      fetchGamesAndProviders(); 
       toast.success("Game added successfully!");
       return response.data as DbGame;
     }
@@ -189,10 +176,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateGame = async (gameId: string, gameData: Partial<DbGame>): Promise<DbGame | null> => {
     console.log(`updateGame called for ID ${gameId} with data:`, gameData);
-    // Implement actual logic using gamesDatabaseService.updateGame
     const response = await gamesDatabaseService.updateGame(gameId, gameData);
     if (response.success && response.data) {
-      fetchGamesAndProviders(); // Refresh games list
+      fetchGamesAndProviders(); 
       toast.success("Game updated successfully!");
       return response.data as DbGame;
     }
@@ -202,17 +188,15 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
 
   const deleteGame = async (gameId: string): Promise<boolean> => {
     console.log(`deleteGame called for ID ${gameId}`);
-    // Implement actual logic using gamesDatabaseService.deleteGame
     const response = await gamesDatabaseService.deleteGame(gameId);
     if (response.success) {
-      fetchGamesAndProviders(); // Refresh games list
+      fetchGamesAndProviders(); 
       toast.success("Game deleted successfully!");
       return true;
     }
     toast.error(response.error || "Failed to delete game.");
     return false;
   };
-
 
   const toggleFavoriteGame = async (gameId: string): Promise<void> => {
     // Placeholder implementation
