@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Affiliate } from '@/types'; // Import Affiliate type
 
 interface AffiliateStatsProps {
   affiliateData: Affiliate;

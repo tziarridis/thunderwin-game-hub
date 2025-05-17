@@ -40,6 +40,8 @@ export interface AuthUser {
   vipLevel?: number; // From associated wallet
   kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted'; // For isVerified
   // Add other relevant fields from User that are needed in auth context
+  firstName?: string;
+  lastName?: string;
 }
 
 export interface Profile {
@@ -64,54 +66,66 @@ export interface UserPreferences {
   language?: string;
 }
 
+// Updated GameProvider interface
 export interface GameProvider {
   id: string;
   name: string;
-  slug: string;
+  slug: string; // Ensure slug is here
   logo?: string;
+  description?: string; // Added from additional.ts
   isActive: boolean; // Changed from status for consistency if needed
-  order: number;
-  games_count?: number;
+  order: number; // from original index.d.ts
+  games_count?: number; // from original index.d.ts
+  status: 'active' | 'inactive'; // from additional.ts
+  api_endpoint?: string; // from additional.ts
+  api_key?: string; // from additional.ts
+  api_secret?: string; // from additional.ts
+  created_at?: string; // from additional.ts
+  updated_at?: string; // from additional.ts
 }
 
+// Updated GameCategory interface
 export interface GameCategory {
   id: string;
   name: string;
   slug: string;
-  description?: string;
+  description?: string; // from original index.d.ts
   icon?: string;
   image?: string;
-  order?: number;
-  isActive?: boolean;
-  status: "active" | "inactive";
+  order?: number; // from original index.d.ts
+  isActive?: boolean; // from original index.d.ts (maps to status)
+  status: 'active' | 'inactive'; // from additional.ts
   show_home?: boolean;
   created_at?: string;
   updated_at?: string;
+  games?: Game[]; // from additional.ts
 }
 
+// Updated Game interface
 export interface Game {
   id: string;
-  title: string; // Use 'title' consistently instead of 'name' for games
-  name?: string; // Optional alias if needed for some backend structures
-  provider: string;
-  provider_slug?: string;
-  category?: string;
-  category_slugs?: string[];
+  title: string;
+  name?: string; 
+  provider: string; // This is often the provider's name or slug
+  provider_slug?: string; // Explicit slug for filtering
+  category?: string; // Optional: if a single primary category name is useful
+  category_slugs?: string[]; // For multiple categories
   image?: string;
-  cover?: string;
+  cover?: string; // often used for larger images or specific displays
   description?: string;
   tags?: string[];
   rtp?: number;
   volatility?: 'low' | 'medium' | 'high';
   isPopular?: boolean;
   isNew?: boolean;
-  isFavorite?: boolean;
+  isFavorite?: boolean; // Should be managed dynamically, not part of static game data usually
   status?: 'active' | 'inactive' | 'maintenance';
-  game_id?: string; // External game ID from provider/aggregator
-  gameCode?: string; // Alternative external ID, often used for launching
+  game_id?: string; // External game ID from provider/aggregator, can be the same as id or different
+  game_code?: string; // Alternative external ID, often used for launching
   slug?: string; // Game's own slug for URL routing
-  launch_url?: string;
+  launch_url?: string; // If a direct launch URL is stored
   is_featured?: boolean;
+  is_live?: boolean; // Added from additional.ts module augmentation
   show_home?: boolean;
   game_type?: string;
   technology?: string;
@@ -125,19 +139,21 @@ export interface Game {
   views?: number;
   created_at?: string;
   updated_at?: string;
-  // Fields potentially used in forms or cards
   minBet?: number;
   maxBet?: number;
-  jackpot?: boolean; // For GameForm
+  jackpot?: boolean; 
+  releaseDate?: string; // Added to accommodate mock-games.ts
 }
 
+// Updated GameLaunchOptions from additional.ts (ensure it's consistent)
 export interface GameLaunchOptions {
-  mode: 'real' | 'demo'; // Made required to match additional.ts potential fix
-  currency?: string;
-  platform?: 'web' | 'mobile';
-  returnUrl?: string;
+  providerId?: string; // Added from additional.ts
+  mode: 'real' | 'demo';
+  playerId?: string;
   language?: string;
-  playerId?: string; // Added from additional.ts for consistency
+  currency?: string;
+  platform?: "web" | "mobile";
+  returnUrl?: string;
 }
 
 export interface GamesContextType {
@@ -155,11 +171,12 @@ export interface GamesContextType {
   favoriteGameIds: Set<string>;
   incrementGameView: (gameId: string) => Promise<void>;
   
-  loading: boolean; 
+  loading: boolean; // Alias for isLoading
   totalGames?: number;
-  newGames?: Game[];
-  addGame?: (gameData: Partial<Game>) => Promise<Game | null>; 
-  updateGame?: (gameId: string, gameData: Partial<Game>) => Promise<Game | null>; 
+  newGames?: Game[]; // Games marked as new
+  // Admin functions
+  addGame?: (gameData: Partial<DbGame>) => Promise<DbGame | null>; 
+  updateGame?: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>; 
   deleteGame?: (gameId: string) => Promise<boolean>; 
 }
 
@@ -202,38 +219,40 @@ export interface WalletResponse {
   message?: string;
 }
 
+// Updated WalletTransaction interface
 export interface WalletTransaction {
   id: string;
-  userId: string; // Corresponds to player_id in DB
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund';
+  userId: string; 
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund' | string; // Allow for other types
   amount: number;
   currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled';
-  date: string; // created_at from DB
-  gameId?: string;
-  provider?: string;
-  description?: string; // Made optional
-  balance_before?: number;
-  balance_after?: number;
-  round_id?: string;
-  session_id?: string;
-  // referenceId?: string; // Example: payment gateway transaction ID
-  // paymentMethod?: string;
-  // bonusId?: string;
+  status: 'completed' | 'pending' | 'failed' | 'cancelled' | string; // Allow for other types
+  date: string; 
+  gameId?: string; // from additional.ts & original
+  gameName?: string; // from additional.ts
+  provider?: string; // from additional.ts & original
+  description?: string; 
+  balance_before?: number; // from additional.ts
+  balance_after?: number; // from additional.ts
+  round_id?: string; // from additional.ts
+  session_id?: string; // from additional.ts
 }
 
+// Corrected AuthContextType
 export interface AuthContextType {
   user: AuthUser | null;
+  session: import('@supabase/supabase-js').Session | null; // Add session
   loading: boolean;
-  error: Error | null; // Keep as Error object
-  login: (email: string, password: string) => Promise<AuthUser | null>; // Return AuthUser or null
-  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>; // Return AuthUser or null
+  error: Error | null;
+  login: (email: string, password: string) => Promise<AuthUser | null>;
+  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
-  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>; // Profile from types, not AuthUser for this one
+  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>;
   refreshWalletBalance: () => Promise<number | null>;
   isAuthenticated: boolean;
-  // deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>; // Example for CardDeposit
+  fetchUserProfile: (userId: string) => Promise<Partial<User> | null>; // Ensure this matches AuthContext
+  deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>; // For CardDeposit
 }
 
 export interface AppSettings {
@@ -329,17 +348,20 @@ export interface GameToGameTag {
   tag_id: string;
 }
 
-// Added missing types based on errors
+// Ensure Affiliate, Promotion, VipLevel, UserProfileData are exported
 export interface Affiliate {
   id: string;
-  userId: string;
+  userId: string; // Assuming this links to your User model
   code: string;
-  commissionRate: number;
+  commissionRate: number; // e.g., 0.1 for 10%
   clicks: number;
   registrations: number;
-  depositingUsers: number;
-  totalCommission: number;
+  depositingUsers: number; // Count of users who made a first deposit
+  commission: number; // Total commission earned (calculated field)
+  commission_paid?: number; // Total commission paid out
   createdAt: string;
+  updatedAt?: string;
+  // potentially add campaign_id if you have multiple campaigns per affiliate
 }
 
 export interface Promotion {
@@ -347,30 +369,61 @@ export interface Promotion {
   title: string;
   description: string;
   imageUrl?: string;
-  type: 'deposit_bonus' | 'free_spins' | 'cashback';
-  bonusPercentage?: number;
-  maxBonusAmount?: number;
-  wageringRequirement?: number;
-  games?: string[]; // Array of game IDs or slugs
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
+  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other';
+  bonusPercentage?: number; // For deposit_bonus
+  maxBonusAmount?: number; // For deposit_bonus
+  freeSpinsCount?: number; // For free_spins
+  cashbackPercentage?: number; // For cashback
+  wageringRequirement?: number; // e.g., 30 for 30x
+  minDeposit?: number;
+  games?: string[]; // Array of game IDs or slugs applicable for the promotion
+  startDate: string; // ISO Date string
+  endDate: string; // ISO Date string
+  termsAndConditionsUrl?: string;
+  status: 'active' | 'inactive' | 'expired' | 'upcoming'; // More descriptive status
+  isActive: boolean; // derived from status and dates, or manually set
+  promoCode?: string;
+  usageLimit?: number; // How many times a promotion can be claimed in total
+  usageLimitPerUser?: number; // How many times one user can claim
 }
 
 export interface VipLevel {
   level: number;
   name: string;
   pointsRequired: number;
-  benefits: string[];
+  benefits: string[]; // Array of benefit descriptions
   cashbackPercentage?: number;
   monthlyBonus?: number;
+  dedicatedManager?: boolean;
+  exclusiveTournaments?: boolean;
+  // Add other specific benefits
 }
 
 export interface UserProfileData {
-    // Define the structure for UserProfileData if it's different from User or Profile
-    // For UserProfilePage.tsx
-    id: string;
-    username: string;
-    email: string;
-    // ... other fields
+  id: string;
+  username?: string; // Made optional as per User type
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  country?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  birthDate?: string; // Should be string to match form input, convert to Date for processing
+  kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted';
+  // any other fields from User or Profile you need on the profile page
+}
+
+// GameSession type from gameAggregatorDbService errors
+export interface GameSession {
+  id: string; // Or number, depending on DB
+  user_id: string; // Ensure this matches the type of user ID
+  game_id: string; // Or number
+  started_at: string; // ISO date string
+  ended_at?: string; // ISO date string
+  bet_count?: number;
+  total_bet_amount?: number;
+  total_win_amount?: number;
+  // Add other relevant session fields
 }

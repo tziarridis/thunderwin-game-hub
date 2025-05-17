@@ -1,171 +1,93 @@
-import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useLocation, Link } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  ShieldCheck,
+  BarChart3,
+  Gamepad2,
+  Ticket,
+  Gift,
+  FileText,
+  LifeBuoy,
+  MessageSquareQuoteIcon,
+  Briefcase,
+  DollarSign,
+  Landmark,
+  Palette,
+  Database,
+  TerminalSquare,
+  Network
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  LayoutDashboard, Users, Settings, ShoppingCart, BarChart3, ShieldCheck, Gem, Gamepad2, LogOut, Tv2, Newspaper, DollarSign, Briefcase, HandCoins, PercentCircle, FileText, MessageSquareQuestion, Headset, Palette, LifeBuoy, Rocket
-} from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-
-
-const adminNavItems = [
-  { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-  { name: 'User Management', href: '/admin/users', icon: Users },
-  { name: 'Game Management', href: '/admin/games', icon: Gamepad2 },
-  { name: 'Transactions', href: '/admin/transactions', icon: DollarSign },
-  { name: 'Affiliate System', href: '/admin/affiliates', icon: Briefcase },
-  { name: 'Bonuses & VIP', href: '/admin/vip-bonus', icon: Gem },
-  { name: 'Promotions', href: '/admin/promotions', icon: PercentCircle },
-  { name: 'KYC Management', href: '/admin/kyc', icon: ShieldCheck },
-  { name: 'Reports & Analytics', href: '/admin/reports', icon: BarChart3 },
-  { name: 'CMS', items: [
-      { name: 'Overview', href: '/admin/cms', icon: Palette },
-      { name: 'Site Data', href: '/admin/cms/sitedata', icon: Newspaper },
-      { name: 'Banners', href: '/admin/cms/banners', icon: Tv2 },
-      { name: 'Games Mgmt (CMS)', href: '/admin/cms/games', icon: Gamepad2 },
-      { name: 'Categories', href: '/admin/cms/categories', icon: Palette},
-      // { name: 'Casino Page', href: '/admin/cms/casino', icon: Gem },
-      // { name: 'Sportsbook Page', href: '/admin/cms/sportsbook', icon: Rocket },
-    ]
-  },
-  { name: 'Casino Aggregator', href: '/admin/casino-aggregator', icon: HandCoins},
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
-  { name: 'Support Tickets', href: '/admin/support', icon: Headset },
-  // { name: 'System Logs', href: '/admin/logs', icon: FileText },
-  // { name: 'Deployment Checklist', href: '/admin/deployment-checklist', icon: LifeBuoy },
-
-  // PP Specific - can be hidden if not relevant
-  // { name: 'PP Integration Tester', href: '/admin/pp-tester', icon: Settings },
-  // { name: 'PP Transactions', href: '/admin/pp-transactions', icon: DollarSign },
-];
-
-const secondaryNavItems = [
-    // { name: 'API Docs', href: '#', icon: FileText },
-    // { name: 'FAQ', href: '#', icon: MessageSquareQuestion },
-];
-
+import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter } from '@/components/ui/sidebar';
 
 const AdminSidebar = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { pathname } = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
-  const UserNav = () => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-full justify-start text-left px-2">
-           <Avatar className="h-8 w-8 mr-2">
-            <AvatarImage src={user?.avatar || undefined} alt={user?.displayName || user?.username || ""} />
-            <AvatarFallback>{user?.displayName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'A'}</AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.displayName || user?.username}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email}
-            </p>
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.displayName || user?.username}</p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/profile')}>
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/settings')}>
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logout}>
-          Log out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-
-  const renderNavItem = (item: any, index: number) => {
-    if (item.items) { // It's a group with sub-items
-      // Check if any sub-item is active to highlight the group
-      const isGroupActive = item.items.some((subItem: any) => location.pathname.startsWith(subItem.href));
-      return (
-        <div key={index} className="px-3 py-2">
-          <h2 className={`mb-2 px-4 text-lg font-semibold tracking-tight ${isGroupActive ? 'text-casino- почти-white' : 'text-muted-foreground'}`}>
-            {item.name || 'CMS Tools'} 
-          </h2>
-          <div className="space-y-1">
-            {item.items.map((subItem: any, subIndex: number) => (
-              <Button
-                key={`${index}-${subIndex}`}
-                variant={location.pathname.startsWith(subItem.href) ? 'secondary' : 'ghost'}
-                className="w-full justify-start"
-                asChild
-              >
-                <Link to={subItem.href}>
-                  <subItem.icon className="mr-2 h-4 w-4" />
-                  {subItem.name}
-                </Link>
-              </Button>
-            ))}
-          </div>
-        </div>
-      );
-    } else { // It's a single nav item
-      return (
-        <Button
-          key={index}
-          variant={location.pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
-          className="w-full justify-start"
-          asChild
-        >
-          <Link to={item.href}>
-            <item.icon className="mr-2 h-4 w-4" />
-            {item.name}
-          </Link>
-        </Button>
-      );
-    }
-  };
-
+  const navItems = [
+    { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, current: pathname === '/admin/dashboard' },
+    { href: "/admin/users", label: "Users", icon: Users, current: pathname.startsWith('/admin/users') },
+    { href: "/admin/games", label: "Games", icon: Gamepad2, current: pathname.startsWith('/admin/games') },
+    { href: "/admin/transactions", label: "Transactions", icon: DollarSign, current: pathname.startsWith('/admin/transactions') },
+    { href: "/admin/promotions", label: "Promotions", icon: Gift, current: pathname.startsWith('/admin/promotions') },
+    { href: "/admin/affiliates", label: "Affiliates", icon: Briefcase, current: pathname.startsWith('/admin/affiliates') },
+    { href: "/admin/kyc", label: "KYC Verification", icon: ShieldCheck, current: pathname.startsWith('/admin/kyc') },
+    { href: "/admin/reports", label: "Reports", icon: BarChart3, current: pathname.startsWith('/admin/reports') },
+    { href: "/admin/support", label: "Support Tickets", icon: MessageSquareQuoteIcon, current: pathname.startsWith('/admin/support') },
+    { href: "/admin/cms", label: "CMS", icon: Landmark, current: pathname.startsWith('/admin/cms') },
+    { href: "/admin/settings", label: "Settings", icon: Settings, current: pathname.startsWith('/admin/settings') },
+    { href: "/admin/logs", label: "System Logs", icon: TerminalSquare, current: pathname.startsWith('/admin/logs') },
+    { href: "/admin/integrations", label: "Integrations", icon: Network, current: pathname.startsWith('/admin/integrations') },
+  ];
 
   return (
-    <div className="hidden lg:block border-r bg-card text-card-foreground w-72">
-      <div className="flex h-full max-h-screen flex-col">
-        <div className="flex items-center border-b px-4 py-3 h-[60px]">
-           {/* Replace with your logo or app name */}
-          <Link to="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-            <Rocket className="h-6 w-6 text-casino-thunder-green" />
-            <span className="text-lg">Casino Admin</span>
-          </Link>
-        </div>
-        <ScrollArea className="flex-1 py-4">
-          <div className="px-3 py-2">
-            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-muted-foreground">
-              Main Menu
-            </h2>
-            <div className="space-y-1">
-              {adminNavItems.filter(item => !item.items).map(renderNavItem)}
-            </div>
+    <Sidebar collapsed={collapsed} className="border-r border-border bg-card">
+      <SidebarHeader className="flex h-14 items-center border-b border-border px-4">
+        <Link to="/admin/dashboard" className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-full bg-primary" />
+          {!collapsed && <span className="text-lg font-semibold">Admin</span>}
+        </Link>
+      </SidebarHeader>
+      <SidebarContent>
+        <ScrollArea className="h-[calc(100vh-8rem)]">
+          <div className="px-2 py-2">
+            <nav className="grid gap-1">
+              {navItems.map((item, index) => (
+                <Button
+                  key={index}
+                  asChild
+                  variant={item.current ? "secondary" : "ghost"}
+                  className={cn(
+                    "justify-start",
+                    collapsed ? "px-2" : "px-3"
+                  )}
+                >
+                  <Link to={item.href}>
+                    <item.icon className={cn("h-4 w-4", collapsed ? "mr-0" : "mr-2")} />
+                    {!collapsed && <span>{item.label}</span>}
+                  </Link>
+                </Button>
+              ))}
+            </nav>
           </div>
-          {/* Render CMS grouped items */}
-          {adminNavItems.filter(item => item.items && item.name === 'CMS').map(renderNavItem)}
-
         </ScrollArea>
-
-        <div className="mt-auto p-4 border-t">
-          {user ? <UserNav /> : <Button className="w-full" onClick={() => navigate('/admin/login')}>Login</Button>}
-        </div>
-      </div>
-    </div>
+      </SidebarContent>
+      <SidebarFooter className="border-t border-border p-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-full"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          <LayoutDashboard className="h-4 w-4 rotate-90" />
+        </Button>
+      </SidebarFooter>
+    </Sidebar>
   );
 };
 

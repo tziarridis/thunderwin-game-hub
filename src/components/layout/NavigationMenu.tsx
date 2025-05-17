@@ -43,7 +43,7 @@ const components: { title: string; href: string; description: string }[] = [
   },
   {
     title: "Popular Games",
-    href: "/casino/popular", // Assuming a route for popular or handled by filter on main
+    href: "/casino/popular", 
     description: "See what games are trending among our players.",
   },
 ]
@@ -103,7 +103,7 @@ export function NavigationMenu() {
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
-          <Link to="/sports" legacyBehavior passHref>
+          <Link to="/sports">
             <NavigationMenuLink className={navigationMenuTriggerStyle()}>
               Sports
             </NavigationMenuLink>
@@ -111,7 +111,7 @@ export function NavigationMenu() {
         </NavigationMenuItem>
          {isAuthenticated && user && user.role === 'admin' && (
            <NavigationMenuItem>
-            <Link to="/admin/dashboard" legacyBehavior passHref>
+            <Link to="/admin/dashboard">
               <NavigationMenuLink className={navigationMenuTriggerStyle()}>
                 Admin
               </NavigationMenuLink>
