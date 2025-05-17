@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
-import { Game, GameCategory as TypesGameCategory, GameProvider as TypesGameProvider } from '@/types'; // Renamed to avoid conflicts
+import { Game, GameCategory as TypesGameCategory, GameProvider as TypesGameProvider } from '@/types';
 import GameGrid from '@/components/casino/GameGrid';
 import GameCategories from '@/components/casino/GameCategories'; 
 import PopularProviders from '@/components/casino/PopularProviders';
@@ -12,9 +11,7 @@ import { Search, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { Category as GameCategoryComponentType } from '@/components/casino/GameCategories'; // Type from component
-import { Provider as GameProviderComponentType } from '@/components/casino/PopularProviders'; // Type from component
-
+// Removed conflicting type imports for Category and Provider from components
 
 const CasinoMain = () => {
   const { 
@@ -22,35 +19,50 @@ const CasinoMain = () => {
     isLoading, 
     error, 
     filterGames,
-    providers, 
-    categories,
+    // providers, // Not used for passing to PopularProviders component
+    // categories, // Not used for passing to GameCategories component
     filteredGames: contextFilteredGames,
     launchGame,
-  } = useGames();
+  } = useGames(); // Get all providers and categories from useGames context
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [selectedProvider, setSelectedProvider] = useState<string | undefined>(undefined);
+
 
   useEffect(() => {
-    filterGames(searchTerm, selectedCategory);
-  }, [searchTerm, selectedCategory, filterGames]);
+    // Filter games based on search, category, and provider
+    filterGames(searchTerm, selectedCategory, selectedProvider);
+  }, [searchTerm, selectedCategory, selectedProvider, filterGames]);
   
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(event.target.value);
+    setSelectedProvider(undefined); // Reset provider filter on new search
+    // Optionally reset category filter too, or keep it
+    // setSelectedCategory(undefined); 
   };
 
   const handleCategoryChange = (categorySlug: string | undefined) => {
     setSelectedCategory(categorySlug);
+    setSelectedProvider(undefined); // Reset provider if category changes
+    setSearchTerm(''); // Reset search if category changes
   };
+  
+  const handleProviderClick = (providerSlug: string) => {
+    setSelectedProvider(providerSlug);
+    setSelectedCategory(undefined); // Reset category if provider changes
+    setSearchTerm(''); // Reset search if provider changes
+  };
+
 
   const handleGameClick = async (game: Game) => {
     if (!isAuthenticated || !user) {
       toast.info("Please log in to play games.", {
         action: {
           label: "Login",
-          onClick: () => navigate('/login'),
+          onClick: () => navigate('/auth/login'), // Corrected path to /auth/login if that's your login page
         },
       });
       return;
@@ -72,15 +84,30 @@ const CasinoMain = () => {
         return;
     }
 
-    const gameUrl = await launchGame(game, { 
-      mode: 'real',
-      playerId: String(user.id),
-      currency: user.currency,
-      platform: 'web',
-    });
+    // Construct options for game launch
+    const launchOptions = {
+        mode: 'real' as 'real' | 'demo', // Or determine mode based on user choice/game availability
+        playerId: String(user.id),
+        currency: user.currency, // Ensure user.currency is set
+        platform: 'web' as 'web' | 'mobile', // Or determine platform
+        // Add any other required options by launchGame or gameAggregatorService.createSession
+    };
+    
+    try {
+        const gameUrl = await launchGame(game, launchOptions);
 
-    if (gameUrl) {
-      navigate(`/casino/game/${game.id}?launchUrl=${encodeURIComponent(gameUrl)}`);
+        if (gameUrl) {
+          // Option 1: Navigate to a dedicated game launch page that uses an iframe
+          navigate(`/casino/game/${game.id}?launchUrl=${encodeURIComponent(gameUrl)}`);
+          // Option 2: Or open in a new tab/window if the game provider supports it well
+          // window.open(gameUrl, '_blank');
+        } else {
+          // launchGame should internally toast errors, but as a fallback:
+          toast.error("Could not launch game. Please try again.");
+        }
+    } catch (err: any) {
+        console.error("Error during game click launch sequence:", err);
+        toast.error(err.message || "An unexpected error occurred while trying to launch the game.");
     }
   };
 
@@ -100,20 +127,9 @@ const CasinoMain = () => {
     );
   }
   
-  const currentGamesToDisplay = searchTerm || selectedCategory ? contextFilteredGames : allGamesData;
+  const currentGamesToDisplay = searchTerm || selectedCategory || selectedProvider ? contextFilteredGames : allGamesData;
   
-  // Adapt categories and providers to the types expected by the read-only components
-  const gameCategoriesForComponent = categories.map(c => ({
-    ...c, // Spread properties from TypesGameCategory
-    // Ensure all properties required by GameCategoryComponentType (Category) are present
-    // Example: if GameCategoryComponentType needs 'iconUrl', map it from c.icon or c.image
-  })) as GameCategoryComponentType[];
-
-  const popularProvidersForComponent = providers.filter(p => p.isActive).slice(0, 10).map(p => ({
-    ...p, // Spread properties from TypesGameProvider
-    // Ensure all properties required by GameProviderComponentType (Provider) are present
-    // Example: if GameProviderComponentType needs 'logoUrl', map it from p.logo
-  })) as GameProviderComponentType[];
+  const { categories: gameCategoriesFromHook, providers: gameProvidersFromHook } = useGames();
 
 
   return (
@@ -123,7 +139,8 @@ const CasinoMain = () => {
         description="Discover exciting games and win big!"
         buttonText="Explore Now"
         onButtonClick={() => navigate('/casino/new')}
-        imageUrl="/placeholder.svg" // Optional: provide a real image URL
+        // imageUrl prop removed as it caused an error; PromoBanner might not support it or uses a different prop name.
+        // If PromoBanner has an image prop, use that. For now, assuming it's not critical.
       />
 
       <div className="flex flex-col md:flex-row gap-4 items-center sticky top-16 md:top-0 z-30 bg-casino-thunder-darker py-3 -mx-2 sm:-mx-4 md:-mx-6 lg:-mx-8 px-2 sm:px-4 md:px-6 lg:px-8 shadow-md">
@@ -139,8 +156,8 @@ const CasinoMain = () => {
         </div>
       </div>
       
+      {/* GameCategories does not take 'categories' prop based on read-only file */}
       <GameCategories 
-        categories={gameCategoriesForComponent} // Use adapted categories
         onSelectCategory={handleCategoryChange} 
         selectedCategory={selectedCategory} 
       />
@@ -154,18 +171,24 @@ const CasinoMain = () => {
         </div>
       ) : (
         <>
-          {selectedCategory || searchTerm ? (
+          {selectedCategory || searchTerm || selectedProvider ? (
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-white">
-                {searchTerm && selectedCategory ? `Results for "${searchTerm}" in ${categories.find(c=>c.slug === selectedCategory)?.name || selectedCategory}` : 
-                 searchTerm ? `Search Results for "${searchTerm}"` : 
-                 categories.find(c=>c.slug === selectedCategory)?.name || "Filtered Games" }
+                {/* Dynamically generate title based on filters */}
+                {searchTerm && `Results for "${searchTerm}"`}
+                {searchTerm && (selectedCategory || selectedProvider) && " in "}
+                {selectedCategory && `${gameCategoriesFromHook.find(c => c.slug === selectedCategory)?.name || selectedCategory}`}
+                {selectedCategory && selectedProvider && " & "}
+                {selectedProvider && `${gameProvidersFromHook.find(p => p.slug === selectedProvider)?.name || selectedProvider}`}
+                {!searchTerm && !selectedCategory && !selectedProvider && "Filtered Games"}
+                {(selectedCategory && !searchTerm && !selectedProvider) && (gameCategoriesFromHook.find(c=>c.slug === selectedCategory)?.name || "Selected Category")}
+                {(selectedProvider && !searchTerm && !selectedCategory) && (gameProvidersFromHook.find(p=>p.slug === selectedProvider)?.name || "Selected Provider")}
               </h2>
               <GameGrid 
                 games={contextFilteredGames} 
                 loading={isLoading && contextFilteredGames.length === 0}
                 onGameClick={handleGameClick} 
-                emptyMessage="No games match your criteria. Try a different search or category!"
+                emptyMessage="No games match your criteria. Try a different search or filter!"
               />
             </section>
           ) : (
@@ -187,13 +210,14 @@ const CasinoMain = () => {
         </>
       )}
       
-      {providers.length > 0 && (
+      {/* PopularProviders does not take 'providers' prop based on read-only file */}
+      {gameProvidersFromHook.length > 0 && (
          <PopularProviders 
-            providers={popularProvidersForComponent} // Use adapted providers
+            onProviderClick={handleProviderClick} // Pass the click handler
          /> 
       )}
       
-      {!selectedCategory && !searchTerm && !isLoading && allGamesForGrid.length > 0 && (
+      {!selectedCategory && !searchTerm && !selectedProvider && !isLoading && allGamesForGrid.length > 0 && (
          <section>
             <h2 className="text-2xl font-semibold mb-4 text-white">All Games</h2>
             <GameGrid games={allGamesForGrid} loading={false} onGameClick={handleGameClick}/> 

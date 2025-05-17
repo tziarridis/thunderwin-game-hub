@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'; // Removed Save, X, ChevronDown, ChevronUp as they are not used
+import { PlusCircle, Edit, Trash2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'; // Ensured DialogClose is imported
-import { Label } from "@/components/ui/label"; // Added Label import
-import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from '@/types'; // Assuming these types are correctly defined
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Label } from "@/components/ui/label";
+import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from '@/types';
 import { toast } from 'sonner';
 import {
   Table,
@@ -17,14 +17,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from '@/components/ui/checkbox';
-// import { bonusTemplateService, vipLevelService } from '@/services/adminService'; // Assuming a service
 
 // Mock service functions (replace with actual service calls)
 const mockBonusTemplateService = {
   getBonusTemplates: async (): Promise<BonusTemplate[]> => {
     return [
       { id: '1', name: 'Welcome Bonus', description: '100% up to $200', type: 'deposit_match' as BonusType, percentage: 100, maxAmount: 200, wageringRequirement: 30, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: '2', name: 'VIP Free Spins', description: '50 Free Spins for Gold+', type: 'free_spins' as BonusType, freeSpinsCount: 50, targetVipLevelId: '3', wageringRequirement: 20, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, // Changed targetVipLevel to targetVipLevelId
+      { id: '2', name: 'VIP Free Spins', description: '50 Free Spins for Gold+', type: 'free_spins' as BonusType, freeSpinsCount: 50, targetVipLevel: '3', wageringRequirement: 20, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
     ];
   },
   createBonusTemplate: async (data: BonusTemplateFormData): Promise<BonusTemplate> => {
@@ -35,7 +34,7 @@ const mockBonusTemplateService = {
       gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      targetVipLevelId: data.targetVipLevelId, // Ensure this is handled
+      targetVipLevel: data.targetVipLevel, // Use targetVipLevel
     };
     return newTemplate;
   },
@@ -47,7 +46,7 @@ const mockBonusTemplateService = {
       gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
       createdAt: new Date().toISOString(), // Should retain original createdAt ideally
       updatedAt: new Date().toISOString(),
-      targetVipLevelId: data.targetVipLevelId, // Ensure this is handled
+      targetVipLevel: data.targetVipLevel, // Use targetVipLevel
     };
     return updatedTemplate;
   },
@@ -65,17 +64,17 @@ const mockVipLevelService = {
       { id: '3', level: 3, name: 'Gold', pointsRequired: 5000, benefits: ['Dedicated manager', 'Exclusive bonuses'], cashbackPercentage: 5, isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ];
   },
-  createVipLevel: async (data: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>): Promise<VipLevel> => { // Adjusted type
+  createVipLevel: async (data: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>): Promise<VipLevel> => {
     const newLevel: VipLevel = { 
         id: String(Date.now()), 
         ...data, 
-        isActive: true, 
+        // isActive will be part of data if type matches
         createdAt: new Date(), 
         updatedAt: new Date() 
     };
     return newLevel;
   },
-  updateVipLevel: async (id: string, data: Partial<Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>>): Promise<VipLevel> => { // Adjusted type
+  updateVipLevel: async (id: string, data: Partial<Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>>): Promise<VipLevel> => {
     const existingLevel = await mockVipLevelService.getVipLevels().then(levels => levels.find(l => l.id === id));
     if (!existingLevel) throw new Error("Level not found");
     const updatedLevel = { ...existingLevel, ...data, updatedAt: new Date() } as VipLevel;
@@ -101,7 +100,7 @@ const initialFormData: BonusTemplateFormData = {
   durationDays: undefined,
   minDeposit: undefined,
   promoCode: undefined,
-  targetVipLevelId: undefined, // Changed from targetVipLevel
+  targetVipLevel: undefined, // Changed from targetVipLevelId
   isActive: true,
 };
 
@@ -211,7 +210,7 @@ const VipBonusManagement: React.FC = () => {
       durationDays: template.durationDays,
       minDeposit: template.minDeposit,
       promoCode: template.promoCode,
-      targetVipLevelId: template.targetVipLevelId, // Changed
+      targetVipLevel: template.targetVipLevel, // Changed
       isActive: template.isActive !== undefined ? template.isActive : true,
     });
     setIsFormOpen(true);
@@ -228,9 +227,10 @@ const VipBonusManagement: React.FC = () => {
     (template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const handleCreateLevel = async (newLevelData: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleCreateLevel = async (newLevelData: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> & {isActive?: boolean}) => {
     try {
-      const createdLevel = await mockVipLevelService.createVipLevel(newLevelData);
+      const dataToCreate = {...newLevelData, isActive: newLevelData.isActive === undefined ? true : newLevelData.isActive }
+      const createdLevel = await mockVipLevelService.createVipLevel(dataToCreate as Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>); // Cast after ensuring isActive is set
       setVipLevels(prev => [...prev, createdLevel]);
       toast.success("VIP Level created successfully!");
     } catch (error) {
@@ -239,8 +239,7 @@ const VipBonusManagement: React.FC = () => {
     }
   };
 
-  const handleUpdateLevel = async (updatedLevelData: VipLevel) => {
-     if (!updatedLevelData.id) return;
+  const handleUpdateLevel = async (updatedLevelData: Partial<Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>> & {id: string}) => {
     try {
       const updatedLevel = await mockVipLevelService.updateVipLevel(updatedLevelData.id, updatedLevelData);
       setVipLevels(prev => prev.map(level => level.id === updatedLevel.id ? updatedLevel : level));
@@ -262,7 +261,6 @@ const VipBonusManagement: React.FC = () => {
       console.error(error);
     }
   };
-
 
   return (
     <div className="container mx-auto p-4 md:p-6">
@@ -331,8 +329,16 @@ const VipBonusManagement: React.FC = () => {
             <ul className="space-y-2">
               {vipLevels.map(level => (
                 <li key={level.id} className="flex justify-between items-center p-2 border-b last:border-b-0">
-                  <span>Level {level.level}: {level.name} (Requires {level.pointsRequired} points)</span>
+                  <span>Level {level.level}: {level.name} (Requires {level.pointsRequired} points) - {level.isActive ? "Active" : "Inactive"}</span>
                   {/* Placeholder for Edit/Delete for VIP levels */}
+                   <div>
+                    <Button variant="ghost" size="icon" onClick={() => toast.info("Editing VIP levels not fully implemented here yet.")} className="mr-2 hover:text-blue-500">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteVipLevel(level.id)} className="hover:text-red-500">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -340,8 +346,22 @@ const VipBonusManagement: React.FC = () => {
             <p>No VIP levels configured yet.</p>
           )}
            <div className="mt-4">
-             <Button variant="outline" onClick={() => toast.info("VIP Level creation UI not fully implemented here yet.")}>
-                Add New VIP Level (Placeholder)
+             {/* Basic form to add a VIP level for demonstration */}
+             <Button variant="outline" onClick={() => {
+                const level = prompt("Enter VIP Level (number):");
+                const name = prompt("Enter VIP Level Name:");
+                const points = prompt("Enter Points Required:");
+                if (level && name && points) {
+                  handleCreateLevel({ 
+                    level: parseInt(level), 
+                    name, 
+                    pointsRequired: parseInt(points), 
+                    benefits: ["New Benefit"], 
+                    isActive: true 
+                  });
+                }
+             }}>
+                Add New VIP Level
              </Button>
            </div>
         </div>
@@ -399,12 +419,21 @@ const VipBonusManagement: React.FC = () => {
                 <Input id="freeSpinsCount" name="freeSpinsCount" type="number" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
               </div>
             )}
-             {(formData.type === 'cashback' || formData.type === 'reload') && ( // Simplified condition
+             {(formData.type === 'cashback' || formData.type === 'reload') && (
               <div>
                 <Label htmlFor="percentage">Percentage (%)</Label>
                 <Input id="percentage" name="percentage" type="number" value={formData.percentage || ''} onChange={handleInputChange} />
               </div>
             )}
+            
+            {/* Amount field for 'no_deposit' or other fixed amount types */}
+            {(formData.type === 'no_deposit' /* || other types needing 'amount' */) && (
+              <div>
+                <Label htmlFor="amount">Bonus Amount</Label>
+                <Input id="amount" name="amount" type="number" value={formData.amount || ''} onChange={handleInputChange} />
+              </div>
+            )}
+
 
             {formData.type !== 'free_spins' && formData.type !== 'loyalty_points' && formData.type !== 'no_deposit' && (
                  <div>
@@ -434,8 +463,8 @@ const VipBonusManagement: React.FC = () => {
             </div>
             
             <div>
-              <Label htmlFor="targetVipLevelId">Target VIP Level (Optional)</Label>
-              <Select value={formData.targetVipLevelId || ''} onValueChange={(value) => handleSelectChange('targetVipLevelId', value || undefined)}>
+              <Label htmlFor="targetVipLevel">Target VIP Level (Optional)</Label>
+              <Select value={formData.targetVipLevel || ''} onValueChange={(value) => handleSelectChange('targetVipLevel', value || undefined)}>
                 <SelectTrigger><SelectValue placeholder="Select VIP Level" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None</SelectItem>

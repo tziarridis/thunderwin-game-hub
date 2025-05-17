@@ -1,469 +1,329 @@
-import { useState, useEffect, ReactNode } from "react";
-import { 
-  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Eye, Gamepad2, BarChart2, Loader2, Play 
-} from "lucide-react"; // Removed Filter
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Game, GameProvider, GameCategory, DbGame } from "@/types";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import GameForm from "@/components/admin/GameForm"; // GameForm.tsx will need updates for props
-import { useGames } from "@/hooks/useGames"; 
-import { DataTable } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input"; // Added Input import
+import React, { useState, useEffect, useCallback } from 'react';
+import { Game, GameProvider, GameCategory, DbGame } from '@/types'; // Ensure DbGame is imported
+import { useGames } from '@/hooks/useGames';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { PlusCircle, Edit, Trash2, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { toast } from 'sonner';
+import GameForm from '@/components/admin/GameForm'; // Assuming GameForm is for DbGame or compatible
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+// import { gamesDatabaseService } from '@/services/gamesDatabaseService'; // Direct service calls not needed if useGames covers it
 
-// Define column type matching DataTable expectation
-interface ColumnDef<TData> {
-  header: string;
-  accessorKey: keyof TData | 'actions' | 'provider_slug'; // Added provider_slug
-  cell?: (data: TData) => ReactNode;
-}
-
-// Local type for GameForm props if not exportable
-interface GameFormProps {
-    onSubmit: (data: Partial<DbGame> | Game) => void; // Adjusted to accept Game for updates
-    initialData?: Game | null; // Changed from game to initialData
-    providers: GameProvider[];
-    categories: GameCategory[];
-}
+type SortableGameKeys = keyof Pick<Game, 'title' | 'providerName' | 'categoryName' | 'rtp' | 'status' | 'views' | 'release_date'>;
 
 
 const GamesManagement = () => {
-  // ... keep existing code (state declarations: selectedRows, searchQuery, etc.)
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentFilteredGames, setCurrentFilteredGames] = useState<Game[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
-  const gamesPerPage = 10;
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
   const { 
-    games: allGamesFromContext, 
-    filteredGames: contextFilteredGames, 
-    loading, 
-    launchGame,
-    addGame, 
-    updateGame, 
-    deleteGame, 
+    games: allGames, 
     providers, 
     categories, 
-    // fetchGamesAndProviders, // Not used directly here
+    isLoading: gamesLoading, 
+    error: gamesError, 
+    addGame, 
+    updateGame, 
+    deleteGame,
+    fetchGamesAndProviders // To refresh list after CUD operations
   } = useGames();
-  
-  const getProviderName = (providerSlug: string | undefined): string => {
-    if (!providerSlug) return 'Unknown';
-    const provider = providers.find(p => p.slug === providerSlug || p.id === providerSlug); // Use id as well
-    return provider?.name || providerSlug;
-  };
 
-  useEffect(() => {
-    let gamesToFilter = allGamesFromContext;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      gamesToFilter = allGamesFromContext.filter(game => 
-        (game.title?.toLowerCase().includes(query) || false) || 
-        (getProviderName(game.provider_slug || game.provider).toLowerCase().includes(query)) ||
-        (game.id && String(game.id).toLowerCase().includes(query))
-      );
-    } else {
-      gamesToFilter = contextFilteredGames.length > 0 ? contextFilteredGames : allGamesFromContext;
-    }
-    setCurrentFilteredGames(gamesToFilter);
-  }, [allGamesFromContext, contextFilteredGames, searchQuery, providers]); // Removed getProviderName from deps
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null); // GameForm might expect DbGame
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterProvider, setFilterProvider] = useState<string>('');
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  
+  const [sortConfig, setSortConfig] = useState<{ key: SortableGameKeys | null; direction: 'ascending' | 'descending' }>({ key: 'title', direction: 'ascending' });
 
-  
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    setCurrentPage(1); 
+  // Map Game to DbGame for the form if GameForm expects DbGame
+  // This is a simplified mapping, ensure it matches GameForm's needs
+  const mapGameToDbGameForForm = (game: Game): DbGame => {
+    return {
+      id: game.id,
+      title: game.title,
+      provider_slug: game.provider, // Assuming game.provider is slug
+      category_slugs: game.category_slugs || (game.category ? [game.category] : []),
+      description: game.description,
+      rtp: game.rtp,
+      cover: game.image, // Assuming game.image is cover
+      status: game.status as DbGame['status'] || 'active',
+      is_popular: game.isPopular,
+      is_new: game.isNew,
+      is_featured: game.is_featured,
+      show_home: game.show_home,
+      slug: game.slug,
+      // Add other fields as necessary for DbGame / GameForm
+    };
   };
   
-  // ... keep existing code (handleSelectRow, handleSelectAll, handleViewGame)
-  const handleSelectRow = (gameId: string) => {
-    if (selectedRows.includes(gameId)) {
-      setSelectedRows(selectedRows.filter(id => id !== gameId));
-    } else {
-      setSelectedRows([...selectedRows, gameId]);
+  const mapDbGameDataToGameForDisplay = (dbGame: DbGame): Game => {
+    const providerDetails = providers.find(p => p.slug === dbGame.provider_slug);
+    
+    // Handle category_slugs which might be a string or string[]
+    let categorySlugsArray: string[] = [];
+    if (typeof dbGame.category_slugs === 'string') {
+        categorySlugsArray = dbGame.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (Array.isArray(dbGame.category_slugs)) {
+        categorySlugsArray = dbGame.category_slugs.filter(s => typeof s === 'string');
     }
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedRows.length === currentGamesForTable.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentGamesForTable.map(game => game.id));
-    }
-  };
-  
-  const handleViewGame = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`);
+    const mainCategorySlug = categorySlugsArray[0];
+    const categoryDetails = categories.find(c => c.slug === mainCategorySlug);
+
+    return {
+        id: dbGame.id,
+        title: dbGame.title,
+        provider: dbGame.provider_slug || 'N/A',
+        providerName: providerDetails?.name || dbGame.provider_slug || 'N/A',
+        category: mainCategorySlug || 'N/A',
+        categoryName: categoryDetails?.name || mainCategorySlug || 'N/A',
+        category_slugs: categorySlugsArray,
+        image: dbGame.cover || dbGame.image_url || '/placeholder.svg',
+        description: dbGame.description,
+        rtp: dbGame.rtp,
+        volatility: dbGame.volatility,
+        minBet: dbGame.min_bet,
+        maxBet: dbGame.max_bet,
+        isFavorite: false, // This would typically come from user-specific data
+        isNew: !!dbGame.is_new,
+        isPopular: !!dbGame.is_popular,
+        is_featured: !!dbGame.is_featured,
+        show_home: !!dbGame.show_home,
+        status: dbGame.status || 'active',
+        slug: dbGame.slug,
+        views: dbGame.views,
+        release_date: dbGame.release_date,
+        created_at: dbGame.created_at,
+        updated_at: dbGame.updated_at,
+    };
+  }
+
+
+  const handleAddNewGame = () => {
+    setEditingGame(null); // For creating a new game
+    setIsFormOpen(true);
   };
 
   const handleEditGame = (game: Game) => {
-    setSelectedGame(game);
-    setIsEditDialogOpen(true);
+    // Assuming GameForm expects DbGame structure or a subset of it
+    // You might need a more sophisticated mapping if GameForm expects full DbGame
+    const dbGameForForm = mapGameToDbGameForForm(game);
+    setEditingGame(dbGameForForm);
+    setIsFormOpen(true);
   };
-  
+
   const handleDeleteGame = async (gameId: string) => {
-    if (window.confirm("Are you sure you want to delete this game?")) {
-      if (!deleteGame) {
-        toast({ title: "Error", description: "Delete function not available.", variant: "destructive" });
-        return;
-      }
-      try {
-        // Assuming deleteGame internally calls fetchGamesAndProviders or updates context
-        const success = await deleteGame(gameId); 
-        if (success) {
-          toast({ title: "Success", description: "Game deleted successfully" });
-        } else {
-          toast({ title: "Error", description: "Failed to delete game", variant: "destructive" });
-        }
-      } catch (error) {
-        console.error("Failed to delete game:", error);
-        toast({ title: "Error", description: "Failed to delete game", variant: "destructive" });
-      }
+    if (!window.confirm('Are you sure you want to delete this game?')) return;
+    const success = await deleteGame(gameId);
+    if (success) {
+      toast.success('Game deleted successfully');
+      // The useGames hook should refresh the list, or call fetchGamesAndProviders()
+    } else {
+      toast.error('Failed to delete game');
     }
   };
-  
-  const handleAddGame = async (gameData: Partial<DbGame>) => { 
-    if (!addGame) {
-      toast({ title: "Error", description: "Add game function not available.", variant: "destructive" });
-      return;
-    }
+
+  const handleSubmitGameForm = async (gameData: Partial<DbGame>) => { // GameForm will submit DbGame data
     try {
-      const result = await addGame(gameData); 
-      if (result) { // Assuming addGame returns the new game or true on success
-        setIsAddDialogOpen(false);
-        toast({ title: "Success", description: "Game added successfully" });
+      let success = false;
+      if (editingGame && editingGame.id) {
+        const result = await updateGame(editingGame.id, gameData);
+        if (result) success = true;
       } else {
-         toast({ title: "Error", description: "Failed to add game", variant: "destructive" });
+        const result = await addGame(gameData);
+        if (result) success = true;
       }
-    } catch (error) {
-      console.error("Failed to add game:", error);
-      toast({ title: "Error", description: "Failed to add game", variant: "destructive" });
+
+      if (success) {
+        toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully`);
+        setIsFormOpen(false);
+        setEditingGame(null);
+        // The useGames hook should refresh the list, or call fetchGamesAndProviders()
+      } else {
+        toast.error(`Failed to ${editingGame ? 'update' : 'add'} game`);
+      }
+    } catch (error: any) {
+      toast.error(`Error: ${error.message || 'Operation failed'}`);
     }
   };
   
-  const handleUpdateGame = async (gameData: Game) => { 
-     if (!updateGame || !gameData.id) {
-      toast({ title: "Error", description: "Update game function or game ID not available.", variant: "destructive" });
-      return;
+  const requestSort = (key: SortableGameKeys) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
     }
-    try {
-      const { id, ...updateData } = gameData;
-      const dbGameUpdateData: Partial<DbGame> = {
-        ...updateData, // Spread existing game data
-        title: updateData.title,
-        provider_slug: updateData.provider_slug || updateData.provider, // Ensure provider_slug is set
-        category_slugs: updateData.category_slugs || (updateData.category ? [updateData.category] : []),
-        image_url: updateData.image,
-        is_popular: updateData.isPopular,
-        is_new: updateData.isNew,
-        rtp: updateData.rtp,
-        description: updateData.description,
-        // map other fields as necessary
-      };
-
-      const result = await updateGame(id, dbGameUpdateData); 
-      if (result) { // Assuming updateGame returns the updated game or true
-        setIsEditDialogOpen(false);
-        toast({ title: "Success", description: "Game updated successfully" });
-      } else {
-        toast({ title: "Error", description: "Failed to update game", variant: "destructive" });
-      }
-    } catch (error) {
-      console.error("Failed to update game:", error);
-      toast({ title: "Error", description: "Failed to update game", variant: "destructive" });
-    }
+    setSortConfig({ key, direction });
   };
 
-  const indexOfLastGame = currentPage * gamesPerPage;
-  const indexOfFirstGame = indexOfLastGame - gamesPerPage;
-  const currentGamesForTable = currentFilteredGames.slice(indexOfFirstGame, indexOfLastGame);
-  const totalPages = Math.ceil(currentFilteredGames.length / gamesPerPage);
-  
-  const columns: ColumnDef<Game>[] = [
-    {
-      header: "Game",
-      accessorKey: "title",
-      cell: (game) => ( // No type needed, inferred
-        <div className="flex items-center">
-          <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-background/80">
-            <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title || 'Game image'} className="h-10 w-10 object-cover" />
-          </div>
-          <div className="ml-4">
-            <div className="text-sm font-medium">{game.title}</div>
-            <div className="text-xs text-muted-foreground">ID: {game.id}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: "Provider",
-      accessorKey: "provider_slug",
-      cell: (game) => getProviderName(game.provider_slug || game.provider)
-    },
-    {
-      header: "Actions",
-      accessorKey: "actions",
-      cell: (game) => (
-        <div className="flex space-x-1 md:space-x-2">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => handleViewGame(game.slug || game.id)} 
-            title="View Game"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8"
-            onClick={() => handleEditGame(game)}
-            title="Edit Game"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-green-500 hover:text-green-400"
-            onClick={async () => { 
-                if (launchGame) { // Check if launchGame is available
-                    const url = await launchGame(game, { mode: "demo" });
-                    if (url) window.open(url, '_blank');
-                } else {
-                    toast({ title: "Error", description: "Launch game function not available.", variant: "destructive" });
-                }
-            }}
-            title="Play Demo"
-          >
-            <Play className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-red-500 hover:text-red-400"
-            onClick={() => handleDeleteGame(String(game.id))} 
-            title="Delete Game"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )
-    }
-  ];
+  const sortedAndFilteredGames = React.useMemo(() => {
+    let filtered = [...allGames]; // allGames from useGames hook are already of type Game
 
-  const gameFormProps: GameFormProps = {
-    onSubmit: selectedGame ? (handleUpdateGame as (data: Game) => void) : (handleAddGame as (data: Partial<DbGame>) => void),
-    initialData: selectedGame || undefined,
-    providers: providers,
-    categories: categories,
+    if (searchTerm) {
+      filtered = filtered.filter(game =>
+        game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (game.providerName && game.providerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (game.slug && game.slug.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    if (filterProvider) {
+      filtered = filtered.filter(game => game.provider === filterProvider);
+    }
+    if (filterCategory) {
+      filtered = filtered.filter(game => game.category_slugs?.includes(filterCategory) || game.category === filterCategory);
+    }
+    
+    if (sortConfig.key) {
+        filtered.sort((a, b) => {
+            const valA = a[sortConfig.key!];
+            const valB = b[sortConfig.key!];
+
+            if (valA === undefined || valA === null) return sortConfig.direction === 'ascending' ? 1 : -1;
+            if (valB === undefined || valB === null) return sortConfig.direction === 'ascending' ? -1 : 1;
+
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return sortConfig.direction === 'ascending' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            if (typeof valA === 'number' && typeof valB === 'number') {
+                return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
+            }
+            // Fallback for boolean or other types (treat as string)
+            const strA = String(valA).toLowerCase();
+            const strB = String(valB).toLowerCase();
+            return sortConfig.direction === 'ascending' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+        });
+    }
+
+    return filtered;
+  }, [allGames, searchTerm, filterProvider, filterCategory, sortConfig, providers, categories]);
+
+
+  if (gamesLoading && !allGames.length) {
+    return <div className="p-6">Loading games data...</div>;
+  }
+
+  if (gamesError) {
+    return <div className="p-6 text-red-500">Error loading games: {gamesError}</div>;
+  }
+
+  const getSortIndicator = (key: SortableGameKeys) => {
+    if (sortConfig.key === key) {
+      return sortConfig.direction === 'ascending' ? ' ▲' : ' ▼';
+    }
+    return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50 group-hover:opacity-100 inline-block" />;
   };
 
 
   return (
-    <div className="py-6 px-2 md:py-8 md:px-4">
-      {/* ... keep existing code (Header JSX: title, buttons) */}
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold">Game Management</h1>
-        
-        <div className="flex flex-wrap gap-2 md:gap-3">
-          <Button variant="outline" onClick={() => navigate('/casino/seamless')}>
-            <Play className="mr-2 h-4 w-4" />
-            Seamless API
-          </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Game
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] bg-card">
-              <DialogHeader>
-                <DialogTitle>Add New Game</DialogTitle>
-              </DialogHeader>
-              <GameForm 
-                onSubmit={handleAddGame}
-                providers={providers} 
-                categories={categories} 
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
+        <h1 className="text-2xl md:text-3xl font-bold">Games Management</h1>
+        <Button onClick={handleAddNewGame} className="flex items-center whitespace-nowrap">
+          <PlusCircle className="mr-2 h-5 w-5" /> Add New Game
+        </Button>
       </div>
-      
-      {/* ... keep existing code (Game Stats) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <div className="bg-card p-4 rounded-lg shadow">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-muted-foreground text-sm">Total Games</p>
-              <h3 className="text-2xl font-bold">{allGamesFromContext.length}</h3>
-            </div>
-            <div className="bg-primary/10 p-3 rounded-full">
-              <Gamepad2 className="h-6 w-6 text-primary" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-card p-4 rounded-lg shadow">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-muted-foreground text-sm">Popular Games</p>
-              <h3 className="text-2xl font-bold">{allGamesFromContext.filter(game => game.isPopular).length}</h3>
-            </div>
-            <div className="bg-yellow-500/10 p-3 rounded-full">
-              <BarChart2 className="h-6 w-6 text-yellow-500" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-card p-4 rounded-lg shadow">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-muted-foreground text-sm">New Games</p>
-              <h3 className="text-2xl font-bold">{allGamesFromContext.filter(game => game.isNew).length}</h3>
-            </div>
-            <div className="bg-blue-500/10 p-3 rounded-full">
-              <Plus className="h-6 w-6 text-blue-500" />
-            </div>
-          </div>
-        </div>
-      </div>
-      
-       <div className="mb-6">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="w-5 h-5 text-gray-400" />
-          </div>
-          <Input
-            type="search"
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background focus:ring-primary focus:border-primary"
-            placeholder="Search games by title, provider, or ID..."
-            value={searchQuery}
-            onChange={handleSearch}
-          />
-        </div>
-      </div>
-      
-      <div className="bg-card rounded-lg shadow overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <DataTable 
-            data={currentGamesForTable} 
-            columns={columns}
-          />
-        )}
-        
-        {/* ... keep existing code (Pagination JSX) */}
-        <div className="px-4 py-3 flex items-center justify-between border-t border-border">
-           <div className="flex-1 flex justify-between sm:hidden">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              Next
-            </Button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-medium">{totalPages > 0 ? indexOfFirstGame + 1 : 0}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(indexOfLastGame, currentFilteredGames.length)}
-                </span>{' '}
-                of <span className="font-medium">{currentFilteredGames.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                 <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-l-md h-8 w-8 md:h-auto md:w-auto md:px-3 md:py-2"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  title="Previous Page"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  if (pageNum <= 0 || pageNum > totalPages) return null;
 
-                  return (
-                    <Button 
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "secondary" : "outline" }
-                      className={`h-8 w-8 md:h-auto md:w-auto md:px-3 md:py-2 ${currentPage === pageNum ? "bg-primary/20" : ""}`}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-r-md h-8 w-8 md:h-auto md:w-auto md:px-3 md:py-2"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  title="Next Page"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </nav>
-            </div>
-          </div>
-        </div>
+      {/* Filters and Search */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-card rounded-lg border">
+        <Input
+          placeholder="Search games (title, provider, slug)..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="md:col-span-1"
+        />
+        <Select value={filterProvider} onValueChange={setFilterProvider}>
+          <SelectTrigger><SelectValue placeholder="Filter by provider" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Providers</SelectItem>
+            {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterCategory} onValueChange={setFilterCategory}>
+          <SelectTrigger><SelectValue placeholder="Filter by category" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Categories</SelectItem>
+            {categories.map(c => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
-      
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] bg-card">
+
+      {/* Games Table */}
+      <div className="rounded-md border overflow-x-auto bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="cursor-pointer group" onClick={() => requestSort('title')}>Title {getSortIndicator('title')}</TableHead>
+              <TableHead className="cursor-pointer group" onClick={() => requestSort('providerName')}>Provider {getSortIndicator('providerName')}</TableHead>
+              <TableHead className="cursor-pointer group" onClick={() => requestSort('categoryName')}>Category {getSortIndicator('categoryName')}</TableHead>
+              <TableHead className="cursor-pointer group" onClick={() => requestSort('status')}>Status {getSortIndicator('status')}</TableHead>
+              <TableHead className="cursor-pointer group text-right" onClick={() => requestSort('rtp')}>RTP (%) {getSortIndicator('rtp')}</TableHead>
+              <TableHead className="cursor-pointer group text-right" onClick={() => requestSort('views')}>Views {getSortIndicator('views')}</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {gamesLoading && sortedAndFilteredGames.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center h-24">Loading games...</TableCell></TableRow>
+            )}
+            {!gamesLoading && sortedAndFilteredGames.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center h-24">No games found matching your criteria.</TableCell></TableRow>
+            )}
+            {sortedAndFilteredGames.map((game) => (
+              <TableRow key={game.id}>
+                <TableCell className="font-medium max-w-xs truncate" title={game.title}>
+                  <img src={game.image || '/placeholder.svg'} alt={game.title} className="w-10 h-10 object-cover rounded-sm inline-block mr-2"/>
+                  {game.title}
+                </TableCell>
+                <TableCell>{game.providerName || game.provider}</TableCell>
+                <TableCell>{game.categoryName || game.category}</TableCell>
+                <TableCell>
+                   <span className={`px-2 py-0.5 text-xs rounded-full capitalize ${
+                      game.status === 'active' ? 'bg-green-500/20 text-green-300' : 
+                      game.status === 'inactive' ? 'bg-red-500/20 text-red-300' :
+                      game.status === 'maintenance' ? 'bg-yellow-500/20 text-yellow-300' :
+                      'bg-gray-500/20 text-gray-300'
+                    }`}>
+                      {game.status || 'unknown'}
+                    </span>
+                </TableCell>
+                <TableCell className="text-right">{game.rtp !== undefined ? `${game.rtp}%` : 'N/A'}</TableCell>
+                <TableCell className="text-right">{game.views ?? 'N/A'}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">
+                  <Button variant="ghost" size="icon" onClick={() => handleEditGame(game)} className="mr-2 hover:text-blue-500">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteGame(game.id)} className="hover:text-red-500">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Game Form Dialog */}
+      <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
+        setIsFormOpen(isOpen);
+        if (!isOpen) setEditingGame(null);
+      }}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col bg-card">
           <DialogHeader>
-            <DialogTitle>Edit Game</DialogTitle>
+            <DialogTitle>{editingGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
           </DialogHeader>
-          {selectedGame && (
-            <GameForm 
-              onSubmit={handleUpdateGame}
-              initialData={selectedGame}
-              providers={providers} 
+          <div className="overflow-y-auto pr-2">
+            <GameForm
+              onSubmit={handleSubmitGameForm}
+              initialGameData={editingGame} // Pass initialGameData (DbGame or null)
+              providers={providers}
               categories={categories}
+              onCancel={() => {
+                setIsFormOpen(false);
+                setEditingGame(null);
+              }}
             />
-          )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
