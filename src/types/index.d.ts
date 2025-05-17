@@ -29,14 +29,14 @@ export interface AuthUser {
   email: string;
   firstName?: string;
   lastName?: string;
-  avatar?: string;
+  avatar?: string; // Ensure avatar is here
   avatarUrl?: string;
   role?: string;
   isAdmin?: boolean;
   isVerified?: boolean;
   vipLevel?: number;
   balance?: number;
-  currency?: string;
+  currency?: string; // Ensure currency is here
 }
 
 export interface AuthContextType {
@@ -58,7 +58,7 @@ export interface AuthContextType {
 // Game interfaces
 export interface Game {
   id: string;
-  provider_id?: string;
+  provider_id?: string; // Keep for mapping if needed, but prefer provider_slug or provider object
   name: string;
   title: string;
   slug?: string;
@@ -66,9 +66,9 @@ export interface Game {
   description?: string;
   
   category?: string;
-  category_slugs?: string[];
-  provider: string;
-  provider_slug?: string;
+  category_slugs?: string[]; // Ensure this exists
+  provider: string; // Can be provider name string
+  provider_slug?: string; // Ensure this exists
 
   minBet?: number;
   maxBet?: number;
@@ -83,7 +83,7 @@ export interface Game {
 
   gameIdentifier?: string;
   gameCode?: string;
-  game_id?: string;
+  game_id?: string; // Often used as external game ID
   
   technology?: string;
   launchUrl?: string;
@@ -158,7 +158,6 @@ export interface Wallet {
   demoBalance: number;
   isActive: boolean;
 
-  // Added fields based on walletService mapping
   balance_bonus_rollover?: number;
   balance_deposit_rollover?: number;
   balance_withdrawal?: number;
@@ -189,11 +188,11 @@ export interface WalletResponse {
 export interface WalletTransaction {
   id: string;
   userId: string;
-  type: 'deposit' | 'withdraw' | 'bet' | 'win' | string; // Allow for other types
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | string; 
   amount: number;
   currency: string;
   status: 'completed' | 'pending' | 'failed' | string;
-  date: string; // ISO date string
+  date: string; 
   gameId?: string;
   gameName?: string;
   provider?: string;
@@ -221,6 +220,7 @@ export interface GamesContextType {
   incrementGameView: (gameId: string) => Promise<void>;
 }
 
-// Re-export types from additional.ts
-export { GameCategory as GameCategoryAdditional, GameProvider as GameProviderAdditional, GameLaunchOptions as GameLaunchOptionsAdditional } from './additional';
-export { WalletTransaction as WalletTransactionAdditional } from './additional';
+// Re-export types from additional.ts - check if these are actually needed or if direct export is better
+// For now, I'll comment them out to avoid potential conflicts if primary types are sufficient.
+// export { GameCategory as GameCategoryAdditional, GameProvider as GameProviderAdditional, GameLaunchOptions as GameLaunchOptionsAdditional } from './additional';
+// export { WalletTransaction as WalletTransactionAdditional } from './additional';

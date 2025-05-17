@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { Game } from '@/types'; 
-import { GameProvider, GameCategory, GamesContextType, GameLaunchOptions } from '@/types';
+import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions } from '@/types'; 
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,7 +51,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string) => {
     let tempGames = [...games];
     if (categorySlug) {
-      tempGames = tempGames.filter(game => game.category_slugs?.includes(categorySlug));
+      tempGames = tempGames.filter(game => game.category_slugs && game.category_slugs.includes(categorySlug));
     }
     if (providerSlug) {
       tempGames = tempGames.filter(game => game.provider_slug === providerSlug);
@@ -73,7 +72,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
         const launchData = {
-            gameId: game.id,
+            gameId: game.game_id || game.id,
             playerId: options.mode === 'demo' ? 'demo_player' : user?.id || 'unknown_player',
             currency: options.currency || user?.currency || "EUR",
             platform: options.platform || "web",
