@@ -28,6 +28,7 @@ export interface User {
   referredBy?: string;
 }
 
+// Corrected AuthContextType & AuthUser
 export interface AuthUser {
   id: string;
   email: string;
@@ -39,10 +40,30 @@ export interface AuthUser {
   currency?: string; // From associated wallet
   vipLevel?: number; // From associated wallet
   kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted'; // For isVerified
-  // Add other relevant fields from User that are needed in auth context
   firstName?: string;
   lastName?: string;
   name?: string;
+  country?: string; // Added
+  phone?: string; // Added
+  twoFactorEnabled?: boolean; // Added
+}
+
+export interface AuthContextType {
+  user: AuthUser | null;
+  session: import('@supabase/supabase-js').Session | null;
+  loading: boolean;
+  error: Error | null;
+  login: (email: string, password: string) => Promise<AuthUser | null>; // Return type changed
+  adminLogin?: (email: string, password: string) => Promise<AuthUser | null>; // Return type changed
+  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<boolean>;
+  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>;
+  refreshWalletBalance: () => Promise<number | null>;
+  isAuthenticated: boolean;
+  isAdmin?: boolean;
+  fetchUserProfile: (userId: string) => Promise<Partial<User> | null>;
+  deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>;
 }
 
 export interface Profile {
@@ -239,25 +260,6 @@ export interface WalletTransaction {
   balance_after?: number; // from additional.ts
   round_id?: string; // from additional.ts
   session_id?: string; // from additional.ts
-}
-
-// Corrected AuthContextType
-export interface AuthContextType {
-  user: AuthUser | null;
-  session: import('@supabase/supabase-js').Session | null;
-  loading: boolean;
-  error: Error | null;
-  login: (email: string, password: string) => Promise<AuthUser | null>;
-  adminLogin?: (email: string, password: string) => Promise<AuthUser | null>; // Added for AdminLogin
-  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>;
-  logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<boolean>;
-  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>;
-  refreshWalletBalance: () => Promise<number | null>;
-  isAuthenticated: boolean;
-  isAdmin?: boolean; // Added for AdminLogin
-  fetchUserProfile: (userId: string) => Promise<Partial<User> | null>;
-  deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>;
 }
 
 export interface AppSettings {
@@ -482,7 +484,7 @@ export interface KycRequest {
   updatedAt?: string;
 }
 
-// Single User interface definition (ensure 'status' and 'joined' (via createdAt) are handled)
+// Ensure User interface is consistent (it was defined twice, merging here)
 export interface User {
   id: string;
   email: string;
@@ -490,33 +492,75 @@ export interface User {
   firstName?: string;
   lastName?: string;
   displayName?: string;
-  name?: string;
+  name?: string; // Merged from second definition
   avatar?: string;
   role: 'user' | 'admin' | 'moderator';
-  status?: 'active' | 'inactive' | 'suspended' | 'pending_verification'; // Added status for clarity
-  isActive: boolean; // This should align with status
-  createdAt: string; // Use for 'joined date'
+  status?: 'active' | 'inactive' | 'suspended' | 'pending_verification'; // Added from second definition
+  isActive: boolean; 
+  createdAt: string;
   updatedAt?: string;
   lastLogin?: string;
-  balance?: number;
-  currency?: string;
-  vipLevel?: number;
+  balance?: number; 
+  currency?: string; 
+  vipLevel?: number; 
   country?: string;
   city?: string;
   address?: string;
   phone?: string;
   birthDate?: string;
-  kycStatus?: KycStatus;
+  kycStatus?: KycStatus; // Changed from 'pending' | 'verified' | 'rejected' | 'not_submitted' to KycStatus
   twoFactorEnabled?: boolean;
-  emailVerified?: boolean;
+  emailVerified?: boolean; 
   preferences?: UserPreferences;
   referralCode?: string;
   referredBy?: string;
 }
 
+
 // Bonus types
-// Updated BonusType to include values used in the form
-export type BonusType = 'deposit' | 'reload' | 'cashback' | 'free_spins' | 'deposit_match' | 'no_deposit' | 'loyalty_points';
+
+// Literal string union for BonusType
+export type BonusType = 
+  | 'welcome' 
+  | 'deposit' 
+  | 'reload' 
+  | 'cashback' 
+  | 'free_spins' 
+  | 'vip' 
+  | 'referral'
+  | 'deposit_match' // from existing BonusTemplate
+  | 'no_deposit'    // from existing BonusTemplate
+  | 'loyalty_points'; // from existing BonusTemplate
+
+// Optional: Helper object for programmatic access if needed, ensure values match BonusType
+export const BonusTypeEnum = {
+  WELCOME: 'welcome',
+  DEPOSIT: 'deposit',
+  RELOAD: 'reload',
+  CASHBACK: 'cashback',
+  FREE_SPINS: 'free_spins',
+  VIP: 'vip',
+  REFERRAL: 'referral',
+  DEPOSIT_MATCH: 'deposit_match',
+  NO_DEPOSIT: 'no_deposit',
+  LOYALTY_POINTS: 'loyalty_points',
+} as const;
+
+export interface Bonus {
+  id: string;
+  userId: string;
+  type: BonusType; // Use the string literal type
+  amount: number;
+  status: 'active' | 'used' | 'expired' | 'pending'; // Added pending
+  expiryDate: string; // ISO date string
+  createdAt: string; // ISO date string
+  wageringRequirement?: number;
+  progress?: number; // Percentage 0-100
+  description?: string;
+  code?: string;
+  gameId?: string; // Optional: if bonus is tied to a specific game
+}
+
 
 // Updated BonusTemplate interface to align with VipBonusManagement.tsx form usage
 export interface BonusTemplate {

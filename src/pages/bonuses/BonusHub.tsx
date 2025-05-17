@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { 
   Card, 
@@ -13,7 +14,7 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Bonus, BonusType } from "@/types";
+import { Bonus, BonusType, BonusTypeEnum } from "@/types"; // Import Bonus and BonusTypeEnum
 
 const BonusHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState("available");
@@ -23,11 +24,11 @@ const BonusHub: React.FC = () => {
     {
       id: "1",
       userId: "user-1",
-      type: BonusType.WELCOME,
+      type: BonusTypeEnum.WELCOME, // Use Enum
       amount: 100,
       status: "active",
-      expiryDate: "2023-08-15T00:00:00Z",
-      createdAt: "2023-07-15T14:30:00Z",
+      expiryDate: "2025-08-15T00:00:00Z",
+      createdAt: "2025-07-15T14:30:00Z",
       wageringRequirement: 35,
       progress: 0,
       description: "Welcome bonus for new users - 100% match up to $100",
@@ -36,11 +37,11 @@ const BonusHub: React.FC = () => {
     {
       id: "2",
       userId: "user-1",
-      type: BonusType.FREE_SPINS,
-      amount: 50,
+      type: BonusTypeEnum.FREE_SPINS, // Use Enum
+      amount: 50, // Assuming amount for free spins is the number of spins
       status: "active",
-      expiryDate: "2023-08-10T00:00:00Z",
-      createdAt: "2023-07-10T09:45:00Z",
+      expiryDate: "2025-08-10T00:00:00Z",
+      createdAt: "2025-07-10T09:45:00Z",
       wageringRequirement: 20,
       progress: 0,
       description: "50 free spins on Starburst",
@@ -52,11 +53,11 @@ const BonusHub: React.FC = () => {
     {
       id: "3",
       userId: "user-1",
-      type: BonusType.DEPOSIT,
+      type: BonusTypeEnum.DEPOSIT, // Use Enum
       amount: 75,
       status: "active",
-      expiryDate: "2023-08-05T00:00:00Z",
-      createdAt: "2023-07-05T16:15:00Z",
+      expiryDate: "2025-08-05T00:00:00Z",
+      createdAt: "2025-07-05T16:15:00Z",
       wageringRequirement: 30,
       progress: 45,
       description: "Weekly reload bonus - 50% match up to $75",
@@ -68,11 +69,11 @@ const BonusHub: React.FC = () => {
     {
       id: "4",
       userId: "user-1",
-      type: BonusType.CASHBACK,
+      type: BonusTypeEnum.CASHBACK, // Use Enum
       amount: 25,
       status: "used",
-      expiryDate: "2023-06-30T00:00:00Z",
-      createdAt: "2023-06-20T11:30:00Z",
+      expiryDate: "2024-06-30T00:00:00Z",
+      createdAt: "2024-06-20T11:30:00Z",
       wageringRequirement: 10,
       progress: 100,
       description: "10% cashback on losses",
@@ -81,11 +82,11 @@ const BonusHub: React.FC = () => {
     {
       id: "5",
       userId: "user-1",
-      type: BonusType.FREE_SPINS,
+      type: BonusTypeEnum.FREE_SPINS, // Use Enum
       amount: 20,
       status: "expired",
-      expiryDate: "2023-06-25T00:00:00Z",
-      createdAt: "2023-06-15T14:30:00Z",
+      expiryDate: "2024-06-25T00:00:00Z",
+      createdAt: "2024-06-15T14:30:00Z",
       wageringRequirement: 15,
       progress: 60,
       description: "20 free spins on Book of Dead",
@@ -94,14 +95,10 @@ const BonusHub: React.FC = () => {
   ]);
   
   const handleClaimBonus = (bonusId: string) => {
-    // Find the bonus to claim
     const bonusToMove = availableBonuses.find(b => b.id === bonusId);
     
     if (bonusToMove) {
-      // Add to active bonuses
-      setActiveBonuses(prev => [...prev, bonusToMove]);
-      
-      // Remove from available bonuses
+      setActiveBonuses(prev => [...prev, { ...bonusToMove, status: 'active' }]);
       setAvailableBonuses(prev => prev.filter(b => b.id !== bonusId));
     }
   };
@@ -116,44 +113,30 @@ const BonusHub: React.FC = () => {
   };
 
   const getBonusTypeColor = (type: BonusType): string => {
+    // Use string literals directly as per BonusType definition
     switch (type) {
-      case BonusType.WELCOME:
-        return "bg-green-500";
-      case BonusType.DEPOSIT:
-        return "bg-blue-500";
-      case BonusType.RELOAD:
-        return "bg-purple-500";
-      case BonusType.CASHBACK:
-        return "bg-amber-500";
-      case BonusType.FREE_SPINS:
-        return "bg-pink-500";
-      case BonusType.VIP:
-        return "bg-indigo-500";
-      case BonusType.REFERRAL:
-        return "bg-teal-500";
-      default:
-        return "bg-gray-500";
+      case 'welcome': return "bg-green-500";
+      case 'deposit': return "bg-blue-500";
+      case 'reload': return "bg-purple-500";
+      case 'cashback': return "bg-amber-500";
+      case 'free_spins': return "bg-pink-500";
+      case 'vip': return "bg-indigo-500";
+      case 'referral': return "bg-teal-500";
+      default: return "bg-gray-500";
     }
   };
 
   const getBonusName = (type: BonusType): string => {
+    // Use string literals
     switch (type) {
-      case BonusType.WELCOME:
-        return "Welcome Bonus";
-      case BonusType.DEPOSIT:
-        return "Deposit Bonus";
-      case BonusType.RELOAD:
-        return "Reload Bonus";
-      case BonusType.CASHBACK:
-        return "Cashback";
-      case BonusType.FREE_SPINS:
-        return "Free Spins";
-      case BonusType.VIP:
-        return "VIP Bonus";
-      case BonusType.REFERRAL:
-        return "Referral Bonus";
-      default:
-        return "Bonus";
+      case 'welcome': return "Welcome Bonus";
+      case 'deposit': return "Deposit Bonus";
+      case 'reload': return "Reload Bonus";
+      case 'cashback': return "Cashback";
+      case 'free_spins': return "Free Spins";
+      case 'vip': return "VIP Bonus";
+      case 'referral': return "Referral Bonus";
+      default: return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || "Bonus";
     }
   };
 
@@ -178,7 +161,9 @@ const BonusHub: React.FC = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <span>{getBonusName(bonus.type)}</span>
-                      <span className="text-lg">${bonus.amount}</span>
+                      <span className="text-lg">
+                        {bonus.type === BonusTypeEnum.FREE_SPINS ? `${bonus.amount} Spins` : `$${bonus.amount}`}
+                      </span>
                     </CardTitle>
                     <CardDescription>{bonus.description}</CardDescription>
                   </CardHeader>
@@ -186,20 +171,23 @@ const BonusHub: React.FC = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Wagering:</span>
-                        <span>{bonus.wageringRequirement}x</span>
+                        <span>{bonus.wageringRequirement || 'N/A'}x</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Expires:</span>
                         <span>{formatDate(bonus.expiryDate)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Code:</span>
-                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{bonus.code}</span>
-                      </div>
+                      {bonus.code && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Code:</span>
+                          <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{bonus.code}</span>
+                        </div>
+                      )}
                       
                       <Button 
                         className="w-full mt-4" 
                         onClick={() => handleClaimBonus(bonus.id)}
+                        disabled={bonus.status !== 'active'}
                       >
                         Claim Bonus
                       </Button>
@@ -225,7 +213,9 @@ const BonusHub: React.FC = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <span>{getBonusName(bonus.type)}</span>
-                      <span className="text-lg">${bonus.amount}</span>
+                      <span className="text-lg">
+                        {bonus.type === BonusTypeEnum.FREE_SPINS ? `${bonus.amount} Spins` : `$${bonus.amount}`}
+                      </span>
                     </CardTitle>
                     <CardDescription>{bonus.description}</CardDescription>
                   </CardHeader>
@@ -234,19 +224,19 @@ const BonusHub: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Progress:</span>
-                          <span>{bonus.progress}%</span>
+                          <span>{bonus.progress || 0}%</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full">
                           <div 
                             className="h-full bg-primary rounded-full" 
-                            style={{ width: `${bonus.progress}%` }}
+                            style={{ width: `${bonus.progress || 0}%` }}
                           ></div>
                         </div>
                       </div>
                       
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Wagering:</span>
-                        <span>{bonus.wageringRequirement}x</span>
+                        <span>{bonus.wageringRequirement || 'N/A'}x</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Expires:</span>
@@ -277,7 +267,9 @@ const BonusHub: React.FC = () => {
                     </div>
                     <CardTitle className="flex items-center justify-between">
                       <span>{getBonusName(bonus.type)}</span>
-                      <span className="text-lg">${bonus.amount}</span>
+                      <span className="text-lg">
+                         {bonus.type === BonusTypeEnum.FREE_SPINS ? `${bonus.amount} Spins` : `$${bonus.amount}`}
+                      </span>
                     </CardTitle>
                     <CardDescription>{bonus.description}</CardDescription>
                   </CardHeader>
@@ -286,20 +278,22 @@ const BonusHub: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Progress:</span>
-                          <span>{bonus.progress}%</span>
+                          <span>{bonus.progress || 0}%</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full">
                           <div 
                             className={`h-full rounded-full ${
                               bonus.status === "used" ? "bg-green-500" : "bg-red-500"
                             }`} 
-                            style={{ width: `${bonus.progress}%` }}
+                            style={{ width: `${bonus.progress || 0}%` }}
                           ></div>
                         </div>
                       </div>
                       
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Used on:</span>
+                        <span className="text-muted-foreground">
+                          {bonus.status === "used" ? "Used on:" : "Expired on:"}
+                        </span>
                         <span>{formatDate(bonus.expiryDate)}</span>
                       </div>
                     </div>

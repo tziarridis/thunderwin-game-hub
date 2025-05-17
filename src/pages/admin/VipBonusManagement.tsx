@@ -1,511 +1,463 @@
-import React, { useState, useEffect } from "react";
-import {
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Switch,
-} from "@/components/ui/switch"
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, Edit, Trash2, Save, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from '@/types';
+import { toast } from 'sonner';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import { Plus, Edit, Trash, Award, Users, Gift } from "lucide-react";
-import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from "@/types";
-import { getVipLevels, vipLevelsApi } from "@/services/apiService";
-import VipLevelManager from "@/components/admin/VipLevelManager";
-import { useToast } from "@/components/ui/use-toast";
+} from "@/components/ui/table";
+import { Checkbox } from '@/components/ui/checkbox';
+// Mock service functions - replace with actual service calls
+// import { bonusTemplateService, vipLevelService } from '@/services/adminService'; // Assuming a service
 
-const VipBonusManagement = () => {
+// Mock service functions (replace with actual service calls)
+const mockBonusTemplateService = {
+  getBonusTemplates: async (): Promise<BonusTemplate[]> => {
+    return [
+      { id: '1', name: 'Welcome Bonus', description: '100% up to $200', type: 'deposit_match' as BonusType, percentage: 100, maxAmount: 200, wageringRequirement: 30, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: '2', name: 'VIP Free Spins', description: '50 Free Spins for Gold+', type: 'free_spins' as BonusType, freeSpinsCount: 50, targetVipLevel: 3, wageringRequirement: 20, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+    ];
+  },
+  createBonusTemplate: async (data: BonusTemplateFormData): Promise<BonusTemplate> => {
+    console.log("Creating bonus template:", data);
+    const newTemplate: BonusTemplate = {
+      id: String(Date.now()),
+      ...data,
+      gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    return newTemplate;
+  },
+  updateBonusTemplate: async (id: string, data: BonusTemplateFormData): Promise<BonusTemplate> => {
+    console.log("Updating bonus template:", id, data);
+    const updatedTemplate: BonusTemplate = {
+      id,
+      ...data,
+      gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
+      createdAt: new Date().toISOString(), // Should retain original createdAt ideally
+      updatedAt: new Date().toISOString(),
+    };
+    return updatedTemplate;
+  },
+  deleteBonusTemplate: async (id: string): Promise<void> => {
+    console.log("Deleting bonus template:", id);
+    return;
+  }
+};
+
+const mockVipLevelService = {
+  getVipLevels: async (): Promise<VipLevel[]> => {
+    return [
+      { id: '1', level: 1, name: 'Bronze', pointsRequired: 0, benefits: ['Basic support'], cashbackPercentage: 0 },
+      { id: '2', level: 2, name: 'Silver', pointsRequired: 1000, benefits: ['Priority support'], cashbackPercentage: 2 },
+      { id: '3', level: 3, name: 'Gold', pointsRequired: 5000, benefits: ['Dedicated manager', 'Exclusive bonuses'], cashbackPercentage: 5 },
+    ];
+  },
+  createVipLevel: async (data: Omit<VipLevel, 'id'>): Promise<VipLevel> => {
+    const newLevel: VipLevel = { id: String(Date.now()), ...data };
+    return newLevel;
+  },
+  updateVipLevel: async (id: string, data: Partial<VipLevel>): Promise<VipLevel> => {
+    const updatedLevel = { id, level: 0, name: '', pointsRequired: 0, benefits:[], ...data } as VipLevel; // Simplified mock
+    return updatedLevel;
+  },
+   deleteVipLevel: async (id: string): Promise<void> => {
+    console.log("Deleting VIP level:", id);
+    // In a real app, this would make an API call
+    return Promise.resolve();
+  },
+};
+
+
+const initialFormData: BonusTemplateFormData = {
+  name: '',
+  description: '',
+  type: 'deposit_match' as BonusType,
+  amount: undefined,
+  percentage: undefined,
+  maxAmount: undefined,
+  freeSpinsCount: undefined,
+  wageringRequirement: 0,
+  gameRestrictions: '',
+  durationDays: undefined,
+  minDeposit: undefined,
+  promoCode: undefined,
+  targetVipLevel: undefined,
+  isActive: true,
+};
+
+
+const VipBonusManagement: React.FC = () => {
   const [bonusTemplates, setBonusTemplates] = useState<BonusTemplate[]>([]);
   const [vipLevels, setVipLevels] = useState<VipLevel[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedBonusTemplate, setSelectedBonusTemplate] = useState<BonusTemplate | null>(null);
-  const [activeTab, setActiveTab] = useState("bonus-templates");
-  const { toast } = useToast();
-
-  // Initial form data state according to BonusTemplateFormData
-  const initialFormData: BonusTemplateFormData = {
-    name: "",
-    description: "",
-    type: "deposit", // Default to a valid BonusType
-    amount: 0,
-    percentage: 0,
-    maxAmount: 0,
-    wageringRequirement: 0,
-    durationDays: 0,
-    gameRestrictions: "", // Comma-separated string
-    minDeposit: 0,
-    promoCode: "",
-    targetVipLevel: 0, // Or undefined if optional initially
-    isActive: true,
-    freeSpinsCount: 0,
-  };
-
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<BonusTemplate | null>(null);
   const [formData, setFormData] = useState<BonusTemplateFormData>(initialFormData);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const bonusTypes: BonusType[] = ['deposit_match', 'no_deposit', 'free_spins', 'cashback', 'reload', 'loyalty_points'];
 
   useEffect(() => {
-    // Mock bonus templates conforming to the updated BonusTemplate structure
-    const mockBonusTemplates: BonusTemplate[] = [
-      {
-        id: "1",
-        name: "VIP Welcome Bonus",
-        description: "Exclusive welcome bonus for VIP members",
-        type: "deposit", // Valid BonusType
-        amount: 200, // Fixed amount or part of percentage calculation
-        percentage: 100,
-        maxAmount: 500,
-        wageringRequirement: 30,
-        durationDays: 30,
-        targetVipLevel: 5,
-        isActive: true,
-        gameRestrictions: ["slots"], // Array of strings
-        promoCode: "VIPWELCOME",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: "2",
-        name: "VIP Reload Bonus",
-        description: "Weekly reload bonus for VIP members",
-        type: "reload", // Valid BonusType
-        amount: 50,
-        percentage: 50,
-        maxAmount: 200,
-        wageringRequirement: 25,
-        durationDays: 7,
-        targetVipLevel: 3,
-        isActive: true,
-        gameRestrictions: ["all"], // Array of strings
-        promoCode: "VIPRELOAD",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    setBonusTemplates(mockBonusTemplates);
-
-    const fetchVipLevels = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const levels = await getVipLevels();
+        const [templates, levels] = await Promise.all([
+          mockBonusTemplateService.getBonusTemplates(),
+          mockVipLevelService.getVipLevels(),
+        ]);
+        setBonusTemplates(templates);
         setVipLevels(levels);
       } catch (error) {
-        console.error("Error fetching VIP levels:", error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch VIP levels. Please try again later.",
-          variant: "destructive",
-        });
+        toast.error('Failed to load data.');
+        console.error(error);
+      } finally {
+        setIsLoading(false);
       }
     };
+    fetchData();
+  }, []);
 
-    fetchVipLevels();
-  }, [toast]);
-
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    const numericFields = ['amount', 'percentage', 'maxAmount', 'wageringRequirement', 'durationDays', 'minDeposit', 'targetVipLevel', 'freeSpinsCount'];
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: numericFields.includes(name) ? parseFloat(value) || 0 : value,
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked; // For checkbox
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || undefined : value),
     }));
   };
 
-  const handleSwitchChange = (name: string, checked: boolean) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: checked,
+  const handleSelectChange = (name: keyof BonusTemplateFormData, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
     }));
   };
   
-  const handleSelectChange = (name: string, value: string) => {
-    if (name === "type") {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value as BonusType, // Cast to BonusType
-      }));
-    } else if (name === "targetVipLevel") {
-        setFormData((prevData) => ({
-          ...prevData,
-          [name]: parseInt(value, 10) || 0,
-        }));
-    } else {
-      setFormData((prevData) => ({
-        ...prevData,
-        [name]: value,
-      }));
-    }
-  };
-  
-  const handleVipLevelUpdate = async (updatedLevel: VipLevel) => {
+  const handleDelete = async (id: string) => { // Added placeholder handleDelete
+    if (!window.confirm("Are you sure you want to delete this bonus template?")) return;
     try {
-      await vipLevelsApi.updateVipLevel(String(updatedLevel.id), updatedLevel);
-      setVipLevels(prevLevels => 
-        prevLevels.map(level => 
-          level.id === updatedLevel.id ? updatedLevel : level
-        )
-      );
-      toast({
-        title: "Success",
-        description: `VIP level "${updatedLevel.name}" has been updated.`,
-      });
+      await mockBonusTemplateService.deleteBonusTemplate(id);
+      setBonusTemplates(prev => prev.filter(template => template.id !== id));
+      toast.success('Bonus template deleted successfully!');
     } catch (error) {
-      console.error("Error updating VIP level:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update VIP level. Please try again.",
-        variant: "destructive",
-      });
+      toast.error('Failed to delete bonus template.');
+      console.error(error);
     }
   };
 
-  const handleVipLevelCreate = async (newLevel: Omit<VipLevel, "id">) => {
-    try {
-      const createdLevel = await vipLevelsApi.createVipLevel(newLevel);
-      setVipLevels(prevLevels => [...prevLevels, createdLevel]);
-      toast({
-        title: "Success",
-        description: `VIP level "${newLevel.name}" has been created.`,
-      });
-    } catch (error) {
-      console.error("Error creating VIP level:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create VIP level. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Basic Validations (can be more sophisticated with a library like Zod)
-    if (!formData.name || !formData.description) {
-      toast({ title: "Validation Error", description: "Name and description are required.", variant: "destructive"});
-      return;
+    setIsLoading(true);
+    try {
+      if (editingTemplate) {
+        const updatedTemplate = await mockBonusTemplateService.updateBonusTemplate(editingTemplate.id, formData);
+        setBonusTemplates(prev => prev.map(t => t.id === updatedTemplate.id ? updatedTemplate : t));
+        toast.success('Bonus template updated successfully!');
+      } else {
+        const newTemplate = await mockBonusTemplateService.createBonusTemplate(formData);
+        setBonusTemplates(prev => [...prev, newTemplate]);
+        toast.success('Bonus template created successfully!');
+      }
+      setIsFormOpen(false);
+      setEditingTemplate(null);
+      setFormData(initialFormData);
+    } catch (error) {
+      toast.error('Failed to save bonus template.');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
     }
-    if ((formData.type === 'deposit' || formData.type === 'reload' || formData.type === 'deposit_match') && (formData.amount === undefined || formData.amount <= 0) && (formData.percentage === undefined || formData.percentage <= 0) ) {
-        toast({ title: "Validation Error", description: "For deposit/reload bonuses, amount or percentage must be greater than zero.", variant: "destructive"});
-        return;
-    }
-    if (formData.type === 'free_spins' && (formData.freeSpinsCount === undefined || formData.freeSpinsCount <=0)) {
-        toast({ title: "Validation Error", description: "For free spins, count must be greater than zero.", variant: "destructive"});
-        return;
-    }
-    // Add more validations as needed
-
-    const newBonusTemplate: Omit<BonusTemplate, 'id' | 'createdAt' | 'updatedAt' | 'isArchived' | 'targetUserGroup'> = {
-      name: formData.name,
-      description: formData.description,
-      type: formData.type,
-      amount: formData.amount,
-      percentage: formData.percentage,
-      maxAmount: formData.maxAmount,
-      freeSpinsCount: formData.freeSpinsCount,
-      wageringRequirement: formData.wageringRequirement,
-      gameRestrictions: formData.gameRestrictions.split(',').map(s => s.trim()).filter(s => s),
-      durationDays: formData.durationDays,
-      minDeposit: formData.minDeposit,
-      promoCode: formData.promoCode,
-      targetVipLevel: formData.targetVipLevel,
-      isActive: formData.isActive,
-    };
-
-    if (isEditMode && selectedBonusTemplate) {
-      const updatedTemplate: BonusTemplate = {
-        ...selectedBonusTemplate,
-        ...newBonusTemplate,
-        updatedAt: new Date().toISOString(),
-      };
-      setBonusTemplates(bonusTemplates.map((template) =>
-        template.id === selectedBonusTemplate.id ? updatedTemplate : template
-      ));
-      toast({
-        title: "Success",
-        description: `Bonus template "${formData.name}" has been updated.`,
-      });
-    } else {
-      const completeNewTemplate: BonusTemplate = {
-        id: Date.now().toString(), // Simple ID generation for mock
-        ...newBonusTemplate,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setBonusTemplates([...bonusTemplates, completeNewTemplate]);
-      toast({
-        title: "Success",
-        description: `Bonus template "${formData.name}" has been created.`,
-      });
-    }
-
-    setIsDialogOpen(false);
-    setIsEditMode(false);
-    setSelectedBonusTemplate(null);
-    setFormData(initialFormData); // Reset form
   };
 
-  const handleEdit = (bonusTemplate: BonusTemplate) => {
-    setSelectedBonusTemplate(bonusTemplate);
-    setIsEditMode(true);
-    setIsDialogOpen(true);
-    // Map BonusTemplate to BonusTemplateFormData for editing
+  const handleEdit = (template: BonusTemplate) => {
+    setEditingTemplate(template);
     setFormData({
-      name: bonusTemplate.name,
-      description: bonusTemplate.description,
-      type: bonusTemplate.type,
-      amount: bonusTemplate.amount || 0,
-      percentage: bonusTemplate.percentage || 0,
-      maxAmount: bonusTemplate.maxAmount || 0,
-      freeSpinsCount: bonusTemplate.freeSpinsCount || 0,
-      wageringRequirement: bonusTemplate.wageringRequirement,
-      gameRestrictions: bonusTemplate.gameRestrictions?.join(', ') || "",
-      durationDays: bonusTemplate.durationDays || 0,
-      minDeposit: bonusTemplate.minDeposit || 0,
-      promoCode: bonusTemplate.promoCode || "",
-      targetVipLevel: bonusTemplate.targetVipLevel || 0,
-      isActive: bonusTemplate.isActive === undefined ? true : bonusTemplate.isActive,
+      name: template.name,
+      description: template.description,
+      type: template.type,
+      amount: template.amount,
+      percentage: template.percentage,
+      maxAmount: template.maxAmount,
+      freeSpinsCount: template.freeSpinsCount,
+      wageringRequirement: template.wageringRequirement || 0,
+      gameRestrictions: Array.isArray(template.gameRestrictions) ? template.gameRestrictions.join(', ') : '',
+      durationDays: template.durationDays,
+      minDeposit: template.minDeposit,
+      promoCode: template.promoCode,
+      targetVipLevel: template.targetVipLevel,
+      isActive: template.isActive !== undefined ? template.isActive : true,
     });
+    setIsFormOpen(true);
   };
 
-  const handleOpenDialog = () => {
-    setIsDialogOpen(true);
-    setIsEditMode(false);
-    setSelectedBonusTemplate(null);
-    setFormData(initialFormData); // Reset to initial state
+  const openNewForm = () => {
+    setEditingTemplate(null);
+    setFormData(initialFormData);
+    setIsFormOpen(true);
+  };
+
+  const filteredTemplates = bonusTemplates.filter(template =>
+    template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    template.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // VIP Level Management handlers
+  const handleCreateLevel = async (newLevelData: Omit<VipLevel, 'id'>) => {
+    try {
+      const createdLevel = await mockVipLevelService.createVipLevel(newLevelData);
+      setVipLevels(prev => [...prev, createdLevel]);
+      toast.success("VIP Level created successfully!");
+    } catch (error) {
+      toast.error("Failed to create VIP Level.");
+      console.error(error);
+    }
+  };
+
+  const handleUpdateLevel = async (updatedLevelData: VipLevel) => {
+     if (!updatedLevelData.id) return;
+    try {
+      const updatedLevel = await mockVipLevelService.updateVipLevel(updatedLevelData.id, updatedLevelData);
+      setVipLevels(prev => prev.map(level => level.id === updatedLevel.id ? updatedLevel : level));
+      toast.success("VIP Level updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update VIP Level.");
+      console.error(error);
+    }
+  };
+  
+  const handleDeleteVipLevel = async (levelId: string) => {
+    if (!window.confirm("Are you sure you want to delete this VIP level? This might affect existing bonus targeting.")) return;
+    try {
+      await mockVipLevelService.deleteVipLevel(levelId);
+      setVipLevels(prev => prev.filter(level => level.id !== levelId));
+      toast.success('VIP Level deleted successfully!');
+    } catch (error) {
+      toast.error('Failed to delete VIP level.');
+      console.error(error);
+    }
   };
 
 
   return (
-    
-    <div className="container mx-auto py-10">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex items-center justify-between mb-4">
-          <TabsList className="grid w-[400px] grid-cols-2">
-            <TabsTrigger value="bonus-templates" className="flex items-center">
-              <Gift className="h-4 w-4 mr-2" />
-              Bonus Templates
-            </TabsTrigger>
-            <TabsTrigger value="vip-levels" className="flex items-center">
-              <Award className="h-4 w-4 mr-2" />
-              VIP Levels
-            </TabsTrigger>
-          </TabsList>
-          
-          {activeTab === "bonus-templates" ? (
-            <Button onClick={handleOpenDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Bonus Template
-            </Button>
-          ) : null}
+    <div className="container mx-auto p-4 md:p-6">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">VIP & Bonus Management</h1>
+
+      {/* Bonus Templates Section */}
+      <section className="mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+          <h2 className="text-xl md:text-2xl font-semibold">Bonus Templates</h2>
+          <Button onClick={openNewForm} className="flex items-center">
+            <PlusCircle className="mr-2 h-5 w-5" /> Create New Template
+          </Button>
         </div>
-
-        <TabsContent value="bonus-templates">
-          <Card className="shadow-md rounded-md">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-2xl font-bold">
-                VIP Bonus Templates
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableCaption>
-                  A list of your VIP bonus templates.
-                </TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[200px]">Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Amount/Percentage</TableHead> {/* Combined for brevity */}
-                    <TableHead>Wagering</TableHead>
-                    <TableHead>Duration (Days)</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bonusTemplates.map((bonusTemplate) => (
-                    <TableRow key={bonusTemplate.id}>
-                      <TableCell className="font-medium">{bonusTemplate.name}</TableCell>
-                      <TableCell>{bonusTemplate.type}</TableCell>
-                      <TableCell>
-                        {bonusTemplate.type === 'free_spins' ? `${bonusTemplate.freeSpinsCount || 0} spins` : 
-                         bonusTemplate.amount ? `$${bonusTemplate.amount}` : 
-                         bonusTemplate.percentage ? `${bonusTemplate.percentage}%` : 'N/A'}
-                        {bonusTemplate.maxAmount ? ` (Max $${bonusTemplate.maxAmount})` : ''}
-                      </TableCell>
-                      <TableCell>{bonusTemplate.wageringRequirement}x</TableCell>
-                      <TableCell>{bonusTemplate.durationDays || 'N/A'}</TableCell>
-                      <TableCell>
-                        {bonusTemplate.isActive ? "Active" : "Inactive"}
-                      </TableCell>
-                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(bonusTemplate)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(bonusTemplate.id)}
-                        >
-                          <Trash className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-         <TabsContent value="vip-levels">
-          <VipLevelManager 
-            levels={vipLevels} 
-            onUpdate={handleVipLevelUpdate}
-            onCreate={handleVipLevelCreate}
+        <div className="mb-4">
+          <Input
+            placeholder="Search templates..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="max-w-sm bg-card"
           />
-        </TabsContent>
-      </Tabs>
+        </div>
+        <div className="rounded-md border overflow-x-auto bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && <TableRow><TableCell colSpan={4} className="text-center">Loading templates...</TableCell></TableRow>}
+              {!isLoading && filteredTemplates.length === 0 && (
+                <TableRow><TableCell colSpan={4} className="text-center">No templates found.</TableCell></TableRow>
+              )}
+              {filteredTemplates.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell>{template.type.replace('_', ' ')}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs rounded-full ${template.isActive ? 'bg-green-500/20 text-green-700' : 'bg-red-500/20 text-red-700'}`}>
+                      {template.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(template)} className="mr-2 hover:text-blue-500">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(template.id)} className="hover:text-red-500">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+      
+      {/* VIP Levels Section - Assuming VipLevelManager is a read-only component */}
+      <section>
+        <h2 className="text-xl md:text-2xl font-semibold mb-4">VIP Levels</h2>
+        {/* 
+          If VipLevelManager.tsx is available and has known props, integrate here.
+          Example: <VipLevelManager levels={vipLevels} onUpdate={handleUpdateLevel} onCreate={handleCreateLevel} onDelete={handleDeleteVipLevel} /> 
+          For now, display basic VIP level info if VipLevelManager is not usable due to read-only or prop issues.
+        */}
+         <div className="bg-card p-4 rounded-md border">
+          {vipLevels.length > 0 ? (
+            <ul className="space-y-2">
+              {vipLevels.map(level => (
+                <li key={level.id} className="flex justify-between items-center p-2 border-b last:border-b-0">
+                  <span>Level {level.level}: {level.name} (Requires {level.pointsRequired} points)</span>
+                  <div>
+                    {/* Add Edit/Delete for VIP levels if functionality is built out and VipLevelManager is not used */}
+                     {/* <Button variant="ghost" size="icon" onClick={() => { console.log("Edit VIP level", level.id); toast.info("VIP Level editing UI not implemented yet.")}} className="mr-2"><Edit className="h-4 w-4" /></Button> */}
+                     {/* <Button variant="ghost" size="icon" onClick={() => handleDeleteVipLevel(level.id)}><Trash2 className="h-4 w-4" /></Button> */}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No VIP levels configured yet.</p>
+          )}
+          {/* Placeholder for where VipLevelManager might go or a button to add new VIP levels */}
+           <div className="mt-4">
+             <Button variant="outline" onClick={() => toast.info("VIP Level creation UI not fully implemented here yet.")}>
+                Add New VIP Level (Placeholder)
+             </Button>
+           </div>
+        </div>
+      </section>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+
+      <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
+        setIsFormOpen(isOpen);
+        if (!isOpen) {
+          setEditingTemplate(null);
+          setFormData(initialFormData);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px] bg-card">
           <DialogHeader>
-            <DialogTitle>
-              {isEditMode ? "Edit Bonus Template" : "Add Bonus Template"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditMode
-                ? "Edit the details of the selected bonus template."
-                : "Create a new bonus template for VIP members."}
-            </DialogDescription>
+            <DialogTitle>{editingTemplate ? 'Edit' : 'Create'} Bonus Template</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
+            {/* Form fields */}
+            <div className="md:col-span-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" value={formData.description} onChange={handleInputChange} required />
+              <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} />
             </div>
+            
             <div>
-              <Label htmlFor="type">Bonus Type</Label>
-              <Select name="type" value={formData.type} onValueChange={(value) => handleSelectChange("type", value)}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select a bonus type" /></SelectTrigger>
+              <Label htmlFor="type">Type</Label>
+              <Select value={formData.type} onValueChange={(value) => handleSelectChange('type', value as BonusType)}>
+                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="deposit">Deposit</SelectItem>
-                  <SelectItem value="reload">Reload</SelectItem>
-                  <SelectItem value="cashback">Cashback</SelectItem>
-                  <SelectItem value="free_spins">Free Spins</SelectItem>
-                  <SelectItem value="deposit_match">Deposit Match</SelectItem>
-                  <SelectItem value="no_deposit">No Deposit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {formData.type === 'free_spins' ? (
-              <div>
-                <Label htmlFor="freeSpinsCount">Free Spins Count</Label>
-                <Input type="number" id="freeSpinsCount" name="freeSpinsCount" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label htmlFor="amount">Amount (fixed)</Label>
-                  <Input type="number" id="amount" name="amount" value={formData.amount || ''} onChange={handleInputChange} />
-                </div>
-                <div>
-                  <Label htmlFor="percentage">Percentage</Label>
-                  <Input type="number" id="percentage" name="percentage" value={formData.percentage || ''} onChange={handleInputChange} />
-                </div>
-              </>
-            )}
-             <div>
-                <Label htmlFor="maxAmount">Maximum Bonus Amount</Label>
-                <Input type="number" id="maxAmount" name="maxAmount" value={formData.maxAmount || ''} onChange={handleInputChange}/>
-            </div>
-            <div>
-              <Label htmlFor="wageringRequirement">Wagering Requirement (x)</Label>
-              <Input type="number" id="wageringRequirement" name="wageringRequirement" value={formData.wageringRequirement} onChange={handleInputChange} required />
-            </div>
-            <div>
-              <Label htmlFor="durationDays">Duration (Days)</Label>
-              <Input type="number" id="durationDays" name="durationDays" value={formData.durationDays || ''} onChange={handleInputChange} required />
-            </div>
-            <div>
-              <Label htmlFor="minDeposit">Minimum Deposit</Label>
-              <Input type="number" id="minDeposit" name="minDeposit" value={formData.minDeposit || ''} onChange={handleInputChange} />
-            </div>
-            <div>
-              <Label htmlFor="targetVipLevel">VIP Level Required</Label>
-              <Select name="targetVipLevel" value={String(formData.targetVipLevel || 0)} onValueChange={(value) => handleSelectChange("targetVipLevel", value)}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select a VIP level" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">None</SelectItem>
-                  {vipLevels.map((level) => (
-                    <SelectItem key={level.id} value={String(level.level)}>
-                      {level.name} (Level {level.level})
-                    </SelectItem>
+                  {bonusTypes.map(type => (
+                    <SelectItem key={type} value={type}>{type.replace('_', ' ')}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.type === 'deposit_match' && (
+              <>
+                <div>
+                  <Label htmlFor="percentage">Percentage (%)</Label>
+                  <Input id="percentage" name="percentage" type="number" value={formData.percentage || ''} onChange={handleInputChange} />
+                </div>
+                <div>
+                  <Label htmlFor="maxAmount">Max Bonus Amount</Label>
+                  <Input id="maxAmount" name="maxAmount" type="number" value={formData.maxAmount || ''} onChange={handleInputChange} />
+                </div>
+              </>
+            )}
+
+            {formData.type === 'free_spins' && (
+              <div>
+                <Label htmlFor="freeSpinsCount">Free Spins Count</Label>
+                <Input id="freeSpinsCount" name="freeSpinsCount" type="number" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
+              </div>
+            )}
+             {(formData.type === 'cashback' || formData.type === 'reload') && formData.type !== 'deposit_match' && (
+              <div>
+                <Label htmlFor="percentage">Percentage (%)</Label>
+                <Input id="percentage" name="percentage" type="number" value={formData.percentage || ''} onChange={handleInputChange} />
+              </div>
+            )}
+
+
+            {formData.type !== 'free_spins' && formData.type !== 'loyalty_points' && formData.type !== 'no_deposit' && (
+                 <div>
+                  <Label htmlFor="minDeposit">Min Deposit</Label>
+                  <Input id="minDeposit" name="minDeposit" type="number" value={formData.minDeposit || ''} onChange={handleInputChange} />
+                </div>
+            )}
+            
             <div>
-              <Label htmlFor="gameRestrictions">Allowed Games (comma-separated slugs or IDs)</Label>
-              <Input id="gameRestrictions" name="gameRestrictions" value={formData.gameRestrictions} onChange={handleInputChange} />
+              <Label htmlFor="wageringRequirement">Wagering Requirement (x)</Label>
+              <Input id="wageringRequirement" name="wageringRequirement" type="number" value={formData.wageringRequirement || ''} onChange={handleInputChange} required />
             </div>
+
             <div>
-              <Label htmlFor="promoCode">Bonus Code</Label>
+              <Label htmlFor="durationDays">Duration (Days)</Label>
+              <Input id="durationDays" name="durationDays" type="number" value={formData.durationDays || ''} onChange={handleInputChange} />
+            </div>
+            
+            <div className="md:col-span-2">
+              <Label htmlFor="gameRestrictions">Game Restrictions (comma-separated slugs)</Label>
+              <Input id="gameRestrictions" name="gameRestrictions" value={formData.gameRestrictions} onChange={handleInputChange} placeholder="e.g. slot-game-1,another-slot" />
+            </div>
+
+            <div>
+              <Label htmlFor="promoCode">Promo Code (Optional)</Label>
               <Input id="promoCode" name="promoCode" value={formData.promoCode || ''} onChange={handleInputChange} />
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => handleSwitchChange("isActive", checked)} />
-              <Label htmlFor="isActive">Active</Label>
+            
+            <div>
+              <Label htmlFor="targetVipLevel">Target VIP Level (Optional)</Label>
+              <Select value={formData.targetVipLevel?.toString() || ''} onValueChange={(value) => handleSelectChange('targetVipLevel', value ? parseInt(value) : undefined)}>
+                <SelectTrigger><SelectValue placeholder="Select VIP Level" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {vipLevels.map(level => (
+                    <SelectItem key={level.id} value={level.level.toString()}>{level.name} (Level {level.level})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex justify-end">
-              <Button type="submit">
-                {isEditMode ? "Update Bonus Template" : "Create Bonus Template"}
+
+            <div className="md:col-span-2 flex items-center space-x-2 mt-2">
+              <Checkbox id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => handleSelectChange('isActive', !!checked)} />
+              <Label htmlFor="isActive" className="font-normal">Active</Label>
+            </div>
+
+            <DialogFooter className="md:col-span-2 mt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : (editingTemplate ? 'Save Changes' : 'Create Template')}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

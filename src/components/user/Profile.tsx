@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Edit, Settings, LogOut, CreditCard, User, Shield, Clock } from "lucide-react";
 import WalletBalance from "@/components/user/WalletBalance";
-import TransactionHistory from "@/components/user/TransactionHistory";
-import UserStats from "@/components/user/UserStats";
-import VipProgress from "@/components/user/VipProgress";
+import TransactionsList from "@/components/user/TransactionsList"; // Corrected import
+import UserStats from '@/components/user/UserStats'; // New component
+import VipProgress from '@/components/user/VipProgress'; // New component
 import { Separator } from "@/components/ui/separator";
 
 const Profile = () => {
@@ -68,7 +69,7 @@ const Profile = () => {
             
             <div className="flex items-center mt-2">
               <Badge variant={user.role === 'admin' ? "destructive" : "secondary"} className="mr-2">
-                {user.role === 'admin' ? 'Admin' : 'Player'}
+                {user.role === 'admin' ? 'Admin' : (user.role === 'moderator' ? 'Moderator' : 'Player')}
               </Badge>
               {user.kycStatus === 'verified' && (
                 <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
@@ -133,7 +134,8 @@ const Profile = () => {
                 </TabsList>
                 
                 <TabsContent value="transactions" className="pt-4">
-                  <TransactionHistory limit={5} />
+                  {/* Assuming TransactionsList takes similar props or no props for basic display */}
+                  <TransactionsList userId={user.id} limit={5} />
                   <div className="flex justify-center mt-4">
                     <Button 
                       variant="outline" 
