@@ -1,7 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { Wallet, WalletResponse } from "@/types";
-import { WalletTransaction } from "@/types";
+import { Wallet, WalletResponse, WalletTransaction } from "@/types";
 import { toast } from "sonner";
 
 export const walletService = {

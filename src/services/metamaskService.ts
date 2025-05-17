@@ -1,4 +1,3 @@
-
 import { ethers } from 'ethers';
 import { toast } from 'sonner';
 
@@ -126,16 +125,19 @@ export const metamaskService = {
     if (!this.isInstalled()) return;
     
     const ethereum = window.ethereum;
-    if (!ethereum || !ethereum.on) return;
+    if (!ethereum) return;
     
-    // Add listeners for account changes
-    ethereum.on('accountsChanged', () => {
-      if (callback) callback();
-    });
-    
-    ethereum.on('chainChanged', () => {
-      if (callback) callback();
-    });
+    // Check if on method exists before calling it
+    if (typeof ethereum.on === 'function') {
+      // Add listeners for account changes
+      ethereum.on('accountsChanged', () => {
+        if (callback) callback();
+      });
+      
+      ethereum.on('chainChanged', () => {
+        if (callback) callback();
+      });
+    }
   },
   
   // Added for compatibility with existing code

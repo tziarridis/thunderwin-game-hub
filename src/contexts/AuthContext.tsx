@@ -2,40 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
-import { User } from '@/types';
-
-export interface AuthUser {
-  id: string;
-  username: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  avatar?: string;
-  avatarUrl?: string;
-  role?: string;
-  isAdmin?: boolean;
-  isVerified?: boolean;
-  vipLevel?: number;
-  balance?: number;
-  currency?: string;
-  name?: string;
-}
-
-export interface AuthContextType {
-  isAuthenticated: boolean;
-  user: AuthUser | null;
-  isLoading: boolean;
-  error?: string | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  adminLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, password: string, username: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
-  reset: (email: string) => Promise<{ success: boolean; error?: string }>;
-  updateProfile: (data: Partial<AuthUser>) => Promise<{ success: boolean; error?: string }>;
-  refreshWalletBalance: () => Promise<void>;
-  deposit: (amount: number, method: string) => Promise<{ success: boolean; error?: string }>;
-  isAdmin: () => boolean;
-}
+import { User, AuthUser, AuthContextType } from '@/types';
 
 const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,

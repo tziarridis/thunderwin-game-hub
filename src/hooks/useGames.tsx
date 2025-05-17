@@ -1,8 +1,6 @@
-
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import { Game } from '@/types'; 
-import { GameProvider, GameCategory, GamesContextType } from '@/types';
-import { GameLaunchOptions } from '@/types';
+import { GameProvider, GameCategory, GamesContextType, GameLaunchOptions } from '@/types';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { useAuth } from '@/contexts/AuthContext';

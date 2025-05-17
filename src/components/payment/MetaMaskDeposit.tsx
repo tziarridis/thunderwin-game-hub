@@ -64,7 +64,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       }
       
       const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
-      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount.toString(), user.id);
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount.toString(), { from: accounts });
       
       if (txHash) {
         // Refresh user's wallet balance after successful transaction

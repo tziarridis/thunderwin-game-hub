@@ -1,7 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { Game } from "@/types";
-import { GameCategory, GameProvider } from "@/types/additional";
+import { Game, GameCategory, GameProvider } from "@/types";
 import { toast } from "sonner";
 
 // Helper function to map Supabase game data to our Game type

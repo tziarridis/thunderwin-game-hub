@@ -55,50 +55,7 @@ export interface AuthContextType {
   isAdmin: () => boolean;
 }
 
-// Export the types from additional.ts
-export { GameCategory, GameProvider, GameLaunchOptions } from './additional';
-export { WalletTransaction } from './additional';
-
-export interface Wallet {
-  id: string;
-  userId: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  vipLevel: number;
-  bonusBalance: number;
-  cryptoBalance: number;
-  demoBalance: number;
-  isActive: boolean;
-
-  // Added fields based on walletService mapping
-  balance_bonus_rollover?: number;
-  balance_deposit_rollover?: number;
-  balance_withdrawal?: number;
-  refer_rewards?: number;
-  hide_balance?: boolean;
-  total_bet?: number;
-  total_won?: number;
-  total_lose?: number;
-  last_won?: number;
-  last_lose?: number;
-  vip_points?: number;
-  deposit_limit_daily?: number;
-  deposit_limit_weekly?: number;
-  deposit_limit_monthly?: number;
-  exclusion_until?: string | null;
-  time_reminder_enabled?: boolean;
-  reminder_interval_minutes?: number;
-  exclusion_period?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export interface WalletResponse {
-  data: Wallet | null;
-  error: string | null;
-}
-
+// Game interfaces
 export interface Game {
   id: string;
   provider_id?: string;
@@ -149,7 +106,105 @@ export interface Game {
   cover?: string;
 }
 
-// This context type should align with what useGames hook provides.
+export interface GameCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon?: string;
+  image?: string;
+  show_home?: boolean;
+  status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
+  games?: Game[];
+}
+
+export interface GameProvider {
+  id: string | number;
+  name: string;
+  logo?: string;
+  description?: string;
+  status?: string;
+  gamesCount?: number;
+  isPopular?: boolean;
+  featured?: boolean;
+  api_endpoint?: string;
+  api_key?: string;
+  api_secret?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GameLaunchOptions {
+  providerId?: string;
+  mode?: 'real' | 'demo';
+  playerId?: string;
+  language?: string;
+  currency?: string;
+  platform?: "web" | "mobile";
+  returnUrl?: string;
+}
+
+// Wallet types
+export interface Wallet {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
+
+  // Added fields based on walletService mapping
+  balance_bonus_rollover?: number;
+  balance_deposit_rollover?: number;
+  balance_withdrawal?: number;
+  refer_rewards?: number;
+  hide_balance?: boolean;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+  last_won?: number;
+  last_lose?: number;
+  vip_points?: number;
+  deposit_limit_daily?: number;
+  deposit_limit_weekly?: number;
+  deposit_limit_monthly?: number;
+  exclusion_until?: string | null;
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_period?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WalletResponse {
+  data: Wallet | null;
+  error: string | null;
+}
+
+export interface WalletTransaction {
+  id: string;
+  userId: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | string; // Allow for other types
+  amount: number;
+  currency: string;
+  status: 'completed' | 'pending' | 'failed' | string;
+  date: string; // ISO date string
+  gameId?: string;
+  gameName?: string;
+  provider?: string;
+  description?: string;
+  balance_before?: number;
+  balance_after?: number;
+  round_id?: string;
+  session_id?: string;
+}
+
+// Games Context
 export interface GamesContextType {
   games: Game[];
   filteredGames: Game[];
@@ -166,20 +221,6 @@ export interface GamesContextType {
   incrementGameView: (gameId: string) => Promise<void>;
 }
 
-export interface GameFilters {
-  category?: string;
-  provider?: string;
-  search?: string;
-  isPopular?: boolean;
-  isNew?: boolean;
-  hasJackpot?: boolean;
-  isLive?: boolean;
-  limit?: number;
-  offset?: number;
-}
-
-export interface GameResponse {
-  data: Game[];
-  count: number;
-  error: string | null;
-}
+// Re-export types from additional.ts
+export { GameCategory as GameCategoryAdditional, GameProvider as GameProviderAdditional, GameLaunchOptions as GameLaunchOptionsAdditional } from './additional';
+export { WalletTransaction as WalletTransactionAdditional } from './additional';
