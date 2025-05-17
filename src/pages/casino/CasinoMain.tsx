@@ -1,17 +1,16 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
-import { useAuth } from '@/contexts/AuthContext'; // Add missing import
-import { Game } from '@/types';
-import GameGrid from '@/components/casino/GameGrid'; // This is the one from /components/casino
-import GameCategories from '@/components/casino/GameCategories';
-import PopularProviders from '@/components/casino/PopularProviders';
-import PromoBanner from '@/components/casino/PromoBanner';
+import { useAuth } from '@/contexts/AuthContext';
+import { Game, GameCategory, GameProvider as GameProviderType } from '@/types'; // Renamed GameProvider to avoid conflict
+import GameGrid from '@/components/casino/GameGrid';
+import GameCategories from '@/components/casino/GameCategories'; // Read-only, assuming props: categories, onSelectCategory, selectedCategory
+import PopularProviders from '@/components/casino/PopularProviders'; // Read-only, assuming props: providers
+import PromoBanner from '@/components/casino/PromoBanner'; // Read-only, assuming some props or self-contained
 import { Input } from '@/components/ui/input';
-// import { Button } from '@/components/ui/button'; // Not used directly
 import { Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom'; // For navigation on login
 
 const CasinoMain = () => {
   const { 
@@ -22,9 +21,10 @@ const CasinoMain = () => {
     providers, 
     categories,
     filteredGames,
-    launchGame, // For onGameClick
+    launchGame,
   } = useGames();
-  const { isAuthenticated, user } = useAuth(); // For launching games
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
@@ -39,17 +39,24 @@ const CasinoMain = () => {
 
   const handleCategoryChange = (categorySlug: string | undefined) => {
     setSelectedCategory(categorySlug);
-    setSearchTerm(''); // Reset search term when category changes
+    // setSearchTerm(''); // Reset search term when category changes -- user might want to keep it
   };
 
   const handleGameClick = async (game: Game) => {
     if (!isAuthenticated || !user) {
       toast.error("Please log in to play.");
-      // Optionally navigate to login page: navigate('/login');
+      navigate('/login'); // Navigate to login page
       return;
     }
-    const gameUrl = await launchGame(game, {
-      mode: 'real', // or 'demo'
+    // Ensure game.id is a string if launchGame expects it
+    const gameIdToLaunch = game.id ? String(game.id) : (game.game_id || "");
+    if (!gameIdToLaunch) {
+        toast.error("Game ID is missing, cannot launch.");
+        return;
+    }
+
+    const gameUrl = await launchGame({ ...game, id: gameIdToLaunch }, { // Pass game with ensured string ID
+      mode: 'real',
       playerId: user.id,
       currency: user.currency || 'EUR',
       platform: 'web',
@@ -66,9 +73,16 @@ const CasinoMain = () => {
     return <p className="text-red-500 text-center py-10">Error loading games: {error}</p>;
   }
 
+  // Assuming PromoBanner, GameCategories, PopularProviders are read-only and might not take specific props
+  // or take very generic ones. If they are essential and need specific props, this might still error.
+  // For now, providing minimal or no props.
+
   return (
     <div className="space-y-8 lg:space-y-12 px-2 sm:px-4 md:px-6 lg:px-8 py-6">
-      <PromoBanner />
+      {/* If PromoBanner is self-contained or takes no props / optional props */}
+      <PromoBanner 
+        // title="Welcome!" description="Check out our latest offers." buttonText="Explore" onButtonClick={() => navigate('/promotions')} 
+      />
 
       <div className="flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-grow w-full md:w-auto">
@@ -83,7 +97,12 @@ const CasinoMain = () => {
         </div>
       </div>
       
-      <GameCategories categories={categories} onSelectCategory={handleCategoryChange} selectedCategory={selectedCategory} />
+      {/* Assuming GameCategories takes these props */}
+      <GameCategories 
+        categories={categories as GameCategory[]} // Cast if necessary, ensure type compatibility
+        onSelectCategory={handleCategoryChange} 
+        selectedCategory={selectedCategory} 
+      />
 
       {isLoading && !filteredGames.length && !searchTerm && !selectedCategory ? (
         <div>
@@ -123,12 +142,14 @@ const CasinoMain = () => {
         </>
       )}
       
-      <PopularProviders providers={providers.slice(0, 5)} /> 
+      {/* Assuming PopularProviders takes these props */}
+      <PopularProviders 
+        providers={providers.slice(0, 5) as GameProviderType[]} // Cast if necessary
+      /> 
       
       {!selectedCategory && !searchTerm && !isLoading && (
          <section>
             <h2 className="text-2xl font-semibold mb-4 text-white">All Games</h2>
-            {/* Use a limited set or implement pagination/load more for all games */}
             <GameGrid games={games.slice(0, 18)} loading={isLoading} onGameClick={handleGameClick}/> 
          </section>
       )}

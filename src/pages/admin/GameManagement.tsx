@@ -1,19 +1,15 @@
 
 import React from "react";
 import GameManagementComponent from "@/components/admin/backoffice/GameManagement";
-import AdminLayout from "@/components/layout/AdminLayout"; // This component is read-only
+// AdminLayout is typically part of the route structure, wrapping GameManagementComponent via <Outlet />
+// No need to wrap it here if routing is set up correctly in App.tsx
 
 const GameManagementPage = () => {
-  const [collapsed, setCollapsed] = React.useState(false);
-  
-  // If AdminLayout is correctly typed to accept children, this is the standard usage.
-  // The error "Property 'children' does not exist on type 'IntrinsicAttributes'"
-  // implies AdminLayout's props type doesn't include 'children'.
-  // This cannot be fixed here if AdminLayout.tsx is read-only and incorrectly typed.
+  // If AdminLayout is a wrapper component for styling/context and not part of routing structure itself,
+  // then it might be used here. But typically, it's a layout route.
+  // For now, assuming GameManagementComponent is rendered within an <Outlet /> of AdminLayout.
   return (
-    <AdminLayout collapsed={collapsed} setCollapsed={setCollapsed}>
-      <GameManagementComponent />
-    </AdminLayout>
+    <GameManagementComponent />
   );
 };
 

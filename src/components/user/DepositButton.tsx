@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogClose,
+  // DialogClose, // Not exported or not needed if using button to close
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +30,7 @@ const DepositButton: React.FC<DepositButtonProps> = ({ variant = "default", size
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user, deposit, refreshWalletBalance } = useAuth(); // Assuming deposit is available in useAuth
+  const { user, deposit, refreshWalletBalance } = useAuth();
 
   const handleDeposit = async () => {
     if (!user) {
@@ -92,7 +91,6 @@ const DepositButton: React.FC<DepositButtonProps> = ({ variant = "default", size
     setIsProcessing(processing);
   };
 
-
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -109,31 +107,19 @@ const DepositButton: React.FC<DepositButtonProps> = ({ variant = "default", size
           </DialogDescription>
         </DialogHeader>
         
-        {/* Tab or selection for payment methods could go here */}
-        {/* For now, directly showing CardDeposit or a generic form */}
-
-        {/* Option 1: If CardDeposit is a self-contained form */}
         <div className="py-4">
           <h3 className="text-lg font-medium mb-2">Credit/Debit Card</h3>
-           {/* 
-            Props passed to CardDeposit were causing errors. 
-            Assuming CardDeposit handles its own state or has different props.
-            Removing problematic props: amount, setAmount, onSuccess, onProcessing
-            If CardDeposit needs these, its read-only definition is incompatible.
-           */}
           <CardDeposit 
             // Pass necessary props that ARE defined on CardDepositProps.
-            // For now, assuming it might need a general success/processing callback.
-            // If CardDeposit is self-contained, it might not need any props from here.
             // Example:
             // onPaymentSuccess={handleCardDepositSuccess} 
             // onPaymentProcessing={handleCardDepositProcessing}
-            // userId={user?.id} // if needed by CardDeposit
+            // userId={user?.id} 
           />
         </div>
-
-        {/* Option 2: A generic deposit form (if CardDeposit is not suitable or for other methods) */}
-        {/* This part is commented out if CardDeposit is the primary method shown */}
+        
+        {/* Fallback generic deposit form if CardDeposit is not fully handling it, or for other methods */}
+        {/* This part can be enabled if needed. For now, CardDeposit is primary. */}
         {/* 
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -152,19 +138,24 @@ const DepositButton: React.FC<DepositButtonProps> = ({ variant = "default", size
           </div>
         </div>
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" disabled={isProcessing}>Cancel</Button>
-          </DialogClose>
+          <Button variant="outline" disabled={isProcessing} onClick={() => setIsOpen(false)}>Cancel</Button>
           <Button onClick={handleDeposit} disabled={isProcessing}>
             {isProcessing ? 'Processing...' : 'Deposit Now'}
           </Button>
         </DialogFooter>
         */}
-
+         <DialogFooter>
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isProcessing}>
+            Cancel
+          </Button>
+          {/* If CardDeposit has its own submit button, this might not be needed */}
+           {/* <Button onClick={handleDeposit} disabled={isProcessing}>
+            {isProcessing ? 'Processing...' : 'Deposit Now'}
+          </Button>  */}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
 export default DepositButton;
-

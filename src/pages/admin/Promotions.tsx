@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"; // Added React import
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,30 +15,27 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { PlusCircle, Loader2, BarChart, Users, Search, Filter } from "lucide-react";
-import PromotionCard from "@/components/promotions/PromotionCard"; // Assuming this component expects Promotion type
+import PromotionCard from "@/components/promotions/PromotionCard";
 import { Promotion } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { motion } from "framer-motion"; // Not used
 
-const uiCategories = [ // Renamed from categories to avoid conflict with Promotion's category field
-  { value: "deposit_bonus", label: "Deposit Bonus" }, // Values should match Promotion.category values if used for filtering
+const uiCategories = [
+  { value: "deposit_bonus", label: "Deposit Bonus" },
   { value: "cashback", label: "Cashback" },
   { value: "tournament", label: "Tournament" },
-  { value: "free_spins", label: "Free Spins" }, // Added
-  { value: "recurring", label: "Recurring" }, // Custom category
-  { value: "special", label: "Special" } // Custom category
+  { value: "free_spins", label: "Free Spins" },
+  { value: "recurring", label: "Recurring" },
+  { value: "special", label: "Special" }
 ];
 
-// Define PromotionFormData based on Promotion type and form needs
 interface PromotionFormData {
   title: string;
   description: string;
   imageUrl?: string;
-  endDate: string; // Or Date
-  category: string; // This aligns with Promotion.category
-  promotionType: Promotion['promotionType']; // Use the defined types
-  // Add other fields as needed by the form
+  endDate: string;
+  category: string;
+  promotionType: Promotion['promotionType'];
   terms?: string;
   bonusPercentage?: number;
   maxBonusAmount?: number;
@@ -60,8 +57,8 @@ const Promotions = () => {
     description: "",
     imageUrl: "",
     endDate: "",
-    category: "deposit_bonus", // Default category
-    promotionType: "deposit_bonus", // Default type
+    category: "deposit_bonus",
+    promotionType: "deposit_bonus",
     terms: "",
   };
   const [formData, setFormData] = useState<PromotionFormData>(initialFormData);
@@ -69,10 +66,9 @@ const Promotions = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("all"); // "all" or a category value
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Load promotions from localStorage on component mount
   useEffect(() => {
     const storedPromotions = localStorage.getItem('promotions');
     if (storedPromotions) {
@@ -82,7 +78,7 @@ const Promotions = () => {
       setStats({
         total: parsedPromotions.length,
         active: parsedPromotions.filter((p: Promotion) => p.isActive).length,
-        claimed: Math.floor(Math.random() * 100) 
+        claimed: parsedPromotions.reduce((acc, p) => acc + (p.usageLimitPerUser || 0), 0)
       });
     } else {
       const defaultPromotions: Promotion[] = [
@@ -94,12 +90,12 @@ const Promotions = () => {
           startDate: "2023-01-01",
           endDate: "Ongoing",
           isActive: true,
+          status: "active",
           promotionType: "deposit_bonus",
           category: "deposit_bonus",
           terms: "Terms and conditions apply",
           bonusPercentage: 100, maxBonusAmount: 1000, freeSpinsCount: 50
         },
-        // ... other default promotions
       ];
       setPromotions(defaultPromotions);
       localStorage.setItem('promotions', JSON.stringify(defaultPromotions));
@@ -112,9 +108,8 @@ const Promotions = () => {
     }
   }, []);
 
-  // Save promotions to localStorage whenever they change
   useEffect(() => {
-    if (promotions.length > 0 || localStorage.getItem('promotions')) { // Save even if empty to clear it
+    if (promotions.length > 0 || localStorage.getItem('promotions')) {
       localStorage.setItem('promotions', JSON.stringify(promotions));
       setStats({
         total: promotions.length,
@@ -132,12 +127,11 @@ const Promotions = () => {
     }));
   };
   
-  const handleCategoryChange = (value: string) => { // This sets the 'category' field for UI
+  const handleCategoryChange = (value: string) => {
     setFormData(prev => ({
       ...prev,
       category: value,
-      // Optionally map to promotionType if they are linked
-      promotionType: value as Promotion['promotionType'] // Be careful with this cast
+      promotionType: value as Promotion['promotionType']
     }));
   };
 
@@ -145,7 +139,7 @@ const Promotions = () => {
     setIsSubmitting(true);
     
     setTimeout(() => {
-      const promotionDataFromForm: Omit<Promotion, 'id' | 'startDate' | 'isActive' | 'status'> & Partial<Pick<Promotion, 'startDate' | 'isActive' | 'status'>> = {
+      const promotionDataFromForm: Omit<Promotion, 'id' | 'startDate' | 'isActive' | 'status'> & Partial<Pick<Promotion, 'startDate' | 'isActive' | 'status'>> & { status: Promotion['status'] } = {
         title: formData.title,
         description: formData.description,
         imageUrl: formData.imageUrl,
@@ -153,12 +147,12 @@ const Promotions = () => {
         category: formData.category,
         promotionType: formData.promotionType,
         terms: formData.terms || "Standard terms apply.",
-        // Add other fields from formData like bonusPercentage, etc.
         bonusPercentage: formData.bonusPercentage,
         maxBonusAmount: formData.maxBonusAmount,
         freeSpinsCount: formData.freeSpinsCount,
         minDeposit: formData.minDeposit,
         wageringRequirement: formData.wageringRequirement,
+        status: 'active',
       };
 
       if (editingId) {
@@ -168,8 +162,8 @@ const Promotions = () => {
               ? { 
                   ...promo, 
                   ...promotionDataFromForm,
-                  isActive: promo.isActive, // Preserve current active state or update as needed
-                  status: promo.status // Preserve status
+                  isActive: promotionDataFromForm.isActive !== undefined ? promotionDataFromForm.isActive : promo.isActive,
+                  status: promotionDataFromForm.status || promo.status,
                 }
               : promo
           )
@@ -180,14 +174,14 @@ const Promotions = () => {
           id: `${Date.now()}`,
           ...promotionDataFromForm,
           startDate: new Date().toISOString().split('T')[0],
-          isActive: true, // Default for new
-          status: 'active', // Default for new
+          isActive: true, 
+          status: 'active', 
         };
         setPromotions(prev => [...prev, newPromotion]);
         toast.success("Promotion added successfully");
       }
       
-      setFormData(initialFormData); // Reset form
+      setFormData(initialFormData); 
       setEditingId(null);
       setIsSubmitting(false);
       setIsDialogOpen(false);
@@ -202,7 +196,7 @@ const Promotions = () => {
         description: promoToEdit.description,
         imageUrl: promoToEdit.imageUrl || "",
         endDate: promoToEdit.endDate,
-        category: promoToEdit.category, // This is the UI category
+        category: promoToEdit.category,
         promotionType: promoToEdit.promotionType,
         terms: promoToEdit.terms || "",
         bonusPercentage: promoToEdit.bonusPercentage,
@@ -231,12 +225,12 @@ const Promotions = () => {
     );
     
     const promotion = promotions.find(p => p.id === id);
-    const action = promotion?.isActive ? "deactivated" : "activated"; // State before toggle
+    const action = promotion?.isActive ? "deactivated" : "activated";
     toast.success(`Promotion ${action} successfully`);
   };
 
   const filteredPromotions = promotions.filter(promo => {
-    if (activeTab !== "all" && promo.category !== activeTab) { // Filter by UI category
+    if (activeTab !== "all" && promo.category !== activeTab) {
       return false;
     }
     if (searchQuery) {
@@ -326,7 +320,7 @@ const Promotions = () => {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card className="thunder-card">
           <CardHeader><CardTitle className="flex items-center"><BarChart className="h-5 w-5 mr-2 text-casino-thunder-green" />Total Promotions</CardTitle></CardHeader>
           <CardContent><div className="text-3xl font-bold">{stats.total}</div></CardContent>
@@ -385,9 +379,9 @@ const Promotions = () => {
                   <PromotionCard
                     key={promotion.id}
                     promotion={promotion}
-                    onEdit={() => handleEditPromotion(promotion.id)} // Ensure PromotionCardProps matches
-                    onDelete={() => handleDeletePromotion(promotion.id)}
-                    onToggleActive={() => handleToggleActive(promotion.id)}
+                    onEdit={handleEditPromotion}
+                    onDelete={handleDeletePromotion}
+                    onToggleActive={handleToggleActive}
                     isAdmin
                   />
                 ))}
@@ -401,14 +395,14 @@ const Promotions = () => {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredPromotions
-                    .filter(p => p.category === cat.value) // Ensure only relevant promos are mapped
+                    .filter(p => p.category === cat.value) 
                     .map((promotion) => (
                       <PromotionCard
                         key={promotion.id}
                         promotion={promotion}
-                        onEdit={() => handleEditPromotion(promotion.id)}
-                        onDelete={() => handleDeletePromotion(promotion.id)}
-                        onToggleActive={() => handleToggleActive(promotion.id)}
+                        onEdit={handleEditPromotion}
+                        onDelete={handleDeletePromotion}
+                        onToggleActive={handleToggleActive}
                         isAdmin
                       />
                   ))}

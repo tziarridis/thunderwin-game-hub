@@ -71,18 +71,18 @@ export interface UserPreferences {
 export interface GameProvider {
   id: string;
   name: string;
-  slug: string; 
+  slug: string;
   logo?: string;
-  description?: string; 
-  isActive: boolean; 
-  order: number; 
-  games_count?: number; 
-  status: 'active' | 'inactive'; 
-  api_endpoint?: string; 
-  api_key?: string; 
-  api_secret?: string; 
-  created_at?: string; 
-  updated_at?: string; 
+  description?: string;
+  isActive: boolean; // Changed from status to isActive for boolean consistency
+  order: number;
+  games_count?: number;
+  // status: 'active' | 'inactive'; // Replaced by isActive
+  api_endpoint?: string;
+  api_key?: string;
+  api_secret?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Updated GameCategory interface
@@ -90,16 +90,16 @@ export interface GameCategory {
   id: string;
   name: string;
   slug: string;
-  description?: string; 
+  description?: string;
   icon?: string;
   image?: string;
-  order?: number; 
-  isActive?: boolean; 
-  status: 'active' | 'inactive'; 
+  order?: number;
+  isActive?: boolean; // Added for consistency
+  status: 'active' | 'inactive'; // Keeping this as it was explicitly used
   show_home?: boolean;
   created_at?: string;
   updated_at?: string;
-  games?: Game[]; 
+  games?: Game[];
 }
 
 // Updated Game interface
@@ -158,6 +158,7 @@ export interface GameLaunchOptions {
   returnUrl?: string;
 }
 
+// Corrected GamesContextType
 export interface GamesContextType {
   games: Game[];
   filteredGames: Game[];
@@ -169,19 +170,19 @@ export interface GamesContextType {
   filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string) => void;
   launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   getGameById: (id: string) => Promise<Game | null>;
-  toggleFavoriteGame: (gameId: string) => Promise<void>;
+  toggleFavoriteGame: (gameId: string) => Promise<void>; // Keep this, ensure implemented in useGames
+  getFavoriteGames?: () => Promise<Game[]>; // Added for Favorites.tsx
   favoriteGameIds: Set<string>;
-  incrementGameView: (gameId: string) => Promise<void>;
-  
+  incrementGameView: (gameId: string) => Promise<void>; // Keep this, ensure implemented
+
   loading: boolean; // Alias for isLoading
   totalGames?: number;
   newGames?: Game[]; // Games marked as new
   // Admin functions
-  addGame?: (gameData: Partial<DbGame>) => Promise<DbGame | null>; 
-  updateGame?: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>; 
-  deleteGame?: (gameId: string) => Promise<boolean>; 
+  addGame?: (gameData: Partial<DbGame>) => Promise<DbGame | null>;
+  updateGame?: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>;
+  deleteGame?: (gameId: string) => Promise<boolean>;
 }
-
 
 export interface Wallet {
   id: string;
@@ -243,18 +244,20 @@ export interface WalletTransaction {
 // Corrected AuthContextType
 export interface AuthContextType {
   user: AuthUser | null;
-  session: import('@supabase/supabase-js').Session | null; // Add session
+  session: import('@supabase/supabase-js').Session | null;
   loading: boolean;
   error: Error | null;
   login: (email: string, password: string) => Promise<AuthUser | null>;
+  adminLogin?: (email: string, password: string) => Promise<AuthUser | null>; // Added for AdminLogin
   register: (email: string, password: string, username?: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
   updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>;
   refreshWalletBalance: () => Promise<number | null>;
   isAuthenticated: boolean;
-  fetchUserProfile: (userId: string) => Promise<Partial<User> | null>; // Ensure this matches AuthContext
-  deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>; // For CardDeposit
+  isAdmin?: boolean; // Added for AdminLogin
+  fetchUserProfile: (userId: string) => Promise<Partial<User> | null>;
+  deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>;
 }
 
 export interface AppSettings {
@@ -376,37 +379,38 @@ export interface Promotion {
   id: string;
   title: string;
   description: string;
-  imageUrl?: string; // Use imageUrl consistently
-  promotionType: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other'; // Renamed from 'type'
-  category: string; // For UI categorization and filtering
-  bonusPercentage?: number; // For deposit_bonus
-  maxBonusAmount?: number; // For deposit_bonus
-  freeSpinsCount?: number; // For free_spins
-  cashbackPercentage?: number; // For cashback
-  wageringRequirement?: number; // e.g., 30 for 30x
+  imageUrl?: string;
+  promotionType: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other';
+  category: string;
+  bonusPercentage?: number;
+  maxBonusAmount?: number;
+  freeSpinsCount?: number;
+  cashbackPercentage?: number;
+  wageringRequirement?: number;
   minDeposit?: number;
-  games?: string[]; // Array of game IDs or slugs applicable for the promotion
-  startDate: string; // ISO Date string
-  endDate: string; // ISO Date string
+  games?: string[];
+  startDate: string;
+  endDate: string;
   termsAndConditionsUrl?: string;
-  status: 'active' | 'inactive' | 'expired' | 'upcoming'; // More descriptive status
-  isActive: boolean; // derived from status and dates, or manually set
+  status: 'active' | 'inactive' | 'expired' | 'upcoming'; // Added status
+  isActive: boolean; // Can be derived or set
   promoCode?: string;
-  usageLimit?: number; // How many times a promotion can be claimed in total
-  usageLimitPerUser?: number; // How many times one user can claim
-  terms?: string; // Added as it's used in Promotions.tsx mock data
+  usageLimit?: number;
+  usageLimitPerUser?: number;
+  terms?: string;
 }
 
+// Updated VipLevel interface
 export interface VipLevel {
+  id: string; // Added id
   level: number;
   name: string;
   pointsRequired: number;
-  benefits: string[]; // Array of benefit descriptions
+  benefits: string[];
   cashbackPercentage?: number;
   monthlyBonus?: number;
   dedicatedManager?: boolean;
   exclusiveTournaments?: boolean;
-  // Add other specific benefits
 }
 
 export interface UserProfileData {
@@ -478,7 +482,7 @@ export interface KycRequest {
   updatedAt?: string;
 }
 
-// Single User interface definition
+// Single User interface definition (ensure 'status' and 'joined' (via createdAt) are handled)
 export interface User {
   id: string;
   email: string;
@@ -486,26 +490,73 @@ export interface User {
   firstName?: string;
   lastName?: string;
   displayName?: string;
-  name?: string; // Ensured 'name' is here
+  name?: string;
   avatar?: string;
   role: 'user' | 'admin' | 'moderator';
-  isActive: boolean; 
-  createdAt: string;
+  status?: 'active' | 'inactive' | 'suspended' | 'pending_verification'; // Added status for clarity
+  isActive: boolean; // This should align with status
+  createdAt: string; // Use for 'joined date'
   updatedAt?: string;
   lastLogin?: string;
-  balance?: number; 
-  currency?: string; 
-  vipLevel?: number; 
+  balance?: number;
+  currency?: string;
+  vipLevel?: number;
   country?: string;
   city?: string;
   address?: string;
   phone?: string;
   birthDate?: string;
-  kycStatus?: KycStatus; 
+  kycStatus?: KycStatus;
   twoFactorEnabled?: boolean;
-  emailVerified?: boolean; 
+  emailVerified?: boolean;
   preferences?: UserPreferences;
   referralCode?: string;
   referredBy?: string;
 }
-// Removed duplicate User interface declaration that was at the end of the file.
+
+// Bonus types
+export type BonusType = 'deposit_match' | 'free_spins' | 'no_deposit' | 'cashback' | 'loyalty_points';
+
+export interface Bonus {
+  id: string;
+  name: string;
+  description: string;
+  type: BonusType;
+  amount?: number; // For fixed amount bonuses
+  percentage?: number; // For percentage-based bonuses (e.g., deposit match)
+  maxAmount?: number; // Max bonus amount for percentage bonuses
+  freeSpinsCount?: number; // For free spins bonuses
+  wageringRequirement: number; // e.g., 30 for 30x
+  gameRestrictions?: string[]; // IDs of games bonus can be used on
+  validUntil: string; // ISO date string
+  status: 'active' | 'expired' | 'used' | 'pending';
+  promoCode?: string;
+  minDeposit?: number; // Minimum deposit to qualify (if applicable)
+  userId?: string; // If it's a user-specific claimed bonus
+  claimedAt?: string;
+}
+
+// Bonus Template types (for VIP / Admin creation)
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: BonusType;
+  amount?: number;
+  percentage?: number;
+  maxAmount?: number;
+  freeSpinsCount?: number;
+  wageringRequirement: number;
+  gameRestrictions?: string[]; // Game slugs or IDs
+  durationDays?: number; // How many days the bonus is valid after claim/issue
+  minDeposit?: number;
+  targetUserGroup?: 'all' | 'vip_level' | 'specific_users';
+  targetVipLevel?: number; // if targetUserGroup is 'vip_level'
+  isArchived?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BonusTemplateFormData extends Omit<BonusTemplate, 'id' | 'createdAt' | 'updatedAt' | 'isArchived'> {
+  // Add any form specific fields if necessary
+}

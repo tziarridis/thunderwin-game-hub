@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useContext, createContext } from 'react';
-import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions, DbGame, ApiResponse } from '@/types';
+import { Game, GameProvider, GameCategory, GamesContextType, GameLaunchOptions, DbGame, ApiResponse, QueryOptions } from '@/types';
 import { gameAggregatorService } from '@/services/gameAggregatorService';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameProviderService } from '@/services/gameProviderService';
@@ -52,10 +52,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      // gamesDatabaseService.getAllGames returns ApiResponse<DbGame[]>
-      // Assuming gameProviderService.getProviders() returns GameProvider[] directly
-      // Assuming gameCategoryService.getCategories() returns GameCategory[] directly
-      const [gamesResponse, providersData, categoriesData] = await Promise.all([
+      const [gamesResponse, rawProvidersData, rawCategoriesData] = await Promise.all([
         gamesDatabaseService.getAllGames({ limit: 500 }),
         gameProviderService.getProviders(), 
         gameCategoryService.getCategories(),
@@ -69,17 +66,42 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         setError(gamesResponse.error || "Failed to load games.");
       }
 
-      if (providersData) { // Assuming providersData is GameProvider[]
-        setProviders(providersData);
+      // Assuming rawProvidersData needs mapping to GameProvider type from index.d.ts
+      if (rawProvidersData && Array.isArray(rawProvidersData)) {
+        const mappedProviders: GameProvider[] = rawProvidersData.map((p: any) => ({
+          id: String(p.id),
+          name: p.name || 'Unknown Provider',
+          slug: p.slug || p.name?.toLowerCase().replace(/\s+/g, '-') || String(p.id),
+          logo: p.logo,
+          description: p.description,
+          isActive: p.status === 'active' || p.isActive === true, // Prioritize isActive if present
+          order: p.order || 0,
+          games_count: p.games_count || 0,
+          // status: p.status === 'active' ? 'active' : 'inactive', // if still needed
+        }));
+        setProviders(mappedProviders);
       } else {
-        const err = "Failed to load providers."; // Simplified error
+        const err = "Failed to load providers.";
         setError(prev => prev ? `${prev} ${err}` : err);
       }
       
-      if (categoriesData) { // Assuming categoriesData is GameCategory[]
-        setCategories(categoriesData);
+      // Assuming rawCategoriesData needs mapping to GameCategory type from index.d.ts
+      if (rawCategoriesData && Array.isArray(rawCategoriesData)) {
+         const mappedCategories: GameCategory[] = rawCategoriesData.map((c: any) => ({
+          id: String(c.id),
+          name: c.name || 'Unknown Category',
+          slug: c.slug || c.name?.toLowerCase().replace(/\s+/g, '-') || String(c.id),
+          icon: c.icon,
+          image: c.image,
+          order: c.order || 0,
+          show_home: !!c.show_home,
+          status: (c.status === 'active' || c.status === 'inactive') ? c.status : 'inactive',
+          isActive: c.status === 'active' || c.isActive === true,
+          description: c.description,
+        }));
+        setCategories(mappedCategories);
       } else {
-        const err = "Failed to load categories."; // Simplified error
+        const err = "Failed to load categories.";
         setError(prev => prev ? `${prev} ${err}` : err);
       }
 
@@ -154,6 +176,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     try {
         const response = await gamesDatabaseService.getGameById(id); 
         if (response.success && response.data) {
+            // Ensure response.data is DbGame before mapping
             return mapDbGameToGame(response.data as DbGame);
         }
         toast.error(response.error || `Game with ID ${id} not found.`);
@@ -167,25 +190,57 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
     
+  const fetchFavoriteGames = async (): Promise<Game[]> => {
+    if (!user || !isAuthenticated) return [];
+    setIsLoading(true);
+    try {
+      // This assumes a service method like gamesDatabaseService.getFavoriteGamesByUserId(userId)
+      // For now, returning an empty array as a placeholder if the service method isn't ready.
+      // const response = await gamesDatabaseService.getFavoriteGamesByUserId(user.id);
+      // if (response.success && response.data) {
+      //   return (response.data as DbGame[]).map(mapDbGameToGame);
+      // }
+      // toast.info("Favorite games functionality is under development.");
+      return []; // Placeholder
+    } catch (e: any) {
+      console.error("Error fetching favorite games:", e);
+      toast.error("Failed to load favorite games.");
+      return [];
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const toggleFavoriteGame = async (gameId: string): Promise<void> => {
-    // Placeholder implementation
-    console.log(`Toggling favorite for game ${gameId}`);
-    // Actual implementation would involve Supabase call and updating favoriteGameIds
-    // e.g., using a service method like:
-    // const result = await userService.toggleFavoriteGame(user.id, gameId);
-    // if (result.success) {
-    //   setFavoriteGameIds(new Set(result.data.favorite_ids));
-    //   toast.success(result.message);
-    // } else {
-    //   toast.error(result.error);
-    // }
+    if (!user || !isAuthenticated) {
+      toast.error("Please log in to manage favorites.");
+      return;
+    }
+    // This is a placeholder. Actual implementation involves calling a service
+    // to update favorites in the DB and then updating `favoriteGameIds` state.
+    // Example: const result = await userService.toggleFavoriteGame(user.id, gameId);
+    setFavoriteGameIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(gameId)) {
+        newSet.delete(gameId);
+        toast.success("Removed from favorites");
+      } else {
+        newSet.add(gameId);
+        toast.success("Added to favorites");
+      }
+      return newSet;
+    });
   };
 
   const incrementGameView = async (gameId: string): Promise<void> => {
-    // Placeholder implementation
-    console.log(`Incrementing view count for game ${gameId}`);
-    // await gamesDatabaseService.incrementGameViews(gameId);
+    try {
+      await gamesDatabaseService.incrementGameViews(gameId); // Corrected method name
+      console.log(`Incremented view count for game ${gameId}`);
+    } catch (error) {
+      console.error(`Failed to increment view count for game ${gameId}:`, error);
+      // Optionally toast an error if this is critical, but usually it's a background task
+    }
   };
 
   const addGame = async (gameData: Partial<DbGame>): Promise<DbGame | null> => {
@@ -246,6 +301,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         filterGames, 
         launchGame,
         getGameById,
+        getFavoriteGames: fetchFavoriteGames, // Added
         loading: isLoading, 
         favoriteGameIds,
         toggleFavoriteGame, 
