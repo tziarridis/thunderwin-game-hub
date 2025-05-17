@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Game } from '@/types';
@@ -46,7 +47,7 @@ const GameDetails = () => {
       setIsFavorite(fetchedGame.isFavorite || false);
 
       // Increment game views
-      gamesDatabaseService.incrementGameViews(id);
+      gamesDatabaseService.incrementGameView(id);
       incrementViews(fetchedGame.title || 'Unknown Game');
     } catch (error: any) {
       console.error("Error fetching game:", error);

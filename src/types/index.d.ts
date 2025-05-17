@@ -55,12 +55,49 @@ export interface AuthContextType {
   isAdmin: () => boolean;
 }
 
-// Re-export WalletTransaction from additional types
-import type { WalletTransaction as WT, GameCategory, GameProvider, GameLaunchOptions } from './additional';
-export type { WT as WalletTransaction };
-export type { GameCategory }; 
-export type { GameProvider }; 
-export type { GameLaunchOptions }; 
+// Export the types from additional.ts
+export { GameCategory, GameProvider, GameLaunchOptions } from './additional';
+export { WalletTransaction } from './additional';
+
+export interface Wallet {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
+
+  // Added fields based on walletService mapping
+  balance_bonus_rollover?: number;
+  balance_deposit_rollover?: number;
+  balance_withdrawal?: number;
+  refer_rewards?: number;
+  hide_balance?: boolean;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+  last_won?: number;
+  last_lose?: number;
+  vip_points?: number;
+  deposit_limit_daily?: number;
+  deposit_limit_weekly?: number;
+  deposit_limit_monthly?: number;
+  exclusion_until?: string | null;
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_period?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WalletResponse {
+  data: Wallet | null;
+  error: string | null;
+}
 
 export interface Game {
   id: string;
@@ -129,41 +166,6 @@ export interface GamesContextType {
   incrementGameView: (gameId: string) => Promise<void>;
 }
 
-export interface Wallet {
-  id: string;
-  userId: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  vipLevel: number;
-  bonusBalance: number;
-  cryptoBalance: number;
-  demoBalance: number;
-  isActive: boolean;
-
-  // Added fields based on walletService mapping
-  balance_bonus_rollover?: number;
-  balance_deposit_rollover?: number;
-  balance_withdrawal?: number;
-  refer_rewards?: number;
-  hide_balance?: boolean;
-  total_bet?: number;
-  total_won?: number;
-  total_lose?: number;
-  last_won?: number;
-  last_lose?: number;
-  vip_points?: number;
-  deposit_limit_daily?: number;
-  deposit_limit_weekly?: number;
-  deposit_limit_monthly?: number;
-  exclusion_until?: string | null;
-  time_reminder_enabled?: boolean;
-  reminder_interval_minutes?: number;
-  exclusion_period?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export interface GameFilters {
   category?: string;
   provider?: string;
@@ -179,10 +181,5 @@ export interface GameFilters {
 export interface GameResponse {
   data: Game[];
   count: number;
-  error: string | null;
-}
-
-export interface WalletResponse {
-  data: Wallet | null;
   error: string | null;
 }

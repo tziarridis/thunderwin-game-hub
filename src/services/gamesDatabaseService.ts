@@ -1,6 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Game } from "@/types";
-import { GameCategory, GameProvider } from "@/types";
+import { GameCategory, GameProvider } from "@/types/additional";
 import { toast } from "sonner";
 
 // Helper function to map Supabase game data to our Game type
@@ -283,8 +284,8 @@ export const gamesDatabaseService = {
 
   async incrementGameView(gameId: string): Promise<void> {
     try {
-      // Ensure the RPC function name and parameters match your Supabase setup
-      const { error } = await supabase.rpc('increment_game_view', { game_id_param: gameId }); // Adjust 'game_id_param' if necessary
+      // Ensure the RPC function name matches your Supabase setup
+      const { error } = await supabase.rpc('increment_game_view', { game_id: gameId });
       if (error) throw error;
     } catch (error: any) {
       console.error(`Error incrementing view for game ${gameId}:`, error);

@@ -62,4 +62,3 @@ declare module "." {
     isLive?: boolean;
   }
 }
-

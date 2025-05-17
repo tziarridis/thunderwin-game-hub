@@ -40,7 +40,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       
       // Request account access
       const accounts = await metamaskService.connectToMetaMask();
-      if (accounts.length === 0) {
+      if (!accounts) {
         throw new Error("Please connect to MetaMask.");
       }
       
@@ -64,7 +64,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       }
       
       const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
-      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount, user.id);
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount.toString(), user.id);
       
       if (txHash) {
         // Refresh user's wallet balance after successful transaction

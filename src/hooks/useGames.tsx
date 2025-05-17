@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-// Use types from index.d.ts
-import { Game, GameProvider, GameCategory, GamesContextType } from '@/types'; 
+import { Game } from '@/types'; 
+import { GameProvider, GameCategory, GamesContextType } from '@/types';
 import { GameLaunchOptions } from '@/types';
 import { gamesDatabaseService } from '@/services/gamesDatabaseService';
 import { gameAggregatorService } from '@/services/gameAggregatorService';

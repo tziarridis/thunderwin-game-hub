@@ -54,7 +54,9 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
     
     try {
       // Handle the potential issue with setupMetaMaskListeners
-      metamaskService.setupMetaMaskListeners();
+      metamaskService.setupMetaMaskListeners(() => {
+        checkMetaMaskStatus();
+      });
     } catch (error) {
       console.error("Error setting up MetaMask listeners:", error);
     }
@@ -67,7 +69,9 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
   const fetchEthBalance = async (address: string) => {
     try {
       const balance = await metamaskService.getBalance(address);
-      setEthBalance(balance);
+      if (balance) {
+        setEthBalance(parseFloat(balance));
+      }
     } catch (error) {
       console.error("Error fetching ETH balance:", error);
     }
@@ -83,13 +87,13 @@ const MetaMaskWallet = ({ onConnected, onDisconnected }: MetaMaskWalletProps) =>
     
     try {
       const accounts = await metamaskService.requestAccounts();
-      if (accounts.length > 0) {
+      if (accounts) {
         setIsConnected(true);
-        setAccountAddress(accounts[0]);
-        fetchEthBalance(accounts[0]);
+        setAccountAddress(accounts);
+        fetchEthBalance(accounts);
         
         if (onConnected) {
-          onConnected(accounts[0]);
+          onConnected(accounts);
         }
         
         toast.success("MetaMask wallet connected successfully!");

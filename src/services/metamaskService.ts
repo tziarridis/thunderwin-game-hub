@@ -5,7 +5,9 @@ import { toast } from 'sonner';
 // Declare MetaMask window type
 declare global {
   interface Window {
-    ethereum?: ethers.providers.ExternalProvider;
+    ethereum?: ethers.providers.ExternalProvider & {
+      on?: (event: string, callback: () => void) => void;
+    };
   }
 }
 
@@ -124,14 +126,14 @@ export const metamaskService = {
     if (!this.isInstalled()) return;
     
     const ethereum = window.ethereum;
-    if (!ethereum) return;
+    if (!ethereum || !ethereum.on) return;
     
     // Add listeners for account changes
-    ethereum.on?.('accountsChanged', () => {
+    ethereum.on('accountsChanged', () => {
       if (callback) callback();
     });
     
-    ethereum.on?.('chainChanged', () => {
+    ethereum.on('chainChanged', () => {
       if (callback) callback();
     });
   },
