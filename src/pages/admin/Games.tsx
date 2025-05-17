@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Search, 
   Plus, 
@@ -14,74 +14,60 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Game } from "@/types";
-import { useToast } from "@/components/ui/use-toast";
+import { Game, DbGame } from "@/types"; // Use DbGame for form interactions
+import { useToast } from "@/components/ui/use-toast"; // Ensure this path is correct, might be src/hooks/use-toast
 import { useNavigate } from "react-router-dom";
 import GameForm from "@/components/admin/GameForm";
 import { useGames } from "@/hooks/useGames";
+import { z } from "zod"; // For form data type if needed
+
+// Inferring GameForm's expected data type from its schema might be useful
+// This depends on the actual GameForm's schema. For now, we use Partial<DbGame>.
+// type GameFormData = z.infer<typeof gameFormSchema>; // If gameFormSchema is exported from GameForm
 
 const AdminGames = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  // filteredGames from useGames is already sufficient
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<Game | null>(null);
+  const [selectedGameForEdit, setSelectedGameForEdit] = useState<Partial<DbGame> | undefined>(undefined);
   const gamesPerPage = 10;
-  const { toast } = useToast();
+  // const { toast } = useToast(); // toast is provided by sonner via useGames
   const navigate = useNavigate();
   
-  // Use our custom hook
   const { 
-    games, 
+    games, // This is of type Game[]
+    filteredGames: contextFilteredGames, // Renaming to avoid conflict with local state if any
     loading, 
-    totalGames,
-    addGame,
-    updateGame,
-    deleteGame
+    // totalGames, // This was an optional field, use games.length or contextFilteredGames.length
+    providers,
+    categories,
+    addGame, // Expects (gameData: Partial<DbGame>)
+    updateGame, // Expects (gameId: string, gameData: Partial<DbGame>)
+    deleteGame,
+    filterGames: contextFilterGames // Renaming to avoid conflict
   } = useGames();
   
-  // Helper function to get provider name
-  const getProviderName = (provider: string | { name?: string } | undefined): string => {
-    if (!provider) return 'Unknown';
-    if (typeof provider === 'string') return provider;
-    return provider.name || 'Unknown';
-  };
-  
-  // Update filtered games when games change
   useEffect(() => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const results = games.filter(game => 
-        game.title.toLowerCase().includes(query) || 
-        getProviderName(game.provider).toLowerCase().includes(query) ||
-        game.id.includes(query)
-      );
-      setFilteredGames(results);
-    } else {
-      setFilteredGames(games);
-    }
-  }, [games, searchQuery]);
+    contextFilterGames(searchQuery);
+  }, [searchQuery, contextFilterGames]);
+
+  const localFilteredGames = contextFilteredGames; // Use the filtered games from context
+
+  const getProviderName = (providerSlug: string | undefined): string => {
+    if (!providerSlug) return 'Unknown';
+    const provider = providers.find(p => p.slug === providerSlug);
+    return provider?.name || providerSlug; // Fallback to slug if name not found
+  };
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    
-    if (query) {
-      const results = games.filter(game => 
-        game.title.toLowerCase().includes(query) || 
-        getProviderName(game.provider).toLowerCase().includes(query) ||
-        game.id.includes(query)
-      );
-      setFilteredGames(results);
-    } else {
-      setFilteredGames(games);
-    }
-    
-    setCurrentPage(1); // Reset to first page on new search
+    setSearchQuery(e.target.value);
+    setCurrentPage(1); 
   };
   
+  // ... keep existing code (handleSelectRow, handleSelectAll, handleViewGame)
   const handleSelectRow = (gameId: string) => {
     if (selectedRows.includes(gameId)) {
       setSelectedRows(selectedRows.filter(id => id !== gameId));
@@ -91,7 +77,7 @@ const AdminGames = () => {
   };
   
   const handleSelectAll = () => {
-    if (selectedRows.length === currentGames.length) {
+    if (selectedRows.length === currentGames.length && currentGames.length > 0) {
       setSelectedRows([]);
     } else {
       setSelectedRows(currentGames.map(game => game.id));
@@ -99,56 +85,67 @@ const AdminGames = () => {
   };
   
   const handleViewGame = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`);
+    navigate(`/casino/game/${gameId}`); // Make sure this route exists and GamePage can handle it
   };
   
-  const handleEditGame = (game: Game) => {
-    setSelectedGame(game);
+  const handleEditGame = (game: Game) => { // Game from the table is of type Game
+    // We need to find the corresponding DbGame or map Game to Partial<DbGame>
+    // For simplicity, assuming GameForm can handle Game type or we fetch DbGame by ID.
+    // Or, useGames provides a getDbGameById if available.
+    // For now, we'll pass the Game object and GameForm's initialValues will map it.
+    // The GameForm expects Partial<DbGame> for initialValues.
+    // We need a way to get the full DbGame data or ensure Game has all necessary fields.
+    // Best: fetch the full DbGame for editing or ensure GameForm can take Game and map it.
+    // The provided GameForm takes Partial<DbGame>.
+    // Let's assume we map Game to Partial<DbGame> for editing.
+    const gameToEdit: Partial<DbGame> = {
+        ...game, // Spread Game object
+        // category_slugs is already string[] in Game type, so it's fine.
+        // Ensure all DbGame fields expected by GameForm are here.
+        // Game.provider is string (name/slug), DbGame.provider_slug is string.
+        // GameForm takes provider_slug. Game.provider_slug should be used if available.
+        provider_slug: game.provider_slug || game.provider, // Adjust as needed
+        title: game.title, // GameForm expects 'title'
+        // game_code might be on Game object (game.game_code)
+        // image_url might be on Game object (game.image)
+        image_url: game.image,
+        // cover is on Game object
+        // description is on Game object
+        // rtp is on Game object
+        // launch_url might be on Game object
+    };
+    setSelectedGameForEdit(gameToEdit);
     setIsEditDialogOpen(true);
   };
   
   const handleDeleteGame = async (gameId: string) => {
     if (window.confirm("Are you sure you want to delete this game?")) {
-      try {
-        await deleteGame(gameId);
+      const success = await deleteGame(gameId); // deleteGame returns boolean
+      if (success) {
         setSelectedRows(selectedRows.filter(id => id !== gameId));
-      } catch (error) {
-        console.error("Failed to delete game:", error);
       }
     }
   };
   
-  const handleAddGame = async (gameData: Game | Omit<Game, 'id'>) => {
-    try {
-      if ('id' in gameData) {
-        await updateGame(gameData as Game);
-      } else {
-        await addGame(gameData);
-      }
+  // GameForm's onSubmit expects (values: z.infer<typeof formSchema>)
+  // which aligns with Partial<DbGame> structure from the schema.
+  const handleFormSubmit = async (values: Partial<DbGame>) => {
+    if (isAddDialogOpen) {
+      await addGame(values);
       setIsAddDialogOpen(false);
-    } catch (error) {
-      console.error("Failed to add game:", error);
-    }
-  };
-  
-  const handleUpdateGame = async (gameData: Game | Omit<Game, 'id'>) => {
-    try {
-      if ('id' in gameData) {
-        await updateGame(gameData as Game);
-      } else {
-        await addGame(gameData);
-      }
+    } else if (isEditDialogOpen && selectedGameForEdit?.id) {
+      await updateGame(selectedGameForEdit.id, values);
       setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error("Failed to update game:", error);
     }
+    setSelectedGameForEdit(undefined); // Clear selected game
   };
+
 
   // Calculate pagination
   const indexOfLastGame = currentPage * gamesPerPage;
   const indexOfFirstGame = indexOfLastGame - gamesPerPage;
-  const currentGames = filteredGames.slice(indexOfFirstGame, indexOfLastGame);
-  const totalPages = Math.ceil(filteredGames.length / gamesPerPage);
+  const currentGames = localFilteredGames.slice(indexOfFirstGame, indexOfLastGame);
+  const totalPages = Math.ceil(localFilteredGames.length / gamesPerPage);
 
   return (
     <div className="py-8 px-4">
@@ -160,9 +157,12 @@ const AdminGames = () => {
             <Filter className="mr-2 h-4 w-4" />
             Filter
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
+            setIsAddDialogOpen(isOpen);
+            if (!isOpen) setSelectedGameForEdit(undefined); // Clear form on close
+          }}>
             <DialogTrigger asChild>
-              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
+              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black" onClick={() => setSelectedGameForEdit(undefined)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Game
               </Button>
@@ -171,7 +171,12 @@ const AdminGames = () => {
               <DialogHeader>
                 <DialogTitle>Add New Game</DialogTitle>
               </DialogHeader>
-              <GameForm onSubmit={handleAddGame} />
+              <GameForm 
+                onSubmit={handleFormSubmit} 
+                providers={providers} 
+                categories={categories} 
+                loading={loading}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -190,7 +195,7 @@ const AdminGames = () => {
             </div>
           </div>
         </div>
-        
+        {/* ... other stats cards ... */}
         <div className="thunder-card p-4">
           <div className="flex justify-between items-center">
             <div>
@@ -234,7 +239,7 @@ const AdminGames = () => {
       
       {/* Games Table */}
       <div className="thunder-card overflow-hidden">
-        {loading ? (
+        {loading && currentGames.length === 0 ? ( // Show loader if loading and no games yet
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
           </div>
@@ -250,6 +255,7 @@ const AdminGames = () => {
                         className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
                         checked={selectedRows.length === currentGames.length && currentGames.length > 0}
                         onChange={handleSelectAll}
+                        disabled={currentGames.length === 0}
                       />
                     </div>
                   </th>
@@ -260,14 +266,15 @@ const AdminGames = () => {
                     Provider
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Category
+                    Categories
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     RTP
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
+                  {/* Bet Range was removed from Game type, can remove column or add to type */}
+                  {/* <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     Bet Range
-                  </th>
+                  </th> */}
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     Status
                   </th>
@@ -290,7 +297,7 @@ const AdminGames = () => {
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-white/10">
-                          <img src={game.image} alt={game.title} className="h-10 w-10 object-cover" />
+                          <img src={game.image || '/placeholder.svg'} alt={game.title} className="h-10 w-10 object-cover" />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium">{game.title}</div>
@@ -299,26 +306,25 @@ const AdminGames = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {getProviderName(game.provider)}
+                      {/* Game.provider is slug, map to name if possible */}
+                      {getProviderName(game.provider_slug || game.provider)}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">{game.category}</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp}%</td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      ${game.minBet} - ${game.maxBet}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">
+                      {game.category_slugs?.join(', ') || game.category || 'N/A'}
                     </td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp ? `${game.rtp}%` : 'N/A'}</td>
+                    {/* <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      ${game.minBet} - ${game.maxBet} // Re-add if minBet/maxBet are on Game type
+                    </td> */}
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        game.isNew 
-                          ? 'bg-blue-100 text-blue-800' 
-                          : game.isPopular 
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : 'bg-green-100 text-green-800'
+                        game.status === 'active' 
+                          ? 'bg-green-100 text-green-800' 
+                          : game.status === 'inactive'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800' // for maintenance or other statuses
                       }`}>
-                        {game.isNew 
-                          ? 'New' 
-                          : game.isPopular 
-                            ? 'Popular' 
-                            : 'Active'}
+                        {game.status || 'N/A'}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -357,13 +363,14 @@ const AdminGames = () => {
         )}
         
         {/* Pagination */}
+        {/* ... keep existing pagination JSX ... */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
           <div className="flex-1 flex justify-between sm:hidden">
             <Button 
               variant="outline" 
               size="sm"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              disabled={currentPage === 1 || totalPages === 0}
             >
               Previous
             </Button>
@@ -371,7 +378,7 @@ const AdminGames = () => {
               variant="outline" 
               size="sm"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              disabled={currentPage === totalPages || totalPages === 0}
             >
               Next
             </Button>
@@ -379,11 +386,11 @@ const AdminGames = () => {
           <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div>
               <p className="text-sm text-white/60">
-                Showing <span className="font-medium">{indexOfFirstGame + 1}</span> to{' '}
+                Showing <span className="font-medium">{localFilteredGames.length > 0 ? indexOfFirstGame + 1 : 0}</span> to{' '}
                 <span className="font-medium">
-                  {Math.min(indexOfLastGame, filteredGames.length)}
+                  {Math.min(indexOfLastGame, localFilteredGames.length)}
                 </span>{' '}
-                of <span className="font-medium">{filteredGames.length}</span> results
+                of <span className="font-medium">{localFilteredGames.length}</span> results
               </p>
             </div>
             <div>
@@ -393,13 +400,12 @@ const AdminGames = () => {
                   size="icon" 
                   className="rounded-l-md"
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || totalPages === 0}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Show pages around current page
                   let pageNum;
                   if (totalPages <= 5) {
                     pageNum = i + 1;
@@ -410,11 +416,12 @@ const AdminGames = () => {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
+                  if (pageNum > totalPages || pageNum < 1) return null; // Avoid rendering invalid page numbers
                   
                   return (
                     <Button 
                       key={pageNum}
-                      variant="outline" 
+                      variant={currentPage === pageNum ? "default" : "outline"} 
                       className={currentPage === pageNum ? "bg-white/10" : ""}
                       onClick={() => setCurrentPage(pageNum)}
                     >
@@ -428,7 +435,7 @@ const AdminGames = () => {
                   size="icon" 
                   className="rounded-r-md"
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -439,15 +446,21 @@ const AdminGames = () => {
       </div>
       
       {/* Edit Game Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
+        setIsEditDialogOpen(isOpen);
+        if (!isOpen) setSelectedGameForEdit(undefined); // Clear form on close
+      }}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Edit Game</DialogTitle>
           </DialogHeader>
-          {selectedGame && (
+          {selectedGameForEdit && ( // ensure selectedGameForEdit is not undefined
             <GameForm 
-              onSubmit={handleUpdateGame} 
-              initialData={selectedGame}
+              onSubmit={handleFormSubmit} 
+              initialValues={selectedGameForEdit} // Changed from initialData
+              providers={providers}
+              categories={categories}
+              loading={loading}
             />
           )}
         </DialogContent>

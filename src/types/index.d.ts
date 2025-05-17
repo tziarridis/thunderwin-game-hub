@@ -143,6 +143,7 @@ export interface Game {
   maxBet?: number;
   jackpot?: boolean; 
   releaseDate?: string; // Added to accommodate mock-games.ts
+  features?: string[]; // from additional.ts Game augmentation
 }
 
 // Updated GameLaunchOptions from additional.ts (ensure it's consistent)
@@ -304,11 +305,12 @@ export interface QueryOptions {
   search?: string;
 }
 
+// Updated DbGame interface
 export interface DbGame {
   id: string;
   title: string; // Changed from game_name to align with Game type and usage
   provider_slug: string;
-  category_slugs: string[]; // Ensure this is string[]
+  category_slugs: string[] | string | null; // Made flexible to handle DB variations
   image_url?: string;
   cover?: string;
   description?: string;
@@ -349,7 +351,7 @@ export interface GameToGameTag {
   tag_id: string;
 }
 
-// Ensure Affiliate, Promotion, VipLevel, UserProfileData are exported
+// Updated Affiliate interface
 export interface Affiliate {
   id: string;
   userId: string; // Assuming this links to your User model
@@ -362,19 +364,20 @@ export interface Affiliate {
   commission_paid?: number; // Total commission paid out
   createdAt: string;
   updatedAt?: string;
-  // potentially add campaign_id if you have multiple campaigns per affiliate
   name?: string; // Added to fix Affiliates.tsx
   email?: string; // Added to fix Affiliates.tsx
-  status?: 'active' | 'pending' | 'rejected'; // Added to fix Affiliates.tsx
+  status?: 'active' | 'pending' | 'rejected' | 'suspended'; // Added 'suspended'
   totalCommissions?: number; // Added to fix Affiliates.tsx
 }
 
+// Updated Promotion interface
 export interface Promotion {
   id: string;
   title: string;
   description: string;
-  imageUrl?: string;
-  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other';
+  imageUrl?: string; // Use imageUrl consistently
+  promotionType: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other'; // Renamed from 'type'
+  category: string; // For UI categorization and filtering
   bonusPercentage?: number; // For deposit_bonus
   maxBonusAmount?: number; // For deposit_bonus
   freeSpinsCount?: number; // For free_spins
@@ -390,6 +393,7 @@ export interface Promotion {
   promoCode?: string;
   usageLimit?: number; // How many times a promotion can be claimed in total
   usageLimitPerUser?: number; // How many times one user can claim
+  terms?: string; // Added as it's used in Promotions.tsx mock data
 }
 
 export interface VipLevel {
@@ -431,4 +435,62 @@ export interface GameSession {
   total_bet_amount?: number;
   total_win_amount?: number;
   // Add other relevant session fields
+}
+
+// Added KYC Types
+export type KycStatus = 'not_submitted' | 'pending' | 'verified' | 'rejected' | 'resubmit_required';
+
+export interface KycDocument {
+  id: string;
+  userId: string;
+  documentType: 'id_card' | 'passport' | 'driver_license' | 'utility_bill' | 'bank_statement';
+  documentFrontUrl?: string;
+  documentBackUrl?: string; // For ID cards, driver licenses
+  selfieUrl?: string;
+  status: KycStatus;
+  rejectionReason?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string; // Admin user ID
+}
+
+export interface KycRequest {
+  id: string;
+  userId: string;
+  status: KycStatus;
+  documents: KycDocument[]; // Or references to document IDs
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Add 'name' to User interface
+export interface User {
+  id: string;
+  email: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+  name?: string; // Added optional name
+  avatar?: string;
+  role: 'user' | 'admin' | 'moderator';
+  isActive: boolean; 
+  createdAt: string;
+  updatedAt?: string;
+  lastLogin?: string;
+  balance?: number; 
+  currency?: string; 
+  vipLevel?: number; 
+  country?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  birthDate?: string;
+  kycStatus?: KycStatus; // Use the defined KycStatus type
+  twoFactorEnabled?: boolean;
+  emailVerified?: boolean; 
+  preferences?: UserPreferences;
+  referralCode?: string;
+  referredBy?: string;
 }

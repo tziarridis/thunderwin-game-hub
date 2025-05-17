@@ -22,65 +22,52 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Game, GameProvider, GameCategory, DbGame } from '@/types';
-// import { gameProviderService } from '@/services/gameProviderService'; // Not used directly
-// import { gameCategoryService } from '@/services/gameCategoryService'; // Not used directly
+import { GameProvider, GameCategory, DbGame } from '@/types';
 import { toast } from 'sonner';
 import { Checkbox } from "@/components/ui/checkbox"
-// import { cn } from "@/lib/utils" // Not used
-// import { ImageIcon } from 'lucide-react'; // Not used
-// import {
-//   Popover,
-//   PopoverContent,
-//   PopoverTrigger,
-// } from "@/components/ui/popover" // Not used
-// import { Calendar } from "@/components/ui/calendar" // Not used
-// import { format } from "date-fns" // Not used
 
 interface GameFormProps {
   onSubmit: (values: z.infer<typeof formSchema>) => Promise<void>;
-  initialValues?: Partial<DbGame>;
+  initialValues?: Partial<DbGame>; // This is what AdminGames.tsx passes as selectedGame (which is Game, should be DbGame for consistency or mapped)
   providers: GameProvider[];
   categories: GameCategory[];
   loading?: boolean;
 }
 
 const formSchema = z.object({
-  title: z.string().min(2, { // Changed from game_name to title
+  title: z.string().min(2, { 
     message: "Game title must be at least 2 characters.",
   }),
   game_code: z.string().optional(),
-  provider_slug: z.string().min(1, { // Allow empty if not required, or min(2) if it is
+  provider_slug: z.string().min(1, { 
     message: "Provider is required",
   }),
-  category_slugs: z.array(z.string()).optional().default([]), // Ensure it's an array
-  image_url: z.string().optional(),
-  cover: z.string().optional(),
+  category_slugs: z.array(z.string()).optional().default([]),
+  image_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+  cover: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
   description: z.string().optional(),
   rtp: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number().optional()
+    (val) => (val === "" || val === null || val === undefined ? undefined : parseFloat(String(val))),
+    z.number().min(0).max(100).optional()
   ),
   is_popular: z.boolean().default(false).optional(),
   is_new: z.boolean().default(false).optional(),
   is_featured: z.boolean().default(false).optional(),
   show_home: z.boolean().default(false).optional(),
-  status: z.enum(['active', 'inactive', 'maintenance']).default('active').optional(), // Added 'maintenance'
-  launch_url: z.string().optional(), // Added launch_url
+  status: z.enum(['active', 'inactive', 'maintenance']).default('active').optional(),
+  launch_url: z.string().url({ message: "Please enter a valid URL for launch URL." }).optional().or(z.literal('')),
 });
 
 const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers, categories, loading }) => {
-  // const [isImagePopoverOpen, setIsImagePopoverOpen] = useState(false); // Not used
-  // const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date()); // Not used
 
   const transformInitialValues = (values?: Partial<DbGame>): z.infer<typeof formSchema> => {
     let categorySlugsArray: string[] = [];
-    if (values?.category_slugs) {
-        if (typeof values.category_slugs === 'string') {
-            categorySlugsArray = values.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
-        } else if (Array.isArray(values.category_slugs)) {
-            categorySlugsArray = values.category_slugs.filter(s => typeof s === 'string');
-        }
+    const rawCategorySlugs = values?.category_slugs;
+
+    if (typeof rawCategorySlugs === 'string') {
+        categorySlugsArray = rawCategorySlugs.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (Array.isArray(rawCategorySlugs)) {
+        categorySlugsArray = rawCategorySlugs.filter(s => typeof s === 'string');
     }
 
     return {
@@ -91,7 +78,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
       image_url: values?.image_url || '',
       cover: values?.cover || '',
       description: values?.description || '',
-      rtp: values?.rtp || undefined, // Ensure it's number or undefined
+      rtp: values?.rtp !== undefined ? Number(values.rtp) : undefined,
       is_popular: values?.is_popular || false,
       is_new: values?.is_new || false,
       is_featured: values?.is_featured || false,
@@ -104,17 +91,12 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: transformInitialValues(initialValues),
-    mode: "onChange",
+    mode: "onChange", // Or "onBlur" or "onSubmit"
   });
   
-  // const { watch, setValue } = form; // watch and setValue not directly used here, but kept if needed later
-  // const providerInputValue = watch('provider_slug') || '';
-  // const gameCodeInputValue = watch('game_code') || '';
-
   useEffect(() => {
-    if (initialValues) {
-      form.reset(transformInitialValues(initialValues));
-    }
+    // Reset form if initialValues change (e.g., when switching from add to edit mode or editing different items)
+    form.reset(transformInitialValues(initialValues));
   }, [initialValues, form]);
 
   return (
@@ -122,7 +104,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <FormField
           control={form.control}
-          name="title" // Changed from game_name
+          name="title"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Game Title</FormLabel>
@@ -143,9 +125,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
                 <Input
                   placeholder="Unique game code (e.g. from provider)"
                   {...field}
-                  // Example of transforming value if needed:
-                  // value={field.value || ''} 
-                  // onChange={(e) => field.onChange(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                  value={field.value || ''} 
                 />
               </FormControl>
               <FormMessage />
@@ -186,7 +166,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
                 {categories.map((category) => (
                   <div key={category.id} className="flex items-center space-x-2">
                     <Checkbox
-                      id={`category-${category.slug}`} // Ensure unique ID
+                      id={`category-${category.slug}`}
                       checked={field.value?.includes(category.slug)}
                       onCheckedChange={(checked) => {
                         const currentValues = Array.isArray(field.value) ? field.value : [];
@@ -260,10 +240,11 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
               <FormControl>
                 <Input
                   type="number"
-                  placeholder="Enter RTP percentage"
+                  placeholder="Enter RTP percentage (0-100)"
                   {...field}
                   value={field.value === undefined ? '' : field.value}
                   onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                  step="0.01"
                 />
               </FormControl>
               <FormMessage />
@@ -368,7 +349,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers,
           )}
         />
         <Button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : "Submit"}
+          {loading ? "Submitting..." : (initialValues?.id ? "Update Game" : "Add Game")}
         </Button>
       </form>
     </Form>
