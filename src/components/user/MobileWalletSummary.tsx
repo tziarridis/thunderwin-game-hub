@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { RefreshCw } from 'lucide-react';
-import { walletService, mapDbWalletToWallet } from '@/services/walletService'; // Import mapDbWalletToWallet
-import { Wallet } from '@/types'; // Wallet type from consolidated types
+import { walletService, mapDbWalletToWallet } from '@/services/walletService';
+import { Wallet, DbWallet } from '@/types'; 
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -22,7 +22,7 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
     if (user?.id) {
       fetchWalletData();
     }
-  }, [user?.id, user?.balance, user?.currency]); // Add user.balance and user.currency as dependencies
+  }, [user?.id, user?.balance, user?.currency]);
 
   const fetchWalletData = async () => {
     if (!user?.id) return;
@@ -31,8 +31,9 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
       setLoading(true);
       const walletResponse = await walletService.getWalletByUserId(user.id);
       
-      if (walletResponse.data) {
-        const walletData = mapDbWalletToWallet(walletResponse.data); // Use imported function
+      if (walletResponse.success && walletResponse.data) {
+        const singleDbWallet = walletResponse.data as DbWallet; // Assuming getWalletByUserId returns single
+        const walletData = mapDbWalletToWallet(singleDbWallet);
         setWallet(walletData);
         console.log("Mobile wallet data loaded:", walletData);
       } else {

@@ -8,21 +8,21 @@ export interface User {
   displayName?: string;
   avatar?: string;
   role: 'user' | 'admin' | 'moderator';
-  isActive: boolean;
+  isActive: boolean; // Maps to 'status' in UserForm
   createdAt: string;
   updatedAt?: string;
   lastLogin?: string;
-  balance?: number;
-  currency?: string;
-  vipLevel?: number;
+  balance?: number; // This might come from Wallet, not directly on User model
+  currency?: string; // This might come from Wallet
+  vipLevel?: number; // This might come from Wallet or a separate VIP table
   country?: string;
   city?: string;
   address?: string;
   phone?: string;
   birthDate?: string;
-  kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted';
+  kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted'; // Maps to 'isVerified'
   twoFactorEnabled?: boolean;
-  emailVerified?: boolean;
+  emailVerified?: boolean; // Alternative for 'isVerified'
   preferences?: UserPreferences;
   referralCode?: string;
   referredBy?: string;
@@ -31,13 +31,15 @@ export interface User {
 export interface AuthUser {
   id: string;
   email: string;
-  username?: string;
-  role: 'user' | 'admin' | 'moderator';
+  username?: string; // Or displayName
+  role: 'user' | 'admin' | 'moderator'; // For isAdmin
   displayName?: string;
   avatar?: string;
-  balance?: number;
-  currency?: string;
-  vipLevel?: number;
+  balance?: number; // From associated wallet
+  currency?: string; // From associated wallet
+  vipLevel?: number; // From associated wallet
+  kycStatus?: 'pending' | 'verified' | 'rejected' | 'not_submitted'; // For isVerified
+  // Add other relevant fields from User that are needed in auth context
 }
 
 export interface Profile {
@@ -67,7 +69,7 @@ export interface GameProvider {
   name: string;
   slug: string;
   logo?: string;
-  isActive: boolean;
+  isActive: boolean; // Changed from status for consistency if needed
   order: number;
   games_count?: number;
 }
@@ -80,8 +82,8 @@ export interface GameCategory {
   icon?: string;
   image?: string;
   order?: number;
-  isActive?: boolean; // Make isActive consistent
-  status: "active" | "inactive"; // Ensure this matches DB service usage
+  isActive?: boolean;
+  status: "active" | "inactive";
   show_home?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -89,13 +91,14 @@ export interface GameCategory {
 
 export interface Game {
   id: string;
-  title: string;
-  provider: string; // This is often the provider name or slug
-  provider_slug?: string; // Explicit slug
-  category?: string; // Consider making this category slug or ID array
-  category_slugs?: string[]; // For multiple categories
+  title: string; // Use 'title' consistently instead of 'name' for games
+  name?: string; // Optional alias if needed for some backend structures
+  provider: string;
+  provider_slug?: string;
+  category?: string;
+  category_slugs?: string[];
   image?: string;
-  cover?: string; // Or image
+  cover?: string;
   description?: string;
   tags?: string[];
   rtp?: number;
@@ -105,13 +108,13 @@ export interface Game {
   isFavorite?: boolean;
   status?: 'active' | 'inactive' | 'maintenance';
   game_id?: string; // External game ID from provider/aggregator
-  gameCode?: string; // Alternative external ID
-  slug?: string; // Game's own slug
+  gameCode?: string; // Alternative external ID, often used for launching
+  slug?: string; // Game's own slug for URL routing
   launch_url?: string;
   is_featured?: boolean;
   show_home?: boolean;
-  game_type?: string; // e.g. slots, table, live
-  technology?: string; // e.g. html5
+  game_type?: string;
+  technology?: string;
   distribution?: string;
   game_server_url?: string;
   has_lobby?: boolean;
@@ -122,14 +125,19 @@ export interface Game {
   views?: number;
   created_at?: string;
   updated_at?: string;
+  // Fields potentially used in forms or cards
+  minBet?: number;
+  maxBet?: number;
+  jackpot?: boolean; // For GameForm
 }
 
 export interface GameLaunchOptions {
-  mode: 'real' | 'demo';
+  mode: 'real' | 'demo'; // Made required to match additional.ts potential fix
   currency?: string;
   platform?: 'web' | 'mobile';
   returnUrl?: string;
   language?: string;
+  playerId?: string; // Added from additional.ts for consistency
 }
 
 export interface GamesContextType {
@@ -147,13 +155,12 @@ export interface GamesContextType {
   favoriteGameIds: Set<string>;
   incrementGameView: (gameId: string) => Promise<void>;
   
-  // Added/updated based on errors
-  loading: boolean; // Consumers expect 'loading'
+  loading: boolean; 
   totalGames?: number;
   newGames?: Game[];
-  addGame?: (gameData: Partial<Game>) => Promise<Game | null>; // For admin
-  updateGame?: (gameId: string, gameData: Partial<Game>) => Promise<Game | null>; // For admin
-  deleteGame?: (gameId: string) => Promise<boolean>; // For admin
+  addGame?: (gameData: Partial<Game>) => Promise<Game | null>; 
+  updateGame?: (gameId: string, gameData: Partial<Game>) => Promise<Game | null>; 
+  deleteGame?: (gameId: string) => Promise<boolean>; 
 }
 
 
@@ -171,9 +178,9 @@ export interface Wallet {
   demoBalance?: number;
 }
 
-export interface DbWallet { // Represents wallet structure from DB
+export interface DbWallet { 
   id: string;
-  user_id: string; // Matches Supabase column
+  user_id: string; 
   balance: number;
   currency: string;
   last_transaction_date?: string;
@@ -188,11 +195,12 @@ export interface DbWallet { // Represents wallet structure from DB
 
 export interface WalletResponse {
   success: boolean;
-  data?: DbWallet | DbWallet[] | null; // Allow single or array for DbWallet
+  data?: DbWallet | null; // Changed: For single wallet fetches, data should be DbWallet or null.
+                          // If a list is possible, a different type or handling is needed.
+                          // For now, assuming single fetches like getWalletByUserId.
   error?: string | null;
   message?: string;
 }
-
 
 export interface WalletTransaction {
   id: string;
@@ -217,14 +225,15 @@ export interface WalletTransaction {
 export interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  error: Error | null;
-  login: (email: string, password: string) => Promise<AuthUser | null>;
-  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>;
+  error: Error | null; // Keep as Error object
+  login: (email: string, password: string) => Promise<AuthUser | null>; // Return AuthUser or null
+  register: (email: string, password: string, username?: string) => Promise<AuthUser | null>; // Return AuthUser or null
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<boolean>;
-  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>;
+  updateProfile: (profileData: Partial<Profile>) => Promise<Profile | null>; // Profile from types, not AuthUser for this one
   refreshWalletBalance: () => Promise<number | null>;
   isAuthenticated: boolean;
+  // deposit?: (amount: number, currency: string, paymentMethod: string) => Promise<boolean>; // Example for CardDeposit
 }
 
 export interface AppSettings {
@@ -318,4 +327,50 @@ export interface GameTag {
 export interface GameToGameTag {
   game_id: string;
   tag_id: string;
+}
+
+// Added missing types based on errors
+export interface Affiliate {
+  id: string;
+  userId: string;
+  code: string;
+  commissionRate: number;
+  clicks: number;
+  registrations: number;
+  depositingUsers: number;
+  totalCommission: number;
+  createdAt: string;
+}
+
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  type: 'deposit_bonus' | 'free_spins' | 'cashback';
+  bonusPercentage?: number;
+  maxBonusAmount?: number;
+  wageringRequirement?: number;
+  games?: string[]; // Array of game IDs or slugs
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+export interface VipLevel {
+  level: number;
+  name: string;
+  pointsRequired: number;
+  benefits: string[];
+  cashbackPercentage?: number;
+  monthlyBonus?: number;
+}
+
+export interface UserProfileData {
+    // Define the structure for UserProfileData if it's different from User or Profile
+    // For UserProfilePage.tsx
+    id: string;
+    username: string;
+    email: string;
+    // ... other fields
 }

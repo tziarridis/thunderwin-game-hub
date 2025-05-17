@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Game } from '@/types';
-import { Button } from '@/components/ui/button';
+import { useState } from "react";
+import { Game, GameLaunchOptions } from '@/types';
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,6 @@ interface GameLauncherProps {
 const GameLauncher = ({ game }: GameLauncherProps) => {
   const { launchGame } = useGames();
   const [loading, setLoading] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState('ppeur'); // Default to PP EUR as requested
   const [mode, setMode] = useState<'real' | 'demo'>('demo');
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [selectedLanguage, setSelectedLanguage] = useState("en");
@@ -24,13 +23,14 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
   const handleLaunch = async () => {
     try {
       setLoading(true);
-      await launchGame(game, {
-        providerId: selectedProvider,
+      const launchOptions: GameLaunchOptions = {
         mode,
         playerId: 'demo_player',
         language: selectedLanguage,
-        currency: selectedCurrency
-      });
+        currency: selectedCurrency,
+        platform: 'web'
+      };
+      await launchGame(game, launchOptions);
     } catch (error) {
       console.error('Error launching game:', error);
     } finally {
@@ -45,21 +45,7 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
         <CardDescription>Launch {game.title} with selected provider</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="provider">Game Provider</Label>
-          <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-            <SelectTrigger id="provider">
-              <SelectValue placeholder="Select provider" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableProviders.map(provider => (
-                <SelectItem key={provider.id} value={provider.id}>
-                  {provider.name} ({provider.currency || 'EUR'})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        
         
         <div className="space-y-2">
           <Label htmlFor="mode">Game Mode</Label>

@@ -1,9 +1,9 @@
 
-import { Game } from "."; // Assuming Game type is in src/types/index.ts
+import { Game } from "."; 
 
 export interface GameLaunchOptions {
   providerId?: string;
-  mode?: 'real' | 'demo';
+  mode: 'real' | 'demo'; // Made required
   playerId?: string;
   language?: string;
   currency?: string;

@@ -1,363 +1,171 @@
-import React, { useState } from "react";
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  LayoutDashboard,
-  Users,
-  Wallet,
-  Users2,
-  Gift,
-  Award,
-  FileCheck2,
-  BarChart2,
-  ListX,
-  HelpCircle,
-  ShieldCheck,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Gamepad2,
-  CircleDot,
-  LogOut,
-  TestTube,
-  History,
-  Package,
-  Settings2
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+  LayoutDashboard, Users, Settings, ShoppingCart, BarChart3, ShieldCheck, Gem, Gamepad2, LogOut, Tv2, Newspaper, DollarSign, Briefcase, HandCoins, PercentCircle, FileText, MessageSquareQuestion, Headset, Palette, LifeBuoy, Rocket
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-interface AdminSidebarProps {
-  collapsed: boolean;
-  setCollapsed: (collapsed: boolean) => void;
-}
 
-interface MenuItemProps {
-  icon: React.ReactNode;
-  title: string;
-  collapsed: boolean;
-  active: boolean;
-  onClick?: () => void;
-  isSubmenu?: boolean;
-}
+const adminNavItems = [
+  { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  { name: 'User Management', href: '/admin/users', icon: Users },
+  { name: 'Game Management', href: '/admin/games', icon: Gamepad2 },
+  { name: 'Transactions', href: '/admin/transactions', icon: DollarSign },
+  { name: 'Affiliate System', href: '/admin/affiliates', icon: Briefcase },
+  { name: 'Bonuses & VIP', href: '/admin/vip-bonus', icon: Gem },
+  { name: 'Promotions', href: '/admin/promotions', icon: PercentCircle },
+  { name: 'KYC Management', href: '/admin/kyc', icon: ShieldCheck },
+  { name: 'Reports & Analytics', href: '/admin/reports', icon: BarChart3 },
+  { name: 'CMS', items: [
+      { name: 'Overview', href: '/admin/cms', icon: Palette },
+      { name: 'Site Data', href: '/admin/cms/sitedata', icon: Newspaper },
+      { name: 'Banners', href: '/admin/cms/banners', icon: Tv2 },
+      { name: 'Games Mgmt (CMS)', href: '/admin/cms/games', icon: Gamepad2 },
+      { name: 'Categories', href: '/admin/cms/categories', icon: Palette},
+      // { name: 'Casino Page', href: '/admin/cms/casino', icon: Gem },
+      // { name: 'Sportsbook Page', href: '/admin/cms/sportsbook', icon: Rocket },
+    ]
+  },
+  { name: 'Casino Aggregator', href: '/admin/casino-aggregator', icon: HandCoins},
+  { name: 'Settings', href: '/admin/settings', icon: Settings },
+  { name: 'Support Tickets', href: '/admin/support', icon: Headset },
+  // { name: 'System Logs', href: '/admin/logs', icon: FileText },
+  // { name: 'Deployment Checklist', href: '/admin/deployment-checklist', icon: LifeBuoy },
 
-interface MenuGroupProps {
-  icon: React.ReactNode;
-  title: string;
-  collapsed: boolean;
-  active: boolean;
-  children: React.ReactNode;
-}
+  // PP Specific - can be hidden if not relevant
+  // { name: 'PP Integration Tester', href: '/admin/pp-tester', icon: Settings },
+  // { name: 'PP Transactions', href: '/admin/pp-transactions', icon: DollarSign },
+];
 
-const MenuItem: React.FC<MenuItemProps> = ({
-  icon,
-  title,
-  collapsed,
-  active,
-  onClick,
-  isSubmenu,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "group relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/10",
-        active ? "bg-white/5 text-white" : "text-white/60 hover:text-white",
-        isSubmenu ? "pl-8" : ""
-      )}
-    >
-      {icon}
-      {!collapsed && <span>{title}</span>}
-    </button>
-  );
-};
+const secondaryNavItems = [
+    // { name: 'API Docs', href: '#', icon: FileText },
+    // { name: 'FAQ', href: '#', icon: MessageSquareQuestion },
+];
 
-const MenuGroup: React.FC<MenuGroupProps> = ({
-  icon,
-  title,
-  collapsed,
-  active,
-  children,
-}) => {
-  const [open, setOpen] = useState(active);
 
-  return (
-    <div className="flex flex-col">
-      <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          "group relative flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-white/10",
-          active ? "bg-white/5 text-white" : "text-white/60 hover:text-white"
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {icon}
-          {!collapsed && <span>{title}</span>}
-        </div>
-        {!collapsed && (
-          <ChevronRight
-            className={cn(
-              "h-4 w-4 transition-transform duration-200",
-              open ? "rotate-90" : ""
-            )}
-          />
-        )}
-      </button>
-      {open && <div className="flex flex-col pl-2">{children}</div>}
-    </div>
-  );
-};
-
-const AdminSidebar = ({ collapsed, setCollapsed }: AdminSidebarProps) => {
-  const navigate = useNavigate();
+const AdminSidebar = () => {
   const location = useLocation();
-  const { isAuthenticated, user, logout } = useAuth();
-  const pathname = location.pathname;
-  
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-  
-  return (
-    <aside className={cn(
-      "fixed left-0 top-0 z-40 h-screen border-r border-white/10 bg-casino-thunder-dark transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
-      <div className="flex h-full flex-col justify-between overflow-y-auto">
-        {/* Logo */}
-        <div className="flex items-center justify-between border-b border-white/10 p-4">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-white">Captain</span>
-              <span className="text-xl font-bold text-casino-thunder-green">Admin</span>
-            </div>
-          )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="rounded-md p-1 hover:bg-white/10"
-          >
-            {collapsed ? (
-              <ChevronRight className="h-5 w-5 text-white" />
-            ) : (
-              <ChevronLeft className="h-5 w-5 text-white" />
-            )}
-          </button>
-        </div>
-        
-        {/* Menu */}
-        <nav className="flex flex-col gap-1 px-2 py-4">
-          {/* Dashboard */}
-          <MenuItem
-            icon={<LayoutDashboard className="h-5 w-5" />}
-            title="Dashboard"
-            collapsed={collapsed}
-            active={pathname === "/admin" || pathname === "/admin/dashboard"}
-            onClick={() => navigate("/admin/dashboard")}
-          />
-          
-          {/* Users */}
-          <MenuItem
-            icon={<Users className="h-5 w-5" />}
-            title="Users"
-            collapsed={collapsed}
-            active={pathname === "/admin/users"}
-            onClick={() => navigate("/admin/users")}
-          />
-          
-          {/* Games - Reorganized Section */}
-          <MenuGroup
-            icon={<Gamepad2 className="h-5 w-5" />}
-            title="Games"
-            collapsed={collapsed}
-            active={pathname.includes("/admin/game") || pathname.includes("/admin/aggregator") || pathname.includes("/admin/pp-")}
-          >
-            {/* Game Management */}
-            <MenuItem
-              icon={<Package className="h-4 w-4" />}
-              title="Game Management"
-              collapsed={collapsed}
-              active={pathname === "/admin/game-management"}
-              onClick={() => navigate("/admin/game-management")}
-              isSubmenu
-            />
-            
-            {/* Game Aggregators section */}
-            <MenuGroup
-              icon={<Settings2 className="h-4 w-4" />}
-              title="Aggregator Settings"
-              collapsed={collapsed}
-              active={pathname.includes("/admin/aggregator")}
-            >
-              <MenuItem
-                icon={<CircleDot className="h-4 w-4" />}
-                title="Game Aggregator"
-                collapsed={collapsed}
-                active={pathname === "/admin/game-aggregator"}
-                onClick={() => navigate("/admin/game-aggregator")}
-                isSubmenu
-              />
-              <MenuItem
-                icon={<CircleDot className="h-4 w-4" />}
-                title="Settings"
-                collapsed={collapsed}
-                active={pathname === "/admin/aggregator-settings" || pathname === "/admin/casino-aggregator-settings"}
-                onClick={() => navigate("/admin/aggregator-settings")}
-                isSubmenu
-              />
-            </MenuGroup>
-            
-            {/* Integrations section */}
-            <MenuGroup
-              icon={<TestTube className="h-4 w-4" />}
-              title="Integrations"
-              collapsed={collapsed}
-              active={pathname.includes("/admin/pp-")}
-            >
-              <MenuItem
-                icon={<CircleDot className="h-4 w-4" />}
-                title="PP Integration Tester"
-                collapsed={collapsed}
-                active={pathname === "/admin/pp-integration-tester"}
-                onClick={() => navigate("/admin/pp-integration-tester")}
-                isSubmenu
-              />
-              <MenuItem
-                icon={<History className="h-4 w-4" />}
-                title="PP Transactions"
-                collapsed={collapsed}
-                active={pathname === "/admin/pp-transactions"}
-                onClick={() => navigate("/admin/pp-transactions")}
-                isSubmenu
-              />
-            </MenuGroup>
-          </MenuGroup>
-          
-          {/* Transactions */}
-          <MenuItem
-            icon={<Wallet className="h-5 w-5" />}
-            title="Transactions"
-            collapsed={collapsed}
-            active={pathname === "/admin/transactions"}
-            onClick={() => navigate("/admin/transactions")}
-          />
-          
-          {/* Affiliates */}
-          <MenuItem
-            icon={<Users2 className="h-5 w-5" />}
-            title="Affiliates"
-            collapsed={collapsed}
-            active={pathname === "/admin/affiliates"}
-            onClick={() => navigate("/admin/affiliates")}
-          />
-          
-          {/* Promotions */}
-          <MenuItem
-            icon={<Gift className="h-5 w-5" />}
-            title="Promotions"
-            collapsed={collapsed}
-            active={pathname === "/admin/promotions"}
-            onClick={() => navigate("/admin/promotions")}
-          />
-          
-          {/* VIP & Bonuses */}
-          <MenuItem
-            icon={<Award className="h-5 w-5" />}
-            title="VIP & Bonuses"
-            collapsed={collapsed}
-            active={pathname === "/admin/vip-bonus"}
-            onClick={() => navigate("/admin/vip-bonus")}
-          />
-          
-          {/* KYC Management */}
-          <MenuItem
-            icon={<FileCheck2 className="h-5 w-5" />}
-            title="KYC Management"
-            collapsed={collapsed}
-            active={pathname === "/admin/kyc"}
-            onClick={() => navigate("/admin/kyc")}
-          />
-          
-          {/* Reports */}
-          <MenuItem
-            icon={<BarChart2 className="h-5 w-5" />}
-            title="Reports"
-            collapsed={collapsed}
-            active={pathname === "/admin/reports"}
-            onClick={() => navigate("/admin/reports")}
-          />
-          
-          {/* Logs */}
-          <MenuItem
-            icon={<ListX className="h-5 w-5" />}
-            title="Logs"
-            collapsed={collapsed}
-            active={pathname === "/admin/logs"}
-            onClick={() => navigate("/admin/logs")}
-          />
-          
-          {/* Support */}
-          <MenuItem
-            icon={<HelpCircle className="h-5 w-5" />}
-            title="Support"
-            collapsed={collapsed}
-            active={pathname === "/admin/support"}
-            onClick={() => navigate("/admin/support")}
-          />
-          
-          {/* Security */}
-          <MenuItem
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Security"
-            collapsed={collapsed}
-            active={pathname === "/admin/security"}
-            onClick={() => navigate("/admin/security")}
-          />
-          
-          {/* Settings */}
-          <MenuItem
-            icon={<Settings className="h-5 w-5" />}
-            title="Settings"
-            collapsed={collapsed}
-            active={pathname === "/admin/settings"}
-            onClick={() => navigate("/admin/settings")}
-          />
-        </nav>
-        
-        {/* User Profile */}
-        <div className="mt-auto border-t border-white/10 p-4">
-          {isAuthenticated && user ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-sm font-medium text-white">{user.name?.charAt(0) || "A"}</span>
-                  )}
-                </div>
-                {!collapsed && (
-                  <div>
-                    <div className="text-sm font-medium text-white">{user.name}</div>
-                    <div className="text-xs text-white/60">{user.email}</div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Logout Button */}
-              <button 
-                onClick={handleLogout} 
-                className="flex items-center gap-2 mt-2 px-3 py-2 rounded-md text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const UserNav = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-10 w-full justify-start text-left px-2">
+           <Avatar className="h-8 w-8 mr-2">
+            <AvatarImage src={user?.avatar || undefined} alt={user?.displayName || user?.username || ""} />
+            <AvatarFallback>{user?.displayName?.charAt(0)?.toUpperCase() || user?.username?.charAt(0)?.toUpperCase() || 'A'}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user?.displayName || user?.username}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user?.email}
+            </p>
+          </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{user?.displayName || user?.username}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user?.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/profile')}>
+          Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/settings')}>
+          Settings
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={logout}>
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+
+  const renderNavItem = (item: any, index: number) => {
+    if (item.items) { // It's a group with sub-items
+      // Check if any sub-item is active to highlight the group
+      const isGroupActive = item.items.some((subItem: any) => location.pathname.startsWith(subItem.href));
+      return (
+        <div key={index} className="px-3 py-2">
+          <h2 className={`mb-2 px-4 text-lg font-semibold tracking-tight ${isGroupActive ? 'text-casino- почти-white' : 'text-muted-foreground'}`}>
+            {item.name || 'CMS Tools'} 
+          </h2>
+          <div className="space-y-1">
+            {item.items.map((subItem: any, subIndex: number) => (
+              <Button
+                key={`${index}-${subIndex}`}
+                variant={location.pathname.startsWith(subItem.href) ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                asChild
               >
-                <LogOut className="h-5 w-5" />
-                {!collapsed && <span>Logout</span>}
-              </button>
+                <Link to={subItem.href}>
+                  <subItem.icon className="mr-2 h-4 w-4" />
+                  {subItem.name}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+    } else { // It's a single nav item
+      return (
+        <Button
+          key={index}
+          variant={location.pathname.startsWith(item.href) ? 'secondary' : 'ghost'}
+          className="w-full justify-start"
+          asChild
+        >
+          <Link to={item.href}>
+            <item.icon className="mr-2 h-4 w-4" />
+            {item.name}
+          </Link>
+        </Button>
+      );
+    }
+  };
+
+
+  return (
+    <div className="hidden lg:block border-r bg-card text-card-foreground w-72">
+      <div className="flex h-full max-h-screen flex-col">
+        <div className="flex items-center border-b px-4 py-3 h-[60px]">
+           {/* Replace with your logo or app name */}
+          <Link to="/admin/dashboard" className="flex items-center gap-2 font-semibold">
+            <Rocket className="h-6 w-6 text-casino-thunder-green" />
+            <span className="text-lg">Casino Admin</span>
+          </Link>
+        </div>
+        <ScrollArea className="flex-1 py-4">
+          <div className="px-3 py-2">
+            <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight text-muted-foreground">
+              Main Menu
+            </h2>
+            <div className="space-y-1">
+              {adminNavItems.filter(item => !item.items).map(renderNavItem)}
             </div>
-          ) : (
-            <div className="text-center text-white/60">Not authenticated</div>
-          )}
+          </div>
+          {/* Render CMS grouped items */}
+          {adminNavItems.filter(item => item.items && item.name === 'CMS').map(renderNavItem)}
+
+        </ScrollArea>
+
+        <div className="mt-auto p-4 border-t">
+          {user ? <UserNav /> : <Button className="w-full" onClick={() => navigate('/admin/login')}>Login</Button>}
         </div>
       </div>
-    </aside>
+    </div>
   );
 };
 

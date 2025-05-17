@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -6,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { walletService } from '@/services/walletService';
+import { DbWallet } from '@/types';
 
 interface AggregatorGameLauncherProps {
   game: any;
@@ -38,10 +38,11 @@ const AggregatorGameLauncher = ({
     try {
       setIsLaunching(true);
       
-      // Check wallet balance for real money play
       if (user?.id) {
         const walletResponse = await walletService.getWalletByUserId(user.id);
-        if (!walletResponse.data || walletResponse.data.balance <= 0) {
+        // Ensure walletResponse.data is not null and is a single DbWallet
+        const singleWallet = walletResponse.success && walletResponse.data ? (walletResponse.data as DbWallet) : null;
+        if (!singleWallet || singleWallet.balance <= 0) {
           toast.error("Insufficient funds. Please deposit to play.");
           setIsLaunching(false);
           return;

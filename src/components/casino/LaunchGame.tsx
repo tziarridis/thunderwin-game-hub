@@ -1,13 +1,15 @@
-
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Game } from '@/types';
-import { useGames } from '@/hooks/useGames';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { walletService } from '@/services/walletService';
-import { gameAggregatorService } from '@/services/gameAggregatorService';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Game } from "@/types";
+import { useGames } from "@/hooks/useGames";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { walletService } from "@/services/walletService";
+import { gameAggregatorService } from "@/services/gameAggregatorService";
+import { GameLaunchOptions } from "@/types";
+import { trackEvent } from "@/utils/analytics";
+import { DbWallet } from '@/types';
 
 interface LaunchGameProps {
   game: Game;
@@ -47,13 +49,14 @@ const LaunchGame = ({
       setIsLaunching(true);
       const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
       
-      // Check wallet balance for real money play
       if (mode === 'real' && isAuthenticated && user?.id) {
-        const { data: wallet, error } = await walletService.getWalletByUserId(user.id);
+        const { data: walletData, error } = await walletService.getWalletByUserId(user.id);
         if (error) throw error;
         
-        if (!wallet || wallet.balance <= 0) {
+        const singleWallet = walletData as DbWallet | null;
+        if (!singleWallet || singleWallet.balance <= 0) {
           toast.error("Insufficient funds. Please deposit to play in real money mode.");
+          setIsLaunching(false);
           return;
         }
       }
@@ -65,19 +68,14 @@ const LaunchGame = ({
         platform
       });
       
-      // Use gameAggregatorService to create the session and get the launch URL
       const response = await gameAggregatorService.createSession(
-        game.id,
+        game.id!,
         playerId,
         currency,
         platform
       );
       
       if (response.success && response.gameUrl) {
-        // Log game launch
-        console.log("Generated game URL:", response.gameUrl);
-        
-        // Open the game URL in a new window
         const gameWindow = window.open(response.gameUrl, '_blank');
         
         if (!gameWindow) {
@@ -86,11 +84,10 @@ const LaunchGame = ({
         
         toast.success(`Game launched: ${game.title}`);
         
-        // Refresh wallet balance after game launch
         if (mode === 'real' && isAuthenticated) {
           setTimeout(() => {
             refreshWalletBalance();
-          }, 5000); // Refresh balance after 5 seconds to give time for initial bet
+          }, 5000); 
         }
       } else {
         throw new Error(response.errorMessage || "Failed to generate game URL");

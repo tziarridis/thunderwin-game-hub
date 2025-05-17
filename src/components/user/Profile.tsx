@@ -1,10 +1,9 @@
-
 import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CircleDollarSign, User, Gift, Calendar } from "lucide-react";
+import { CircleDollarSign, User, Gift, Calendar, ShieldCheck } from "lucide-react"; // Added ShieldCheck
 import WalletBalance from "@/components/user/WalletBalance";
 import DepositButton from "@/components/user/DepositButton";
 import TransactionsList from "@/components/user/TransactionsList";
@@ -20,6 +19,17 @@ const Profile = () => {
     );
   }
   
+  const kycStatusText = (status?: 'pending' | 'verified' | 'rejected' | 'not_submitted') => {
+    switch (status) {
+      case 'verified': return 'Verified';
+      case 'pending': return 'Pending Verification';
+      case 'rejected': return 'Verification Rejected';
+      case 'not_submitted':
+      default:
+        return 'Not Verified';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="bg-casino-thunder-dark border-casino-thunder-gray/20">
@@ -33,13 +43,13 @@ const Profile = () => {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex flex-col items-center space-y-3">
               <Avatar className="h-24 w-24 border-2 border-casino-thunder-green">
-                <AvatarImage src={user.avatar || user.avatarUrl} />
+                <AvatarImage src={user.avatar} /> {/* Use user.avatar directly */}
                 <AvatarFallback className="bg-casino-thunder-green/20">
-                  {user.username?.substring(0, 2).toUpperCase() || 'U'}
+                  {user.displayName?.substring(0, 2).toUpperCase() || user.username?.substring(0, 2).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="text-center">
-                <h3 className="font-medium">{user.username}</h3>
+                <h3 className="font-medium">{user.displayName || user.username}</h3>
                 <p className="text-sm text-white/60">{user.email}</p>
               </div>
               <DepositButton variant="small" />
@@ -55,7 +65,8 @@ const Profile = () => {
                   </div>
                   <div>
                     <p className="text-xs text-white/60">Balance</p>
-                    <p className="font-medium">${user.balance?.toFixed(2) || '0.00'}</p>
+                    {/* Balance comes from AuthUser, which is updated by refreshWalletBalance */}
+                    <p className="font-medium">{user.currency === 'USD' ? '$' : user.currency === 'EUR' ? '€' : user.currency || '$'}{user.balance?.toLocaleString() || '0.00'}</p>
                   </div>
                 </div>
                 
@@ -71,11 +82,12 @@ const Profile = () => {
                 
                 <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
                   <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-blue-500" />
+                     {/* Using ShieldCheck for KYC status */}
+                    <ShieldCheck className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
                     <p className="text-xs text-white/60">Account Status</p>
-                    <p className="font-medium">{user.isVerified ? 'Verified' : 'Unverified'}</p>
+                    <p className="font-medium">{kycStatusText(user.kycStatus)}</p>
                   </div>
                 </div>
               </div>

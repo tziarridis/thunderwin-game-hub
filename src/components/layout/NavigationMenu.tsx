@@ -1,234 +1,150 @@
+import React from "react"
+import { Link } from "react-router-dom"
 
-import React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils"
 import {
-  NavigationMenu,
-  NavigationMenuList,
+  NavigationMenu as ShadcnNavigationMenu,
+  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import { cn } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { scrollToTop } from "@/utils/scrollUtils";
-import { Gamepad2, Trophy, Gift, HelpCircle, Zap, Heart, Users, Crown } from "lucide-react";
+} from "@/components/ui/navigation-menu"
+import { useAuth } from "@/contexts/AuthContext"
+import { Rocket } from "lucide-react"
 
-const NavigationMenuDemo = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+
+const components: { title: string; href: string; description: string }[] = [
+  {
+    title: "Slots",
+    href: "/casino/slots",
+    description: "Spin the reels on hundreds of exciting slot games.",
+  },
+  {
+    title: "Live Casino",
+    href: "/casino/live-casino",
+    description: "Experience the thrill of live dealers and real-time action.",
+  },
+  {
+    title: "Table Games",
+    href: "/casino/table-games",
+    description: "Classic casino table games like Blackjack, Roulette, and Poker.",
+  },
+  {
+    title: "Jackpots",
+    href: "/casino/jackpots",
+    description: "Play for massive progressive jackpots and win big!",
+  },
+  {
+    title: "New Games",
+    href: "/casino/new",
+    description: "Check out the latest game releases from top providers.",
+  },
+  {
+    title: "Popular Games",
+    href: "/casino/popular", // Assuming a route for popular or handled by filter on main
+    description: "See what games are trending among our players.",
+  },
+]
+
+export function NavigationMenu() {
   const { isAuthenticated, user } = useAuth();
-  const isAdmin = user?.isAdmin;
-
-  const handleNavigation = (path: string) => {
-    console.log(`Navigating to: ${path}`);
-    navigate(path);
-    scrollToTop();
-  };
 
   return (
-    <NavigationMenu className="max-w-none justify-start">
-      <NavigationMenuList className="flex space-x-4 overflow-x-auto pb-2">
-        {/* Casino - Direct link */}
+    <ShadcnNavigationMenu>
+      <NavigationMenuList>
         <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/casino' || location.pathname.startsWith('/casino/') 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/casino')}
-            >
-              <Gamepad2 className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Casino
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
+          <NavigationMenuTrigger>Getting started</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid gap-3 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]">
+              <li className="row-span-3">
+                <NavigationMenuLink asChild>
+                  <a
+                    className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
+                    href="/"
+                  >
+                    <Rocket className="h-6 w-6" />
+                    <div className="mb-2 mt-4 text-lg font-medium">
+                      YourCasinoName
+                    </div>
+                    <p className="text-sm leading-tight text-muted-foreground">
+                      The ultimate online gaming experience. Explore a universe of games.
+                    </p>
+                  </a>
+                </NavigationMenuLink>
+              </li>
+              <ListItem href="/docs" title="Introduction">
+                Learn about our platform and how to get started.
+              </ListItem>
+              <ListItem href="/promotions" title="Promotions">
+                Check out the latest bonuses and offers.
+              </ListItem>
+              <ListItem href="/support/faq" title="FAQ">
+                Find answers to frequently asked questions.
+              </ListItem>
+            </ul>
+          </NavigationMenuContent>
         </NavigationMenuItem>
-
-        {/* Live Casino - Direct link */}
         <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/casino/live-casino'
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/casino/live-casino')}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Live Casino
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
+          <NavigationMenuTrigger>Casino Games</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px] ">
+              {components.map((component) => (
+                <ListItem
+                  key={component.title}
+                  title={component.title}
+                  href={component.href}
+                >
+                  {component.description}
+                </ListItem>
+              ))}
+            </ul>
+          </NavigationMenuContent>
         </NavigationMenuItem>
-
-        {/* Sports - New placement (third) */}
         <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/sports' || location.pathname.startsWith('/sports/') 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/sports')}
-            >
-              <Trophy className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Sports
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Favorites - Direct link (now fourth) */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/casino/favorites'
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/casino/favorites')}
-            >
-              <Heart className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Favorites
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* VIP - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/vip'
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/vip')}
-            >
-              <Crown className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                VIP
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Promotions - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/promotions' 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/promotions')}
-            >
-              <Gift className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Promotions
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Bonuses - Direct link */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname === '/bonuses' 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/bonuses')}
-            >
-              <Zap className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Bonuses
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Help Center - Direct link (moved to last position) */}
-        <NavigationMenuItem>
-          <NavigationMenuLink asChild>
-            <a
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                location.pathname.startsWith('/support/') 
-                  ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                  : "border-transparent"
-              )}
-              onClick={() => handleNavigation('/support/help')}
-            >
-              <HelpCircle className="mr-2 h-4 w-4" />
-              <span className="relative overflow-hidden group">
-                Help Center
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-              </span>
-            </a>
-          </NavigationMenuLink>
-        </NavigationMenuItem>
-
-        {/* Admin section - Only for admins */}
-        {isAuthenticated && isAdmin && (
-          <NavigationMenuItem>
-            <NavigationMenuLink asChild>
-              <a
-                className={cn(
-                  navigationMenuTriggerStyle(),
-                  "bg-transparent hover:bg-white/10 transition-all duration-300 border-b-2 flex items-center",
-                  location.pathname.startsWith('/admin') 
-                    ? "text-casino-thunder-green shadow-neon border-casino-thunder-green" 
-                    : "border-transparent"
-                )}
-                onClick={() => handleNavigation('/admin')}
-              >
-                <span className="relative overflow-hidden group">
-                  Admin
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-casino-thunder-green transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></span>
-                </span>
-              </a>
+          <Link to="/sports" legacyBehavior passHref>
+            <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+              Sports
             </NavigationMenuLink>
+          </Link>
+        </NavigationMenuItem>
+         {isAuthenticated && user && user.role === 'admin' && (
+           <NavigationMenuItem>
+            <Link to="/admin/dashboard" legacyBehavior passHref>
+              <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                Admin
+              </NavigationMenuLink>
+            </Link>
           </NavigationMenuItem>
-        )}
+         )}
       </NavigationMenuList>
-    </NavigationMenu>
-  );
-};
+    </ShadcnNavigationMenu>
+  )
+}
 
-export default NavigationMenuDemo;
+const ListItem = React.forwardRef<
+  React.ElementRef<"a">,
+  React.ComponentPropsWithoutRef<"a">
+>(({ className, title, children, ...props }, ref) => {
+  return (
+    <li>
+      <NavigationMenuLink asChild>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className
+          )}
+          {...props}
+        >
+          <div className="text-sm font-medium leading-none">{title}</div>
+          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+            {children}
+          </p>
+        </a>
+      </NavigationMenuLink>
+    </li>
+  )
+})
+ListItem.displayName = "ListItem"
