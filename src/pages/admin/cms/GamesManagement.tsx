@@ -1,26 +1,35 @@
-import { useState, useEffect, ReactNode } from "react"; // Added ReactNode
+import { useState, useEffect, ReactNode } from "react";
 import { 
-  Search, Plus, Filter, Edit, Trash2, ChevronLeft, ChevronRight, Eye, Gamepad2, BarChart2, Loader2, Play 
-} from "lucide-react";
+  Search, Plus, Edit, Trash2, ChevronLeft, ChevronRight, Eye, Gamepad2, BarChart2, Loader2, Play 
+} from "lucide-react"; // Removed Filter
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Game, GameProvider, GameCategory, DbGame } from "@/types"; // Ensure GameProvider and GameCategory are imported
-import { useToast } from "@/hooks/use-toast"; // Corrected path
+import { Game, GameProvider, GameCategory, DbGame } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import GameForm, { GameFormProps } from "@/components/admin/GameForm"; // GameForm.tsx will need updates for props
+import GameForm from "@/components/admin/GameForm"; // GameForm.tsx will need updates for props
 import { useGames } from "@/hooks/useGames"; 
-import { DataTable } from "@/components/ui/data-table"; // Corrected import
+import { DataTable } from "@/components/ui/data-table";
+import { Input } from "@/components/ui/input"; // Added Input import
 
 // Define column type matching DataTable expectation
 interface ColumnDef<TData> {
   header: string;
-  accessorKey: keyof TData | 'actions'; // 'actions' is a common convention for a non-data key
-  cell?: (data: TData) => ReactNode; // Expects the data item directly
+  accessorKey: keyof TData | 'actions' | 'provider_slug'; // Added provider_slug
+  cell?: (data: TData) => ReactNode;
+}
+
+// Local type for GameForm props if not exportable
+interface GameFormProps {
+    onSubmit: (data: Partial<DbGame> | Game) => void; // Adjusted to accept Game for updates
+    initialData?: Game | null; // Changed from game to initialData
+    providers: GameProvider[];
+    categories: GameCategory[];
 }
 
 
 const GamesManagement = () => {
-  // state declarations: selectedRows, searchQuery, etc.
+  // ... keep existing code (state declarations: selectedRows, searchQuery, etc.)
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFilteredGames, setCurrentFilteredGames] = useState<Game[]>([]);
@@ -42,42 +51,38 @@ const GamesManagement = () => {
     deleteGame, 
     providers, 
     categories, 
-    fetchGamesAndProviders,
+    // fetchGamesAndProviders, // Not used directly here
   } = useGames();
   
   const getProviderName = (providerSlug: string | undefined): string => {
     if (!providerSlug) return 'Unknown';
-    const provider = providers.find(p => p.slug === providerSlug || p.name === providerSlug); // Check by slug or name
-    return provider?.name || providerSlug; // Fallback to slug if name not found
+    const provider = providers.find(p => p.slug === providerSlug || p.id === providerSlug); // Use id as well
+    return provider?.name || providerSlug;
   };
 
   useEffect(() => {
-    let gamesToFilter = allGamesFromContext; // Start with all games from context
+    let gamesToFilter = allGamesFromContext;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       gamesToFilter = allGamesFromContext.filter(game => 
-        (game.title?.toLowerCase().includes(query) || '') || 
-        (getProviderName(game.provider_slug || game.provider).toLowerCase().includes(query)) || // Use provider_slug or provider
+        (game.title?.toLowerCase().includes(query) || false) || 
+        (getProviderName(game.provider_slug || game.provider).toLowerCase().includes(query)) ||
         (game.id && String(game.id).toLowerCase().includes(query))
       );
     } else {
-      // If no search query, use contextFilteredGames if it's actively managed by context filters
-      // Or stick to allGames if contextFilteredGames isn't reflecting other active filters.
-      // For simplicity now, if no search, show all context games if specific filters are applied in context, else all.
-      // This depends on how filterGames in useGames interacts.
-      // Assuming contextFilteredGames is the base when no local search is active.
       gamesToFilter = contextFilteredGames.length > 0 ? contextFilteredGames : allGamesFromContext;
     }
     setCurrentFilteredGames(gamesToFilter);
-  }, [allGamesFromContext, contextFilteredGames, searchQuery, providers]);
+  }, [allGamesFromContext, contextFilteredGames, searchQuery, providers]); // Removed getProviderName from deps
 
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value; // Keep case for now, convert toLowerCase inside useEffect filter
+    const query = e.target.value;
     setSearchQuery(query);
     setCurrentPage(1); 
   };
   
+  // ... keep existing code (handleSelectRow, handleSelectAll, handleViewGame)
   const handleSelectRow = (gameId: string) => {
     if (selectedRows.includes(gameId)) {
       setSelectedRows(selectedRows.filter(id => id !== gameId));
@@ -95,7 +100,7 @@ const GamesManagement = () => {
   };
   
   const handleViewGame = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`); // Changed to game slug or ID, assuming game.id is slug or unique
+    navigate(`/casino/game/${gameId}`);
   };
 
   const handleEditGame = (game: Game) => {
@@ -110,6 +115,7 @@ const GamesManagement = () => {
         return;
       }
       try {
+        // Assuming deleteGame internally calls fetchGamesAndProviders or updates context
         const success = await deleteGame(gameId); 
         if (success) {
           toast({ title: "Success", description: "Game deleted successfully" });
@@ -130,7 +136,7 @@ const GamesManagement = () => {
     }
     try {
       const result = await addGame(gameData); 
-      if (result) {
+      if (result) { // Assuming addGame returns the new game or true on success
         setIsAddDialogOpen(false);
         toast({ title: "Success", description: "Game added successfully" });
       } else {
@@ -149,20 +155,21 @@ const GamesManagement = () => {
     }
     try {
       const { id, ...updateData } = gameData;
-      // Map Game to Partial<DbGame> - GameForm should ideally submit DbGame compatible structure for updates
       const dbGameUpdateData: Partial<DbGame> = {
-        ...updateData,
+        ...updateData, // Spread existing game data
         title: updateData.title,
-        provider_slug: updateData.provider_slug || updateData.provider,
-        category_slugs: updateData.category_slugs || [],
+        provider_slug: updateData.provider_slug || updateData.provider, // Ensure provider_slug is set
+        category_slugs: updateData.category_slugs || (updateData.category ? [updateData.category] : []),
         image_url: updateData.image,
         is_popular: updateData.isPopular,
         is_new: updateData.isNew,
+        rtp: updateData.rtp,
+        description: updateData.description,
         // map other fields as necessary
       };
 
       const result = await updateGame(id, dbGameUpdateData); 
-      if (result) {
+      if (result) { // Assuming updateGame returns the updated game or true
         setIsEditDialogOpen(false);
         toast({ title: "Success", description: "Game updated successfully" });
       } else {
@@ -183,7 +190,7 @@ const GamesManagement = () => {
     {
       header: "Game",
       accessorKey: "title",
-      cell: (game: Game) => ( // Changed signature
+      cell: (game) => ( // No type needed, inferred
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-background/80">
             <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title || 'Game image'} className="h-10 w-10 object-cover" />
@@ -197,19 +204,19 @@ const GamesManagement = () => {
     },
     {
       header: "Provider",
-      accessorKey: "provider_slug", // or "provider" if that's the primary key used
-      cell: (game: Game) => getProviderName(game.provider_slug || game.provider) // Changed signature
+      accessorKey: "provider_slug",
+      cell: (game) => getProviderName(game.provider_slug || game.provider)
     },
     {
       header: "Actions",
-      accessorKey: "actions", // This is a conventional key for non-data columns
-      cell: (game: Game) => ( // Changed signature
+      accessorKey: "actions",
+      cell: (game) => (
         <div className="flex space-x-1 md:space-x-2">
           <Button 
             variant="ghost" 
             size="icon" 
             className="h-8 w-8"
-            onClick={() => navigate(`/casino/game/${game.slug || game.id}`)} 
+            onClick={() => handleViewGame(game.slug || game.id)} 
             title="View Game"
           >
             <Eye className="h-4 w-4" />
@@ -228,8 +235,12 @@ const GamesManagement = () => {
             size="icon"
             className="h-8 w-8 text-green-500 hover:text-green-400"
             onClick={async () => { 
-                const url = await launchGame(game, { mode: "demo" });
-                if (url) window.open(url, '_blank');
+                if (launchGame) { // Check if launchGame is available
+                    const url = await launchGame(game, { mode: "demo" });
+                    if (url) window.open(url, '_blank');
+                } else {
+                    toast({ title: "Error", description: "Launch game function not available.", variant: "destructive" });
+                }
             }}
             title="Play Demo"
           >
@@ -249,12 +260,17 @@ const GamesManagement = () => {
     }
   ];
 
-  const gameFormProps: Partial<GameFormProps> = selectedGame ? { game: selectedGame } : {};
+  const gameFormProps: GameFormProps = {
+    onSubmit: selectedGame ? (handleUpdateGame as (data: Game) => void) : (handleAddGame as (data: Partial<DbGame>) => void),
+    initialData: selectedGame || undefined,
+    providers: providers,
+    categories: categories,
+  };
 
 
   return (
     <div className="py-6 px-2 md:py-8 md:px-4">
-      {/* Header JSX: title, buttons */}
+      {/* ... keep existing code (Header JSX: title, buttons) */}
       <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold">Game Management</h1>
         
@@ -263,10 +279,6 @@ const GamesManagement = () => {
             <Play className="mr-2 h-4 w-4" />
             Seamless API
           </Button>
-          {/* <Button variant="outline" className="flex items-center">
-            <Filter className="mr-2 h-4 w-4" />
-            Filter
-          </Button> */}
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
@@ -279,7 +291,7 @@ const GamesManagement = () => {
                 <DialogTitle>Add New Game</DialogTitle>
               </DialogHeader>
               <GameForm 
-                onSubmit={handleAddGame as any} // Cast because GameForm expects (data: Partial<DbGame>). Adapter might be better.
+                onSubmit={handleAddGame}
                 providers={providers} 
                 categories={categories} 
               />
@@ -288,7 +300,7 @@ const GamesManagement = () => {
         </div>
       </div>
       
-      {/* Game Stats */}
+      {/* ... keep existing code (Game Stats) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-card p-4 rounded-lg shadow">
           <div className="flex justify-between items-center">
@@ -332,7 +344,7 @@ const GamesManagement = () => {
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <Search className="w-5 h-5 text-gray-400" />
           </div>
-          <Input // Changed from input to Input
+          <Input
             type="search"
             className="w-full pl-10 pr-4 py-2 rounded-lg border bg-background focus:ring-primary focus:border-primary"
             placeholder="Search games by title, provider, or ID..."
@@ -350,10 +362,11 @@ const GamesManagement = () => {
         ) : (
           <DataTable 
             data={currentGamesForTable} 
-            columns={columns as any} // Cast to any to bypass complex type error for now, ideally fix DataTable or ColumnDef
+            columns={columns}
           />
         )}
         
+        {/* ... keep existing code (Pagination JSX) */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-border">
            <div className="flex-1 flex justify-between sm:hidden">
             <Button 
@@ -445,8 +458,8 @@ const GamesManagement = () => {
           </DialogHeader>
           {selectedGame && (
             <GameForm 
-              onSubmit={handleUpdateGame as any} // Cast because GameForm expects (data: Game). Needs adapter or GameForm update.
-              game={selectedGame} // Changed from initialData to game
+              onSubmit={handleUpdateGame}
+              initialData={selectedGame}
               providers={providers} 
               categories={categories}
             />

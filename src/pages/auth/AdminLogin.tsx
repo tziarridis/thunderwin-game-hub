@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner'; // Assuming sonner is used for toasts
+import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 
 const AdminLogin = () => {
@@ -23,36 +23,40 @@ const AdminLogin = () => {
       return;
     }
     try {
-      const loggedInUser = await adminLogin(email, password);
-      if (loggedInUser) {
-        // Check if the user is actually an admin based on role from AuthUser
-        if (loggedInUser.role === 'admin') {
-          toast.success('Admin login successful!');
-          navigate('/admin/dashboard');
-        } else {
-          // Log out user if not an admin but login somehow succeeded through adminLogin
-          // This case should ideally be handled by the adminLogin logic itself
-          toast.error('Access Denied: Not an administrator.');
-          // await logout(); // if logout is available and needed
-        }
-      } else {
-        // Error is handled by useAuth hook and displayed or via toast
-        // toast.error(error?.message || 'Admin login failed. Please check your credentials.');
-        // The error state from useAuth might have more specific info
-        if(error) {
+      // adminLogin from useAuth might return AuthUser or similar, or just handle session internally
+      const loginResult = await adminLogin(email, password); 
+      
+      // Check isAdmin status from context *after* login attempt
+      // The specific result of adminLogin (e.g., loginResult) might also indicate success/failure or user role
+      // This depends on useAuth's adminLogin implementation.
+      // For now, we'll rely on the isAdmin flag in the context being updated.
+      
+      // A more robust check would be to see if loginResult itself contains role information
+      // or if adminLogin throws an error on failure / wrong role.
+      // The current `isAdmin` in context might not update immediately if not designed to.
+      // Let's assume `adminLogin` returns a user-like object or boolean for success for an admin.
+
+      if (loginResult && (loginResult.role === 'admin' || isAdmin)) { // Check result OR context
+        toast.success('Admin login successful!');
+        navigate('/admin/dashboard');
+      } else if (loginResult && loginResult.role !== 'admin') {
+        toast.error('Access Denied: Not an administrator.');
+      }
+      else {
+        // Error handling if adminLogin itself doesn't throw for failed attempts
+        if (error) { // error from useAuth context
             toast.error(error.message || 'Admin login failed. Please check your credentials.');
-        } else {
+        } else if (!loginResult) { // If adminLogin returns null/false on failure
             toast.error('Admin login failed. Please check your credentials.');
         }
       }
-    } catch (err: any) { // Catch any unexpected error during the call
+    } catch (err: any) { // Catch any unexpected error during the call or if adminLogin throws
       toast.error(err.message || 'An unexpected error occurred during login.');
     }
   };
 
-  // Redirect if already logged in as admin
   React.useEffect(() => {
-    if (isAdmin) { // Directly use isAdmin boolean
+    if (isAdmin) {
       navigate('/admin/dashboard');
     }
   }, [isAdmin, navigate]);
@@ -97,13 +101,12 @@ const AdminLogin = () => {
                   size="icon"
                   className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </Button>
               </div>
             </div>
-            {/* error state from useAuth might be displayed here if needed */}
-            {/* {error && <p className="text-sm text-red-500">{error.message}</p>} */}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </Button>

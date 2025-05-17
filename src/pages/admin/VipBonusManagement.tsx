@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Edit, Trash2, Save, X, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'; // Removed Save, X, ChevronDown, ChevronUp as they are not used
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'; // Ensured DialogClose is imported
+import { Label } from "@/components/ui/label"; // Added Label import
+import { BonusTemplate, BonusTemplateFormData, VipLevel, BonusType } from '@/types'; // Assuming these types are correctly defined
 import { toast } from 'sonner';
 import {
   Table,
@@ -16,7 +17,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from '@/components/ui/checkbox';
-// Mock service functions - replace with actual service calls
 // import { bonusTemplateService, vipLevelService } from '@/services/adminService'; // Assuming a service
 
 // Mock service functions (replace with actual service calls)
@@ -24,7 +24,7 @@ const mockBonusTemplateService = {
   getBonusTemplates: async (): Promise<BonusTemplate[]> => {
     return [
       { id: '1', name: 'Welcome Bonus', description: '100% up to $200', type: 'deposit_match' as BonusType, percentage: 100, maxAmount: 200, wageringRequirement: 30, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: '2', name: 'VIP Free Spins', description: '50 Free Spins for Gold+', type: 'free_spins' as BonusType, freeSpinsCount: 50, targetVipLevel: 3, wageringRequirement: 20, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: '2', name: 'VIP Free Spins', description: '50 Free Spins for Gold+', type: 'free_spins' as BonusType, freeSpinsCount: 50, targetVipLevelId: '3', wageringRequirement: 20, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, // Changed targetVipLevel to targetVipLevelId
     ];
   },
   createBonusTemplate: async (data: BonusTemplateFormData): Promise<BonusTemplate> => {
@@ -35,6 +35,7 @@ const mockBonusTemplateService = {
       gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      targetVipLevelId: data.targetVipLevelId, // Ensure this is handled
     };
     return newTemplate;
   },
@@ -46,6 +47,7 @@ const mockBonusTemplateService = {
       gameRestrictions: data.gameRestrictions ? data.gameRestrictions.split(',').map(s => s.trim()) : undefined,
       createdAt: new Date().toISOString(), // Should retain original createdAt ideally
       updatedAt: new Date().toISOString(),
+      targetVipLevelId: data.targetVipLevelId, // Ensure this is handled
     };
     return updatedTemplate;
   },
@@ -58,22 +60,29 @@ const mockBonusTemplateService = {
 const mockVipLevelService = {
   getVipLevels: async (): Promise<VipLevel[]> => {
     return [
-      { id: '1', level: 1, name: 'Bronze', pointsRequired: 0, benefits: ['Basic support'], cashbackPercentage: 0 },
-      { id: '2', level: 2, name: 'Silver', pointsRequired: 1000, benefits: ['Priority support'], cashbackPercentage: 2 },
-      { id: '3', level: 3, name: 'Gold', pointsRequired: 5000, benefits: ['Dedicated manager', 'Exclusive bonuses'], cashbackPercentage: 5 },
+      { id: '1', level: 1, name: 'Bronze', pointsRequired: 0, benefits: ['Basic support'], cashbackPercentage: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: '2', level: 2, name: 'Silver', pointsRequired: 1000, benefits: ['Priority support'], cashbackPercentage: 2, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+      { id: '3', level: 3, name: 'Gold', pointsRequired: 5000, benefits: ['Dedicated manager', 'Exclusive bonuses'], cashbackPercentage: 5, isActive: true, createdAt: new Date(), updatedAt: new Date() },
     ];
   },
-  createVipLevel: async (data: Omit<VipLevel, 'id'>): Promise<VipLevel> => {
-    const newLevel: VipLevel = { id: String(Date.now()), ...data };
+  createVipLevel: async (data: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>): Promise<VipLevel> => { // Adjusted type
+    const newLevel: VipLevel = { 
+        id: String(Date.now()), 
+        ...data, 
+        isActive: true, 
+        createdAt: new Date(), 
+        updatedAt: new Date() 
+    };
     return newLevel;
   },
-  updateVipLevel: async (id: string, data: Partial<VipLevel>): Promise<VipLevel> => {
-    const updatedLevel = { id, level: 0, name: '', pointsRequired: 0, benefits:[], ...data } as VipLevel; // Simplified mock
+  updateVipLevel: async (id: string, data: Partial<Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>>): Promise<VipLevel> => { // Adjusted type
+    const existingLevel = await mockVipLevelService.getVipLevels().then(levels => levels.find(l => l.id === id));
+    if (!existingLevel) throw new Error("Level not found");
+    const updatedLevel = { ...existingLevel, ...data, updatedAt: new Date() } as VipLevel;
     return updatedLevel;
   },
    deleteVipLevel: async (id: string): Promise<void> => {
     console.log("Deleting VIP level:", id);
-    // In a real app, this would make an API call
     return Promise.resolve();
   },
 };
@@ -92,7 +101,7 @@ const initialFormData: BonusTemplateFormData = {
   durationDays: undefined,
   minDeposit: undefined,
   promoCode: undefined,
-  targetVipLevel: undefined,
+  targetVipLevelId: undefined, // Changed from targetVipLevel
   isActive: true,
 };
 
@@ -130,21 +139,27 @@ const VipBonusManagement: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    const checked = (e.target as HTMLInputElement).checked; // For checkbox
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) || undefined : value),
+      [name]: type === 'number' ? parseFloat(value) || undefined : value,
     }));
   };
 
-  const handleSelectChange = (name: keyof BonusTemplateFormData, value: string | number) => {
+  const handleCheckboxChange = (name: keyof BonusTemplateFormData, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked,
+    }));
+  };
+
+  const handleSelectChange = (name: keyof BonusTemplateFormData, value: string | number | undefined) => {
     setFormData(prev => ({
       ...prev,
       [name]: value,
     }));
   };
   
-  const handleDelete = async (id: string) => { // Added placeholder handleDelete
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this bonus template?")) return;
     try {
       await mockBonusTemplateService.deleteBonusTemplate(id);
@@ -196,7 +211,7 @@ const VipBonusManagement: React.FC = () => {
       durationDays: template.durationDays,
       minDeposit: template.minDeposit,
       promoCode: template.promoCode,
-      targetVipLevel: template.targetVipLevel,
+      targetVipLevelId: template.targetVipLevelId, // Changed
       isActive: template.isActive !== undefined ? template.isActive : true,
     });
     setIsFormOpen(true);
@@ -210,11 +225,10 @@ const VipBonusManagement: React.FC = () => {
 
   const filteredTemplates = bonusTemplates.filter(template =>
     template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    template.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // VIP Level Management handlers
-  const handleCreateLevel = async (newLevelData: Omit<VipLevel, 'id'>) => {
+  const handleCreateLevel = async (newLevelData: Omit<VipLevel, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       const createdLevel = await mockVipLevelService.createVipLevel(newLevelData);
       setVipLevels(prev => [...prev, createdLevel]);
@@ -309,32 +323,22 @@ const VipBonusManagement: React.FC = () => {
         </div>
       </section>
       
-      {/* VIP Levels Section - Assuming VipLevelManager is a read-only component */}
+      {/* VIP Levels Section */}
       <section>
         <h2 className="text-xl md:text-2xl font-semibold mb-4">VIP Levels</h2>
-        {/* 
-          If VipLevelManager.tsx is available and has known props, integrate here.
-          Example: <VipLevelManager levels={vipLevels} onUpdate={handleUpdateLevel} onCreate={handleCreateLevel} onDelete={handleDeleteVipLevel} /> 
-          For now, display basic VIP level info if VipLevelManager is not usable due to read-only or prop issues.
-        */}
          <div className="bg-card p-4 rounded-md border">
           {vipLevels.length > 0 ? (
             <ul className="space-y-2">
               {vipLevels.map(level => (
                 <li key={level.id} className="flex justify-between items-center p-2 border-b last:border-b-0">
                   <span>Level {level.level}: {level.name} (Requires {level.pointsRequired} points)</span>
-                  <div>
-                    {/* Add Edit/Delete for VIP levels if functionality is built out and VipLevelManager is not used */}
-                     {/* <Button variant="ghost" size="icon" onClick={() => { console.log("Edit VIP level", level.id); toast.info("VIP Level editing UI not implemented yet.")}} className="mr-2"><Edit className="h-4 w-4" /></Button> */}
-                     {/* <Button variant="ghost" size="icon" onClick={() => handleDeleteVipLevel(level.id)}><Trash2 className="h-4 w-4" /></Button> */}
-                  </div>
+                  {/* Placeholder for Edit/Delete for VIP levels */}
                 </li>
               ))}
             </ul>
           ) : (
             <p>No VIP levels configured yet.</p>
           )}
-          {/* Placeholder for where VipLevelManager might go or a button to add new VIP levels */}
            <div className="mt-4">
              <Button variant="outline" onClick={() => toast.info("VIP Level creation UI not fully implemented here yet.")}>
                 Add New VIP Level (Placeholder)
@@ -342,7 +346,6 @@ const VipBonusManagement: React.FC = () => {
            </div>
         </div>
       </section>
-
 
       <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
         setIsFormOpen(isOpen);
@@ -356,14 +359,13 @@ const VipBonusManagement: React.FC = () => {
             <DialogTitle>{editingTemplate ? 'Edit' : 'Create'} Bonus Template</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 py-4 max-h-[70vh] overflow-y-auto px-2">
-            {/* Form fields */}
             <div className="md:col-span-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" value={formData.name} onChange={handleInputChange} required />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} />
+              <Textarea id="description" name="description" value={formData.description || ''} onChange={handleInputChange} />
             </div>
             
             <div>
@@ -397,13 +399,12 @@ const VipBonusManagement: React.FC = () => {
                 <Input id="freeSpinsCount" name="freeSpinsCount" type="number" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
               </div>
             )}
-             {(formData.type === 'cashback' || formData.type === 'reload') && formData.type !== 'deposit_match' && (
+             {(formData.type === 'cashback' || formData.type === 'reload') && ( // Simplified condition
               <div>
                 <Label htmlFor="percentage">Percentage (%)</Label>
                 <Input id="percentage" name="percentage" type="number" value={formData.percentage || ''} onChange={handleInputChange} />
               </div>
             )}
-
 
             {formData.type !== 'free_spins' && formData.type !== 'loyalty_points' && formData.type !== 'no_deposit' && (
                  <div>
@@ -414,7 +415,7 @@ const VipBonusManagement: React.FC = () => {
             
             <div>
               <Label htmlFor="wageringRequirement">Wagering Requirement (x)</Label>
-              <Input id="wageringRequirement" name="wageringRequirement" type="number" value={formData.wageringRequirement || ''} onChange={handleInputChange} required />
+              <Input id="wageringRequirement" name="wageringRequirement" type="number" value={formData.wageringRequirement || 0} onChange={handleInputChange} required />
             </div>
 
             <div>
@@ -424,7 +425,7 @@ const VipBonusManagement: React.FC = () => {
             
             <div className="md:col-span-2">
               <Label htmlFor="gameRestrictions">Game Restrictions (comma-separated slugs)</Label>
-              <Input id="gameRestrictions" name="gameRestrictions" value={formData.gameRestrictions} onChange={handleInputChange} placeholder="e.g. slot-game-1,another-slot" />
+              <Input id="gameRestrictions" name="gameRestrictions" value={formData.gameRestrictions || ''} onChange={handleInputChange} placeholder="e.g. slot-game-1,another-slot" />
             </div>
 
             <div>
@@ -433,20 +434,20 @@ const VipBonusManagement: React.FC = () => {
             </div>
             
             <div>
-              <Label htmlFor="targetVipLevel">Target VIP Level (Optional)</Label>
-              <Select value={formData.targetVipLevel?.toString() || ''} onValueChange={(value) => handleSelectChange('targetVipLevel', value ? parseInt(value) : undefined)}>
+              <Label htmlFor="targetVipLevelId">Target VIP Level (Optional)</Label>
+              <Select value={formData.targetVipLevelId || ''} onValueChange={(value) => handleSelectChange('targetVipLevelId', value || undefined)}>
                 <SelectTrigger><SelectValue placeholder="Select VIP Level" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">None</SelectItem>
                   {vipLevels.map(level => (
-                    <SelectItem key={level.id} value={level.level.toString()}>{level.name} (Level {level.level})</SelectItem>
+                    <SelectItem key={level.id} value={level.id}>{level.name} (Level {level.level})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="md:col-span-2 flex items-center space-x-2 mt-2">
-              <Checkbox id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => handleSelectChange('isActive', !!checked)} />
+              <Checkbox id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => handleCheckboxChange('isActive', !!checked)} />
               <Label htmlFor="isActive" className="font-normal">Active</Label>
             </div>
 

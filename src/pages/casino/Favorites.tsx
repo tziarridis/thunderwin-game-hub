@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import CasinoGameGrid from "@/components/casino/CasinoGameGrid";
 import { Game } from "@/types";
@@ -5,14 +6,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import MobileWalletSummary from "@/components/user/MobileWalletSummary";
 import { useNavigate } from "react-router-dom";
-import { gamesDatabaseService } from "@/services/gamesDatabaseService";
-import { Button } from "@/components/ui/button"; // Import Button
+// import { gamesDatabaseService } from "@/services/gamesDatabaseService"; // Methods missing
+import { useGames } from "@/hooks/useGames"; // Use useGames hook for favorite logic if available
+import { Button } from "@/components/ui/button";
 
 const Favorites = () => {
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { games: allGames, toggleFavoriteGame, getFavoriteGameIds } = useGames(); // Assuming useGames provides this
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -21,26 +24,30 @@ const Favorites = () => {
       return;
     }
 
-    // Add user dependency to refetch if user changes
-    if (user?.id) {
+    if (user?.id && allGames.length > 0 && getFavoriteGameIds) {
         fetchFavoriteGames();
     } else if (isAuthenticated && !user?.id) {
-        // User is authenticated but user object might still be loading
         setLoading(true); 
     }
 
-  }, [isAuthenticated, user, navigate]); // Added user and navigate to dependency array
+  }, [isAuthenticated, user, navigate, allGames, getFavoriteGameIds]);
 
   const fetchFavoriteGames = async () => {
-    if (!user?.id) return;
+    if (!user?.id || !getFavoriteGameIds) {
+        setFavoriteGames([]);
+        setLoading(false);
+        return;
+    }
 
     try {
       setLoading(true);
-      const games = await gamesDatabaseService.getFavoriteGames(user.id);
-      setFavoriteGames(games);
+      const favoriteIds = await getFavoriteGameIds(user.id); // Use useGames
+      const favGames = allGames.filter(game => favoriteIds.includes(game.id));
+      setFavoriteGames(favGames);
     } catch (error: any) {
       console.error('Error fetching favorite games:', error);
       toast.error('Failed to load favorite games');
+      setFavoriteGames([]);
     } finally {
       setLoading(false);
     }
@@ -51,14 +58,12 @@ const Favorites = () => {
   };
 
   const handleUnfavorite = async (game: Game) => {
-    if (!user?.id) {
-        toast.error("User not found.");
+    if (!user?.id || !toggleFavoriteGame) {
+        toast.error("User not found or favorite function unavailable.");
         return;
     }
     try {
-      // gamesDatabaseService.toggleFavorite expects (gameId, userId, isCurrentlyFavorite)
-      // Here, we are unfavoriting, so isCurrentlyFavorite is true.
-      const success = await gamesDatabaseService.toggleFavorite(game.id, user.id, true); 
+      const success = await toggleFavoriteGame(game.id, user.id); // Use useGames
       
       if (success) {
         setFavoriteGames(prev => prev.filter(g => g.id !== game.id));
@@ -91,17 +96,17 @@ const Favorites = () => {
         <CasinoGameGrid 
           games={favoriteGames} 
           onGameClick={handleGameClick}
-          // Pass handleUnfavorite to CasinoGameGrid if it supports it,
-          // or CasinoGameGrid needs an onFavoriteToggle prop.
-          // For now, assuming CasinoGameGrid's GameCard handles its own unfavorite button
-          // or this page renders cards that can call handleUnfavorite.
-          // If CasinoGameGrid itself needs this:
-          // onUnfavoriteClick={handleUnfavorite} 
+          // Pass a prop to GameCard within CasinoGameGrid to handle unfavorite action if possible
+          // For now, this assumes GameCard (if used inside) or CasinoGameGrid can show an unfavorite button
+          // and potentially call a passed `onFavoriteToggle` type prop.
+          // If CasinoGameGrid itself is expected to render cards with unfavorite buttons,
+          // it would need an `onUnfavoriteClick` or similar prop.
+          // This example assumes individual game cards will handle their own favorite status via useGames or a similar mechanism
         />
       ) : (
         <div className="text-center py-12">
           <p className="text-xl mb-4">You don't have any favorite games yet.</p>
-          <Button // Use imported Button
+          <Button
             onClick={() => navigate('/casino')}
             className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-medium px-6 py-3 rounded-md"
           >

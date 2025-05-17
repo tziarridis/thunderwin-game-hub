@@ -9,9 +9,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Edit, Settings, LogOut, CreditCard, User, Shield, Clock } from "lucide-react";
 import WalletBalance from "@/components/user/WalletBalance";
-import TransactionsList from "@/components/user/TransactionsList"; // Corrected import
-import UserStats from '@/components/user/UserStats'; // New component
-import VipProgress from '@/components/user/VipProgress'; // New component
+import TransactionsList from "@/components/user/TransactionsList";
+import UserStats from '@/components/user/UserStats';
+import VipProgress from '@/components/user/VipProgress';
 import { Separator } from "@/components/ui/separator";
 
 const Profile = () => {
@@ -19,16 +19,21 @@ const Profile = () => {
   const navigate = useNavigate();
   
   if (!user) {
-    navigate('/login');
+    navigate('/login'); // Should be handled by ProtectedRoute or similar in App.tsx ideally
     return null;
   }
   
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    if (logout) { // Check if logout function exists
+      await logout();
+      navigate('/');
+    } else {
+      toast.error("Logout function not available.");
+    }
   };
   
   const getInitials = (name: string) => {
+    if (!name) return '';
     return name
       .split(' ')
       .map(part => part[0])
@@ -37,6 +42,8 @@ const Profile = () => {
   };
   
   const userInitials = user.name ? getInitials(user.name) : user.email ? user.email[0].toUpperCase() : 'U';
+  const userRole = user.role || 'player'; // Default role
+  const userKycStatus = user.kycStatus || 'not_submitted';
   
   return (
     <div className="container mx-auto py-8 px-4">
@@ -57,7 +64,7 @@ const Profile = () => {
           <CardContent className="flex flex-col items-center pt-6">
             <Avatar className="h-24 w-24 mb-4">
               {user.avatar ? (
-                <AvatarImage src={user.avatar} alt={user.name || user.email} />
+                <AvatarImage src={user.avatar} alt={user.name || user.email || "User Avatar"} />
               ) : (
                 <AvatarFallback className="bg-casino-thunder-green text-black text-xl">
                   {userInitials}
@@ -68,10 +75,10 @@ const Profile = () => {
             <p className="text-muted-foreground">{user.email}</p>
             
             <div className="flex items-center mt-2">
-              <Badge variant={user.role === 'admin' ? "destructive" : "secondary"} className="mr-2">
-                {user.role === 'admin' ? 'Admin' : (user.role === 'moderator' ? 'Moderator' : 'Player')}
+              <Badge variant={userRole === 'admin' ? "destructive" : "secondary"} className="mr-2">
+                {userRole === 'admin' ? 'Admin' : (userRole === 'moderator' ? 'Moderator' : 'Player')}
               </Badge>
-              {user.kycStatus === 'verified' && (
+              {userKycStatus === 'verified' && (
                 <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
                   Verified
                 </Badge>
@@ -134,8 +141,8 @@ const Profile = () => {
                 </TabsList>
                 
                 <TabsContent value="transactions" className="pt-4">
-                  {/* Assuming TransactionsList takes similar props or no props for basic display */}
-                  <TransactionsList userId={user.id} limit={5} />
+                  {/* Assuming TransactionsList takes no props or fetches its own data */}
+                  <TransactionsList /> 
                   <div className="flex justify-center mt-4">
                     <Button 
                       variant="outline" 
@@ -195,14 +202,14 @@ const Profile = () => {
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">KYC Status</h3>
                   <p className={
-                    user.kycStatus === 'verified' ? 'text-green-500' :
-                    user.kycStatus === 'pending' ? 'text-yellow-500' :
-                    user.kycStatus === 'rejected' ? 'text-red-500' :
+                    userKycStatus === 'verified' ? 'text-green-500' :
+                    userKycStatus === 'pending' ? 'text-yellow-500' :
+                    userKycStatus === 'rejected' ? 'text-red-500' :
                     'text-muted-foreground'
                   }>
-                    {user.kycStatus === 'verified' ? 'Verified' :
-                     user.kycStatus === 'pending' ? 'Pending Verification' :
-                     user.kycStatus === 'rejected' ? 'Verification Failed' :
+                    {userKycStatus === 'verified' ? 'Verified' :
+                     userKycStatus === 'pending' ? 'Pending Verification' :
+                     userKycStatus === 'rejected' ? 'Verification Failed' :
                      'Not Submitted'}
                   </p>
                 </div>
@@ -218,7 +225,7 @@ const Profile = () => {
                   onClick={() => navigate('/kyc')}
                   className="mr-2"
                 >
-                  {user.kycStatus === 'verified' ? 'View KYC Status' : 'Complete KYC'}
+                  {userKycStatus === 'verified' ? 'View KYC Status' : 'Complete KYC'}
                 </Button>
                 <Button 
                   variant="outline" 

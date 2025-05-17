@@ -2,26 +2,29 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
-import { Game, GameCategory, GameProvider as GameProviderType } from '@/types';
-import GameGrid from '@/components/casino/GameGrid'; // Assuming this is the correct GameGrid
+import { Game, GameCategory as TypesGameCategory, GameProvider as TypesGameProvider } from '@/types'; // Renamed to avoid conflicts
+import GameGrid from '@/components/casino/GameGrid';
 import GameCategories from '@/components/casino/GameCategories'; 
 import PopularProviders from '@/components/casino/PopularProviders';
 import PromoBanner from '@/components/casino/PromoBanner';
 import { Input } from '@/components/ui/input';
-import { Search, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
+import { Search, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { Category as GameCategoryComponentType } from '@/components/casino/GameCategories'; // Type from component
+import { Provider as GameProviderComponentType } from '@/components/casino/PopularProviders'; // Type from component
+
 
 const CasinoMain = () => {
   const { 
-    games: allGamesData, // Renamed to avoid conflict with filteredGames if used directly
+    games: allGamesData,
     isLoading, 
     error, 
-    filterGames, // This function from useGames context filters 'allGames' within the context
+    filterGames,
     providers, 
     categories,
-    filteredGames: contextFilteredGames, // Games filtered by context's filterGames
+    filteredGames: contextFilteredGames,
     launchGame,
   } = useGames();
   const { isAuthenticated, user } = useAuth();
@@ -30,9 +33,7 @@ const CasinoMain = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
 
-  // Use the filteredGames from the context, which are updated by filterGames call
   useEffect(() => {
-    // console.log("CasinoMain: SearchTerm or SelectedCategory changed. Calling filterGames.", { searchTerm, selectedCategory });
     filterGames(searchTerm, selectedCategory);
   }, [searchTerm, selectedCategory, filterGames]);
   
@@ -42,7 +43,6 @@ const CasinoMain = () => {
 
   const handleCategoryChange = (categorySlug: string | undefined) => {
     setSelectedCategory(categorySlug);
-    // console.log("CasinoMain: Category changed to:", categorySlug);
   };
 
   const handleGameClick = async (game: Game) => {
@@ -56,33 +56,31 @@ const CasinoMain = () => {
       return;
     }
     
-    const gameIdToLaunch = game.game_id || game.id; // Prefer game_id if available
+    const gameIdToLaunch = game.game_id || game.id;
     if (!gameIdToLaunch) {
         toast.error("Game ID is missing, cannot launch.");
         return;
     }
 
-    // Ensure all necessary user details are present
     if (!user.id || !user.currency) {
         toast.error("User details incomplete. Cannot launch game.");
         console.error("Missing user ID or currency for game launch.", user);
         return;
     }
+    if (!launchGame) {
+        toast.error("Launch game functionality is not available.");
+        return;
+    }
 
     const gameUrl = await launchGame(game, { 
       mode: 'real',
-      playerId: String(user.id), // Ensure string
+      playerId: String(user.id),
       currency: user.currency,
       platform: 'web',
     });
 
     if (gameUrl) {
-      // For production, consider opening in a new tab or an iframe within the site
-      // window.open(gameUrl, '_blank', 'noopener,noreferrer');
-      // Or navigate to a dedicated game launch page:
       navigate(`/casino/game/${game.id}?launchUrl=${encodeURIComponent(gameUrl)}`);
-    } else {
-      // Error toast is handled by launchGame
     }
   };
 
@@ -91,23 +89,41 @@ const CasinoMain = () => {
   const allGamesForGrid = useMemo(() => allGamesData.slice(0, 18), [allGamesData]);
 
 
-  if (error && !isLoading) { // Show error only if not loading and error exists
+  if (error && !isLoading) {
     return (
       <div className="container mx-auto py-10 px-4 text-center">
         <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
         <p className="text-xl text-red-400">Oops! Something went wrong.</p>
-        <p className="text-muted-foreground">We encountered an error loading game data: {error}</p>
+        <p className="text-muted-foreground">We encountered an error loading game data: {error.toString()}</p>
         <p className="text-muted-foreground mt-2">Please try refreshing the page or contact support if the issue persists.</p>
       </div>
     );
   }
   
   const currentGamesToDisplay = searchTerm || selectedCategory ? contextFilteredGames : allGamesData;
+  
+  // Adapt categories and providers to the types expected by the read-only components
+  const gameCategoriesForComponent = categories.map(c => ({
+    ...c, // Spread properties from TypesGameCategory
+    // Ensure all properties required by GameCategoryComponentType (Category) are present
+    // Example: if GameCategoryComponentType needs 'iconUrl', map it from c.icon or c.image
+  })) as GameCategoryComponentType[];
+
+  const popularProvidersForComponent = providers.filter(p => p.isActive).slice(0, 10).map(p => ({
+    ...p, // Spread properties from TypesGameProvider
+    // Ensure all properties required by GameProviderComponentType (Provider) are present
+    // Example: if GameProviderComponentType needs 'logoUrl', map it from p.logo
+  })) as GameProviderComponentType[];
+
 
   return (
     <div className="space-y-8 lg:space-y-12 px-2 sm:px-4 md:px-6 lg:px-8 py-6 min-h-screen">
       <PromoBanner 
-        // title="Epic Wins Await!" description="Dive into our thrilling selection of games and grab your welcome bonus!" buttonText="Sign Up & Play" onButtonClick={() => navigate('/register')} 
+        title="Welcome to Our Casino!"
+        description="Discover exciting games and win big!"
+        buttonText="Explore Now"
+        onButtonClick={() => navigate('/casino/new')}
+        imageUrl="/placeholder.svg" // Optional: provide a real image URL
       />
 
       <div className="flex flex-col md:flex-row gap-4 items-center sticky top-16 md:top-0 z-30 bg-casino-thunder-darker py-3 -mx-2 sm:-mx-4 md:-mx-6 lg:-mx-8 px-2 sm:px-4 md:px-6 lg:px-8 shadow-md">
@@ -124,12 +140,12 @@ const CasinoMain = () => {
       </div>
       
       <GameCategories 
-        categories={categories as GameCategory[]}
+        categories={gameCategoriesForComponent} // Use adapted categories
         onSelectCategory={handleCategoryChange} 
         selectedCategory={selectedCategory} 
       />
 
-      {isLoading && currentGamesToDisplay.length === 0 ? ( // Show skeleton only when loading and no games yet for the current filter
+      {isLoading && currentGamesToDisplay.length === 0 ? (
         <div>
           <Skeleton className="h-8 w-1/4 mb-4" />
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
@@ -147,7 +163,7 @@ const CasinoMain = () => {
               </h2>
               <GameGrid 
                 games={contextFilteredGames} 
-                loading={isLoading && contextFilteredGames.length === 0} // Show loading in grid only if still fetching for this specific filter
+                loading={isLoading && contextFilteredGames.length === 0}
                 onGameClick={handleGameClick} 
                 emptyMessage="No games match your criteria. Try a different search or category!"
               />
@@ -173,7 +189,7 @@ const CasinoMain = () => {
       
       {providers.length > 0 && (
          <PopularProviders 
-            providers={providers.filter(p => p.isActive).slice(0, 10) as GameProviderType[]} // Show more active providers
+            providers={popularProvidersForComponent} // Use adapted providers
          /> 
       )}
       
