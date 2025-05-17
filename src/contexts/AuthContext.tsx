@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { userService } from '@/services/userService';
-import { AuthUser, AuthContextType } from '@/types'; // Ensure AuthContextType is imported
+import userService from '@/services/userService'; // Corrected import
+import { AuthUser, AuthContextType } from '@/types'; // Will use consolidated types
 import { walletService } from '@/services/walletService';
 import { toast } from 'sonner';
 
@@ -20,49 +20,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let profileData = existingProfileData;
     if (!profileData) {
       try {
-        // Fetch user details from your 'users' table (or 'profiles')
         const { data: userDetails, error: profileError } = await supabase
-          .from('users') // Assuming your custom user table is 'users'
+          .from('users') 
           .select('*')
-          .eq('id', supabaseUser.id) // Assuming 'id' in your users table matches auth.users.id
+          .eq('id', supabaseUser.id) // This assumes users.id is the supabaseUser.id (auth.users.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') { // PGRST116: "Searched for a single row, but found no rows"
+        if (profileError && profileError.code !== 'PGRST116') { 
           console.error('Error fetching user profile:', profileError);
-          // Don't throw, proceed with basic data
         }
-        profileData = userDetails;
+        profileData = userDetails; // profileData can be null here if no user record found
       } catch (e) {
         console.error('Exception fetching user profile:', e);
       }
     }
     
-    // Fetch wallet details
     let walletDetails = null;
-    if (profileData?.id) { // Use the ID from your custom users table
-        const walletResponse = await walletService.getWalletByUserId(profileData.id);
+    // Ensure profileData and profileData.id exist before fetching wallet
+    // The 'users' table in Supabase has its own UUID 'id', not directly linked to auth.users.id in profiles.
+    // The 'profiles' table links auth.users.id to users.id. We need to be careful here.
+    // For now, assuming profileData.id refers to the ID in your custom 'users' table which walletService expects.
+    // If profileData is from 'users' table, its 'id' column is the one for walletService.
+    const userIdForWallet = profileData?.id || supabaseUser.id; // Prefer custom users table ID if available and correct
+
+    if (userIdForWallet) {
+        const walletResponse = await walletService.getWalletByUserId(userIdForWallet);
         if (walletResponse.data) {
             walletDetails = walletResponse.data;
         } else {
-            console.warn('Wallet not found for user:', profileData.id);
+            // It's possible a user exists in auth but not yet in local 'users' table or 'wallets'
+            console.warn('Wallet not found for user ID:', userIdForWallet, walletResponse.error);
         }
     }
 
-
+    // Fallback for username if not in profileData
+    const username = profileData?.username || supabaseUser.email?.split('@')[0] || 'User';
+    const userEmail = supabaseUser.email || 'No email';
+    
     return {
-      id: profileData?.id || supabaseUser.id, // Use your custom user table ID if available
-      username: profileData?.username || supabaseUser.email?.split('@')[0] || 'User',
-      email: supabaseUser.email || 'No email',
-      firstName: profileData?.first_name || profileData?.firstName || '', // Handle both snake_case and camelCase
-      lastName: profileData?.last_name || profileData?.lastName || '',   // Handle both snake_case and camelCase
-      avatar: profileData?.avatar || undefined,
-      avatarUrl: profileData?.avatar_url || profileData?.avatar || undefined,
-      role: profileData?.role || 'user',
-      isAdmin: profileData?.is_admin || profileData?.role === 'admin', // Example admin logic
+      id: profileData?.id || supabaseUser.id, 
+      username: username,
+      email: userEmail,
+      firstName: profileData?.first_name || profileData?.firstName || '',
+      lastName: profileData?.last_name || profileData?.lastName || '',
+      avatar: profileData?.avatar_url || profileData?.avatar || undefined, // Use avatar_url from profiles or avatar from users
+      avatarUrl: profileData?.avatar_url || profileData?.avatar || undefined, // Duplicate for safety, prefer avatarUrl
+      role: profileData?.role || (profileData?.is_admin ? 'admin' : 'user'), // Infer role
+      isAdmin: profileData?.is_admin || profileData?.role === 'admin' || false,
       isVerified: supabaseUser.email_confirmed_at ? true : false,
       vipLevel: walletDetails?.vipLevel ?? profileData?.vip_level ?? 0,
       balance: walletDetails?.balance ?? profileData?.balance ?? 0,
       currency: walletDetails?.currency ?? profileData?.currency ?? 'USD',
+      name: `${profileData?.first_name || ''} ${profileData?.last_name || ''}`.trim() || username,
     };
   }, []);
 
@@ -70,6 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
+        setIsLoading(true); // Set loading true while mapping
         if (session?.user) {
           const authUser = await mapSupabaseUserToAuthUser(session.user);
           setUser(authUser);
@@ -80,11 +90,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Initial session check
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        const authUser = await mapSupabaseUserToAuthUser(session.user);
+    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setIsLoading(true); // Set loading true while mapping
+      if (currentSession?.user) {
+        const authUser = await mapSupabaseUserToAuthUser(currentSession.user);
         setUser(authUser);
       }
       setIsLoading(false);
@@ -128,14 +138,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (signInError) throw signInError;
       if (data.user && data.session) {
         const authUser = await mapSupabaseUserToAuthUser(data.user);
-        // Check if user is admin
         if (authUser?.isAdmin) {
           setUser(authUser);
           setSession(data.session);
           toast.success("Admin logged in successfully!");
           return { success: true };
         } else {
-          await supabase.auth.signOut(); // Sign out non-admin user
+          await supabase.auth.signOut(); 
           setUser(null);
           setSession(null);
           const adminError = "Access Denied: User is not an administrator.";
@@ -166,6 +175,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         options: {
           data: {
             username: username, 
+            // raw_user_meta_data for profiles trigger:
+            // first_name: username, // Example: use username as first name initially
           },
         },
       });
@@ -173,40 +184,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (signUpError) throw signUpError;
 
       if (signUpData.user) {
-        // User is created in auth.users. Now create a corresponding entry in your public 'users' table.
-        const { error: createUserError } = await userService.createUserProfile({
-            id: signUpData.user.id, // This should be the auth.user.id
-            email: signUpData.user.email!,
-            username: username,
-            // Add other default fields for your 'users' table here if needed
-        });
+        // The handle_new_user trigger should create the 'users' and 'profiles' entries.
+        // We might need to ensure the trigger passes username to the 'users' table.
+        // For now, assume the trigger handles it.
+        // If userService.createUserProfile is still needed, ensure its logic aligns with triggers.
+        // The Supabase 'users' table has a `username` column. The trigger might need an update
+        // if it's not correctly setting username from auth.users.raw_user_meta_data or email.
 
-        if (createUserError) {
-          // Potentially roll back Supabase auth user or handle cleanup
-          console.error("Failed to create user profile entry:", createUserError);
-          throw new Error(`Registration partially failed: ${createUserError.message}`);
-        }
-        
-        // Attempt to sign in the user immediately after successful registration and profile creation
+        // Attempt to sign in the user immediately
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
         if (signInError) {
             console.warn("Auto-login after registration failed:", signInError);
-            toast.success("Registration successful! Please log in.");
-            // Don't set user/session here, let them log in manually
+            toast.info("Registration successful! Please confirm your email and log in.");
         } else if (signInData.user && signInData.session) {
             setSession(signInData.session);
+            // Pass the newly created user profile data if available, or let mapSupabaseUserToAuthUser fetch it
             const authUser = await mapSupabaseUserToAuthUser(signInData.user);
             setUser(authUser);
             toast.success("Registration successful and logged in!");
         } else {
-             toast.success("Registration successful! Please log in.");
+             toast.info("Registration successful! Please confirm your email and log in.");
         }
         return { success: true };
 
       }
       return { success: false, error: "Registration failed: No user data returned" };
-    } catch (err: any) {
+    } catch (err: any)
+     {
       console.error("Registration error:", err);
       const errorMessage = err.message || "An unexpected error occurred during registration.";
       setError(errorMessage);
@@ -241,7 +246,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo: `${window.location.origin}/update-password`, // Ensure this route exists
       });
       if (resetError) throw resetError;
       toast.success("Password reset email sent! Check your inbox.");
@@ -257,39 +262,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+
   const updateProfile = async (data: Partial<AuthUser>): Promise<{ success: boolean; error?: string }> => {
     if (!user?.id) return { success: false, error: "User not authenticated" };
+    // The user.id here could be from auth.users (if no profile found) or public.users.
+    // Updates should target the correct table.
+    // 'profiles' table uses auth.users.id as its PK. 'users' table has its own UUID.
+    // Let's assume user.id is the ID for the 'users' table for profile field updates.
+    const userIdForProfileTable = user.id; // This should be the ID from your custom 'users' table.
+
     setIsLoading(true);
     setError(null);
     try {
-      // Prepare data for your 'users' table
       const profileUpdates: any = {};
       if (data.username) profileUpdates.username = data.username;
-      if (data.firstName) profileUpdates.first_name = data.firstName; // Map to snake_case for Supabase
-      if (data.lastName) profileUpdates.last_name = data.lastName;   // Map to snake_case for Supabase
-      if (data.avatar) profileUpdates.avatar = data.avatar;       // Assuming 'avatar' is the column name
+      // Supabase 'users' table columns from context: first_name, last_name, avatar
+      if (data.firstName) profileUpdates.first_name = data.firstName;
+      if (data.lastName) profileUpdates.last_name = data.lastName;
+      if (data.avatar) profileUpdates.avatar = data.avatar; // This could be avatar URL
+      // if (data.avatarUrl) profileUpdates.avatar_url = data.avatarUrl; // if 'profiles' table is updated directly
 
       if (Object.keys(profileUpdates).length > 0) {
           const { error: updateError } = await supabase
-              .from('users') // Your custom user table
+              .from('users') 
               .update(profileUpdates)
-              .eq('id', user.id); // Match with the ID from your 'users' table
+              .eq('id', userIdForProfileTable); 
 
           if (updateError) throw updateError;
       }
 
       // If email needs to be updated, handle it separately via Supabase Auth
-      if (data.email && data.email !== user.email) {
-        const { data: emailUpdateData, error: emailUpdateError } = await supabase.auth.updateUser({ email: data.email });
+      // This uses session.user.id which is auth.users.id
+      if (data.email && data.email !== user.email && session?.user?.id) {
+        const { error: emailUpdateError } = await supabase.auth.updateUser({ email: data.email });
         if (emailUpdateError) throw emailUpdateError;
-        // Email update might require confirmation, user object might not reflect immediately
       }
       
       // Re-fetch user data to reflect changes
       if (session?.user) {
           const updatedSupabaseUser = (await supabase.auth.getUser()).data.user;
           if (updatedSupabaseUser) {
-            const { data: userDetails } = await supabase.from('users').select('*').eq('id', updatedSupabaseUser.id).single();
+            // Fetch from 'users' table again using the correct ID
+            const { data: userDetails } = await supabase.from('users').select('*').eq('id', userIdForProfileTable).single();
             const authUser = await mapSupabaseUserToAuthUser(updatedSupabaseUser, userDetails);
             setUser(authUser);
           }
@@ -310,18 +324,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const refreshWalletBalance = useCallback(async () => {
     if (!user?.id) return;
+    // user.id here should be the ID used by walletService (likely from your 'users' table)
+    const userIdForWallet = user.id; 
 
     try {
-      const walletResponse = await walletService.getWalletByUserId(user.id);
+      const walletResponse = await walletService.getWalletByUserId(userIdForWallet);
       if (walletResponse.data) {
         setUser(prevUser => prevUser ? {
           ...prevUser,
           balance: walletResponse.data!.balance,
-          currency: walletResponse.data!.currency, // Update currency from wallet
+          currency: walletResponse.data!.currency,
           vipLevel: walletResponse.data!.vipLevel,
         } : null);
       } else {
         console.warn("Could not refresh wallet balance:", walletResponse.error);
+         // If wallet not found, but user exists, maybe set balance to 0 or based on user context
+        setUser(prevUser => prevUser ? { ...prevUser, balance: 0 } : null);
       }
     } catch (err) {
       console.error("Error refreshing wallet balance:", err);
@@ -331,22 +349,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const deposit = async (amount: number, method: string): Promise<{ success: boolean; error?: string }> => {
      if (!user?.id) return { success: false, error: "User not authenticated" };
+     // user.id here should be the ID used by walletService
+     const userIdForWallet = user.id;
     setIsLoading(true);
     try {
-      // This is a placeholder. Actual deposit logic would involve payment gateways.
-      // For now, let's assume the deposit updates a 'transactions' table and then the wallet.
-      console.log(`Attempting deposit of ${amount} via ${method} for user ${user.id}`);
-
-      // Example: Call walletService to handle the deposit logic which might interact with Supabase
       const depositResult = await walletService.handleDeposit({
-        userId: user.id,
+        userId: userIdForWallet,
         amount,
-        currency: user.currency || 'USD', // Use user's currency
-        method, // e.g., 'credit_card', 'paypal'
+        currency: user.currency || 'USD', 
+        method,
       });
 
       if (depositResult.success) {
-        await refreshWalletBalance();
+        await refreshWalletBalance(); // This will update user state
         toast.success(`Successfully deposited ${amount} ${user.currency || 'USD'}`);
         return { success: true };
       } else {
@@ -364,7 +379,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const isAdmin = (): boolean => {
-    return user?.isAdmin || user?.role === 'admin' || false;
+    // Check role from AuthUser, and isAdmin flag
+    return user?.isAdmin || user?.role?.toLowerCase() === 'admin' || false;
   };
 
   const contextValue: AuthContextType = {

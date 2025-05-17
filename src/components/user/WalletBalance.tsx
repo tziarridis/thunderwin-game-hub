@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { RefreshCw } from 'lucide-react';
-import { walletService } from '@/services/walletService';
-import { Wallet } from '@/types/wallet';
+import { walletService, mapDbWalletToWallet } from '@/services/walletService'; // Import mapDbWalletToWallet
+import { Wallet } from '@/types'; // Wallet type from consolidated types
 import { toast } from 'sonner';
 
 interface WalletBalanceProps {
@@ -22,7 +21,7 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
     if (user?.id) {
       fetchWalletData();
     }
-  }, [user?.id]);
+  }, [user?.id, user?.balance, user?.currency]); // Add user.balance and user.currency as dependencies
 
   const fetchWalletData = async () => {
     if (!user?.id) return;
@@ -32,11 +31,27 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
       const walletResponse = await walletService.getWalletByUserId(user.id);
       
       if (walletResponse.data) {
-        const walletData = walletService.mapDatabaseWalletToWallet(walletResponse.data);
+        const walletData = mapDbWalletToWallet(walletResponse.data); // Use imported function
         setWallet(walletData);
         console.log("Wallet data loaded:", walletData);
       } else {
-        console.log("No wallet data returned:", walletResponse.error);
+        // If no wallet data, attempt to use user context data as fallback
+        if (user.balance !== undefined && user.currency) {
+          setWallet({
+            id: user.id, // Placeholder, as full wallet object isn't available
+            userId: user.id,
+            balance: user.balance,
+            currency: user.currency,
+            symbol: user.currency === 'USD' ? '$' : user.currency === 'EUR' ? '€' : user.currency, // Basic symbol mapping
+            // Fill other required Wallet fields with defaults or indicate they are partial
+            vipLevel: user.vipLevel || 0,
+            bonusBalance: 0,
+            cryptoBalance: 0,
+            demoBalance: 0,
+            isActive: true,
+          });
+        }
+        console.log("No wallet data returned from service:", walletResponse.error);
       }
     } catch (error) {
       console.error("Error fetching wallet data:", error);
@@ -49,9 +64,10 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
     setLoading(true);
     try {
       if (refreshWalletBalance) {
-        await refreshWalletBalance();
+        await refreshWalletBalance(); // This should update user context, triggering useEffect
       }
-      await fetchWalletData();
+      // Fetching wallet data again to be sure, or rely on context update
+      await fetchWalletData(); 
       toast.success("Wallet balance refreshed");
     } catch (error) {
       console.error("Error refreshing wallet:", error);
@@ -61,7 +77,6 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
     }
   };
 
-  // Apply different styles based on variant
   const containerClasses = `${className} text-right flex items-center`;
 
   return (
@@ -73,7 +88,9 @@ const WalletBalance = ({ showRefresh = false, variant = 'default', className = '
             <span className="opacity-50">Loading...</span>
           ) : (
             <>
-              {wallet?.symbol || '$'}{(wallet?.balance || user?.balance || 0).toLocaleString()} {wallet?.currency || user?.currency || 'USD'}
+              {wallet?.symbol || (user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency) || '$'}
+              {(wallet?.balance ?? user?.balance ?? 0).toLocaleString()} 
+              {' '}{wallet?.currency || user?.currency || 'USD'}
             </>
           )}
         </span>

@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { RefreshCw } from 'lucide-react';
-import { walletService } from '@/services/walletService';
-import { Wallet } from '@/types/wallet';
+import { walletService, mapDbWalletToWallet } from '@/services/walletService'; // Import mapDbWalletToWallet
+import { Wallet } from '@/types'; // Wallet type from consolidated types
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
@@ -23,7 +22,7 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
     if (user?.id) {
       fetchWalletData();
     }
-  }, [user?.id]);
+  }, [user?.id, user?.balance, user?.currency]); // Add user.balance and user.currency as dependencies
 
   const fetchWalletData = async () => {
     if (!user?.id) return;
@@ -33,11 +32,25 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
       const walletResponse = await walletService.getWalletByUserId(user.id);
       
       if (walletResponse.data) {
-        const walletData = walletService.mapDatabaseWalletToWallet(walletResponse.data);
+        const walletData = mapDbWalletToWallet(walletResponse.data); // Use imported function
         setWallet(walletData);
         console.log("Mobile wallet data loaded:", walletData);
       } else {
-        console.log("No mobile wallet data returned:", walletResponse.error);
+         if (user.balance !== undefined && user.currency) {
+          setWallet({
+            id: user.id, 
+            userId: user.id,
+            balance: user.balance,
+            currency: user.currency,
+            symbol: user.currency === 'USD' ? '$' : user.currency === 'EUR' ? '€' : user.currency,
+            vipLevel: user.vipLevel || 0,
+            bonusBalance: 0,
+            cryptoBalance: 0,
+            demoBalance: 0,
+            isActive: true,
+          });
+        }
+        console.log("No mobile wallet data returned from service:", walletResponse.error);
       }
     } catch (error) {
       console.error("Error fetching mobile wallet data:", error);
@@ -72,7 +85,9 @@ const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) 
           <span className="text-lg font-bold text-white opacity-50">Loading...</span>
         ) : (
           <span className="text-lg font-bold text-white">
-            {wallet?.symbol || '$'}{(wallet?.balance || user?.balance || 0).toLocaleString()} {wallet?.currency || user?.currency || 'USD'}
+            {wallet?.symbol || (user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency) || '$'}
+            {(wallet?.balance ?? user?.balance ?? 0).toLocaleString()}
+            {' '}{wallet?.currency || user?.currency || 'USD'}
           </span>
         )}
       </div>

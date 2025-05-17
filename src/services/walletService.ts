@@ -1,11 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, WalletResponse, WalletTransaction } from '@/types';
+import { Wallet, WalletResponse, WalletTransaction } from '@/types'; // Updated to use consolidated types
 import { toast } from 'sonner';
 
 // Helper function to map Supabase wallet data to our Wallet type
-const mapDbWalletToWallet = (dbWallet: any): Wallet => {
+// Export this function
+export const mapDbWalletToWallet = (dbWallet: any): Wallet => {
   return {
-    id: dbWallet.id, // Assuming your 'wallets' table has 'id' as primary key
+    id: dbWallet.id,
     userId: dbWallet.user_id,
     balance: parseFloat(dbWallet.balance) || 0,
     currency: dbWallet.currency || 'USD',
@@ -48,7 +49,7 @@ export const walletService = {
         .single();
 
       if (error) {
-        if (error.code === 'PGRST116') { // No wallet found, which can be normal
+        if (error.code === 'PGRST116') { 
           return { data: null, error: 'Wallet not found for this user.' };
         }
         throw error;
@@ -56,7 +57,6 @@ export const walletService = {
       return { data: data ? mapDbWalletToWallet(data) : null, error: null };
     } catch (error: any) {
       console.error(`Error fetching wallet for user ${userId}:`, error);
-      // toast.error(`Failed to load wallet: ${error.message}`);
       return { data: null, error: error.message || 'Failed to load wallet.' };
     }
   },
@@ -93,14 +93,12 @@ export const walletService = {
         user_id: userId,
         balance: initialBalance,
         currency: currency,
-        symbol: currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency, // Basic symbol mapping
+        symbol: currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency,
         active: true,
-        // Add other default fields from your Wallet interface / DB schema as needed
         balance_bonus: 0,
         balance_cryptocurrency: 0,
-        balance_demo: 1000, // Example demo balance
+        balance_demo: 1000,
         vip_level: 0,
-        // ... other defaults
       };
       const { data, error } = await supabase
         .from('wallets')
@@ -134,38 +132,27 @@ export const walletService = {
     try {
       const walletResponse = await this.getWalletByUserId(userId);
       if (!walletResponse.data) {
-        // Optionally create wallet if it doesn't exist, or return error
-        // const creationResponse = await this.createWallet(userId, currency);
-        // if (!creationResponse.data) {
-        //   return { success: false, error: creationResponse.error || "Failed to initialize wallet for deposit." };
-        // }
-        // walletResponse.data = creationResponse.data;
          return { success: false, error: walletResponse.error || "Wallet not found for deposit." };
       }
 
       const currentBalance = walletResponse.data.balance;
       const newBalance = currentBalance + amount;
 
-      // Record the transaction
       const transactionData: Omit<WalletTransaction, 'id' | 'date'> = {
         userId,
         type: 'deposit',
         amount,
         currency,
-        status: 'completed', // Assume direct completion for this example
-        provider: method, // Use deposit method as provider
+        status: 'completed', 
+        provider: method, 
         description: `Deposit via ${method}`,
         balance_before: currentBalance,
         balance_after: newBalance,
         ...transactionDetails,
       };
       
-      // Using transactionQueryService.addTransaction (assuming it exists and is imported)
-      // import { addTransaction } from './transactionQueryService'; // Make sure this import is present
-      // const txResult = await addTransaction(transactionData);
-      // For now, directly insert into transactions table
       const { error: txError } = await supabase.from('transactions').insert({
-          player_id: userId,
+          player_id: userId, // Ensure this matches your DB schema, likely user_id from your users table
           type: 'deposit',
           amount: amount,
           currency: currency,
@@ -181,10 +168,8 @@ export const walletService = {
         throw new Error(`Failed to record transaction: ${txError.message}`);
       }
 
-      // Update wallet balance
       const updateResponse = await this.updateWalletBalance(userId, newBalance, currency);
       if (!updateResponse.data) {
-        // Potentially try to roll back transaction record or mark as failed
         return { success: false, error: updateResponse.error || "Failed to update wallet after deposit." };
       }
 
@@ -221,13 +206,12 @@ export const walletService = {
       
       const newBalance = currentBalance - amount;
 
-      // Record the transaction
       const transactionData: Omit<WalletTransaction, 'id' | 'date'> = {
         userId,
-        type: 'withdraw', // Changed from 'withdrawal' to 'withdraw' to match type
+        type: 'withdraw',
         amount,
         currency,
-        status: 'pending', // Withdrawals often start as pending
+        status: 'pending', 
         provider: method,
         description: `Withdrawal via ${method}`,
         balance_before: currentBalance,
@@ -235,13 +219,12 @@ export const walletService = {
         ...transactionDetails,
       };
       
-      // const txResult = await addTransaction(transactionData); // See deposit
       const { error: txError } = await supabase.from('transactions').insert({
-          player_id: userId,
+          player_id: userId, // Ensure this matches your DB schema
           type: 'withdraw',
           amount: amount,
           currency: currency,
-          status: 'pending', // Or 'completed' if direct
+          status: 'pending',
           provider: method,
           description: `Withdrawal via ${method}`,
           balance_before: currentBalance,
@@ -251,16 +234,14 @@ export const walletService = {
       if (txError) {
         throw new Error(`Failed to record transaction: ${txError.message}`);
       }
-
-      // Update wallet balance (ONLY if withdrawal is immediately completed)
-      // For pending withdrawals, balance is usually deducted upon approval.
-      // For this example, assuming direct completion:
+      
+      // Assuming direct completion for example purposes
       const updateResponse = await this.updateWalletBalance(userId, newBalance, currency);
       if (!updateResponse.data) {
         return { success: false, error: updateResponse.error || "Failed to update wallet after withdrawal." };
       }
       
-      toast.info(`Withdrawal of ${amount} ${currency} is processing.`); // Or success if direct
+      toast.info(`Withdrawal of ${amount} ${currency} is processing.`);
       return { success: true };
     } catch (error: any) {
       console.error(`Error handling withdrawal for user ${userId}:`, error);
