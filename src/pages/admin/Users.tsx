@@ -1,512 +1,227 @@
-import { useState, useEffect } from "react";
-import { 
-  Search, 
-  UserPlus, 
-  Filter, 
-  Edit, 
-  ChevronLeft, 
-  ChevronRight,
-  Eye,
-  Lock,
-  User, // This import is fine if User icon is used elsewhere, but UserType is the type alias
-  Users, // Icon
-  Shield,
-  UserCheck,
-  Loader2
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { User as UserType } from "@/types"; // UserType is the alias for the type
-import { usersApi } from "@/services/apiService";
-import UserForm from "@/components/admin/UserForm"; // Read-only
-import { useToast } from "@/components/ui/use-toast"; // Corrected path
-import { useNavigate } from "react-router-dom";
-import { format } from 'date-fns'; // For formatting dates
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Edit, Trash2, Eye, Search } from 'lucide-react';
+import { useToast } from "@/components/ui/use-toast"
+import { User } from '@/types';
+import { useNavigate } from 'react-router-dom';
 
-const AdminUsers = () => {
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [users, setUsers] = useState<UserType[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const usersPerPage = 8;
+function AdminUsers() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectAll, setSelectAll] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      try {
-        const data = await usersApi.getUsers();
-        setUsers(data);
-        setFilteredUsers(data);
-      } catch (error) {
-        console.error("Failed to fetch users:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load users",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUsers();
-  }, [toast]);
-  
-  const indexOfLastUser = currentPage * usersPerPage;
-  const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-  
+    // Mock data for demonstration
+    const mockUsers: User[] = [
+      {
+        id: '1',
+        username: 'john_doe',
+        email: 'john.doe@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+        avatar_url: 'https://github.com/shadcn.png',
+        created_at: new Date(2021, 10, 1).toLocaleDateString(),
+        lastLogin: new Date(2023, 10, 1).toLocaleDateString(),
+        status: 'active',
+      },
+      {
+        id: '2',
+        username: 'jane_smith',
+        email: 'jane.smith@example.com',
+        firstName: 'Jane',
+        lastName: 'Smith',
+        avatar_url: 'https://avatars.githubusercontent.com/u/88843',
+        created_at: new Date(2022, 5, 15).toLocaleDateString(),
+        lastLogin: new Date(2023, 9, 25).toLocaleDateString(),
+        status: 'inactive',
+      },
+      {
+        id: '3',
+        username: 'mike_johnson',
+        email: 'mike.johnson@example.com',
+        firstName: 'Mike',
+        lastName: 'Johnson',
+        avatar_url: 'https://ui.shadcn.com/avatars/0.png',
+        created_at: new Date(2023, 2, 20).toLocaleDateString(),
+        lastLogin: new Date(2023, 10, 5).toLocaleDateString(),
+        status: 'active',
+      },
+    ];
+
+    setUsers(mockUsers);
+  }, []);
+
   const handleViewUser = (userId: string) => {
     navigate(`/admin/users/${userId}`);
   };
 
-  const handleSelectRow = (userId: string) => {
-    if (selectedRows.includes(userId)) {
-      setSelectedRows(selectedRows.filter(id => id !== userId));
-    } else {
-      setSelectedRows([...selectedRows, userId]);
-    }
-  };
-  
-  const handleSelectAll = () => {
-    if (selectedRows.length === currentUsers.length) {
-      setSelectedRows([]);
-    } else {
-      setSelectedRows(currentUsers.map(user => user.id));
-    }
-  };
-  
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-    // Ensure statusFilter contains values compatible with UserType['status']
-    filterUsersLocal(query, statusFilter as UserType['status'][]);
-  };
-  
-  const toggleStatusFilter = (status: string) => {
-    // Ensure status is a valid UserType['status'] before adding/removing
-    const validStatus = status.toLowerCase() as UserType['status']; 
-    const newStatusFilter = statusFilter.includes(validStatus)
-      ? statusFilter.filter(s => s !== validStatus)
-      : [...statusFilter, validStatus];
-      
-    setStatusFilter(newStatusFilter);
-    filterUsersLocal(searchQuery, newStatusFilter as UserType['status'][]);
-  };
-  
-  // Renamed to avoid confusion if a context filterUsers exists
-  const filterUsersLocal = (query: string, statuses: (UserType['status'])[]) => {
-    let results = users;
-    
-    if (query) {
-      results = results.filter(user => 
-        (user.name && user.name.toLowerCase().includes(query)) || 
-        user.email.toLowerCase().includes(query) ||
-        user.id.toLowerCase().includes(query)
-      );
-    }
-    
-    if (statuses.length > 0) {
-      // Ensure user.status is treated as potentially undefined as per UserType
-      results = results.filter(user => user.status && statuses.includes(user.status));
-    }
-    
-    setFilteredUsers(results);
-    setCurrentPage(1); 
-  };
-  
-  const clearFilters = () => {
-    setStatusFilter([]);
-    setSearchQuery("");
-    setFilteredUsers(users);
-    setCurrentPage(1);
-  };
-  
-  const handleEditUser = (user: UserType) => {
-    setSelectedUser(user);
-    setIsEditDialogOpen(true);
-  };
-  
-  const handleAddUser = async (userData: Omit<UserType, 'id'>) => {
-    try {
-      await usersApi.addUser(userData);
-      setIsAddDialogOpen(false);
-      // Refresh the user list
-      const updatedUsers = await usersApi.getUsers();
-      setUsers(updatedUsers);
-      setFilteredUsers(updatedUsers);
-    } catch (error) {
-      console.error("Failed to add user:", error);
-    }
-  };
-  
-  const handleUpdateUser = async (userData: UserType) => {
-    try {
-      await usersApi.updateUser(userData);
-      setIsEditDialogOpen(false);
-      // Refresh the user list
-      const updatedUsers = await usersApi.getUsers();
-      setUsers(updatedUsers);
-      setFilteredUsers(updatedUsers);
-    } catch (error) {
-      console.error("Failed to update user:", error);
-    }
-  };
-  
-  const formatBalance = (balance: number) => {
-    return `$${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const handleEditUser = (user: User) => {
+    toast({
+      title: "Edit User",
+      description: `Navigating to edit user: ${user.username || user.email}`,
+    })
   };
 
+  const handleDeleteUser = (userId: string) => {
+    setUsers((prevUsers) => prevUsers.filter((user) => user.id !== userId));
+    setSelectedUserIds((prevSelected) => prevSelected.filter((id) => id !== userId));
+    toast({
+      title: "Delete User",
+      description: "Deleting user...",
+    })
+  };
+
+  const handleBulkAction = (action: string) => {
+    if (selectedUserIds.length === 0) {
+      toast({
+        title: "No Users Selected",
+        description: "Please select users for bulk action.",
+      })
+      return;
+    }
+
+    toast({
+      title: "Bulk Action",
+      description: `${action} for selected users...`,
+    })
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const toggleSelectAll = () => {
+    setSelectAll(!selectAll);
+    if (!selectAll) {
+      setSelectedUserIds(users.map((user) => user.id));
+    } else {
+      setSelectedUserIds([]);
+    }
+  };
+
+  const toggleRowSelection = (userId: string) => {
+    if (selectedUserIds.includes(userId)) {
+      setSelectedUserIds(selectedUserIds.filter((id) => id !== userId));
+    } else {
+      setSelectedUserIds([...selectedUserIds, userId]);
+    }
+  };
+
+  const filteredAndSortedUsers = users.filter((user) => {
+    const searchStr = `${user.username} ${user.email} ${user.firstName} ${user.lastName}`.toLowerCase();
+    return searchStr.includes(searchQuery.toLowerCase());
+  });
+
   return (
-    <div className="py-8 px-4">
-      <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold">User Management</h1>
-        
-        <div className="flex gap-3">
-          <Button 
-            variant="outline" 
-            className={`flex items-center ${showFilters ? 'text-casino-thunder-green border-casino-thunder-green' : ''}`}
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>Add New User</DialogTitle>
-              </DialogHeader>
-              <UserForm onSubmit={handleAddUser} />
-            </DialogContent>
-          </Dialog>
-        </div>
+    <div className="container mx-auto py-10">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Users</h1>
+        <Button onClick={() => handleBulkAction('Action')} disabled={selectedUserIds.length === 0}>
+          Bulk Action
+        </Button>
       </div>
-      
-      {/* User Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="thunder-card p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-white/60 text-sm">Total Users</p>
-              <h3 className="text-2xl font-bold">{users.length}</h3>
-            </div>
-            <div className="bg-white/10 p-3 rounded-full">
-              <Users className="h-6 w-6 text-casino-thunder-green" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="thunder-card p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-white/60 text-sm">Active Users</p>
-              {/* Compare with 'active' (lowercase) and ensure user.status is checked */}
-              <h3 className="text-2xl font-bold">{users.filter(user => user.status === 'active').length}</h3>
-            </div>
-            <div className="bg-white/10 p-3 rounded-full">
-              <UserCheck className="h-6 w-6 text-green-500" />
-            </div>
-          </div>
-        </div>
-        
-        <div className="thunder-card p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-white/60 text-sm">Admins</p>
-              <h3 className="text-2xl font-bold">1</h3>
-            </div>
-            <div className="bg-white/10 p-3 rounded-full">
-              <Shield className="h-6 w-6 text-yellow-500" />
-            </div>
-          </div>
-        </div>
+
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search users..."
+          value={searchQuery}
+          onChange={handleSearchChange}
+          className="w-full md:w-1/2 lg:w-1/4"
+        />
       </div>
-      
-      {/* Filters */}
-      {showFilters && (
-        <div className="thunder-card p-4 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-semibold">Filters</h3>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={clearFilters}
-              className="text-white/70 hover:text-casino-thunder-green"
-            >
-              Clear All
-            </Button>
-          </div>
-          
-          <div>
-            <h4 className="text-white/80 mb-2 text-sm font-medium">User Status</h4>
-            <div className="flex flex-wrap gap-2">
-              {/* Use lowercase status values matching UserType['status'] */}
-              {/* Ensure keys are unique if status values can repeat, e.g. use index if labels are different from values */}
-              {/* Labels can be capitalized, but the value passed to toggleStatusFilter should be lowercase */}
-              {[
-                { label: "Active", value: "active" }, 
-                { label: "Pending", value: "pending_verification" }, 
-                { label: "Inactive", value: "inactive" },
-                { label: "Suspended", value: "suspended" }
-              ].map(statusObj => (
-                <Button 
-                  key={statusObj.value}
-                  variant="outline"
-                  size="sm"
-                  className={`capitalize ${
-                    statusFilter.includes(statusObj.value) ? "border-casino-thunder-green text-casino-thunder-green" : ""
-                  }`}
-                  onClick={() => toggleStatusFilter(statusObj.value)}
-                >
-                  {statusObj.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Search Bar */}
-      <div className="mb-6">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Search className="w-5 h-5 text-gray-400" />
-          </div>
-          <input
-            type="search"
-            className="thunder-input w-full pl-10"
-            placeholder="Search users by name, email, or ID..."
-            value={searchQuery}
-            onChange={handleSearch}
-          />
-        </div>
-      </div>
-      
-      {/* Users Table */}
-      <div className="thunder-card overflow-hidden">
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead>
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                        checked={selectedRows.length === currentUsers.length && currentUsers.length > 0}
-                        onChange={handleSelectAll}
-                      />
+
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[50px]">
+                <input
+                  type="checkbox"
+                  checked={selectAll}
+                  onChange={toggleSelectAll}
+                  className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                />
+              </TableHead>
+              <TableHead>User Info</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created At</TableHead>
+              <TableHead>Last Login</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAndSortedUsers.map((user) => (
+              <TableRow key={user.id}>
+                <TableCell>
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(user.id)}
+                    onChange={() => toggleRowSelection(user.id)}
+                    className="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out"
+                  />
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10">
+                      <Avatar>
+                        <AvatarImage src={user.avatar_url || undefined} alt={user.username} />
+                        <AvatarFallback>{user.username?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                      </Avatar>
                     </div>
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Balance
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Joined
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {currentUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-white/5">
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                        checked={selectedRows.includes(user.id)}
-                        onChange={() => handleSelectRow(user.id)}
-                      />
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium">
-                          {user.name.charAt(0)}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium">{user.name}</div>
-                          <div className="text-xs text-white/60">ID: {user.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{user.email}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        user.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : user.status === 'pending_verification' // Corrected status check
-                            ? 'bg-yellow-100 text-yellow-800' 
-                            : user.status === 'suspended'
-                              ? 'bg-orange-100 text-orange-800' // Example for suspended
-                              : 'bg-red-100 text-red-800' // Default for inactive or other statuses
-                      }`}>
-                        {user.status ? user.status.replace('_', ' ') : 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {user.balance !== undefined ? formatBalance(user.balance) : 'N/A'}
-                    </td>
-                    {/* Use createdAt for Joined date, and format it */}
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/60">
-                      {user.createdAt ? format(new Date(user.createdAt), 'MMM dd, yyyy') : 'N/A'}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleViewUser(user.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
-                          <Lock className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        
-        <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-white/60">
-                Showing <span className="font-medium">{indexOfFirstUser + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(indexOfLastUser, filteredUsers.length)}
-                </span>{' '}
-                of <span className="font-medium">{filteredUsers.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-l-md"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <Button 
-                      key={pageNum}
-                      variant="outline" 
-                      className={currentPage === pageNum ? "bg-white/10" : ""}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-r-md"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </nav>
-            </div>
-          </div>
-        </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.username || user.email}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'N/A'}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap">
+                  <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
+                    {user.status || 'N/A'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <Button variant="ghost" size="sm" onClick={() => handleViewUser(user.id)} className="mr-2">
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleEditUser(user)} className="mr-2">
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user.id)} className="text-red-500 hover:text-red-700">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-      
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-          </DialogHeader>
-          {selectedUser && (
-            <UserForm 
-              onSubmit={handleUpdateUser} 
-              initialValues={selectedUser}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
-};
+}
 
 export default AdminUsers;

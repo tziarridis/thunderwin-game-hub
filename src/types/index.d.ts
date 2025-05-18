@@ -25,12 +25,12 @@ export interface User {
   isActive?: boolean; 
   balance?: number; 
   vipLevel?: number; 
-  kycStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected' | string; 
+  kycStatus?: KycStatusType | string; // Use KycStatusType
   twoFactorEnabled?: boolean; 
   emailVerified?: boolean; 
-  lastLogin?: string; // For UserProfilePage
-  registrationDate?: string; // For UserProfilePage
-  status?: string; // For UserProfilePage
+  lastLogin?: string; 
+  registrationDate?: string; 
+  status?: string; 
   name?: string; 
 }
 
@@ -339,24 +339,30 @@ export interface Affiliate {
 
 export type DbWallet = Wallet;
 
-// Added for KycManagement.tsx
+// Added for KycManagement.tsx and UserProfile.tsx
 export interface KycRequest {
   id: string;
   userId: string;
-  userName?: string; // Assuming user name is useful here
+  user?: { // Nested user details
+    id?: string;
+    username?: string;
+    email?: string;
+  };
   documentType: string;
   documentNumber: string;
-  status: KycStatusType; // Changed KycStatus to KycStatusType
-  submittedAt: string;
+  status: KycStatusType;
+  submittedAt: string; // Standardized submission timestamp
   reviewedAt?: string;
   reviewerId?: string;
   rejectionReason?: string;
-  // Add any other relevant fields like user email, country etc.
-  user?: Pick<User, 'username' | 'email' | 'id'>; // Optional user details
+  documentImage?: string; // For displaying document image if available
+  documentUrls?: string[]; // For multiple document files/images
+  documentFiles?: string[]; // Alternative or additional if needed
+  verificationDate?: string; // Timestamp for when verification occurred
 }
 
 // Renamed KycStatus to KycStatusType to avoid conflict if KycStatus component exists
-export type KycStatusType = 'pending' | 'approved' | 'rejected' | 'submitted' | 'resubmit_required';
+export type KycStatusType = 'pending' | 'approved' | 'rejected' | 'submitted' | 'resubmit_required' | 'verified'; // Added 'verified' from usage
 
 // Added for Admin Settings page
 export interface SiteSettings {
@@ -375,4 +381,26 @@ export interface TransactionServiceType {
   createTransaction: (transactionData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ApiResponse<Transaction>>;
   updateTransactionStatus: (transactionId: string, status: Transaction['status']) => Promise<ApiResponse<Transaction>>;
   fetchUserTransactions?: (userId: string, page: number, limit: number) => Promise<{ data: Transaction[]; total: number }>; // For Transactions.tsx
+}
+
+// Added for UserProfile.tsx
+export interface UserProfileData {
+  user: User;
+  wallet?: Wallet;
+  recentTransactions?: Transaction[]; // Or WalletTransaction[]
+  stats?: {
+    gamesPlayed?: number;
+    totalWagered?: number;
+    vipLevel?: number;
+    // other stats
+  };
+  kycStatus?: KycStatusType;
+  lastLogin?: string;
+  registrationDate?: string;
+}
+
+export interface WalletTransaction extends Transaction {
+  // Can be extended with display-specific fields if needed
+  // For now, it's an alias or extension of Transaction
+  description?: string; // Example additional field
 }

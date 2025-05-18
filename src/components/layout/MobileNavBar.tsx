@@ -1,104 +1,133 @@
+import React from 'react';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Menu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Link } from 'react-router-dom';
+import { Home, User, Settings, LogOut, PlusCircle, ListChecks, ShieldCheck } from 'lucide-react';
+import WalletBalance from '@/components/user/WalletBalance';
 
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { Home, Gamepad2, Zap, Menu, User, PlusCircle } from "lucide-react"; // Added PlusCircle for Deposit
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import WalletBalance from "@/components/user/WalletBalance";
-// DepositButton is read-only. We will use a regular button styled as an icon if "icon" variant is not supported.
-
-interface MobileNavBarProps {
-  onOpenMenu: () => void;
-}
-
-const MobileNavBar = ({ onOpenMenu }: MobileNavBarProps) => {
+const MobileNavBar = () => {
+  const { user, isAuthenticated, signOut } = useAuth();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    window.scrollTo(0, 0);
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth/login');
   };
-  
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-casino-thunder-darker border-t border-white/10 z-40">
-      <div className="container px-2 py-2 grid grid-cols-5">
-        <NavItem 
-          icon={<Home />} 
-          label="Home" 
-          onClick={() => handleNavigation("/")}
-        />
-        
-        <NavItem 
-          icon={<Gamepad2 />} 
-          label="Casino" 
-          onClick={() => handleNavigation("/casino")}
-        />
-        
-        {isAuthenticated ? (
-          <div className="flex flex-col items-center justify-center -mt-6">
-            <WalletBalance 
-              variant="compact" 
-              className="bg-casino-thunder-green text-black px-3 py-2 rounded-full shadow-lg" 
-              showRefresh={false} 
-            />
-            {/* Assuming DepositButton (read-only) can be replaced by a regular Button or styled */}
-            {/* For now, using a regular button if DepositButton variant="icon" caused issues */}
-             <Button 
-              variant="ghost" // Use a valid variant
-              size="sm" // Use a valid size
-              className="h-8 w-8 mt-1 p-0 text-casino-thunder-green hover:text-casino-thunder-green/80" // Style as icon
-              onClick={() => navigate('/payment/deposit')} // Example action
-            >
-              <PlusCircle size={24}/>
-            </Button>
+    <Sheet>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Menu />
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:w-64">
+        <SheetHeader>
+          <SheetTitle>Menu</SheetTitle>
+          <SheetDescription>
+            Explore your account and settings.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="py-4">
+          {isAuthenticated && user ? (
+            <div className="flex items-center space-x-4">
+              <Avatar>
+                <AvatarImage src={user.avatar_url} alt={user.username} />
+                <AvatarFallback>{user.username?.slice(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold">{user.username}</h4>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          )}
+        </div>
+        <Separator />
+        <div className="py-4">
+          <ul className="space-y-2">
+            <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/casino">
+                  <Home className="mr-2 h-4 w-4" />
+                  Casino
+                </Link>
+              </Button>
+            </li>
+            <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Link>
+              </Button>
+            </li>
+             <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/payment/deposit">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Deposit
+                </Link>
+              </Button>
+            </li>
+            <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/kyc">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  KYC Verification
+                </Link>
+              </Button>
+            </li>
+            <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/transactions">
+                  <ListChecks className="mr-2 h-4 w-4" />
+                  Transactions
+                </Link>
+              </Button>
+            </li>
+            <li>
+              <Button variant="ghost" className="justify-start w-full" asChild>
+                <Link to="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </Button>
+            </li>
+          </ul>
+        </div>
+        <Separator />
+        <div className="py-4">
+          <Button variant="ghost" className="justify-start w-full" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Log out
+          </Button>
+        </div>
+         <Separator />
+         <div className="py-4">
+          <div className="hidden md:block">
+            {isAuthenticated && user ? (
+                <WalletBalance user={user} />
+            ) : (
+                <Skeleton className="h-8 w-24" />
+            )}
           </div>
-        ) : (
-          <NavItem 
-            icon={<Zap />} 
-            label="Play" 
-            onClick={() => handleNavigation("/login")}
-            highlight
-          />
-        )}
-        
-        <NavItem 
-          icon={<User />} 
-          label="Profile" 
-          onClick={() => isAuthenticated ? handleNavigation("/profile") : handleNavigation("/login")}
-        />
-        
-        <NavItem 
-          icon={<Menu />} 
-          label="Menu" 
-          onClick={onOpenMenu}
-        />
-      </div>
-    </div>
-  );
-};
-
-interface NavItemProps {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  highlight?: boolean;
-}
-
-const NavItem: React.FC<NavItemProps> = ({ icon, label, onClick, highlight }) => {
-  return (
-    <Button 
-      variant="ghost" 
-      className={cn(
-        "flex flex-col items-center justify-center h-14 p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0", // Added focus visibility reset
-        highlight ? "text-casino-thunder-green" : "text-white/80",
-        "hover:text-casino-thunder-green" // Ensure hover color is consistent
-      )}
-      onClick={onClick}
-    >
-      <div className="text-[20px]">{icon}</div>
-      <span className="text-[10px] mt-0.5">{label}</span>
-    </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 

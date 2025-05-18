@@ -15,8 +15,8 @@ const VipProgress: React.FC<VipProgressProps> = ({ user }) => {
   }
 
   const currentLevel = user.vipLevel || 0;
-  const pointsForNextLevel = (currentLevel + 1) * 1000; // Example: 1000 points per level
-  const currentPoints = (user.balance || 0) * 10; // Example: 10 points per unit of balance
+  const pointsForNextLevel = (currentLevel + 1) * 1000; 
+  const currentPoints = (user.balance || 0) * 10; 
   const progressPercentage = Math.min((currentPoints / pointsForNextLevel) * 100, 100);
 
   return (
@@ -31,7 +31,12 @@ const VipProgress: React.FC<VipProgressProps> = ({ user }) => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Progress value={progressPercentage} className="w-full h-3" indicatorClassName="bg-yellow-400" />
+        {/* Removed indicatorClassName, use className for styling the indicator if needed via progress.tsx variant or direct style */}
+        <Progress value={progressPercentage} className="w-full h-3 bg-yellow-400" /> 
+        {/* Example: if indicator takes primary color, you can set a class like className="[&>div]:bg-yellow-400" 
+            Or, if the progress bar is one color, style it directly with bg-yellow-400 as above.
+            Shadcn progress indicator usually inherits primary color or can be styled via variant in ui/progress.tsx
+        */}
         <div className="flex justify-between text-xs text-muted-foreground mt-1">
           <span>Current Points: {currentPoints}</span>
           <span>Next Level: {pointsForNextLevel}</span>

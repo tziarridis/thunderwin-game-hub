@@ -10,12 +10,11 @@ import { format } from 'date-fns';
 
 interface DatePickerProps {
   selected?: Date;
-  onSelect: (date?: Date) => void;
+  onSelect?: (date?: Date) => void; // Made onSelect optional
   mode?: 'single';
   className?: string;
   disabled?: (date: Date) => boolean | { before?: Date; after?: Date; } ; // Match shadcn Calendar
   initialFocus?: boolean;
-  // Added to match usage in KycForm
   value?: Date; 
   onChange?: (date?: Date) => void; 
 }
@@ -27,8 +26,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   mode = "single",
   disabled,
   initialFocus,
-  value, // from KycForm
-  onChange, // from KycForm
+  value, 
+  onChange, 
 }) => {
   const [date, setDate] = React.useState<Date | undefined>(selected || value);
 
@@ -37,14 +36,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     if (onSelect) {
       onSelect(selectedDate);
     }
-    if (onChange) { // Support onChange for compatibility with RHF
+    if (onChange) { 
       onChange(selectedDate);
     }
   };
   
   React.useEffect(() => {
-    // Sync with external value changes
-    if (value !== undefined && value !== date) {
+    if (value !== undefined && value?.getTime() !== date?.getTime()) { // Compare time for accuracy
         setDate(value);
     }
   }, [value, date]);
@@ -69,13 +67,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <Calendar
           mode={mode}
           selected={date}
-          onSelect={handleSelectDate}
-          disabled={disabled as any} // Cast as any to handle different disabled prop types
+          onSelect={handleSelectDate} // Calendar still uses onSelect internally
+          disabled={disabled as any} 
           initialFocus={initialFocus}
-          className="pointer-events-auto" // Ensure calendar is interactive
+          className="pointer-events-auto" 
         />
       </PopoverContent>
     </Popover>
   );
 };
-

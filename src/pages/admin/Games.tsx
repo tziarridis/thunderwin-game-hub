@@ -14,52 +14,45 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Game, DbGame } from "@/types"; // Use DbGame for form interactions
-import { useToast } from "@/components/ui/use-toast"; // Ensure this path is correct, might be src/hooks/use-toast
+import { Game, DbGame, GameProvider, GameCategory } from "@/types"; // Use DbGame for form interactions
+// import { useToast } from "@/components/ui/use-toast"; // toast is provided by sonner via useGames
 import { useNavigate } from "react-router-dom";
 import GameForm from "@/components/admin/GameForm";
 import { useGames } from "@/hooks/useGames";
-import { z } from "zod"; // For form data type if needed
-
-// Inferring GameForm's expected data type from its schema might be useful
-// This depends on the actual GameForm's schema. For now, we use Partial<DbGame>.
-// type GameFormData = z.infer<typeof gameFormSchema>; // If gameFormSchema is exported from GameForm
+// import { z } from "zod"; // For form data type if needed
 
 const AdminGames = () => {
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  // filteredGames from useGames is already sufficient
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedGameForEdit, setSelectedGameForEdit] = useState<Partial<DbGame> | undefined>(undefined);
   const gamesPerPage = 10;
-  // const { toast } = useToast(); // toast is provided by sonner via useGames
   const navigate = useNavigate();
   
   const { 
-    games, // This is of type Game[]
-    filteredGames: contextFilteredGames, // Renaming to avoid conflict with local state if any
-    loading, 
-    // totalGames, // This was an optional field, use games.length or contextFilteredGames.length
+    games, 
+    filteredGames: contextFilteredGames, 
+    loading, // This is isLoading from context
     providers,
     categories,
-    addGame, // Expects (gameData: Partial<DbGame>)
-    updateGame, // Expects (gameId: string, gameData: Partial<DbGame>)
+    addGame, 
+    updateGame, 
     deleteGame,
-    filterGames: contextFilterGames // Renaming to avoid conflict
+    filterGames: contextFilterGames 
   } = useGames();
   
   useEffect(() => {
     contextFilterGames(searchQuery);
   }, [searchQuery, contextFilterGames]);
 
-  const localFilteredGames = contextFilteredGames; // Use the filtered games from context
+  const localFilteredGames = contextFilteredGames;
 
   const getProviderName = (providerSlug: string | undefined): string => {
     if (!providerSlug) return 'Unknown';
     const provider = providers.find(p => p.slug === providerSlug);
-    return provider?.name || providerSlug; // Fallback to slug if name not found
+    return provider?.name || providerSlug;
   };
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,7 +60,6 @@ const AdminGames = () => {
     setCurrentPage(1); 
   };
   
-  // ... keep existing code (handleSelectRow, handleSelectAll, handleViewGame)
   const handleSelectRow = (gameId: string) => {
     if (selectedRows.includes(gameId)) {
       setSelectedRows(selectedRows.filter(id => id !== gameId));
@@ -85,34 +77,16 @@ const AdminGames = () => {
   };
   
   const handleViewGame = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`); // Make sure this route exists and GamePage can handle it
+    navigate(`/casino/game/${gameId}`);
   };
   
-  const handleEditGame = (game: Game) => { // Game from the table is of type Game
-    // We need to find the corresponding DbGame or map Game to Partial<DbGame>
-    // For simplicity, assuming GameForm can handle Game type or we fetch DbGame by ID.
-    // Or, useGames provides a getDbGameById if available.
-    // For now, we'll pass the Game object and GameForm's initialValues will map it.
-    // The GameForm expects Partial<DbGame> for initialValues.
-    // We need a way to get the full DbGame data or ensure Game has all necessary fields.
-    // Best: fetch the full DbGame for editing or ensure GameForm can take Game and map it.
-    // The provided GameForm takes Partial<DbGame>.
-    // Let's assume we map Game to Partial<DbGame> for editing.
+  const handleEditGame = (game: Game) => { 
     const gameToEdit: Partial<DbGame> = {
-        ...game, // Spread Game object
-        // category_slugs is already string[] in Game type, so it's fine.
-        // Ensure all DbGame fields expected by GameForm are here.
-        // Game.provider is string (name/slug), DbGame.provider_slug is string.
-        // GameForm takes provider_slug. Game.provider_slug should be used if available.
-        provider_slug: game.provider_slug || game.provider, // Adjust as needed
-        title: game.title, // GameForm expects 'title'
-        // game_code might be on Game object (game.game_code)
-        // image_url might be on Game object (game.image)
+        ...game, 
+        provider_slug: game.provider_slug || game.provider,
+        title: game.title, 
         image_url: game.image,
-        // cover is on Game object
-        // description is on Game object
-        // rtp is on Game object
-        // launch_url might be on Game object
+        category_ids: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : undefined), // GameForm might expect category_ids
     };
     setSelectedGameForEdit(gameToEdit);
     setIsEditDialogOpen(true);
@@ -120,15 +94,13 @@ const AdminGames = () => {
   
   const handleDeleteGame = async (gameId: string) => {
     if (window.confirm("Are you sure you want to delete this game?")) {
-      const success = await deleteGame(gameId); // deleteGame returns boolean
+      const success = await deleteGame(gameId);
       if (success) {
         setSelectedRows(selectedRows.filter(id => id !== gameId));
       }
     }
   };
   
-  // GameForm's onSubmit expects (values: z.infer<typeof formSchema>)
-  // which aligns with Partial<DbGame> structure from the schema.
   const handleFormSubmit = async (values: Partial<DbGame>) => {
     if (isAddDialogOpen) {
       await addGame(values);
@@ -137,11 +109,9 @@ const AdminGames = () => {
       await updateGame(selectedGameForEdit.id, values);
       setIsEditDialogOpen(false);
     }
-    setSelectedGameForEdit(undefined); // Clear selected game
+    setSelectedGameForEdit(undefined);
   };
 
-
-  // Calculate pagination
   const indexOfLastGame = currentPage * gamesPerPage;
   const indexOfFirstGame = indexOfLastGame - gamesPerPage;
   const currentGames = localFilteredGames.slice(indexOfFirstGame, indexOfLastGame);
@@ -159,7 +129,7 @@ const AdminGames = () => {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             setIsAddDialogOpen(isOpen);
-            if (!isOpen) setSelectedGameForEdit(undefined); // Clear form on close
+            if (!isOpen) setSelectedGameForEdit(undefined); 
           }}>
             <DialogTrigger asChild>
               <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black" onClick={() => setSelectedGameForEdit(undefined)}>
@@ -175,7 +145,7 @@ const AdminGames = () => {
                 onSubmit={handleFormSubmit} 
                 providers={providers} 
                 categories={categories} 
-                loading={loading}
+                // loading prop removed as it's not accepted by GameForm
               />
             </DialogContent>
           </Dialog>
@@ -195,7 +165,6 @@ const AdminGames = () => {
             </div>
           </div>
         </div>
-        {/* ... other stats cards ... */}
         <div className="thunder-card p-4">
           <div className="flex justify-between items-center">
             <div>
@@ -222,7 +191,7 @@ const AdminGames = () => {
       </div>
       
       {/* Search Bar */}
-      <div className="mb-6">
+       <div className="mb-6">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <Search className="w-5 h-5 text-gray-400" />
@@ -239,7 +208,7 @@ const AdminGames = () => {
       
       {/* Games Table */}
       <div className="thunder-card overflow-hidden">
-        {loading && currentGames.length === 0 ? ( // Show loader if loading and no games yet
+        {loading && currentGames.length === 0 ? ( 
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-casino-thunder-green" />
           </div>
@@ -271,10 +240,6 @@ const AdminGames = () => {
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     RTP
                   </th>
-                  {/* Bet Range was removed from Game type, can remove column or add to type */}
-                  {/* <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
-                    Bet Range
-                  </th> */}
                   <th className="px-4 py-3 text-left text-xs font-medium text-white/60 uppercase tracking-wider">
                     Status
                   </th>
@@ -306,23 +271,19 @@ const AdminGames = () => {
                       </div>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {/* Game.provider is slug, map to name if possible */}
                       {getProviderName(game.provider_slug || game.provider)}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">
-                      {game.category_slugs?.join(', ') || game.category || 'N/A'}
+                      {(Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.category_slugs) || game.category || 'N/A'}
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp ? `${game.rtp}%` : 'N/A'}</td>
-                    {/* <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      ${game.minBet} - ${game.maxBet} // Re-add if minBet/maxBet are on Game type
-                    </td> */}
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                         game.status === 'active' 
                           ? 'bg-green-100 text-green-800' 
                           : game.status === 'inactive'
                             ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800' // for maintenance or other statuses
+                            : 'bg-yellow-100 text-yellow-800'
                       }`}>
                         {game.status || 'N/A'}
                       </span>
@@ -363,7 +324,6 @@ const AdminGames = () => {
         )}
         
         {/* Pagination */}
-        {/* ... keep existing pagination JSX ... */}
         <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
           <div className="flex-1 flex justify-between sm:hidden">
             <Button 
@@ -416,7 +376,7 @@ const AdminGames = () => {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  if (pageNum > totalPages || pageNum < 1) return null; // Avoid rendering invalid page numbers
+                  if (pageNum > totalPages || pageNum < 1) return null; 
                   
                   return (
                     <Button 
@@ -448,19 +408,19 @@ const AdminGames = () => {
       {/* Edit Game Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
         setIsEditDialogOpen(isOpen);
-        if (!isOpen) setSelectedGameForEdit(undefined); // Clear form on close
+        if (!isOpen) setSelectedGameForEdit(undefined); 
       }}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Edit Game</DialogTitle>
           </DialogHeader>
-          {selectedGameForEdit && ( // ensure selectedGameForEdit is not undefined
+          {selectedGameForEdit && ( 
             <GameForm 
               onSubmit={handleFormSubmit} 
-              initialValues={selectedGameForEdit} // Changed from initialData
+              initialData={selectedGameForEdit} // Changed from initialValues
               providers={providers}
               categories={categories}
-              loading={loading}
+              // loading prop removed
             />
           )}
         </DialogContent>
