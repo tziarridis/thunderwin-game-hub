@@ -41,14 +41,14 @@ export interface AuthContextType {
   error: any;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password?: string) => Promise<any>; // For Login
-  signUp: (email: string, password?: string, metadata?: any) => Promise<any>; // For Register
+  login: (email: string, password?: string) => Promise<any>; // Renamed from signIn
+  register: (username: string, email: string, password?: string, metadata?: any) => Promise<any>; // Renamed from signUp and updated signature
   signOut: () => Promise<void>;
   adminLogin: (email: string, password?: string) => Promise<any>;
   updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
   refreshWalletBalance: () => Promise<Wallet | null>;
-  deposit?: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>;
-  updateUserSettings?: (settings: Partial<User>) => Promise<{ error?: any }>; // For Settings page
+  deposit: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; // Added
+  updateUserSettings?: (settings: Partial<User>) => Promise<{ error?: any }>; 
 }
 
 export interface ApiResponse<T> {
@@ -191,24 +191,29 @@ export interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   createdAt: string;
   updatedAt: string;
-  // Add other relevant fields
+  description?: string; // Added field
 }
 
 export interface Bonus {
   id: string;
-  name: string;
+  userId: string; // Added
+  name?: string; // Kept optional as BonusHub derives it or it might be supplemental
   description: string;
-  type: string; // e.g., 'deposit_match', 'free_spins'
-  amount?: number;
+  type: BonusType; // Use BonusType string union
+  amount: number; // Assuming amount is always number (e.g. count for free spins)
+  status: 'active' | 'used' | 'expired' | string; // Added
+  expiryDate: string; // Added
+  createdAt: string; // Added
   wageringRequirement?: number;
-  isActive: boolean;
-  // Added fields based on PromotionCard.tsx usage if Promotion is similar
-  title?: string; // PromotionCard uses title
-  endDate?: string; // PromotionCard uses endDate
-  ctaText?: string; // PromotionCard uses ctaText
-  imageUrl?: string; // PromotionCard uses imageUrl
-  termsLink?: string; // PromotionCard uses termsLink
-  // Add other relevant fields
+  progress?: number; // Added
+  code?: string; // Added
+  isActive?: boolean; // This might be redundant if 'status' is used, review usage
+  // Fields from PromotionCard usage (review if still needed or if BonusHub is primary consumer)
+  title?: string; 
+  endDate?: string; // Potentially redundant with expiryDate
+  ctaText?: string; 
+  imageUrl?: string; 
+  termsLink?: string; 
 }
 
 export interface Promotion {

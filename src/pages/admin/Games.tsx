@@ -27,14 +27,14 @@ const AdminGames = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedGameForEdit, setSelectedGameForEdit] = useState<Partial<DbGame> | undefined>(undefined);
+  const [selectedGameForEdit, setSelectedGameForEdit] = useState<Partial<DbGame> | null>(null); // Changed to null for clarity
   const gamesPerPage = 10;
   const navigate = useNavigate();
   
   const { 
     games, 
     filteredGames: contextFilteredGames, 
-    loading, // This is isLoading from context
+    isLoading: loading, // context provides isLoading, aliased to loading if component expects loading
     providers,
     categories,
     addGame, 
@@ -44,11 +44,11 @@ const AdminGames = () => {
   } = useGames();
   
   useEffect(() => {
-    contextFilterGames(searchQuery);
+    contextFilterGames(searchQuery, undefined, undefined); // Pass undefined for category/provider if not used here
   }, [searchQuery, contextFilterGames]);
 
   const localFilteredGames = contextFilteredGames;
-
+  
   const getProviderName = (providerSlug: string | undefined): string => {
     if (!providerSlug) return 'Unknown';
     const provider = providers.find(p => p.slug === providerSlug);
@@ -69,7 +69,7 @@ const AdminGames = () => {
   };
   
   const handleSelectAll = () => {
-    if (selectedRows.length === currentGames.length && currentGames.length > 0) {
+    if (currentGames.length > 0 && selectedRows.length === currentGames.length) {
       setSelectedRows([]);
     } else {
       setSelectedRows(currentGames.map(game => game.id));
@@ -77,16 +77,36 @@ const AdminGames = () => {
   };
   
   const handleViewGame = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`);
+    navigate(`/casino/game/${gameId}`); // Assuming Game has slug and this is the correct route
   };
-  
+
   const handleEditGame = (game: Game) => { 
+    // Map Game to DbGame structure for the form
     const gameToEdit: Partial<DbGame> = {
-        ...game, 
-        provider_slug: game.provider_slug || game.provider,
+        id: game.id,
         title: game.title, 
-        image_url: game.image,
-        category_ids: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : undefined), // GameForm might expect category_ids
+        slug: game.slug,
+        provider_slug: game.provider_slug || game.provider,
+        category_slugs: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : []),
+        rtp: game.rtp,
+        status: game.status as DbGame['status'] || 'active',
+        description: game.description,
+        cover: game.image, // Assuming game.image is cover
+        banner: game.banner,
+        is_popular: game.isPopular,
+        is_new: game.isNew,
+        is_featured: game.is_featured,
+        show_home: game.show_home,
+        tags: game.tags,
+        features: game.features,
+        themes: game.themes,
+        volatility: game.volatility,
+        lines: game.lines,
+        min_bet: game.minBet,
+        max_bet: game.maxBet,
+        release_date: game.release_date,
+        game_id: game.game_id,
+        game_code: game.game_code,
     };
     setSelectedGameForEdit(gameToEdit);
     setIsEditDialogOpen(true);
@@ -98,6 +118,7 @@ const AdminGames = () => {
       if (success) {
         setSelectedRows(selectedRows.filter(id => id !== gameId));
       }
+      // Toast messages are handled by useGames hook
     }
   };
   
@@ -109,7 +130,7 @@ const AdminGames = () => {
       await updateGame(selectedGameForEdit.id, values);
       setIsEditDialogOpen(false);
     }
-    setSelectedGameForEdit(undefined);
+    setSelectedGameForEdit(null); // Reset after submission
   };
 
   const indexOfLastGame = currentPage * gamesPerPage;
@@ -129,23 +150,24 @@ const AdminGames = () => {
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={(isOpen) => {
             setIsAddDialogOpen(isOpen);
-            if (!isOpen) setSelectedGameForEdit(undefined); 
+            if (!isOpen) setSelectedGameForEdit(null); 
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black" onClick={() => setSelectedGameForEdit(undefined)}>
+              <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black" onClick={() => setSelectedGameForEdit(null)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Game
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Game</DialogTitle>
               </DialogHeader>
               <GameForm 
                 onSubmit={handleFormSubmit} 
                 providers={providers} 
-                categories={categories} 
-                // loading prop removed as it's not accepted by GameForm
+                categories={categories}
+                onCancel={() => setIsAddDialogOpen(false)} // Added onCancel
+                initialGameData={null} // Explicitly null for add
               />
             </DialogContent>
           </Dialog>
@@ -222,7 +244,7 @@ const AdminGames = () => {
                       <input
                         type="checkbox"
                         className="form-checkbox h-4 w-4 text-casino-thunder-green rounded"
-                        checked={selectedRows.length === currentGames.length && currentGames.length > 0}
+                        checked={currentGames.length > 0 && selectedRows.length === currentGames.length}
                         onChange={handleSelectAll}
                         disabled={currentGames.length === 0}
                       />
@@ -261,60 +283,60 @@ const AdminGames = () => {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 rounded overflow-hidden bg-white/10">
-                          <img src={game.image || '/placeholder.svg'} alt={game.title} className="h-10 w-10 object-cover" />
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium">{game.title}</div>
-                          <div className="text-xs text-white/60">ID: {game.id}</div>
+                        <img src={game.image || '/placeholder.svg'} alt={game.title} className="h-10 w-10 rounded-md object-cover mr-3" />
+                        <div>
+                          <div className="text-sm font-medium text-white">{game.title}</div>
+                          <div className="text-xs text-white/60">ID: {game.id.substring(0,8)}...</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {getProviderName(game.provider_slug || game.provider)}
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/80">{getProviderName(game.provider_slug || game.provider)}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/80">
+                      {Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.category}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm capitalize">
-                      {(Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.category_slugs) || game.category || 'N/A'}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">{game.rtp ? `${game.rtp}%` : 'N/A'}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm text-white/80">{game.rtp ? `${game.rtp}%` : "N/A"}</td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        game.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : game.status === 'inactive'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                        game.status === 'active' ? 'bg-green-500/20 text-green-300' : 
+                        game.status === 'inactive' ? 'bg-red-500/20 text-red-300' :
+                        game.status === 'maintenance' ? 'bg-yellow-500/20 text-yellow-300' :
+                        'bg-gray-500/20 text-gray-300'
                       }`}>
-                        {game.status || 'N/A'}
+                        {game.status || 'unknown'}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleViewGame(game.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleEditGame(game)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-red-500"
-                          onClick={() => handleDeleteGame(game.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                      <Button variant="ghost" size="icon" onClick={() => handleViewGame(game.slug || game.id)} className="hover:text-casino-thunder-green">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Dialog open={isEditDialogOpen && selectedGameForEdit?.id === game.id} onOpenChange={(isOpen) => {
+                        setIsEditDialogOpen(isOpen);
+                        if(!isOpen) setSelectedGameForEdit(null);
+                      }}>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="icon" onClick={() => handleEditGame(game)} className="hover:text-blue-400">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Edit Game: {selectedGameForEdit?.title}</DialogTitle>
+                          </DialogHeader>
+                           <GameForm 
+                            onSubmit={handleFormSubmit} 
+                            initialGameData={selectedGameForEdit} 
+                            providers={providers} 
+                            categories={categories}
+                            onCancel={() => {
+                              setIsEditDialogOpen(false);
+                              setSelectedGameForEdit(null);
+                            }}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteGame(game.id)} className="hover:text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -322,109 +344,34 @@ const AdminGames = () => {
             </table>
           </div>
         )}
-        
-        {/* Pagination */}
-        <div className="px-4 py-3 flex items-center justify-between border-t border-white/10">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1 || totalPages === 0}
-            >
-              Previous
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
-              Next
-            </Button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-white/60">
-                Showing <span className="font-medium">{localFilteredGames.length > 0 ? indexOfFirstGame + 1 : 0}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(indexOfLastGame, localFilteredGames.length)}
-                </span>{' '}
-                of <span className="font-medium">{localFilteredGames.length}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-l-md"
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1 || totalPages === 0}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  if (pageNum > totalPages || pageNum < 1) return null; 
-                  
-                  return (
-                    <Button 
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"} 
-                      className={currentPage === pageNum ? "bg-white/10" : ""}
-                      onClick={() => setCurrentPage(pageNum)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-                
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="rounded-r-md"
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </nav>
-            </div>
-          </div>
-        </div>
       </div>
-      
-      {/* Edit Game Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={(isOpen) => {
-        setIsEditDialogOpen(isOpen);
-        if (!isOpen) setSelectedGameForEdit(undefined); 
-      }}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Edit Game</DialogTitle>
-          </DialogHeader>
-          {selectedGameForEdit && ( 
-            <GameForm 
-              onSubmit={handleFormSubmit} 
-              initialData={selectedGameForEdit} // Changed from initialValues
-              providers={providers}
-              categories={categories}
-              // loading prop removed
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex justify-between items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Previous
+          </Button>
+          <span className="text-sm text-white/60">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

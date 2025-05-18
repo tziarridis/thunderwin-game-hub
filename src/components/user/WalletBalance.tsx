@@ -1,84 +1,51 @@
-import { Wallet, User } from '@/types';
-import { walletService, mapDbWalletToWallet } from '@/services/walletService';
-import { useAuth } from '@/contexts/AuthContext';
+
+import React from 'react';
+import { User, Wallet } from '@/types'; // Ensure Wallet type is imported
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, TrendingUp } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext'; // To get user and wallet directly
 
 export interface WalletBalanceProps {
-  user: User | null; // Accept user prop
+  user: User | null; // User object, might contain wallet or be used to fetch it
+  // Wallet info can also be passed directly
+  balance?: number;
+  currency?: string;
+  symbol?: string;
+  className?: string;
 }
 
-const WalletBalance = ({ user }: WalletBalanceProps) => {
-  // const { user } = useAuth(); // User can be passed as prop or from context
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const WalletBalance: React.FC<WalletBalanceProps> = ({ 
+  user, 
+  balance: propBalance, 
+  currency: propCurrency,
+  symbol: propSymbol, 
+  className 
+}) => {
+  const { wallet: contextWallet, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    const fetchWallet = async () => {
-      if (user?.id) {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const response = await walletService.getWalletByUserId(user.id);
-          if (response.success && response.data) {
-            setWallet(mapDbWalletToWallet(response.data));
-          } else {
-            setError(response.error || 'Failed to load wallet');
-            // toast.error(response.error || 'Failed to load wallet');
-             setWallet(null); // Ensure wallet is null on error
-          }
-        } catch (err: any) {
-          setError(err.message || 'An unexpected error occurred');
-          // toast.error(err.message || 'An unexpected error occurred');
-           setWallet(null); // Ensure wallet is null on error
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false); // No user, so not loading
-        // setWallet(null); // Explicitly set wallet to null if no user
-      }
-    };
+  const isLoading = authLoading; // Use auth loading state for skeleton
+  const currentWallet = contextWallet; // Prioritize context wallet
 
-    fetchWallet();
-  }, [user]);
+  const displayBalance = currentWallet?.balance ?? propBalance ?? 0;
+  const displayCurrency = currentWallet?.currency ?? propCurrency ?? 'N/A';
+  const displaySymbol = currentWallet?.symbol ?? propSymbol ?? '$';
 
   if (isLoading) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-3/4" />
-        <Skeleton className="h-4 w-1/2" />
-      </div>
-    );
+    return <Skeleton className={`h-8 w-24 ${className}`} />;
   }
 
-  if (error) {
-    return <div className="text-red-500 flex items-center"><AlertTriangle className="mr-2 h-4 w-4" /> {error}</div>;
-  }
-
-  if (!wallet) {
-    return <div className="text-muted-foreground">No wallet information available.</div>;
+  if (!user || !currentWallet) { // If no user or no wallet data (even after loading)
+    return <span className={`text-sm text-muted-foreground ${className}`}>N/A</span>;
   }
 
   return (
-    <div className="space-y-1">
-      <div className="text-2xl font-bold text-casino-neon-green">
-        {wallet.symbol}{wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        <span className="text-xs text-gray-400 ml-1">{wallet.currency}</span>
-      </div>
-      {wallet.bonusBalance !== undefined && wallet.bonusBalance > 0 && (
-        <div className="text-sm text-blue-400">
-          Bonus: {wallet.symbol}{wallet.bonusBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </div>
-      )}
-      <p className="text-xs text-muted-foreground">
-        Last updated: {new Date(wallet.updatedAt).toLocaleTimeString()}
-      </p>
+    <div className={`flex items-center space-x-2 ${className}`}>
+      <span className="text-lg font-semibold">
+        {displaySymbol}{displayBalance.toFixed(2)}
+      </span>
+      <span className="text-xs text-muted-foreground">{displayCurrency}</span>
     </div>
   );
 };
 
 export default WalletBalance;
+

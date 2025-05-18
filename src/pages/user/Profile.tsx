@@ -1,259 +1,210 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { walletService, mapDbWalletToWallet } from '@/services/walletService';
-import { Wallet } from '@/types'; // Assuming User type comes from AuthContext
+import { User } from '@/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner'; // Ensure toast is imported
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/components/ui/use-toast'; // Assuming shadcn toast
+import { Edit3, Save, User as UserIcon, ShieldCheck, Gift, ListChecks } from 'lucide-react';
+import UserStats from '@/components/user/UserStats'; // Import UserStats
+import VipProgress from '@/components/user/VipProgress'; // Import VipProgress
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, UserCircle, Edit3, Save, XCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 
-const UserProfilePage = () => {
-  const { user, loading: authLoading, error: authError, updateUserProfile, refreshWalletBalance } = useAuth();
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [isLoadingWallet, setIsLoadingWallet] = useState(true);
-  const [walletError, setWalletError] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    // Add other fields like username, avatar_url if they exist on user profile
-    // username: '',
-    // avatar_url: ''
-  });
-
-  const navigate = useNavigate();
+const ProfilePage = () => {
+  const { user, updateUserProfile, loading: authLoading } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<Partial<User>>({});
 
   useEffect(() => {
     if (user) {
       setFormData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
-        email: user.email || '',
-        // username: user.username || '',
-        // avatar_url: user.avatar_url || ''
+        username: user.username || '',
+        email: user.email || '', // Email might not be editable
+        phone: user.phone || '',
+        country: user.country || '',
+        // Add other fields as necessary
       });
     }
   }, [user]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!updateUserProfile) {
-        toast.error("Profile update functionality is not available.");
-        return;
+      toast({ title: "Error", description: "Profile update service not available.", variant: "destructive" });
+      return;
     }
-    
-    // Create an update object with only changed fields or all fields based on your updateUserProfile needs
-    const profileUpdateData = {
-      // id: user?.id, // updateUserProfile should get ID from context or session
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      // email: formData.email, // Usually email update requires verification, handle carefully
-      // username: formData.username,
-      // avatar_url: formData.avatar_url
-    };
-
     try {
-      const { error: updateError } = await updateUserProfile(profileUpdateData);
-
-      if (updateError) {
-        toast.error(`Failed to update profile: ${updateError.message}`);
-      } else {
-        toast.success('Profile updated successfully!');
-        setEditMode(false);
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'An unexpected error occurred while updating profile.');
+      const { data, error } = await updateUserProfile(formData);
+      if (error) throw error;
+      toast({ title: "Success", description: "Profile updated successfully." });
+      setIsEditing(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to update profile.", variant: "destructive" });
     }
   };
 
-  useEffect(() => {
-    const fetchWallet = async () => {
-      if (user?.id) {
-        setIsLoadingWallet(true);
-        setWalletError(null);
-        try {
-          // Use refreshWalletBalance from AuthContext if it fetches and sets wallet
-          // Otherwise, call walletService directly
-          if (refreshWalletBalance) {
-            const currentWallet = await refreshWalletBalance(); // Assuming it returns Wallet or updates context
-            if (currentWallet) setWallet(currentWallet); // If it returns wallet directly
-            // If refreshWalletBalance updates context, AuthContext should provide wallet state
-          } else {
-            // Fallback to direct service call if refreshWalletBalance isn't for fetching
-            const walletResponse = await walletService.getWalletByUserId(user.id);
-            if (walletResponse.success && walletResponse.data) {
-              setWallet(mapDbWalletToWallet(walletResponse.data));
-            } else if (walletResponse.error) {
-              setWalletError(walletResponse.error);
-              // toast.error(`Failed to load wallet: ${walletResponse.error}`);
-            } else {
-               setWallet(null); 
-            }
-          }
-        } catch (err: any) {
-          setWalletError(err.message || "Failed to fetch wallet.");
-          // toast.error(err.message || "Failed to fetch wallet.");
-        } finally {
-          setIsLoadingWallet(false);
-        }
-      } else if (!authLoading) {
-        setIsLoadingWallet(false);
-      }
-    };
-
-    if (!authLoading) {
-        fetchWallet();
-    }
-  }, [user?.id, authLoading, refreshWalletBalance]);
-  
-  if (authLoading) {
+  if (authLoading && !user) {
     return (
-      <div className="container mx-auto p-4 md:p-8 flex justify-center items-center min-h-[calc(100vh-200px)]">
-        <Skeleton className="w-full max-w-lg h-96 rounded-lg" />
-      </div>
+        <div className="container mx-auto p-4 md:p-8 space-y-6">
+            <Skeleton className="h-32 w-full rounded-lg" />
+            <Skeleton className="h-10 w-1/4" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Skeleton className="h-64 w-full rounded-lg" />
+                <Skeleton className="h-64 w-full rounded-lg md:col-span-2" />
+            </div>
+        </div>
     );
   }
 
-  if (authError) {
-    return (
-      <div className="container mx-auto p-4 md:p-8 text-center">
-        <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-        <p className="text-xl text-red-400">Error loading user data.</p>
-        <p className="text-muted-foreground">{authError.message || String(authError)}</p>
-        <Button onClick={() => navigate('/auth/login')} className="mt-4">Go to Login</Button>
-      </div>
-    );
-  }
-  
   if (!user) {
-     return (
-      <div className="container mx-auto p-4 md:p-8 text-center">
-        <UserCircle className="mx-auto h-16 w-16 text-gray-500 mb-4" />
-        <p className="text-xl mb-4">Please log in to view your profile.</p>
-        <Button onClick={() => navigate('/auth/login')}>Login</Button>
-      </div>
-    );
+    return <div className="container mx-auto p-8 text-center">Please log in to view your profile.</div>;
   }
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <Card className="max-w-2xl mx-auto bg-card border-border/30 shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-3xl font-bold text-white flex items-center">
-            <UserCircle className="mr-3 h-8 w-8 text-casino-neon-green" />
-            Your Profile
-          </CardTitle>
-          <CardDescription className="text-gray-400">
-            View and manage your personal information and wallet details.
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {editMode ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="firstName" className="text-gray-300">First Name</Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleInputChange}
-                  className="bg-input border-border/50 focus:ring-casino-neon-green focus:border-casino-neon-green"
-                />
-              </div>
-              <div>
-                <Label htmlFor="lastName" className="text-gray-300">Last Name</Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleInputChange}
-                  className="bg-input border-border/50 focus:ring-casino-neon-green focus:border-casino-neon-green"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email" className="text-gray-300">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  readOnly 
-                  className="bg-input border-border/50 text-gray-500 cursor-not-allowed"
-                  title="Email address cannot be changed here."
-                />
-                 <p className="text-xs text-gray-500 mt-1">Email cannot be changed after registration.</p>
-              </div>
-              {/* Add other editable fields here, e.g., username, avatar_url */}
-              {/* <div>
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" name="username" value={formData.username} onChange={handleInputChange} />
-              </div> */}
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" className="bg-casino-neon-green text-casino-black hover:bg-opacity-80">
-                  <Save className="mr-2 h-4 w-4" /> Save Changes
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setEditMode(false)}>
-                  <XCircle className="mr-2 h-4 w-4" /> Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-3 text-gray-300">
-              <p><strong>First Name:</strong> {user.firstName || 'Not set'}</p>
-              <p><strong>Last Name:</strong> {user.lastName || 'Not set'}</p>
-              <p><strong>Email:</strong> {user.email}</p>
-              {/* <p><strong>Username:</strong> {user.username || 'Not set'}</p> */}
-              {/* Display avatar if available */}
-              {/* {user.avatar_url && <img src={user.avatar_url} alt="Avatar" className="w-20 h-20 rounded-full" />} */}
-               <Button onClick={() => setEditMode(true)} className="mt-4 bg-casino-neon-green/20 text-casino-neon-green hover:bg-casino-neon-green/30 border border-casino-neon-green/50">
-                <Edit3 className="mr-2 h-4 w-4" /> Edit Profile
-              </Button>
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="border-t border-border/20 pt-6 mt-6">
-          <div className="w-full">
-            <h3 className="text-xl font-semibold text-white mb-3">Wallet Information</h3>
-            {isLoadingWallet ? (
-              <Skeleton className="h-10 w-full rounded" />
-            ) : walletError ? (
-               <p className="text-red-400 flex items-center"><AlertTriangle className="h-5 w-5 mr-2 text-red-500" /> Error loading wallet: {walletError}</p>
-            ) : wallet ? (
-              <div className="p-4 bg-black/20 rounded-md">
-                <p className="text-2xl font-bold text-casino-neon-green">
-                  {wallet.symbol}{wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 
-                  <span className="text-sm text-gray-400 ml-1">{wallet.currency}</span>
-                </p>
-                {/* <p className="text-sm text-gray-500">Last updated: {new Date(wallet.updatedAt).toLocaleString()}</p> */}
-              </div>
-            ) : (
-              <p className="text-gray-400">No wallet information available for this user.</p>
-            )}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-col md:flex-row items-center gap-4">
+          <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-primary">
+            <AvatarImage src={user.avatar_url || `https://avatar.vercel.sh/${user.username || user.id}.png`} alt={user.username} />
+            <AvatarFallback className="text-3xl md:text-4xl">
+              {user.firstName?.charAt(0) || user.username?.charAt(0) || 'U'}
+              {user.lastName?.charAt(0) || user.username?.charAt(1) || ''}
+            </AvatarFallback>
+          </Avatar>
+          <div className="text-center md:text-left">
+            <CardTitle className="text-2xl md:text-3xl">{user.firstName || ''} {user.lastName || ''}</CardTitle>
+            <CardDescription>@{user.username || 'username_not_set'}</CardDescription>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+            {/* TODO: Add VIP Level Badge here */}
           </div>
-        </CardFooter>
+          <Button variant="outline" onClick={() => setIsEditing(!isEditing)} className="ml-auto mt-4 md:mt-0">
+            {isEditing ? <Save className="mr-2 h-4 w-4" /> : <Edit3 className="mr-2 h-4 w-4" />}
+            {isEditing ? 'Save Profile' : 'Edit Profile'}
+          </Button>
+        </CardHeader>
       </Card>
 
-      {/* Removed TransactionsList as it was causing errors and its definition/props are unclear */}
-      {/* If you need transactions here, ensure TransactionsList component exists and props are correct */}
-      {/* For example: <TransactionsList userId={user.id} /> */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-4">
+          <TabsTrigger value="overview"><UserIcon className="mr-2 h-4 w-4 inline-block"/>Overview</TabsTrigger>
+          <TabsTrigger value="kyc"><ShieldCheck className="mr-2 h-4 w-4 inline-block"/>KYC</TabsTrigger>
+          <TabsTrigger value="bonuses"><Gift className="mr-2 h-4 w-4 inline-block"/>Bonuses</TabsTrigger>
+          <TabsTrigger value="transactions"><ListChecks className="mr-2 h-4 w-4 inline-block"/>Transactions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>{isEditing ? 'Edit Your Information' : 'Profile Information'}</CardTitle>
+                <CardDescription>{isEditing ? 'Update your personal details.' : 'View your current profile details.'}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isEditing ? (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="firstName">First Name</Label>
+                            <Input id="firstName" name="firstName" value={formData.firstName || ''} onChange={handleChange} />
+                        </div>
+                        <div>
+                            <Label htmlFor="lastName">Last Name</Label>
+                            <Input id="lastName" name="lastName" value={formData.lastName || ''} onChange={handleChange} />
+                        </div>
+                    </div>
+                     <div>
+                        <Label htmlFor="username">Username</Label>
+                        <Input id="username" name="username" value={formData.username || ''} onChange={handleChange} />
+                    </div>
+                    <div>
+                        <Label htmlFor="email">Email (cannot be changed)</Label>
+                        <Input id="email" name="email" value={formData.email || ''} readOnly disabled />
+                    </div>
+                    <div>
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" name="phone" type="tel" value={formData.phone || ''} onChange={handleChange} />
+                    </div>
+                    <div>
+                        <Label htmlFor="country">Country</Label>
+                        <Input id="country" name="country" value={formData.country || ''} onChange={handleChange} />
+                    </div>
+                    {/* Add more fields as needed */}
+                    <Button type="submit" className="w-full md:w-auto">Save Changes</Button>
+                  </form>
+                ) : (
+                  <div className="space-y-3">
+                    <p><strong>First Name:</strong> {user.firstName || 'N/A'}</p>
+                    <p><strong>Last Name:</strong> {user.lastName || 'N/A'}</p>
+                    <p><strong>Username:</strong> {user.username || 'N/A'}</p>
+                    <p><strong>Email:</strong> {user.email}</p>
+                    <p><strong>Phone:</strong> {user.phone || 'N/A'}</p>
+                    <p><strong>Country:</strong> {user.country || 'N/A'}</p>
+                    <p><strong>Joined:</strong> {user.registrationDate ? new Date(user.registrationDate).toLocaleDateString() : 'N/A'}</p>
+                    <p><strong>Last Login:</strong> {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'N/A'}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <div className="space-y-6">
+              <UserStats user={user} />
+              <VipProgress user={user} />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="kyc">
+          <Card>
+            <CardHeader><CardTitle>KYC Verification</CardTitle></CardHeader>
+            <CardContent>
+              <p>Current KYC Status: <span className={`font-semibold ${user.kycStatus === 'verified' ? 'text-green-500' : 'text-yellow-500'}`}>{user.kycStatus || 'Not Submitted'}</span></p>
+              {user.kycStatus !== 'verified' && (
+                <Button className="mt-4" onClick={() => {/* TODO: Navigate to KYC page or open KYC modal */} }>
+                  {user.kycStatus === 'pending' ? 'Check KYC Status' : 'Start KYC Verification'}
+                </Button>
+              )}
+              {/* TODO: Display KYC submission form or details */}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="bonuses">
+          <Card>
+            <CardHeader><CardTitle>My Bonuses</CardTitle></CardHeader>
+            <CardContent>
+              <p>Bonus information and history will be displayed here.</p>
+              {/* TODO: Integrate BonusList component or similar */}
+               <Button className="mt-4" onClick={() => {/* TODO: Navigate to BonusHub */} }>
+                  View All Bonuses
+                </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader><CardTitle>Transaction History</CardTitle></CardHeader>
+            <CardContent>
+              <p>Your recent transactions will appear here.</p>
+              {/* TODO: Integrate TransactionList component or similar */}
+              <Button className="mt-4" onClick={() => {/* TODO: Navigate to Transactions page */} }>
+                  View All Transactions
+                </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-export default UserProfilePage;
+export default ProfilePage;

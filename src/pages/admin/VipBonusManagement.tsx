@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BonusTemplate, BonusType } from '@/types';
-import { bonusService } from '@/services/bonusService';
+import bonusService from '@/services/bonusService'; // Assuming default export
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 

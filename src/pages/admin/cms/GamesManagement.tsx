@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Game, GameProvider, GameCategory, DbGame } from '@/types'; // Ensure DbGame is imported
+import { Game, GameProvider, GameCategory, DbGame } from '@/types'; 
 import { useGames } from '@/hooks/useGames';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'; // DialogClose is now exported
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PlusCircle, Edit, Trash2, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
-import GameForm from '@/components/admin/GameForm'; // Assuming GameForm is for DbGame or compatible
+import GameForm from '@/components/admin/GameForm'; 
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-// import { gamesDatabaseService } from '@/services/gamesDatabaseService'; // Direct service calls not needed if useGames covers it
 
 type SortableGameKeys = keyof Pick<Game, 'title' | 'providerName' | 'categoryName' | 'rtp' | 'status' | 'views' | 'release_date'>;
 
@@ -27,42 +26,49 @@ const GamesManagement = () => {
     addGame, 
     updateGame, 
     deleteGame,
-    fetchGamesAndProviders // To refresh list after CUD operations
+    fetchGamesAndProviders 
   } = useGames();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingGame, setEditingGame] = useState<DbGame | null>(null); // GameForm might expect DbGame
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterProvider, setFilterProvider] = useState<string>('');
   const [filterCategory, setFilterCategory] = useState<string>('');
   
   const [sortConfig, setSortConfig] = useState<{ key: SortableGameKeys | null; direction: 'ascending' | 'descending' }>({ key: 'title', direction: 'ascending' });
 
-  // Map Game to DbGame for the form if GameForm expects DbGame
-  // This is a simplified mapping, ensure it matches GameForm's needs
   const mapGameToDbGameForForm = (game: Game): DbGame => {
     return {
       id: game.id,
       title: game.title,
-      provider_slug: game.provider, // Assuming game.provider is slug
+      provider_slug: game.provider_slug || game.provider,
       category_slugs: game.category_slugs || (game.category ? [game.category] : []),
       description: game.description,
       rtp: game.rtp,
-      cover: game.image, // Assuming game.image is cover
+      cover: game.image, 
       status: game.status as DbGame['status'] || 'active',
       is_popular: game.isPopular,
       is_new: game.isNew,
       is_featured: game.is_featured,
       show_home: game.show_home,
       slug: game.slug,
-      // Add other fields as necessary for DbGame / GameForm
+      banner: game.banner,
+      tags: game.tags,
+      features: game.features,
+      themes: game.themes,
+      volatility: game.volatility,
+      lines: game.lines,
+      min_bet: game.minBet,
+      max_bet: game.maxBet,
+      release_date: game.release_date,
+      game_id: game.game_id,
+      game_code: game.game_code,
     };
   };
   
   const mapDbGameDataToGameForDisplay = (dbGame: DbGame): Game => {
     const providerDetails = providers.find(p => p.slug === dbGame.provider_slug);
     
-    // Handle category_slugs which might be a string or string[]
     let categorySlugsArray: string[] = [];
     if (typeof dbGame.category_slugs === 'string') {
         categorySlugsArray = dbGame.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
@@ -86,7 +92,7 @@ const GamesManagement = () => {
         volatility: dbGame.volatility,
         minBet: dbGame.min_bet,
         maxBet: dbGame.max_bet,
-        isFavorite: false, // This would typically come from user-specific data
+        isFavorite: false, 
         isNew: !!dbGame.is_new,
         isPopular: !!dbGame.is_popular,
         is_featured: !!dbGame.is_featured,
@@ -97,18 +103,24 @@ const GamesManagement = () => {
         release_date: dbGame.release_date,
         created_at: dbGame.created_at,
         updated_at: dbGame.updated_at,
+        banner: dbGame.banner,
+        game_id: dbGame.game_id,
+        game_code: dbGame.game_code,
+        tags: dbGame.tags,
+        features: dbGame.features,
+        themes: dbGame.themes,
+        lines: dbGame.lines,
+        provider_id: dbGame.provider_id, // from DbGame
+        image_url: dbGame.image_url, // from DbGame
     };
   }
 
-
   const handleAddNewGame = () => {
-    setEditingGame(null); // For creating a new game
+    setEditingGame(null); 
     setIsFormOpen(true);
   };
 
   const handleEditGame = (game: Game) => {
-    // Assuming GameForm expects DbGame structure or a subset of it
-    // You might need a more sophisticated mapping if GameForm expects full DbGame
     const dbGameForForm = mapGameToDbGameForForm(game);
     setEditingGame(dbGameForForm);
     setIsFormOpen(true);
@@ -119,20 +131,26 @@ const GamesManagement = () => {
     const success = await deleteGame(gameId);
     if (success) {
       toast.success('Game deleted successfully');
-      // The useGames hook should refresh the list, or call fetchGamesAndProviders()
     } else {
       toast.error('Failed to delete game');
     }
   };
 
-  const handleSubmitGameForm = async (gameData: Partial<DbGame>) => { // GameForm will submit DbGame data
+  const handleSubmitGameForm = async (gameData: Partial<DbGame>) => { 
     try {
       let success = false;
+      const submittingGameData = { ...gameData };
+      // Ensure category_slugs is an array, GameForm should handle this transformation via schema
+      if (typeof submittingGameData.category_slugs === 'string') {
+        submittingGameData.category_slugs = submittingGameData.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
+      }
+
+
       if (editingGame && editingGame.id) {
-        const result = await updateGame(editingGame.id, gameData);
+        const result = await updateGame(editingGame.id, submittingGameData);
         if (result) success = true;
       } else {
-        const result = await addGame(gameData);
+        const result = await addGame(submittingGameData);
         if (result) success = true;
       }
 
@@ -140,7 +158,6 @@ const GamesManagement = () => {
         toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully`);
         setIsFormOpen(false);
         setEditingGame(null);
-        // The useGames hook should refresh the list, or call fetchGamesAndProviders()
       } else {
         toast.error(`Failed to ${editingGame ? 'update' : 'add'} game`);
       }
@@ -158,7 +175,21 @@ const GamesManagement = () => {
   };
 
   const sortedAndFilteredGames = React.useMemo(() => {
-    let filtered = [...allGames]; // allGames from useGames hook are already of type Game
+    let sourceGames = allGames.map(game => {
+        // Ensure providerName and categoryName are populated for sorting/display
+        // This mapping might be slightly different if mapDbGameDataToGameForDisplay is better source
+        const provider = providers.find(p => p.slug === (game.provider_slug || game.provider));
+        const mainCategorySlug = Array.isArray(game.category_slugs) ? game.category_slugs[0] : (typeof game.category_slugs === 'string' ? game.category_slugs : game.category);
+        const category = categories.find(c => c.slug === mainCategorySlug);
+        return {
+            ...game,
+            providerName: provider?.name || game.provider_slug || game.provider,
+            categoryName: category?.name || mainCategorySlug,
+        };
+    });
+
+
+    let filtered = [...sourceGames]; 
 
     if (searchTerm) {
       filtered = filtered.filter(game =>
@@ -168,10 +199,14 @@ const GamesManagement = () => {
       );
     }
     if (filterProvider) {
-      filtered = filtered.filter(game => game.provider === filterProvider);
+      // game.provider might be the slug
+      filtered = filtered.filter(game => (game.provider_slug || game.provider) === filterProvider);
     }
     if (filterCategory) {
-      filtered = filtered.filter(game => game.category_slugs?.includes(filterCategory) || game.category === filterCategory);
+       filtered = filtered.filter(game => {
+        const gameCatSlugs = Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : (game.category ? [game.category] : []));
+        return gameCatSlugs.includes(filterCategory);
+      });
     }
     
     if (sortConfig.key) {
@@ -188,7 +223,6 @@ const GamesManagement = () => {
             if (typeof valA === 'number' && typeof valB === 'number') {
                 return sortConfig.direction === 'ascending' ? valA - valB : valB - valA;
             }
-            // Fallback for boolean or other types (treat as string)
             const strA = String(valA).toLowerCase();
             const strB = String(valB).toLowerCase();
             return sortConfig.direction === 'ascending' ? strA.localeCompare(strB) : strB.localeCompare(strA);
@@ -214,7 +248,6 @@ const GamesManagement = () => {
     return <ArrowUpDown className="ml-2 h-4 w-4 opacity-50 group-hover:opacity-100 inline-block" />;
   };
 
-
   return (
     <div className="container mx-auto p-4 md:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
@@ -224,7 +257,6 @@ const GamesManagement = () => {
         </Button>
       </div>
 
-      {/* Filters and Search */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-card rounded-lg border">
         <Input
           placeholder="Search games (title, provider, slug)..."
@@ -248,7 +280,6 @@ const GamesManagement = () => {
         </Select>
       </div>
 
-      {/* Games Table */}
       <div className="rounded-md border overflow-x-auto bg-card">
         <Table>
           <TableHeader>
@@ -303,7 +334,6 @@ const GamesManagement = () => {
         </Table>
       </div>
 
-      {/* Game Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
         setIsFormOpen(isOpen);
         if (!isOpen) setEditingGame(null);
@@ -315,10 +345,10 @@ const GamesManagement = () => {
           <div className="overflow-y-auto pr-2">
             <GameForm
               onSubmit={handleSubmitGameForm}
-              initialGameData={editingGame} // Pass initialGameData (DbGame or null)
+              initialGameData={editingGame} 
               providers={providers}
               categories={categories}
-              onCancel={() => {
+              onCancel={() => { 
                 setIsFormOpen(false);
                 setEditingGame(null);
               }}

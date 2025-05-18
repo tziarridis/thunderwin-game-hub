@@ -1,120 +1,90 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Game } from '@/types';
+import { useGames } from '@/hooks/useGames';
+import GameList from '@/components/games/GameList';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import MobileWalletSummary from '@/components/user/MobileWalletSummary'; // Ensure this is imported
 
-import { useState, useEffect } from "react";
-import CasinoGameGrid from "@/components/casino/CasinoGameGrid";
-import { Game } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import MobileWalletSummary from "@/components/user/MobileWalletSummary";
-import { useNavigate } from "react-router-dom";
-import { useGames } from "@/hooks/useGames";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-
-const Favorites = () => {
+const FavoritesPage = () => {
+  const { user, isAuthenticated, refreshWalletBalance } = useAuth();
+  const { getFavoriteGames, isLoading: gamesLoading, favoriteGameIds, toggleFavoriteGame } = useGames();
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { user, isAuthenticated } = useAuth();
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
   const navigate = useNavigate();
-  const { toggleFavoriteGame, getFavoriteGames } = useGames(); 
+
+  const fetchFavorites = useCallback(async () => {
+    if (isAuthenticated && user) {
+      setLoadingFavorites(true);
+      try {
+        const favs = await getFavoriteGames(); // This is from useGames, already maps DbGame to Game
+        setFavoriteGames(favs);
+      } catch (error) {
+        console.error("Failed to fetch favorite games:", error);
+        // Handle error (e.g., show toast)
+      } finally {
+        setLoadingFavorites(false);
+      }
+    } else {
+      setFavoriteGames([]);
+      setLoadingFavorites(false);
+    }
+  }, [isAuthenticated, user, getFavoriteGames]);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to view your favorites");
-      navigate("/auth/login");
-      return;
-    }
+    fetchFavorites();
+  }, [fetchFavorites, favoriteGameIds]); // Re-fetch if favoriteGameIds change (e.g. after toggle)
 
-    if (user?.id && getFavoriteGames) {
-        fetchFavoriteGamesList();
-    } else if (isAuthenticated && !user?.id) {
-        setLoading(true); 
-    }
-
-  }, [isAuthenticated, user, navigate, getFavoriteGames]);
-
-  const fetchFavoriteGamesList = async () => {
-    if (!user?.id || !getFavoriteGames) {
-        setFavoriteGames([]);
-        setLoading(false);
-        return;
-    }
-
-    try {
-      setLoading(true);
-      const favGames = await getFavoriteGames();
-      setFavoriteGames(favGames);
-
-    } catch (error: any) {
-      console.error('Error fetching favorite games:', error);
-      toast.error('Failed to load favorite games');
-      setFavoriteGames([]);
-    } finally {
-      setLoading(false);
+  const handleRefreshWallet = async () => {
+    if (refreshWalletBalance) {
+      await refreshWalletBalance();
     }
   };
 
-  const handleGameClick = (game: Game) => {
-    navigate(`/casino/game/${game.id}`);
-  };
-
-  const handleUnfavorite = async (game: Game) => {
-    if (!user?.id || !toggleFavoriteGame) {
-        toast.error("User not found or favorite function unavailable.");
-        return;
-    }
-    try {
-      await toggleFavoriteGame(game.id); 
-      setFavoriteGames(prev => prev.filter(g => g.id !== game.id));
-      toast.success(`${game.title} removed from favorites`);
-    } catch (error: any) {
-      console.error('Error removing favorite:', error);
-      toast.error('Failed to remove from favorites');
-    }
-  };
-
-  if (loading) {
+  if (!isAuthenticated) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <MobileWalletSummary showRefresh />
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Your Favorite Games</h1>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg" />)}
-        </div>
+      <div className="container mx-auto py-8 px-4 text-center">
+        <h1 className="text-3xl font-bold mb-4">My Favorite Games</h1>
+        <p className="text-muted-foreground mb-6">Please log in to see your favorite games.</p>
+        <Button onClick={() => navigate('/auth/login')}>Go to Login</Button>
       </div>
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <MobileWalletSummary showRefresh />
-      
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-4">Your Favorite Games</h1>
-        <p className="text-white/70 max-w-2xl mx-auto">
-          Here are all the games you've marked as favorites. You can quickly access them anytime.
-        </p>
-      </div>
+  const isLoading = gamesLoading || loadingFavorites;
 
-      {favoriteGames.length > 0 ? (
-        <CasinoGameGrid 
-          games={favoriteGames} 
-          onGameClick={handleGameClick}
+
+  return (
+    <div className="container mx-auto py-8 px-4">
+      <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      </Button>
+      <h1 className="text-3xl font-bold mb-2">My Favorite Games</h1>
+      <p className="text-muted-foreground mb-6">Here are the games you've marked as favorites.</p>
+
+      <div className="md:hidden mb-6">
+        <MobileWalletSummary 
+          user={user}
+          showRefresh={true} 
+          onRefresh={handleRefreshWallet}
         />
+      </div>
+      
+      {isLoading ? (
+        <p>Loading favorite games...</p>
+      ) : favoriteGames.length > 0 ? (
+        <GameList games={favoriteGames} />
       ) : (
-        <div className="text-center py-12">
-          <p className="text-xl mb-4">You don't have any favorite games yet.</p>
-          <Button
-            onClick={() => navigate('/casino')}
-            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-medium px-6 py-3 rounded-md"
-          >
-            Explore Games
-          </Button>
+        <div className="text-center py-10">
+          <p className="text-xl text-muted-foreground">You haven't added any games to your favorites yet.</p>
+          <p className="mt-2">Explore our games and click the heart icon to save them here!</p>
+          <Button onClick={() => navigate('/casino/main')} className="mt-4">Explore Games</Button>
         </div>
       )}
     </div>
   );
 };
 
-export default Favorites;
+export default FavoritesPage;

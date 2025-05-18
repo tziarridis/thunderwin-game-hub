@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame, User } from '@/types';
-import { gameService } from '@/services/gameService'; // Assuming gameService is the correct import
+import { gameService } from '@/services/gameService'; // Corrected path if service exists here
 import { toast } from 'sonner';
 import { Session } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
@@ -107,6 +107,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
+      // Assuming gameService.getAllGames, etc. are correctly implemented
       const gamesResponse = await gameService.getAllGames();
       const providersResponse = await gameService.getAllProviders();
       const categoriesResponse = await gameService.getAllCategories();
@@ -118,13 +119,15 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         setProviders(providersResponse.data);
         setCategories(categoriesResponse.data);
       } else {
-        setError(gamesResponse.error || providersResponse.error || categoriesResponse.error || 'Failed to load games, providers, or categories');
-        toast.error(gamesResponse.error || providersResponse.error || categoriesResponse.error || 'Failed to load games, providers, or categories');
+        const errorMessage = gamesResponse.error || providersResponse.error || categoriesResponse.error || 'Failed to load games, providers, or categories';
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err: any) {
       console.error("Error fetching games and providers:", err);
-      setError(err.message || 'An unexpected error occurred');
-      toast.error(err.message || 'An unexpected error occurred');
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

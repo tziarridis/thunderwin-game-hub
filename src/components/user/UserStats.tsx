@@ -2,55 +2,65 @@
 import React from 'react';
 import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, Zap, Award } from 'lucide-react'; // Example icons
+import { BarChart3, TrendingUp, Target } from 'lucide-react'; // Example icons
 
 export interface UserStatsProps {
-  user: User | null;
+  user: User | null; // Make user prop explicit
 }
 
 const UserStats: React.FC<UserStatsProps> = ({ user }) => {
+  // Mock stats if not available in user object, or fetch them
+  const stats = {
+    gamesPlayed: user?.stats?.gamesPlayed || 125, // Example: user.stats.gamesPlayed if structure exists
+    totalWagered: user?.stats?.totalWagered || 5600,
+    winRate: user?.stats?.winRate || 55, // Example
+  };
+
   if (!user) {
-    return <div>Loading stats...</div>;
+    // Optionally return null or a loading state if user is null and stats depend on it
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Player Statistics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <p>Loading stats...</p>
+            </CardContent>
+        </Card>
+    );
   }
 
-  // Dummy data or calculations based on user prop
-  const gamesPlayed = user.vipLevel ? user.vipLevel * 5 + 10 : 10; // Example calculation
-  const totalWagered = user.balance ? user.balance * 3.5 : 0; // Example calculation
-  const vipStatus = user.vipLevel ? `VIP Level ${user.vipLevel}` : 'Standard Member';
-
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Games Played</CardTitle>
-          <Zap className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{gamesPlayed}</div>
-          <p className="text-xs text-muted-foreground">Keep playing to unlock more!</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Wagered</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">${totalWagered.toFixed(2)}</div>
-          <p className="text-xs text-muted-foreground">Based on your activity</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">VIP Status</CardTitle>
-          <Award className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{vipStatus}</div>
-          <p className="text-xs text-muted-foreground">Current loyalty tier</p>
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+            <BarChart3 className="mr-2 h-5 w-5 text-primary" />
+            Player Statistics
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground flex items-center">
+            <TrendingUp className="mr-2 h-4 w-4" /> Games Played
+          </span>
+          <span className="font-semibold">{stats.gamesPlayed}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground flex items-center">
+            <Target className="mr-2 h-4 w-4" /> Total Wagered
+          </span>
+          <span className="font-semibold">${stats.totalWagered.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-muted-foreground flex items-center">
+            {/* Replace with actual stat icon and label */}
+            <Star className="mr-2 h-4 w-4" /> Win Rate (Example) 
+          </span>
+          <span className="font-semibold">{stats.winRate}%</span>
+        </div>
+        {/* Add more relevant stats here */}
+      </CardContent>
+    </Card>
   );
 };
 

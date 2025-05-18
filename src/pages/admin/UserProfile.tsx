@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { UserProfileData, WalletTransaction, User, Wallet, Transaction } from '@/types'; // Ensure types are imported
+import { UserProfileData, WalletTransaction, User, Wallet, Transaction } from '@/types'; 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +38,7 @@ const mockUserProfile: UserProfileData = {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
-  recentTransactions: [
+  recentTransactions: [ // Ensure Transaction type includes description
     { id: 't1', userId: '123', type: 'deposit', amount: 500, currency: 'USD', status: 'completed', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: 'Initial deposit' },
     { id: 't2', userId: '123', type: 'bet', amount: -50, currency: 'USD', status: 'completed', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: 'Slot game bet' },
     { id: 't3', userId: '123', type: 'win', amount: 100, currency: 'USD', status: 'completed', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), description: 'Slot game win' },
@@ -53,8 +52,7 @@ const mockUserProfile: UserProfileData = {
 
 const UserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
-  // In a real app, you'd fetch user data based on userId
-  const userProfileData = mockUserProfile; // Using mock data
+  const userProfileData = mockUserProfile; 
 
   if (!userProfileData) {
     return <div>Loading user profile...</div>;
@@ -142,7 +140,6 @@ const UserProfile = () => {
             <CardHeader><CardTitle>User Settings</CardTitle></CardHeader>
             <CardContent>
               <p>User settings form or options would go here.</p>
-              {/* Example: <Button>Change Password</Button> */}
             </CardContent>
           </Card>
         </TabsContent>
