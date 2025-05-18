@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import UserMenu from "@/components/auth/UserMenu"; // Ensure UserMenu expects User type
-import { User } from "@/types"; // Import User type
-import MobileNavMenu from "./MobileNavMenu";
-import { Menu, X, Search, Wallet, Gift, BadgePercent } from "lucide-react";
+import UserMenu from "@/components/user/UserMenu"; // Corrected import path
+import { User } from "@/types"; 
+import MobileNavMenu from "./MobileNavMenu"; // Corrected import
+import { Menu, X, Search, Wallet, Gift } from "lucide-react"; // Removed BadgePercent as it's not used
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -17,19 +18,28 @@ const AppHeader = () => {
 
   const handleSignOut = async () => {
     await signOut();
+    setMobileMenuOpen(false); // Close menu on sign out
     navigate("/");
   };
 
   useEffect(() => {
     if (!isMobile && mobileMenuOpen) {
-      setMobileMenuOpen(false); // Close mobile menu if screen resizes to desktop
+      setMobileMenuOpen(false); 
     }
   }, [isMobile, mobileMenuOpen]);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    if(mobileMenuOpen) {
+        setMobileMenuOpen(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
 
   return (
     <header className={cn(
       "fixed top-0 left-0 right-0 z-50 h-16 bg-casino-thunder-dark/80 backdrop-blur-md shadow-lg transition-all duration-300",
-      // Add more dynamic styles if needed
     )}>
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
         {/* Logo and Desktop Nav */}
@@ -48,7 +58,7 @@ const AppHeader = () => {
         </div>
 
         {/* Search, Wallet, Auth Buttons */}
-        <div className="flex items-center space-x-3 md:space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-3">
           {!isMobile && (
              <Button variant="ghost" size="icon" className="text-white hover:text-casino-thunder-gold">
                 <Search className="h-5 w-5" />
@@ -68,10 +78,9 @@ const AppHeader = () => {
           )}
           
           {loading ? (
-            <div className="h-8 w-20 bg-gray-700 animate-pulse rounded-md"></div>
+            <div className="h-9 w-20 bg-gray-700 animate-pulse rounded-md"></div>
           ) : isAuthenticated && user ? (
-             // UserMenu expects User type or null
-            <UserMenu user={user as User} onSignOut={handleSignOut} />
+            <UserMenu user={user} onSignOut={handleSignOut} />
           ) : (
             <div className="hidden md:flex items-center space-x-2">
               <Button variant="outline" onClick={() => navigate("/login")} className="border-casino-thunder-gold text-casino-thunder-gold hover:bg-casino-thunder-gold hover:text-black">
@@ -98,13 +107,13 @@ const AppHeader = () => {
       </div>
 
       {/* Mobile Navigation Menu */}
-      {isMobile && mobileMenuOpen && (
+      {isMobile && ( // Removed mobileMenuOpen from condition as it's handled by the component itself
         <MobileNavMenu 
           isOpen={mobileMenuOpen} 
           onClose={() => setMobileMenuOpen(false)} 
           user={user} 
           isAuthenticated={isAuthenticated}
-          onSignOut={handleSignOut}
+          onSignOut={handleSignOut} // Pass the sign out handler
         />
       )}
     </header>

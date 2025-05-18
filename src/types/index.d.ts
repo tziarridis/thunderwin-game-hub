@@ -46,6 +46,7 @@ export interface AuthContextType {
   adminLogin: (email: string, password?: string) => Promise<any>;
   updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
   refreshWalletBalance: () => Promise<Wallet | null>;
+  deposit?: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; // Added deposit
 }
 
 export interface ApiResponse<T> {
@@ -198,8 +199,33 @@ export interface Bonus {
   amount?: number;
   wageringRequirement?: number;
   isActive: boolean;
+  // Added fields based on PromotionCard.tsx usage if Promotion is similar
+  title?: string; // PromotionCard uses title
+  endDate?: string; // PromotionCard uses endDate
+  ctaText?: string; // PromotionCard uses ctaText
+  imageUrl?: string; // PromotionCard uses imageUrl
+  termsLink?: string; // PromotionCard uses termsLink
   // Add other relevant fields
 }
+
+// Define Promotion type
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  ctaText?: string; // Call to action text, e.g., "Claim Now"
+  ctaLink?: string; // Link for the call to action
+  startDate?: string;
+  endDate?: string;
+  type: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; // Type of promotion
+  termsLink?: string; // Link to terms and conditions
+  isActive: boolean;
+  wageringRequirement?: number; // Optional: if bonus related
+  games?: string[]; // Optional: applicable games
+  promoCode?: string; // Optional: promo code
+}
+
 
 export interface BonusTemplate {
   id: string;

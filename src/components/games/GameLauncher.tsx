@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useGames } from '@/hooks/useGames'; // Assuming this hook provides game launching logic
-import { useAuth } from '@/contexts/AuthContext'; // For user context
+import { useGames } from '@/hooks/useGames'; 
+import { useAuth } from '@/contexts/AuthContext'; 
 import { Game, GameLaunchOptions } from '@/types';
 import { toast } from 'sonner';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
-import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Assuming this component exists
-import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; // For related games
+import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Use the new ResponsiveEmbed
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 const GameLauncher = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -75,18 +75,16 @@ const GameLauncher = () => {
     const launchOptions: GameLaunchOptions = {
       mode,
       playerId: user?.id || 'demo-player',
-      currency: user?.currency || 'USD', // Default currency if not logged in or user has no currency
-      platform: 'web', // Or detect mobile
+      currency: user?.currency || 'USD', 
+      platform: 'web', 
       language: user?.language || 'en',
-      returnUrl: `${window.location.origin}/casino` // Example return URL
+      returnUrl: `${window.location.origin}/casino` 
     };
 
     try {
       const url = await launchGame(game, launchOptions);
       if (url) {
         setLaunchUrl(url);
-        // Track game launch event
-        // trackEvent('game_launched', { game_id: game.id, game_title: game.title, mode });
       } else {
         setError("Could not retrieve game launch URL.");
         toast.error("Could not retrieve game launch URL. The game might be unavailable.");
@@ -101,20 +99,15 @@ const GameLauncher = () => {
   }, [game, isAuthenticated, user, launchGame, navigate, location.pathname]);
 
   useEffect(() => {
-    // Automatically launch in demo mode if game is loaded and no URL yet
-    // Or if user is not authenticated, default to demo
     if (game && !launchUrl && !isLoading && !error) {
-      if(!isAuthenticated || game.tags?.includes('demo_only')) { // or some other condition for demo
+      if(!isAuthenticated || game.tags?.includes('demo_only')) { 
          handleLaunchGame('demo');
       }
-      // If authenticated and not demo_only, user might need to click a "Play Real" button
-      // For now, let's launch demo by default if not already playing.
-      // Could also depend on query param e.g. ?mode=real
     }
   }, [game, launchUrl, isLoading, error, handleLaunchGame, isAuthenticated]);
 
 
-  if (isLoading && !game) { // Show initial loading state
+  if (isLoading && !game) { 
     return (
       <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
         <Loader2 className="h-12 w-12 animate-spin text-casino-thunder-green mb-4" />
@@ -124,7 +117,7 @@ const GameLauncher = () => {
     );
   }
 
-  if (error && !launchUrl) { // Show error if game loading failed and no iframe fallback
+  if (error && !launchUrl) { 
     return (
       <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
         <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
@@ -151,7 +144,7 @@ const GameLauncher = () => {
         </div>
       )}
 
-      {isLoading && launchUrl && ( // Show loader while iframe is loading
+      {isLoading && launchUrl && ( 
          <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
             <AspectRatio ratio={16 / 9}>
                 <div className="flex items-center justify-center h-full">
@@ -162,12 +155,11 @@ const GameLauncher = () => {
       )}
       
       {!isLoading && launchUrl && (
-        <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
-          <ResponsiveEmbed src={launchUrl} title={game?.title || 'Game'} />
-        </div>
+        // Use the ResponsiveEmbed component here
+        <ResponsiveEmbed src={launchUrl} title={game?.title || 'Game'} />
       )}
       
-      {!launchUrl && !isLoading && !error && game && ( // Fallback if launch URL isn't set but game loaded (e.g. user needs to click play)
+      {!launchUrl && !isLoading && !error && game && ( 
          <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
             <AspectRatio ratio={16 / 9} className="bg-gray-800 flex flex-col items-center justify-center">
                 <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title} className="max-h-[200px] mb-4 opacity-50" />
@@ -192,7 +184,6 @@ const GameLauncher = () => {
           <p className="text-sm text-white/70 mb-1"><strong>RTP:</strong> {game.rtp ? `${game.rtp}%` : 'N/A'}</p>
           <p className="text-sm text-white/70 mb-1"><strong>Volatility:</strong> {game.volatility || 'N/A'}</p>
           {game.description && <p className="text-sm text-white/70 mt-2">{game.description}</p>}
-          {/* Add more game details if available */}
         </div>
       )}
 
