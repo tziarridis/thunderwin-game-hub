@@ -1,36 +1,37 @@
 import { Session } from "@supabase/supabase-js";
 
 export interface User {
-  id: string; // from auth.users.id or public.users.id (must be UUID if from Supabase)
-  email: string; // from auth.users.email or public.users.email
-  firstName?: string; // from public.profiles.first_name or public.users.first_name
-  lastName?: string; // from public.profiles.last_name or public.users.last_name
-  username?: string; // from public.users.username
-  avatar_url?: string; // from public.profiles.avatar_url or public.users.avatar
+  id: string; 
+  email: string; 
+  firstName?: string; 
+  lastName?: string; 
+  username?: string; 
+  avatar_url?: string; 
   phone?: string;
   country?: string;
   city?: string;
   address?: string;
   zipCode?: string;
-  birthdate?: string; // Note: UserForm uses birthDate, ensure consistency or map
+  birthdate?: string; 
   gender?: string;
   language?: string;
-  currency?: string; // from public.wallets.currency
+  currency?: string; 
   created_at?: string;
   updated_at?: string;
-  role?: string; // from public.users.role_id (mapped) or a custom 'role' field
+  role?: string; 
 
-  // Fields from UserForm that need to be in the model
-  displayName?: string; // Often username or firstName + lastName
-  avatar?: string; // Same as avatar_url, ensuring consistency
-  isActive?: boolean; // Could map from public.users.status or a specific field
-  balance?: number; // from public.wallets.balance
-  vipLevel?: number; // from public.wallets.vip_level
-  kycStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected' | string; // from a KYC table or user profile
-  twoFactorEnabled?: boolean; // from auth settings or user profile
-  emailVerified?: boolean; // from auth.users.email_confirmed_at or a profile field
-  lastLogin?: string; // For UserForm's Omit, though not directly used in form
-  name?: string; // For KycForm, usually firstName + lastName
+  displayName?: string; 
+  avatar?: string; 
+  isActive?: boolean; 
+  balance?: number; 
+  vipLevel?: number; 
+  kycStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected' | string; 
+  twoFactorEnabled?: boolean; 
+  emailVerified?: boolean; 
+  lastLogin?: string; // For UserProfilePage
+  registrationDate?: string; // For UserProfilePage
+  status?: string; // For UserProfilePage
+  name?: string; 
 }
 
 export interface AuthContextType {
@@ -40,13 +41,14 @@ export interface AuthContextType {
   error: any;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  signIn: (email: string, password?: string) => Promise<any>;
-  signUp: (email: string, password?: string, metadata?: any) => Promise<any>;
+  signIn: (email: string, password?: string) => Promise<any>; // For Login
+  signUp: (email: string, password?: string, metadata?: any) => Promise<any>; // For Register
   signOut: () => Promise<void>;
   adminLogin: (email: string, password?: string) => Promise<any>;
   updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
   refreshWalletBalance: () => Promise<Wallet | null>;
-  deposit?: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; // Added deposit
+  deposit?: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>;
+  updateUserSettings?: (settings: Partial<User>) => Promise<{ error?: any }>; // For Settings page
 }
 
 export interface ApiResponse<T> {
@@ -150,10 +152,9 @@ export interface GameProvider {
   slug: string;
   logo?: string;
   description?: string;
-  isActive: boolean; // Changed from status to isActive for consistency
+  isActive: boolean; 
   order?: number;
   games_count?: number;
-  // status?: 'active' | 'inactive'; // Can be derived from isActive or kept if db has it
 }
 
 export interface GameCategory {
@@ -165,7 +166,7 @@ export interface GameCategory {
   order?: number;
   show_home?: boolean;
   status?: 'active' | 'inactive';
-  isActive: boolean; // For consistency
+  isActive: boolean; 
   description?: string;
 }
 
@@ -175,9 +176,10 @@ export interface Wallet {
   currency: string;
   symbol: string;
   balance: number;
+  bonusBalance?: number; // Added for WalletBalance/MobileWalletSummary
   createdAt: string;
   updatedAt: string;
-  vipLevel?: number; // Added vipLevel property
+  vipLevel?: number; 
 }
 
 export interface Transaction {
@@ -209,42 +211,47 @@ export interface Bonus {
   // Add other relevant fields
 }
 
-// Define Promotion type
 export interface Promotion {
   id: string;
   title: string;
   description: string;
   imageUrl?: string;
-  ctaText?: string; // Call to action text, e.g., "Claim Now"
-  ctaLink?: string; // Link for the call to action
+  ctaText?: string; 
+  ctaLink?: string; 
   startDate?: string;
   endDate?: string;
-  promotionType: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; // Added promotionType field
-  termsLink?: string; // Link to terms and conditions
+  promotionType: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; 
+  termsLink?: string; 
   isActive: boolean;
-  bonusPercentage?: number; // Added bonusPercentage field
-  maxBonusAmount?: number; // Added maxBonusAmount field
-  wageringRequirement?: number; // Optional: if bonus related
-  games?: string[]; // Optional: applicable games
-  promoCode?: string; // Optional: promo code
+  bonusPercentage?: number; 
+  maxBonusAmount?: number; 
+  wageringRequirement?: number; 
+  games?: string[]; 
+  promoCode?: string; 
+  usageLimitPerUser?: number; // For Promotions.tsx
+  status?: 'active' | 'inactive' | 'expired' | string; // For Promotions.tsx
+  category?: string; // For Promotions.tsx
+  terms?: string; // For Promotions.tsx
+  freeSpinsCount?: number; // For Promotions.tsx
+  minDeposit?: number; // For Promotions.tsx
 }
-
 
 export interface BonusTemplate {
   id: string;
   name: string;
   description?: string;
   type: BonusType;
-  amount?: number; // For fixed amount bonuses
-  percentage?: number; // For percentage-based bonuses (e.g., deposit match)
-  maxAmount?: number; // Max bonus amount for percentage bonuses
-  freeSpinsCount?: number; // For free spins bonuses
-  wageringRequirement: number; // Wagering multiplier (e.g., 30 for 30x)
-  gameRestrictions?: string[]; // Array of game IDs or slugs where bonus can be used/not used
-  durationDays?: number; // How many days the bonus is valid after activation
-  minDeposit?: number; // Minimum deposit to qualify for the bonus
-  promoCode?: string; // Optional promo code to claim
-  targetVipLevel?: string; // Changed from targetVipLevelId to targetVipLevel
+  amount?: number; 
+  percentage?: number; 
+  maxAmount?: number; 
+  freeSpinsCount?: number; 
+  wageringRequirement: number; 
+  gameRestrictions?: string[] | string; // Allow string for form data
+  durationDays?: number; 
+  minDeposit?: number; 
+  promoCode?: string; 
+  targetVipLevel?: string; 
+  targetVipLevelId?: string; // For bonusService.ts
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -275,12 +282,13 @@ export interface VipLevel {
   level: number;
   name: string;
   pointsRequired: number;
-  benefits: string[]; // Array of benefit descriptions
+  benefits: string[]; 
   cashbackPercentage?: number;
-  monthlyBonusId?: string; // FK to a BonusTemplate
+  monthlyBonusId?: string; 
+  monthlyBonus?: BonusTemplate; // For VipBonusManagement
   dedicatedManager?: boolean;
   customWithdrawalLimits?: boolean;
-  isActive: boolean; // Added isActive
+  isActive: boolean; 
   createdAt: Date;
   updatedAt: Date;
 }
@@ -303,7 +311,7 @@ export interface GamesContextType {
   error: string | null;
   fetchGamesAndProviders: () => Promise<void>;
   filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string) => void;
-  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>; // For GameDetails
   getGameById: (id: string) => Promise<Game | null>;
   getFavoriteGames: () => Promise<Game[]>;
   loading: boolean;
@@ -315,18 +323,56 @@ export interface GamesContextType {
   deleteGame: (gameId: string) => Promise<boolean>;
 }
 
-// Add missing types referenced in error messages
 export interface Affiliate {
     id: string;
     name: string;
     code: string;
     commission: number;
-    // Added missing properties for AffiliateStats
     commission_paid?: number;
     clicks?: number;
     registrations?: number;
     depositingUsers?: number;
+    totalCommissions?: number; // For Affiliates.tsx
+    status?: 'active' | 'pending' | 'inactive' | string; // For Affiliates.tsx
+    email?: string; // For Affiliates.tsx
 }
 
-// Alias for Wallet to fix the DbWallet error
 export type DbWallet = Wallet;
+
+// Added for KycManagement.tsx
+export interface KycRequest {
+  id: string;
+  userId: string;
+  userName?: string; // Assuming user name is useful here
+  documentType: string;
+  documentNumber: string;
+  status: KycStatusType; // Changed KycStatus to KycStatusType
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewerId?: string;
+  rejectionReason?: string;
+  // Add any other relevant fields like user email, country etc.
+  user?: Pick<User, 'username' | 'email' | 'id'>; // Optional user details
+}
+
+// Renamed KycStatus to KycStatusType to avoid conflict if KycStatus component exists
+export type KycStatusType = 'pending' | 'approved' | 'rejected' | 'submitted' | 'resubmit_required';
+
+// Added for Admin Settings page
+export interface SiteSettings {
+  siteName?: string;
+  logoUrl?: string;
+  contactEmail?: string;
+  defaultCurrency?: string;
+  maintenanceMode?: boolean;
+  // Add any other site-wide settings
+}
+
+// For TransactionService
+export interface TransactionServiceType {
+  getUserTransactions: (userId: string, options?: QueryOptions) => Promise<ApiResponse<Transaction[]>>;
+  getTransactionById: (transactionId: string) => Promise<ApiResponse<Transaction | null>>;
+  createTransaction: (transactionData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ApiResponse<Transaction>>;
+  updateTransactionStatus: (transactionId: string, status: Transaction['status']) => Promise<ApiResponse<Transaction>>;
+  fetchUserTransactions?: (userId: string, page: number, limit: number) => Promise<{ data: Transaction[]; total: number }>; // For Transactions.tsx
+}

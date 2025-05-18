@@ -1,410 +1,162 @@
+// @/services/gamesService.ts
+import { Game, GameProvider, GameCategory, GameLaunchOptions, ApiResponse, DbGame } from '@/types';
+import mockGames from '@/data/mock-games'; // Import mockGames
+import { gameCategories, gameProviders } from '@/data/mock-platform-data'; // Import mock platform data
 
-import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
-import { supabase } from "@/integrations/supabase/client";
+// Simulate API calls
+const MOCK_API_DELAY = 300;
 
-export const clientGamesApi = {
-  // Get games from the API
-  getGames: async (params: GameListParams = {}): Promise<GameResponse> => {
-    try {
-      // In a production app, we would query the Supabase database
-      // Since the games table doesn't exist yet in Supabase, returning mock data
-      return {
-        data: mockGames,
-        total: mockGames.length,
-        page: params.page || 1,
-        limit: params.limit || 20
-      };
-    } catch (error) {
-      console.error('Error fetching games:', error);
-      return {
-        data: mockGames,
-        total: mockGames.length,
-        page: params.page || 1,
-        limit: params.limit || 20
-      };
-    }
-  },
-  
-  // Get game by ID
-  getGameById: async (id: string | number): Promise<Game | null> => {
-    try {
-      // In a production app, we would query the Supabase database
-      // Since the games table doesn't exist yet, return mock data
-      const game = mockGames.find(g => g.id === id);
-      return game || null;
-    } catch (error) {
-      console.error(`Error fetching game with ID ${id}:`, error);
-      return null;
-    }
-  },
-  
-  // Add a new game
-  addGame: async (game: Omit<Game, 'id'>): Promise<Game> => {
-    try {
-      // Mock implementation for adding a game
-      const newGame = {
-        ...game,
-        id: Date.now().toString()
-      } as Game;
-      
-      return newGame;
-    } catch (error) {
-      console.error('Error adding game:', error);
-      throw error;
-    }
-  },
-  
-  // Update an existing game
-  updateGame: async (game: Game): Promise<Game> => {
-    try {
-      // Mock implementation for updating a game
-      return game;
-    } catch (error) {
-      console.error(`Error updating game with ID ${game.id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Delete a game
-  deleteGame: async (id: string | number): Promise<void> => {
-    try {
-      // Mock implementation for deleting a game
-      console.log(`Game with ID ${id} would be deleted`);
-    } catch (error) {
-      console.error(`Error deleting game with ID ${id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Toggle game feature (is_featured or show_home)
-  toggleGameFeature: async (
-    id: number | string, 
-    feature: 'is_featured' | 'show_home', 
-    value: boolean
-  ): Promise<Game> => {
-    try {
-      // Mock implementation for toggling a game feature
-      const game = mockGames.find(g => g.id === id) as Game;
-      if (!game) throw new Error(`Game with ID ${id} not found`);
-      
-      return {
-        ...game,
-        [feature]: value
-      };
-    } catch (error) {
-      console.error(`Error updating ${feature} for game with ID ${id}:`, error);
-      throw error;
-    }
-  },
-  
-  // Get game providers
-  getProviders: async (): Promise<GameProvider[]> => {
-    try {
-      // In a production app, we would query the Supabase database
-      // Since the providers table may not exist yet, return mock data
-      return mockProviders;
-    } catch (error) {
-      console.error('Error fetching game providers:', error);
-      return mockProviders;
-    }
-  },
-  
-  // Get provider by ID
-  getProviderById: async (id: string | number): Promise<GameProvider | null> => {
-    try {
-      // In a production app, we would query the Supabase database
-      // Since the providers table may not exist yet, return mock data
-      const provider = mockProviders.find(p => p.id === id);
-      return provider || null;
-    } catch (error) {
-      console.error(`Error fetching provider with ID ${id}:`, error);
-      return null;
-    }
-  }
+// Temporary games data store
+let gamesDataStore: Game[] = [...mockGames];
+let providersDataStore: GameProvider[] = [...gameProviders];
+let categoriesDataStore: GameCategory[] = [...gameCategories];
+
+
+const getGames = async (): Promise<Game[]> => {
+  await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+  return [...gamesDataStore]; // Return a copy to prevent direct mutation
 };
 
-// Mock games data for fallback
-const mockGames: Game[] = [
-  {
-    id: "1",
-    provider_id: 1, // Change from string to number
-    game_id: 'book_of_dead',
-    game_name: 'Book of Dead',
-    game_code: 'bookdead',
-    game_type: 'slots',
-    description: 'Explore the ancient Egyptian tombs in search of the Book of Dead.',
-    cover: 'https://example.com/images/book_of_dead.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: true,
-    has_tables: false,
-    only_demo: false,
-    rtp: 96.21,
-    distribution: 'Play\'n GO',
-    views: 12345,
-    is_featured: true,
-    show_home: true,
-    created_at: '2023-01-01T00:00:00Z',
-    updated_at: '2023-01-01T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 1,
-      name: 'Play\'n GO',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Book of Dead',
-    image: 'https://example.com/images/book_of_dead.jpg',
-    isPopular: true,
-    isNew: false,
-    isFavorite: false,
-    category: 'slots',
-    jackpot: false,
-    minBet: 0.10,
-    maxBet: 100
-  },
-  {
-    id: "2",
-    provider_id: 2, // Change from string to number
-    game_id: 'starburst',
-    game_name: 'Starburst',
-    game_code: 'starburst',
-    game_type: 'slots',
-    description: 'A vibrant and energetic slot with expanding wilds and re-spins.',
-    cover: 'https://example.com/images/starburst.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: true,
-    has_tables: false,
-    only_demo: false,
-    rtp: 96.1,
-    distribution: 'NetEnt',
-    views: 23456,
-    is_featured: true,
-    show_home: true,
-    created_at: '2023-01-02T00:00:00Z',
-    updated_at: '2023-01-02T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 2,
-      name: 'NetEnt',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Starburst',
-    image: 'https://example.com/images/starburst.jpg',
-    isPopular: true,
-    isNew: false,
-    isFavorite: false,
-    category: 'slots',
-    jackpot: false,
-    minBet: 0.10,
-    maxBet: 100
-  },
-  {
-    id: "3",
-    provider_id: 1, // Change from string to number
-    game_id: 'reactoonz',
-    game_name: 'Reactoonz',
-    game_code: 'reactoonz',
-    game_type: 'slots',
-    description: 'An energetic grid slot with cascading symbols and multiple features.',
-    cover: 'https://example.com/images/reactoonz.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: true,
-    has_tables: false,
-    only_demo: false,
-    rtp: 96.51,
-    distribution: 'Play\'n GO',
-    views: 19876,
-    is_featured: true,
-    show_home: true,
-    created_at: '2023-01-03T00:00:00Z',
-    updated_at: '2023-01-03T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 1,
-      name: 'Play\'n GO',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Reactoonz',
-    image: 'https://example.com/images/reactoonz.jpg',
-    isPopular: true,
-    isNew: true,
-    isFavorite: true,
-    category: 'slots',
-    jackpot: false,
-    minBet: 0.20,
-    maxBet: 100
-  },
-  {
-    id: "4",
-    provider_id: 3, // Change from string to number
-    game_id: 'gonzo_quest',
-    game_name: 'Gonzo\'s Quest',
-    game_code: 'gonzo',
-    game_type: 'slots',
-    description: 'Join Gonzo on his quest for El Dorado with cascading reels and multipliers.',
-    cover: 'https://example.com/images/gonzo.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: true,
-    has_tables: false,
-    only_demo: false,
-    rtp: 95.97,
-    distribution: 'NetEnt',
-    views: 21543,
-    is_featured: true,
-    show_home: true,
-    created_at: '2023-01-04T00:00:00Z',
-    updated_at: '2023-01-04T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 3,
-      name: 'NetEnt',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Gonzo\'s Quest',
-    image: 'https://example.com/images/gonzo.jpg',
-    isPopular: true,
-    isNew: false,
-    isFavorite: false,
-    category: 'slots',
-    jackpot: false,
-    minBet: 0.20,
-    maxBet: 50
-  },
-  {
-    id: "5",
-    provider_id: 4, // Change from string to number
-    game_id: 'blackjack_pro',
-    game_name: 'Blackjack Pro',
-    game_code: 'bj_pro',
-    game_type: 'table',
-    description: 'Professional blackjack with multiple betting options and side bets.',
-    cover: 'https://example.com/images/blackjack.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: false,
-    has_tables: true,
-    only_demo: false,
-    rtp: 99.56,
-    distribution: 'Evolution Gaming',
-    views: 15678,
-    is_featured: false,
-    show_home: true,
-    created_at: '2023-01-05T00:00:00Z',
-    updated_at: '2023-01-05T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 4,
-      name: 'Evolution Gaming',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Blackjack Pro',
-    image: 'https://example.com/images/blackjack.jpg',
-    isPopular: true,
-    isNew: false,
-    isFavorite: false,
-    category: 'table',
-    jackpot: false,
-    minBet: 1.00,
-    maxBet: 1000
-  },
-  {
-    id: "6",
-    provider_id: 5, // Change from string to number
-    game_id: 'mega_moolah',
-    game_name: 'Mega Moolah',
-    game_code: 'mega_moolah',
-    game_type: 'slots',
-    description: 'The famous progressive jackpot slot that has made many millionaires.',
-    cover: 'https://example.com/images/mega_moolah.jpg',
-    status: 'active',
-    technology: 'HTML5',
-    has_lobby: false,
-    is_mobile: true,
-    has_freespins: true,
-    has_tables: false,
-    only_demo: false,
-    rtp: 88.12,
-    distribution: 'Microgaming',
-    views: 32145,
-    is_featured: true,
-    show_home: true,
-    created_at: '2023-01-06T00:00:00Z',
-    updated_at: '2023-01-06T00:00:00Z',
-    // Add mock provider object instead of string
-    provider: {
-      id: 5,
-      name: 'Microgaming',
-      status: 'active'
-    },
-    // Add these properties to match the GameCard component usage
-    title: 'Mega Moolah',
-    image: 'https://example.com/images/mega_moolah.jpg',
-    isPopular: true,
-    isNew: false,
-    isFavorite: false,
-    category: 'slots',
-    jackpot: true,
-    minBet: 0.25,
-    maxBet: 6.25
-  },
-];
+const getProviders = async (): Promise<GameProvider[]> => {
+  await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+  return [...providersDataStore];
+};
 
-// Mock providers data for fallback
-const mockProviders: GameProvider[] = [
-  {
-    id: 1, // Change from string to number
-    name: 'Play\'n GO',
-    status: 'active',
-    description: 'Leading provider of premium slots and casino games',
-    logo: 'https://example.com/images/playngo_logo.png'
-  },
-  {
-    id: 2, // Change from string to number
-    name: 'NetEnt',
-    status: 'active',
-    description: 'Pioneering developer of high-quality casino games',
-    logo: 'https://example.com/images/netent_logo.png'
-  },
-  {
-    id: 3, // Change from string to number
-    name: 'Pragmatic Play',
-    status: 'active',
-    description: 'Multi-product content provider for the iGaming industry',
-    logo: 'https://example.com/images/pragmatic_logo.png'
-  },
-  {
-    id: 4, // Change from string to number
-    name: 'Evolution Gaming',
-    status: 'active',
-    description: 'World leader in live casino games',
-    logo: 'https://example.com/images/evolution_logo.png'
-  },
-  {
-    id: 5, // Change from string to number
-    name: 'Microgaming',
-    status: 'active',
-    description: 'Pioneer of online casino software with hundreds of games',
-    logo: 'https://example.com/images/microgaming_logo.png'
-  }
-];
+const getCategories = async (): Promise<GameCategory[]> => {
+  await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+  return [...categoriesDataStore];
+};
 
-// Export games service APIs
-export const getGames = clientGamesApi.getGames;
+const getGameById = async (id: string): Promise<Game | null> => {
+  await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+  const game = gamesDataStore.find(g => g.id === id);
+  return game || null;
+};
+
+const createSession = async (game: Game, options: GameLaunchOptions): Promise<ApiResponse<null>> => {
+  console.log('Creating session for game:', game.title, 'with options:', options);
+  await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+  // Simulate generating a game URL. In a real scenario, this would involve API calls to a game aggregator.
+  const gameUrl = `/api/mock/launch/${game.id}?mode=${options.mode}&playerId=${options.playerId}&currency=${options.currency}`;
+  return { success: true, gameUrl };
+};
+
+const incrementGameView = async (gameId: string): Promise<void> => {
+    await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+    gamesDataStore = gamesDataStore.map(game => 
+        game.id === gameId ? { ...game, views: (game.views || 0) + 1 } : game
+    );
+    console.log(`View count for game ${gameId} incremented.`);
+};
+
+const addGame = async (gameData: Partial<DbGame>): Promise<DbGame | null> => {
+    await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+    const newGame: DbGame = {
+        id: String(Date.now()), // Simple unique ID for mock
+        title: gameData.title || 'New Game',
+        // Map other DbGame fields from gameData
+        provider_id: gameData.provider_id,
+        provider_slug: providersDataStore.find(p => p.id === gameData.provider_id)?.slug,
+        category_ids: gameData.category_ids,
+        category_slugs: typeof gameData.category_slugs === 'string' ? gameData.category_slugs.split(',') : gameData.category_slugs,
+        description: gameData.description,
+        tags: gameData.tags,
+        features: gameData.features,
+        themes: gameData.themes,
+        rtp: gameData.rtp,
+        volatility: gameData.volatility,
+        lines: gameData.lines,
+        cover: gameData.cover,
+        banner: gameData.banner,
+        image_url: gameData.image_url,
+        status: gameData.status || 'active',
+        is_popular: gameData.is_popular || false,
+        is_new: gameData.is_new || false,
+        is_featured: gameData.is_featured || false,
+        show_home: gameData.show_home || false,
+        views: gameData.views || 0,
+        order: gameData.order,
+        min_bet: gameData.min_bet,
+        max_bet: gameData.max_bet,
+        has_jackpot: gameData.has_jackpot,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        release_date: gameData.release_date,
+        game_code: gameData.game_code,
+        game_id: gameData.game_id, // from provider
+        slug: gameData.slug || gameData.title?.toLowerCase().replace(/\s+/g, '-'),
+        launch_url: gameData.launch_url,
+    };
+    // This service expects Game, not DbGame for gamesDataStore. Adapt or convert.
+    // For simplicity, we'll assume Game and DbGame are compatible enough for this mock or convert.
+    const adaptedGameForStore = {
+      ...newGame,
+      provider: newGame.provider_slug || '',
+      providerName: providersDataStore.find(p => p.slug === newGame.provider_slug)?.name,
+      category: (newGame.category_slugs as string[] | undefined)?.[0] || '', // simplified
+      categoryName: categoriesDataStore.find(c => c.slug === (newGame.category_slugs as string[] | undefined)?.[0])?.name,
+      image: newGame.cover || newGame.image_url || '',
+    } as Game;
+
+    gamesDataStore.push(adaptedGameForStore);
+    return newGame;
+};
+
+const updateGame = async (gameId: string, gameData: Partial<DbGame>): Promise<DbGame | null> => {
+    await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+    let updatedGame: DbGame | null = null;
+    gamesDataStore = gamesDataStore.map(g => {
+        if (g.id === gameId) {
+            // Convert existing Game to DbGame-like structure for update
+            const dbGameRepresentation: DbGame = {
+                ...g,
+                title: g.title,
+                provider_id: providersDataStore.find(p => p.slug === g.provider)?.id,
+                provider_slug: g.provider,
+                // category_ids and category_slugs are more complex to map back here
+                // for simplicity, we'll keep existing or assume they are updated if provided in gameData
+                category_slugs: g.category_slugs || g.category, 
+                cover: g.image,
+                updated_at: new Date().toISOString(),
+            };
+            
+            updatedGame = { ...dbGameRepresentation, ...gameData, id: gameId } as DbGame;
+            
+            // Adapt back to Game for storing
+            return {
+                ...g, // keep original Game structure
+                ...gameData, // apply updates from DbGame partial
+                id: gameId,
+                title: gameData.title || g.title,
+                provider: gameData.provider_slug || g.provider,
+                providerName: providersDataStore.find(p => p.slug === (gameData.provider_slug || g.provider))?.name,
+                category: (gameData.category_slugs as string[] | undefined)?.[0] || g.category,
+                categoryName: categoriesDataStore.find(c => c.slug === ((gameData.category_slugs as string[] | undefined)?.[0] || g.category))?.name,
+                image: gameData.cover || gameData.image_url || g.image,
+                updated_at: new Date().toISOString(),
+            } as Game;
+        }
+        return g;
+    });
+    return updatedGame;
+};
+
+const deleteGame = async (gameId: string): Promise<boolean> => {
+    await new Promise(resolve => setTimeout(resolve, MOCK_API_DELAY));
+    const initialLength = gamesDataStore.length;
+    gamesDataStore = gamesDataStore.filter(game => game.id !== gameId);
+    return gamesDataStore.length < initialLength;
+};
+
+// Export as a single object
+export const gamesService = {
+  getGames,
+  getProviders,
+  getCategories,
+  getGameById,
+  createSession,
+  incrementGameView,
+  addGame,
+  updateGame,
+  deleteGame,
+};

@@ -1,38 +1,56 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, Zap, Activity } from 'lucide-react';
+import { User } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp, Zap, Award } from 'lucide-react'; // Example icons
 
-const UserStats = () => {
-  // Mock data for now
-  const stats = [
-    { title: "Games Played", value: "125", icon: <TrendingUp className="h-5 w-5 text-muted-foreground" />, trend: "+12%" },
-    { title: "Total Wagered", value: "$5,870", icon: <Zap className="h-5 w-5 text-muted-foreground" />, trend: "+8%" },
-    { title: "Active Sessions", value: "2", icon: <Activity className="h-5 w-5 text-muted-foreground" />, trend: "" },
-  ];
+export interface UserStatsProps {
+  user: User | null;
+}
+
+const UserStats: React.FC<UserStatsProps> = ({ user }) => {
+  if (!user) {
+    return <div>Loading stats...</div>;
+  }
+
+  // Dummy data or calculations based on user prop
+  const gamesPlayed = user.vipLevel ? user.vipLevel * 5 + 10 : 10; // Example calculation
+  const totalWagered = user.balance ? user.balance * 3.5 : 0; // Example calculation
+  const vipStatus = user.vipLevel ? `VIP Level ${user.vipLevel}` : 'Standard Member';
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Your Gaming Stats</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {stats.map((stat) => (
-            <Card key={stat.title} className="p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
-                {stat.icon}
-              </div>
-              <div className="mt-2 flex items-baseline">
-                <p className="text-2xl font-bold">{stat.value}</p>
-                {stat.trend && <p className="ml-2 text-xs text-green-500">{stat.trend}</p>}
-              </div>
-            </Card>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 md:grid-cols-3">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Games Played</CardTitle>
+          <Zap className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{gamesPlayed}</div>
+          <p className="text-xs text-muted-foreground">Keep playing to unlock more!</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Wagered</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">${totalWagered.toFixed(2)}</div>
+          <p className="text-xs text-muted-foreground">Based on your activity</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">VIP Status</CardTitle>
+          <Award className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{vipStatus}</div>
+          <p className="text-xs text-muted-foreground">Current loyalty tier</p>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

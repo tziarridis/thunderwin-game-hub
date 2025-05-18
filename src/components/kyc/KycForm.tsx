@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,8 +8,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { submitKyc } from '@/services/kycService'; // Changed to named import
-import { DatePicker } from '@/components/ui/date-picker';
+import { submitKyc } from '@/services/kycService';
+import { DatePicker } from '@/components/ui/date-picker'; // Corrected import
 
 // KYC Form schema
 const kycFormSchema = z.object({
@@ -41,9 +42,11 @@ const KycForm = ({ userId, onSuccess }: KycFormProps) => {
   const onSubmit = async (data: KycFormValues) => {
     setIsSubmitting(true);
     try {
-      // Format dates for the API
+      // Format dates for the API and ensure all required fields for KycData are present
       const formattedData = {
-        ...data,
+        documentType: data.documentType, // Ensure documentType is included
+        documentNumber: data.documentNumber, // Ensure documentNumber is included
+        countryOfIssue: data.countryOfIssue, // Ensure countryOfIssue is included
         issueDate: data.issueDate ? data.issueDate.toISOString().split('T')[0] : undefined,
         expiryDate: data.expiryDate ? data.expiryDate.toISOString().split('T')[0] : undefined,
       };
@@ -130,8 +133,10 @@ const KycForm = ({ userId, onSuccess }: KycFormProps) => {
                 <FormLabel>Issue Date</FormLabel>
                 <FormControl>
                   <DatePicker
-                    onSelect={field.onChange}
-                    selected={field.value}
+                    // onSelect={field.onChange} // DatePicker now uses onChange
+                    // selected={field.value} // DatePicker now uses value
+                    value={field.value}
+                    onChange={field.onChange}
                     mode="single"
                   />
                 </FormControl>
@@ -148,8 +153,10 @@ const KycForm = ({ userId, onSuccess }: KycFormProps) => {
                 <FormLabel>Expiry Date</FormLabel>
                 <FormControl>
                   <DatePicker
-                    onSelect={field.onChange}
-                    selected={field.value}
+                    // onSelect={field.onChange}
+                    // selected={field.value}
+                    value={field.value}
+                    onChange={field.onChange}
                     mode="single"
                   />
                 </FormControl>
@@ -170,3 +177,4 @@ const KycForm = ({ userId, onSuccess }: KycFormProps) => {
 };
 
 export default KycForm;
+

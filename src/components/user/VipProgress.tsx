@@ -1,48 +1,43 @@
 
 import React from 'react';
-import { Progress } from "@/components/ui/progress";
+import { User } from '@/types';
+import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star } from 'lucide-react';
 
-interface VipProgressProps {
-  level: number;
-  // currentPoints?: number; // Example: if you want to show points towards next level
-  // pointsForNextLevel?: number; // Example
+export interface VipProgressProps {
+  user: User | null;
 }
 
-const VipProgress: React.FC<VipProgressProps> = ({ level }) => {
-  // Mock data for VIP levels - in a real app, this would come from config or API
-  const vipLevels = [
-    { name: "Bronze", points: 0, progressToNext: 50 }, // Progress is percentage to next level
-    { name: "Silver", points: 1000, progressToNext: 60 },
-    { name: "Gold", points: 5000, progressToNext: 75 },
-    { name: "Platinum", points: 15000, progressToNext: 40 },
-    { name: "Diamond", points: 50000, progressToNext: 100 }, // Max level
-  ];
+const VipProgress: React.FC<VipProgressProps> = ({ user }) => {
+  if (!user) {
+    return <div>Loading VIP progress...</div>;
+  }
 
-  const currentVipLevel = vipLevels[Math.min(level, vipLevels.length - 1)] || vipLevels[0];
-  const progressValue = currentVipLevel.progressToNext || 0;
+  const currentLevel = user.vipLevel || 0;
+  const pointsForNextLevel = (currentLevel + 1) * 1000; // Example: 1000 points per level
+  const currentPoints = (user.balance || 0) * 10; // Example: 10 points per unit of balance
+  const progressPercentage = Math.min((currentPoints / pointsForNextLevel) * 100, 100);
 
   return (
-    <div className="p-4 rounded-lg border bg-card text-card-foreground">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-md font-semibold flex items-center">
-          <Star className="h-5 w-5 mr-2 text-yellow-400" />
-          VIP Level: {currentVipLevel.name}
-        </h3>
-        {level < vipLevels.length -1 && <span className="text-xs text-muted-foreground">Next: {vipLevels[level + 1].name}</span>}
-      </div>
-      <Progress value={progressValue} className="w-full h-3" />
-      {level < vipLevels.length -1 && 
-        <p className="text-xs text-muted-foreground mt-1 text-right">
-            {progressValue}% to next level
-        </p>
-      }
-       {level >= vipLevels.length -1 &&
-        <p className="text-xs text-green-500 mt-1 text-right">
-            You've reached the highest VIP level!
-        </p>
-      }
-    </div>
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Star className="mr-2 h-5 w-5 text-yellow-400" />
+          VIP Progress
+        </CardTitle>
+        <CardDescription>
+          You are currently Level {currentLevel}. Earn {pointsForNextLevel - currentPoints > 0 ? pointsForNextLevel - currentPoints : 0} more points to reach Level {currentLevel + 1}.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Progress value={progressPercentage} className="w-full h-3" indicatorClassName="bg-yellow-400" />
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+          <span>Current Points: {currentPoints}</span>
+          <span>Next Level: {pointsForNextLevel}</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

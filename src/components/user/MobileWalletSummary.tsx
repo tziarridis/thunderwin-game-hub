@@ -1,122 +1,94 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { RefreshCw } from 'lucide-react';
+
+import React, { useEffect, useState } from 'react';
+import { Wallet, User } from '@/types'; // Ensure User type is imported
 import { walletService, mapDbWalletToWallet } from '@/services/walletService';
-import { Wallet, DbWallet } from '@/types'; 
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Wallet2, AlertTriangle, PlusCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
 
 interface MobileWalletSummaryProps {
-  showRefresh?: boolean;
+  user: User | null; // Accept user prop
 }
 
-const MobileWalletSummary = ({ showRefresh = false }: MobileWalletSummaryProps) => {
-  const { user, refreshWalletBalance } = useAuth();
-  const [loading, setLoading] = useState(false);
+const MobileWalletSummary = ({ user }: MobileWalletSummaryProps) => {
+  // const { user } = useAuth(); // User can be passed as prop or from context
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.id) {
-      fetchWalletData();
-    }
-  }, [user?.id, user?.balance, user?.currency]);
-
-  const fetchWalletData = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoading(true);
-      const walletResponse = await walletService.getWalletByUserId(user.id);
-      
-      if (walletResponse.success && walletResponse.data) {
-        const singleDbWallet = walletResponse.data as DbWallet; // Assuming getWalletByUserId returns single
-        const walletData = mapDbWalletToWallet(singleDbWallet);
-        setWallet(walletData);
-        console.log("Mobile wallet data loaded:", walletData);
-      } else {
-         if (user.balance !== undefined && user.currency) {
-          setWallet({
-            id: user.id, 
-            userId: user.id,
-            balance: user.balance,
-            currency: user.currency,
-            symbol: user.currency === 'USD' ? '$' : user.currency === 'EUR' ? '€' : user.currency,
-            vipLevel: user.vipLevel || 0,
-            bonusBalance: 0,
-            cryptoBalance: 0,
-            demoBalance: 0,
-            isActive: true,
-          });
+    const fetchWalletData = async () => {
+      if (user?.id) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const response = await walletService.getWalletByUserId(user.id);
+          if (response.success && response.data) {
+            setWallet(mapDbWalletToWallet(response.data));
+          } else {
+            setError(response.error || 'Failed to load wallet summary');
+            // toast.error(response.error || 'Failed to load wallet summary');
+             setWallet(null);
+          }
+        } catch (err: any) {
+          setError(err.message || 'An unexpected error occurred');
+          // toast.error(err.message || 'An unexpected error occurred');
+           setWallet(null);
+        } finally {
+          setIsLoading(false);
         }
-        console.log("No mobile wallet data returned from service:", walletResponse.error);
+      } else {
+        setIsLoading(false);
+        // setWallet(null); 
       }
-    } catch (error) {
-      console.error("Error fetching mobile wallet data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchWalletData();
+  }, [user]);
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    try {
-      if (refreshWalletBalance) {
-        await refreshWalletBalance();
-      }
-      await fetchWalletData();
-      toast.success("Wallet balance refreshed");
-    } catch (error) {
-      console.error("Error refreshing wallet:", error);
-      toast.error("Failed to refresh wallet balance");
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-between p-3 bg-card rounded-lg shadow">
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-8 w-24" />
+      </div>
+    );
+  }
 
-  if (!isMobile) return null;
+  if (error) {
+    return (
+      <div className="text-red-500 p-3 bg-card rounded-lg shadow flex items-center">
+        <AlertTriangle className="mr-2 h-4 w-4" /> Error
+      </div>
+    );
+  }
+
+  if (!wallet) {
+    return (
+      <div className="p-3 bg-card rounded-lg shadow text-muted-foreground">
+        No wallet data.
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-3 mb-4 flex items-center justify-between">
-      <div>
-        <span className="text-xs text-white/60 block">Your Balance</span>
-        {loading ? (
-          <span className="text-lg font-bold text-white opacity-50">Loading...</span>
-        ) : (
-          <span className="text-lg font-bold text-white">
-            {wallet?.symbol || (user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency) || '$'}
-            {(wallet?.balance ?? user?.balance ?? 0).toLocaleString()}
-            {' '}{wallet?.currency || user?.currency || 'USD'}
-          </span>
+    <div className="flex items-center justify-between p-3 bg-card rounded-lg shadow text-white">
+      <div className="flex items-center">
+        <Wallet2 className="h-5 w-5 mr-2 text-casino-neon-green" />
+        <span className="font-semibold">
+          {wallet.symbol}{wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+         {wallet.bonusBalance !== undefined && wallet.bonusBalance > 0 && (
+            <span className="text-xs text-blue-400 ml-1">(+{wallet.symbol}{wallet.bonusBalance.toFixed(2)} bonus)</span>
         )}
       </div>
-      
-      <div className="flex gap-2">
-        {showRefresh && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-white/70 hover:text-white"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-1 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        )}
-        
-        <Button 
-          size="sm" 
-          className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
-          asChild
-        >
-          <Link to="/payment/deposit">
-            Deposit
-          </Link>
-        </Button>
-      </div>
+      <Button size="sm" variant="ghost" className="text-casino-neon-green hover:bg-casino-neon-green/10" onClick={() => navigate('/payment/deposit')}>
+        <PlusCircle className="h-4 w-4 mr-1" />
+        Deposit
+      </Button>
     </div>
   );
 };
