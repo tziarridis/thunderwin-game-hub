@@ -1,358 +1,238 @@
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { DbGame, GameProvider, GameCategory } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { GameProvider, GameCategory, DbGame } from '@/types';
-import { toast } from 'sonner';
-import { Checkbox } from "@/components/ui/checkbox"
+} from '@/components/ui/select';
 
 interface GameFormProps {
-  onSubmit: (values: z.infer<typeof formSchema>) => Promise<void>;
-  initialValues?: Partial<DbGame>; // This is what AdminGames.tsx passes as selectedGame (which is Game, should be DbGame for consistency or mapped)
+  game?: DbGame;
   providers: GameProvider[];
   categories: GameCategory[];
-  loading?: boolean;
+  onSubmit: (gameData: Partial<DbGame>) => void;
+  onCancel: () => void;
 }
 
-const formSchema = z.object({
-  title: z.string().min(2, { 
-    message: "Game title must be at least 2 characters.",
-  }),
-  game_code: z.string().optional(),
-  provider_slug: z.string().min(1, { 
-    message: "Provider is required",
-  }),
-  category_slugs: z.array(z.string()).optional().default([]),
-  image_url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  cover: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
-  description: z.string().optional(),
-  rtp: z.preprocess(
-    (val) => (val === "" || val === null || val === undefined ? undefined : parseFloat(String(val))),
-    z.number().min(0).max(100).optional()
-  ),
-  is_popular: z.boolean().default(false).optional(),
-  is_new: z.boolean().default(false).optional(),
-  is_featured: z.boolean().default(false).optional(),
-  show_home: z.boolean().default(false).optional(),
-  status: z.enum(['active', 'inactive', 'maintenance']).default('active').optional(),
-  launch_url: z.string().url({ message: "Please enter a valid URL for launch URL." }).optional().or(z.literal('')),
-});
+const GameForm = ({ game, providers, categories, onSubmit, onCancel }: GameFormProps) => {
+  const [formData, setFormData] = useState<Partial<DbGame>>({
+    title: '',
+    provider_slug: '', // Changed from provider_id to provider_slug for consistency if providers are identified by slugs
+    category_slugs: [], // Changed from category_ids
+    status: 'active',
+    rtp: 0,
+    // ... other default fields from DbGame
+    game_code: '',
+    launch_url_template: '', // or launch_url
+    is_featured: false,
+    is_new: false,
+    is_popular: false,
+    show_home: false,
+  });
 
-const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialValues, providers, categories, loading }) => {
-
-  const transformInitialValues = (values?: Partial<DbGame>): z.infer<typeof formSchema> => {
-    let categorySlugsArray: string[] = [];
-    const rawCategorySlugs = values?.category_slugs;
-
-    if (typeof rawCategorySlugs === 'string') {
-        categorySlugsArray = rawCategorySlugs.split(',').map(s => s.trim()).filter(Boolean);
-    } else if (Array.isArray(rawCategorySlugs)) {
-        categorySlugsArray = rawCategorySlugs.filter(s => typeof s === 'string');
+  useEffect(() => {
+    if (game) {
+      setFormData({
+        ...game,
+        provider_slug: game.provider_slug || (providers.find(p => p.id === game.provider_id)?.slug),
+        category_slugs: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : []),
+      });
+    } else {
+       // Reset for new game form
+       setFormData({
+        title: '',
+        provider_slug: providers[0]?.slug || '', 
+        category_slugs: [],
+        status: 'active',
+        rtp: 96, // Default RTP
+        game_code: '',
+        launch_url_template: '',
+        is_featured: false,
+        is_new: false,
+        is_popular: false,
+        show_home: false,
+        volatility: 'medium',
+        description: '',
+        cover: '',
+        banner: ''
+      });
     }
+  }, [game, providers, categories]);
 
-    return {
-      title: values?.title || '',
-      game_code: values?.game_code || '',
-      provider_slug: values?.provider_slug || '',
-      category_slugs: categorySlugsArray,
-      image_url: values?.image_url || '',
-      cover: values?.cover || '',
-      description: values?.description || '',
-      rtp: values?.rtp !== undefined ? Number(values.rtp) : undefined,
-      is_popular: values?.is_popular || false,
-      is_new: values?.is_new || false,
-      is_featured: values?.is_featured || false,
-      show_home: values?.show_home || false,
-      status: values?.status || 'active',
-      launch_url: values?.launch_url || '',
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    // @ts-ignore
+    const checked = type === 'checkbox' ? e.target.checked : undefined;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : (type === 'number' ? parseFloat(value) : value)
+    }));
   };
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: transformInitialValues(initialValues),
-    mode: "onChange", // Or "onBlur" or "onSubmit"
-  });
+  const handleSelectChange = (name: keyof DbGame, value: string | string[]) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSwitchChange = (name: keyof DbGame, checked: boolean) => {
+    setFormData(prev => ({ ...prev, [name]: checked }));
+  };
   
-  useEffect(() => {
-    // Reset form if initialValues change (e.g., when switching from add to edit mode or editing different items)
-    form.reset(transformInitialValues(initialValues));
-  }, [initialValues, form]);
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const submissionData = { ...formData };
+    // Ensure provider_id is set if provider_slug is used primarily in form
+    const selectedProvider = providers.find(p => p.slug === submissionData.provider_slug);
+    if (selectedProvider) {
+        submissionData.provider_id = selectedProvider.id;
+    }
+    // Ensure category_ids are set if category_slugs are used
+    // This depends on how categories are linked, assuming slugs are primary keys or need mapping
+    // For now, we submit slugs if that's what backend expects or handle mapping in service
+    onSubmit(submissionData);
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Game Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter game title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="game_code"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Game Code</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Unique game code (e.g. from provider)"
-                  {...field}
-                  value={field.value || ''} 
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="provider_slug"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Provider</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || ''} defaultValue={field.value || ''}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a provider" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {providers.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.slug}>
-                      {provider.name}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <Label htmlFor="title">Game Title</Label>
+        <Input id="title" name="title" value={formData.title || ''} onChange={handleChange} required />
+      </div>
+
+      <div>
+        <Label htmlFor="game_code">Game Code/ID (External)</Label>
+        <Input id="game_code" name="game_code" value={formData.game_code || ''} onChange={handleChange} placeholder="e.g., provider-specific-id" />
+      </div>
+
+      <div>
+        <Label htmlFor="provider_slug">Provider</Label>
+        <Select name="provider_slug" value={formData.provider_slug || ''} onValueChange={(value) => handleSelectChange('provider_slug', value)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select provider" />
+          </SelectTrigger>
+          <SelectContent>
+            {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="category_slugs">Categories (multi-select)</Label>
+        {/* Basic multi-select example. A better component might be needed. */}
+        <Select 
+            // @ts-ignore
+            value={formData.category_slugs} 
+            onValueChange={(value) => handleSelectChange('category_slugs', value)}
+            // Shadcn Select doesn't directly support multi-select. This is a placeholder.
+            // You might need a custom component or multiple single selects / checkboxes.
+        >
+            <SelectTrigger>
+                <SelectValue placeholder="Select categories" />
+            </SelectTrigger>
+            <SelectContent>
+                {categories.map(c => (
+                    <SelectItem 
+                        key={c.id} 
+                        value={c.slug}
+                        // For a real multi-select, you'd handle selection state differently
+                    >
+                        {c.name}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="category_slugs"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categories</FormLabel>
-              <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <div key={category.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`category-${category.slug}`}
-                      checked={field.value?.includes(category.slug)}
-                      onCheckedChange={(checked) => {
-                        const currentValues = Array.isArray(field.value) ? field.value : [];
-                        if (checked) {
-                          field.onChange([...currentValues, category.slug]);
-                        } else {
-                          field.onChange(currentValues.filter((value) => value !== category.slug));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`category-${category.slug}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                      {category.name}
-                    </Label>
-                  </div>
                 ))}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="image_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter image URL" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="cover"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cover Image URL</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter cover image URL" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Game description"
-                  className="resize-none"
-                  {...field}
-                  value={field.value || ''}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="rtp"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>RTP (%)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="Enter RTP percentage (0-100)"
-                  {...field}
-                  value={field.value === undefined ? '' : field.value}
-                  onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
-                  step="0.01"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <FormField
-            control={form.control}
-            name="is_popular"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-muted p-3 shadow-sm">
-                <FormLabel className="text-sm mr-2">Popular</FormLabel>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="is_new"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-muted p-3 shadow-sm">
-                <FormLabel className="text-sm mr-2">New</FormLabel>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="is_featured"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-muted p-3 shadow-sm">
-                <FormLabel className="text-sm mr-2">Featured</FormLabel>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="show_home"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-muted p-3 shadow-sm">
-                <FormLabel className="text-sm mr-2">Show on Home</FormLabel>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+            </SelectContent>
+        </Select>
+        <p className="text-sm text-muted-foreground mt-1">
+          Current: {Array.isArray(formData.category_slugs) ? formData.category_slugs.join(', ') : formData.category_slugs}
+        </p>
+      </div>
+      
+      <div>
+        <Label htmlFor="description">Description</Label>
+        <Textarea id="description" name="description" value={formData.description || ''} onChange={handleChange} />
+      </div>
+
+      <div>
+        <Label htmlFor="rtp">RTP (%)</Label>
+        <Input id="rtp" name="rtp" type="number" step="0.01" value={formData.rtp || 0} onChange={handleChange} />
+      </div>
+
+      <div>
+        <Label htmlFor="volatility">Volatility</Label>
+        <Select name="volatility" value={formData.volatility || ''} onValueChange={(value) => handleSelectChange('volatility', value)}>
+          <SelectTrigger><SelectValue placeholder="Select volatility" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="low">Low</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="low-medium">Low-Medium</SelectItem>
+            <SelectItem value="medium-high">Medium-High</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="launch_url_template">Launch URL / Template</Label>
+        <Input id="launch_url_template" name="launch_url_template" value={formData.launch_url_template || ''} onChange={handleChange} placeholder="e.g., https://provider.com/launch?game_id={GAME_ID}" />
+      </div>
+      
+      <div>
+        <Label htmlFor="cover">Cover Image URL</Label>
+        <Input id="cover" name="cover" value={formData.cover || ''} onChange={handleChange} />
+      </div>
+      
+      <div>
+        <Label htmlFor="banner">Banner Image URL</Label>
+        <Input id="banner" name="banner" value={formData.banner || ''} onChange={handleChange} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="status">Status</Label>
+          <Select name="status" value={formData.status || 'active'} onValueChange={(value) => handleSelectChange('status', value)}>
+            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="maintenance">Maintenance</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || 'active'} defaultValue={field.value || 'active'}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="launch_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Launch URL</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter direct launch URL (if any)" {...field} value={field.value || ''} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" disabled={loading}>
-          {loading ? "Submitting..." : (initialValues?.id ? "Update Game" : "Add Game")}
-        </Button>
-      </form>
-    </Form>
+         <div>
+          <Label htmlFor="release_date">Release Date</Label>
+          <Input id="release_date" name="release_date" type="date" value={formData.release_date ? formData.release_date.split('T')[0] : ''} onChange={handleChange} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center space-x-2">
+          <Switch id="is_featured" name="is_featured" checked={!!formData.is_featured} onCheckedChange={(checked) => handleSwitchChange('is_featured', checked)} />
+          <Label htmlFor="is_featured">Featured Game</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="is_new" name="is_new" checked={!!formData.is_new} onCheckedChange={(checked) => handleSwitchChange('is_new', checked)} />
+          <Label htmlFor="is_new">New Game</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch id="is_popular" name="is_popular" checked={!!formData.is_popular} onCheckedChange={(checked) => handleSwitchChange('is_popular', checked)} />
+          <Label htmlFor="is_popular">Popular Game</Label>
+        </div>
+         <div className="flex items-center space-x-2">
+          <Switch id="show_home" name="show_home" checked={!!formData.show_home} onCheckedChange={(checked) => handleSwitchChange('show_home', checked)} />
+          <Label htmlFor="show_home">Show on Homepage</Label>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button type="submit">{game?.id ? 'Update Game' : 'Create Game'}</Button>
+      </div>
+    </form>
   );
 };
 

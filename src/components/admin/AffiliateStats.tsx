@@ -1,42 +1,67 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Affiliate } from '@/types'; // Import Affiliate type
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, Users, BarChart2, Link2 } from "lucide-react";
+import { Affiliate } from "@/types"; // Assuming Affiliate type is defined in types
 
 interface AffiliateStatsProps {
-  affiliateData: Affiliate;
+  affiliate: Affiliate;
+  // Add other relevant props like historical data if needed
 }
 
-const AffiliateStats: React.FC<AffiliateStatsProps> = ({ affiliateData }) => {
+const AffiliateStats = ({ affiliate }: AffiliateStatsProps) => {
+  if (!affiliate) return <p>No affiliate data available.</p>;
+
   return (
-    <Card className="bg-casino-thunder-dark border-casino-thunder-gray/20">
-      <CardHeader>
-        <CardTitle>Affiliate Statistics</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-white/60">Total Commission</p>
-            <p className="font-medium">${affiliateData.commission}</p>
-          </div>
-          <div>
-            <p className="text-xs text-white/60">Commission Paid</p>
-            <p className="font-medium">${affiliateData.commission_paid || 0}</p>
-          </div>
-          <div>
-            <p className="text-xs text-white/60">Clicks</p>
-            <p className="font-medium">{affiliateData.clicks}</p>
-          </div>
-          <div>
-            <p className="text-xs text-white/60">Registrations</p>
-            <p className="font-medium">{affiliateData.registrations}</p>
-          </div>
-          <div>
-            <p className="text-xs text-white/60">Depositing Users</p>
-            <p className="font-medium">{affiliateData.depositingUsers}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Total Commission
+          </CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">${(affiliate.commission_paid ?? 0).toFixed(2)}</div>
+          <p className="text-xs text-muted-foreground">Based on {affiliate.commission}% rate</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Clicks</CardTitle>
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{affiliate.clicks ?? 0}</div>
+          <p className="text-xs text-muted-foreground">Total link clicks</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Registrations</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{affiliate.registrations ?? 0}</div>
+          <p className="text-xs text-muted-foreground">New users via affiliate</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">
+            Depositing Users
+          </CardTitle>
+          <BarChart2 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{affiliate.depositingUsers ?? 0}</div>
+          <p className="text-xs text-muted-foreground">
+            {affiliate.registrations ? 
+            `${(( (affiliate.depositingUsers ?? 0) / affiliate.registrations) * 100).toFixed(1)}% conversion` 
+            : 'N/A conversion'}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

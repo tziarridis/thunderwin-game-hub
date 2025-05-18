@@ -1,124 +1,211 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useGames } from '@/hooks/useGames'; // Assuming this hook provides game launching logic
+import { useAuth } from '@/contexts/AuthContext'; // For user context
+import { Game, GameLaunchOptions } from '@/types';
+import { toast } from 'sonner';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Button } from '@/components/ui/button';
+import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
+import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Assuming this component exists
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; // For related games
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-// import { gameAggregatorService } from "@/services/gameAggregatorService"; // Not used directly if launchGame hook is used
-import { useGames } from "@/hooks/useGames";
-import { Game, GameLaunchOptions } from "@/types"; // Use GameLaunchOptions from main types
-import { trackEvent } from "@/utils/analytics";
-
-interface GameLauncherProps {
-  game?: Game;
-  gameId?: string; // If game object is not available
-  gameName?: string; // Fallback name
-  buttonText?: string;
-  variant?: "default" | "outline" | "destructive" | "secondary" | "ghost" | "link";
-  className?: string;
-  currency?: string;
-  platform?: "web" | "mobile";
-  mode?: 'real' | 'demo'; // Add mode prop
-}
-
-const GameLauncher = ({
-  game,
-  gameId,
-  gameName: propGameName, // Renamed to avoid conflict
-  buttonText = "Play Now",
-  variant = "default",
-  className = "",
-  currency, // Currency can be passed or taken from user context
-  platform = "web",
-  mode = 'real', // Default to 'real' mode
-}: GameLauncherProps) => {
-  const [isLaunching, setIsLaunching] = useState(false);
+const GameLauncher = () => {
+  const { gameId } = useParams<{ gameId: string }>();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { launchGame, getGameById, games: allGames, isLoading: gamesLoading } = useGames();
   const { user, isAuthenticated } = useAuth();
-  const { launchGame, games, getGameById } = useGames(); 
-  
-  const handleLaunchGame = async () => {
-    if (!isAuthenticated || !user) {
-      toast.error("Please log in to play games");
+  const [game, setGame] = useState<Game | null>(null);
+  const [launchUrl, setLaunchUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [relatedGames, setRelatedGames] = useState<Game[]>([]);
+
+  const loadGameDetails = useCallback(async () => {
+    if (!gameId) {
+      setError("No game ID provided.");
+      setIsLoading(false);
       return;
     }
-    
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLaunching(true);
-      
-      let gameDataToLaunch = game;
-      if (!gameDataToLaunch && gameId) {
-        // Attempt to find game in context or fetch if not found
-        const foundGame = games.find(g => g.id === gameId) || await getGameById(gameId);
-        if (!foundGame) {
-          toast.error("Game details not found.");
-          setIsLaunching(false);
-          return;
-        }
-        gameDataToLaunch = foundGame;
-      }
+      const fetchedGame = await getGameById(gameId);
+      if (fetchedGame) {
+        setGame(fetchedGame);
+        // Simulate fetching related games (e.g., same category or provider)
+        const filteredRelatedGames = allGames
+          .filter(g => g.id !== fetchedGame.id && (g.category === fetchedGame.category || g.provider === fetchedGame.provider))
+          .slice(0, 6); // Show up to 6 related games
+        setRelatedGames(filteredRelatedGames);
 
-      if (!gameDataToLaunch) {
-        toast.error("Game information not provided.");
-        setIsLaunching(false);
-        return;
-      }
-      
-      const gameTitleForAnalytics = gameDataToLaunch.title || propGameName || "Unknown Game";
-      trackEvent('game_launch_click', {
-        gameId: gameDataToLaunch.id,
-        gameName: gameTitleForAnalytics,
-      });
-      
-      const launchOptions: GameLaunchOptions = {
-        mode, 
-        playerId: user.id,
-        currency: currency || user.currency || 'EUR', // Prioritize prop, then user, then default
-        language: 'en', // Default or from user profile
-        platform,
-        returnUrl: window.location.href
-      };
-        
-      const gameUrl = await launchGame(gameDataToLaunch, launchOptions); 
-        
-      if (gameUrl) {
-        window.open(gameUrl, "_blank");
-        toast.success(`Launching ${gameDataToLaunch.title}`);
-        trackEvent('game_launch_success', {
-          gameId: gameDataToLaunch.id,
-          gameName: gameDataToLaunch.title
-        });
       } else {
-        // Error already toasted by launchGame hook typically
-        // If not, uncomment: toast.error("Failed to generate game URL");
+        setError("Game not found.");
+        toast.error("Game not found.");
       }
-    } catch (error: any) {
-      console.error("Error launching game:", error);
-      toast.error(error.message || "Failed to launch game");
-      trackEvent('game_launch_error', {
-        gameId: game?.id || gameId || 'unknown',
-        error: error.message || "Unknown error"
-      });
+    } catch (err: any) {
+      console.error("Error fetching game details:", err);
+      setError(err.message || "Failed to load game details.");
+      toast.error(err.message || "Failed to load game details.");
     } finally {
-      setIsLaunching(false);
+      setIsLoading(false);
     }
-  };
+  }, [gameId, getGameById, allGames]);
+
+  useEffect(() => {
+    loadGameDetails();
+  }, [loadGameDetails]);
+
+
+  const handleLaunchGame = useCallback(async (mode: 'real' | 'demo' = 'real') => {
+    if (!game) {
+      toast.error("Game data is not loaded yet.");
+      return;
+    }
+    if (mode === 'real' && !isAuthenticated) {
+      toast.error("Please log in to play for real money.");
+      navigate('/login', { state: { from: location.pathname } });
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const launchOptions: GameLaunchOptions = {
+      mode,
+      playerId: user?.id || 'demo-player',
+      currency: user?.currency || 'USD', // Default currency if not logged in or user has no currency
+      platform: 'web', // Or detect mobile
+      language: user?.language || 'en',
+      returnUrl: `${window.location.origin}/casino` // Example return URL
+    };
+
+    try {
+      const url = await launchGame(game, launchOptions);
+      if (url) {
+        setLaunchUrl(url);
+        // Track game launch event
+        // trackEvent('game_launched', { game_id: game.id, game_title: game.title, mode });
+      } else {
+        setError("Could not retrieve game launch URL.");
+        toast.error("Could not retrieve game launch URL. The game might be unavailable.");
+      }
+    } catch (err: any) {
+      console.error("Error launching game:", err);
+      setError(err.message || "Failed to launch game.");
+      toast.error(err.message || "Failed to launch game. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [game, isAuthenticated, user, launchGame, navigate, location.pathname]);
+
+  useEffect(() => {
+    // Automatically launch in demo mode if game is loaded and no URL yet
+    // Or if user is not authenticated, default to demo
+    if (game && !launchUrl && !isLoading && !error) {
+      if(!isAuthenticated || game.tags?.includes('demo_only')) { // or some other condition for demo
+         handleLaunchGame('demo');
+      }
+      // If authenticated and not demo_only, user might need to click a "Play Real" button
+      // For now, let's launch demo by default if not already playing.
+      // Could also depend on query param e.g. ?mode=real
+    }
+  }, [game, launchUrl, isLoading, error, handleLaunchGame, isAuthenticated]);
+
+
+  if (isLoading && !game) { // Show initial loading state
+    return (
+      <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-casino-thunder-green mb-4" />
+        <p className="text-xl font-semibold">Loading Game...</p>
+        <p className="text-white/70">Please wait while we prepare your game.</p>
+      </div>
+    );
+  }
+
+  if (error && !launchUrl) { // Show error if game loading failed and no iframe fallback
+    return (
+      <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
+        <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+        <p className="text-xl font-semibold text-red-400">Error Loading Game</p>
+        <p className="text-white/70 mb-6">{error}</p>
+        <div className="flex gap-4">
+          <Button onClick={() => navigate('/casino')} variant="outline">
+            <Home className="mr-2 h-4 w-4" /> Go to Casino
+          </Button>
+          <Button onClick={loadGameDetails} >
+            <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
   
   return (
-    <Button 
-      onClick={handleLaunchGame} 
-      variant={variant} 
-      className={className}
-      disabled={isLaunching || (!game && !gameId)} 
-    >
-      {isLaunching ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Launching...
-        </>
-      ) : (
-        buttonText
+    <div className="container mx-auto p-4">
+      {game && (
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">{game.title}</h1>
+          <p className="text-white/80">Provider: {game.providerName || game.provider}</p>
+        </div>
       )}
-    </Button>
+
+      {isLoading && launchUrl && ( // Show loader while iframe is loading
+         <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
+            <AspectRatio ratio={16 / 9}>
+                <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+                </div>
+            </AspectRatio>
+        </div>
+      )}
+      
+      {!isLoading && launchUrl && (
+        <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
+          <ResponsiveEmbed src={launchUrl} title={game?.title || 'Game'} />
+        </div>
+      )}
+      
+      {!launchUrl && !isLoading && !error && game && ( // Fallback if launch URL isn't set but game loaded (e.g. user needs to click play)
+         <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
+            <AspectRatio ratio={16 / 9} className="bg-gray-800 flex flex-col items-center justify-center">
+                <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title} className="max-h-[200px] mb-4 opacity-50" />
+                <p className="text-lg text-white/70 mb-2">Ready to play {game.title}?</p>
+                 <div className="flex gap-4">
+                    {isAuthenticated && (
+                        <Button onClick={() => handleLaunchGame('real')} size="lg" className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
+                            Play Real Money
+                        </Button>
+                    )}
+                    <Button onClick={() => handleLaunchGame('demo')} size="lg" variant="outline">
+                        Play Demo
+                    </Button>
+                </div>
+            </AspectRatio>
+        </div>
+      )}
+
+      {game && (
+        <div className="my-8 p-6 bg-casino-thunder-dark rounded-lg shadow">
+          <h3 className="text-xl font-semibold mb-2">Game Details</h3>
+          <p className="text-sm text-white/70 mb-1"><strong>RTP:</strong> {game.rtp ? `${game.rtp}%` : 'N/A'}</p>
+          <p className="text-sm text-white/70 mb-1"><strong>Volatility:</strong> {game.volatility || 'N/A'}</p>
+          {game.description && <p className="text-sm text-white/70 mt-2">{game.description}</p>}
+          {/* Add more game details if available */}
+        </div>
+      )}
+
+      {relatedGames.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6 text-center">You Might Also Like</h2>
+          <CasinoGameGrid 
+            games={relatedGames} 
+            onGameClick={(clickedGame) => navigate(`/casino/game/${clickedGame.id}`)} 
+          />
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -1,25 +1,36 @@
 import { Session } from "@supabase/supabase-js";
 
 export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
+  id: string; // from auth.users.id or public.users.id (must be UUID if from Supabase)
+  email: string; // from auth.users.email or public.users.email
+  firstName?: string; // from public.profiles.first_name or public.users.first_name
+  lastName?: string; // from public.profiles.last_name or public.users.last_name
+  username?: string; // from public.users.username
+  avatar_url?: string; // from public.profiles.avatar_url or public.users.avatar
   phone?: string;
   country?: string;
   city?: string;
   address?: string;
   zipCode?: string;
-  birthdate?: string;
+  birthdate?: string; // Note: UserForm uses birthDate, ensure consistency or map
   gender?: string;
   language?: string;
-  currency?: string;
-  username?: string;
-  avatar_url?: string;
+  currency?: string; // from public.wallets.currency
   created_at?: string;
   updated_at?: string;
-  role?: string;
-  // Add other relevant fields
+  role?: string; // from public.users.role_id (mapped) or a custom 'role' field
+
+  // Fields from UserForm that need to be in the model
+  displayName?: string; // Often username or firstName + lastName
+  avatar?: string; // Same as avatar_url, ensuring consistency
+  isActive?: boolean; // Could map from public.users.status or a specific field
+  balance?: number; // from public.wallets.balance
+  vipLevel?: number; // from public.wallets.vip_level
+  kycStatus?: 'not_submitted' | 'pending' | 'verified' | 'rejected' | string; // from a KYC table or user profile
+  twoFactorEnabled?: boolean; // from auth settings or user profile
+  emailVerified?: boolean; // from auth.users.email_confirmed_at or a profile field
+  lastLogin?: string; // For UserForm's Omit, though not directly used in form
+  name?: string; // For KycForm, usually firstName + lastName
 }
 
 export interface AuthContextType {
@@ -35,7 +46,6 @@ export interface AuthContextType {
   adminLogin: (email: string, password?: string) => Promise<any>;
   updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
   refreshWalletBalance: () => Promise<Wallet | null>;
-  // Add any other methods you want to expose
 }
 
 export interface ApiResponse<T> {
@@ -63,7 +73,7 @@ export interface Game {
   providerName?: string; // Display name for provider
   category: string; // Category slug or ID
   categoryName?: string; // Display name for category
-  category_slugs?: string[];
+  category_slugs?: string[] | string; // Allow string or array to match DbGame
   image: string;
   description?: string;
   rtp?: number;
@@ -76,61 +86,61 @@ export interface Game {
   is_featured?: boolean;
   show_home?: boolean;
   tags?: string[];
-  launchUrl?: string;
+  launchUrl?: string; // This should be the final, usable launch URL
   jackpot?: number; // For jackpot games
   releaseDate?: string; // For sorting new games
   release_date?: string; // Alternative for releaseDate
   views?: number;
-  // Supabase specific fields if directly mapping from a table
   created_at?: string;
   updated_at?: string;
-  // Fields from DbGame that might be useful
   provider_id?: string;
   provider_slug?: string;
   features?: string[];
   themes?: string[];
   lines?: number;
-  cover?: string; // often used for game image
+  cover?: string;
   banner?: string;
-  image_url?: string; // alternative for game image
-  status?: string; // e.g., 'active', 'inactive'
+  image_url?: string;
+  status?: string;
   slug?: string; // game slug
+  game_code?: string; // From games table
 }
 
 export interface DbGame {
   id: string; // Primary key, should be unique game identifier
-  game_id?: string; // External or provider-specific game ID
+  game_id?: string; // External or provider-specific game ID. From games table.
   slug?: string;
-  title: string; // Game's display name
+  title: string; // Game's display name. From games.game_name.
   provider_id?: string; // Foreign key to providers table
   provider_slug?: string; // Denormalized provider slug
   category_ids?: string[]; // Array of foreign keys to categories table
   category_slugs?: string[] | string; // Denormalized category slugs (can be string from some sources)
-  description?: string;
+  description?: string;  // From games table
   tags?: string[]; // e.g., ["megaways", "bonus-buy"]
   features?: string[]; // e.g., ["free-spins", "multipliers"]
   themes?: string[]; // e.g., ["egyptian", "adventure"]
-  rtp?: number; // Return to Player percentage
+  rtp?: number; // Return to Player percentage. From games table.
   volatility?: 'low' | 'medium' | 'high' | string;
   lines?: number; // Paylines
-  cover?: string; // URL to game cover image (usually square or portrait)
-  banner?: string; // URL to game banner image (usually landscape)
+  cover?: string; // URL to game cover image. From games table.
+  banner?: string; // URL to game banner image
   image_url?: string; // Generic image URL if others aren't specific
-  launch_url_template?: string; // If game launch needs a template
-  status?: 'active' | 'inactive' | 'maintenance'; // Game status
+  launch_url_template?: string; // If game launch needs a template. May be constructed if not direct.
+  status?: 'active' | 'inactive' | 'maintenance' | string; // Game status. From games table.
   is_popular?: boolean;
   is_new?: boolean;
-  is_featured?: boolean; // For "featured" sections
-  show_home?: boolean; // If game should be shown on homepage special sections
-  views?: number; // View count for popularity metrics
+  is_featured?: boolean; // For "featured" sections. From games table.
+  show_home?: boolean; // If game should be shown on homepage special sections. From games table.
+  views?: number; // View count for popularity metrics. From games table.
   order?: number; // For manual sorting
   min_bet?: number;
   max_bet?: number;
   has_jackpot?: boolean;
-  // Timestamps
   created_at?: string;
   updated_at?: string;
-  release_date?: string; 
+  release_date?: string;
+  game_code?: string; // Added, from games table
+  launch_url?: string; // Added for GameForm consistency, potentially constructed
 }
 
 export interface GameProvider {
@@ -251,8 +261,8 @@ export interface GameLaunchOptions {
     playerId: string;
     currency: string;
     platform: 'web' | 'mobile';
-    language?: string;  // Added language property
-    // Add other options as needed
+    language?: string;
+    returnUrl?: string; // Added for GameLauncher
 }
 
 export interface GamesContextType {
@@ -282,7 +292,11 @@ export interface Affiliate {
     name: string;
     code: string;
     commission: number;
-    // Add other necessary properties
+    // Added missing properties for AffiliateStats
+    commission_paid?: number;
+    clicks?: number;
+    registrations?: number;
+    depositingUsers?: number;
 }
 
 // Alias for Wallet to fix the DbWallet error

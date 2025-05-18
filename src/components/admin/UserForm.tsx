@@ -14,7 +14,7 @@ import { Switch } from '@/components/ui/switch';
 
 interface UserFormProps {
   initialValues?: User;
-  onSubmit: (data: Partial<User>) => void; // Changed to Partial<User>
+  onSubmit: (data: Partial<User>) => void;
 }
 
 // Define a type for the form data based on User, but allowing for partial updates
@@ -32,17 +32,17 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         firstName: initialValues.firstName || '',
         lastName: initialValues.lastName || '',
         displayName: initialValues.displayName || '',
-        avatar: initialValues.avatar || '',
+        avatar: initialValues.avatar || '', // or avatar_url
         role: initialValues.role || 'user',
         isActive: initialValues.isActive !== undefined ? initialValues.isActive : true,
-        balance: initialValues.balance || 0, // Assuming balance might be on User for form, or fetched separately
+        balance: initialValues.balance || 0,
         currency: initialValues.currency || 'USD',
         vipLevel: initialValues.vipLevel || 0,
         country: initialValues.country || '',
         city: initialValues.city || '',
         address: initialValues.address || '',
         phone: initialValues.phone || '',
-        birthDate: initialValues.birthDate || '',
+        birthdate: initialValues.birthdate || '', // Changed from birthDate
         kycStatus: initialValues.kycStatus || 'not_submitted',
         twoFactorEnabled: initialValues.twoFactorEnabled || false,
         emailVerified: initialValues.emailVerified || false,
@@ -55,6 +55,11 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         role: 'user',
         isActive: true,
         kycStatus: 'not_submitted',
+        emailVerified: false,
+        twoFactorEnabled: false,
+        vipLevel: 0,
+        balance: 0,
+        currency: 'USD'
         // ... other defaults
       });
     }
@@ -66,7 +71,9 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Construct the object with all known User fields, even if partial
+    const submitData: Partial<User> = { ...formData };
+    onSubmit(submitData);
   };
 
   return (
@@ -119,7 +126,6 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
             step="0.01"
             value={formData.balance || 0}
             onChange={(e) => handleChange('balance', parseFloat(e.target.value))}
-            // Balance updates are usually done via wallet service, this can be read-only or for specific admin adjustments
           />
         </div>
         
@@ -170,7 +176,7 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
         </div>
         
         <div>
-          <Label htmlFor="kycStatus">KYC Status (Verified)</Label>
+          <Label htmlFor="kycStatus">KYC Status</Label>
            <Select
             value={formData.kycStatus || 'not_submitted'}
             onValueChange={(value) => handleChange('kycStatus', value as User['kycStatus'])}
@@ -195,6 +201,26 @@ const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
             onCheckedChange={(checked) => handleChange('emailVerified', checked)}
           />
         </div>
+
+        <div>
+          <Label htmlFor="twoFactorEnabled">2FA Enabled</Label>
+          <Switch
+            id="twoFactorEnabled"
+            checked={formData.twoFactorEnabled || false}
+            onCheckedChange={(checked) => handleChange('twoFactorEnabled', checked)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="birthdate">Birth Date</Label>
+          <Input
+            id="birthdate"
+            type="date"
+            value={formData.birthdate ? formData.birthdate.toString().split('T')[0] : ''}
+            onChange={(e) => handleChange('birthdate', e.target.value)}
+          />
+        </div>
+
       </div>
       
       <div className="flex justify-end">
