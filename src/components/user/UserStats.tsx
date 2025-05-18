@@ -2,29 +2,28 @@
 import React from 'react';
 import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Target } from 'lucide-react'; // Example icons
+import { BarChart3, TrendingUp, Target, Star } from 'lucide-react'; // Added Star import
 
 export interface UserStatsProps {
-  user: User | null; // Make user prop explicit
+  user: User | null; 
 }
 
 const UserStats: React.FC<UserStatsProps> = ({ user }) => {
-  // Mock stats if not available in user object, or fetch them
+  // Use user.stats if available, otherwise mock stats
   const stats = {
-    gamesPlayed: user?.stats?.gamesPlayed || 125, // Example: user.stats.gamesPlayed if structure exists
-    totalWagered: user?.stats?.totalWagered || 5600,
-    winRate: user?.stats?.winRate || 55, // Example
+    gamesPlayed: user?.stats?.gamesPlayed ?? 125, 
+    totalWagered: user?.stats?.totalWagered ?? 5600,
+    winRate: user?.stats?.winRate ?? 55, 
   };
 
   if (!user) {
-    // Optionally return null or a loading state if user is null and stats depend on it
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Player Statistics</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-                <p>Loading stats...</p>
+                <p>Loading stats...</p> {/* Or "Log in to see stats" */}
             </CardContent>
         </Card>
     );
@@ -53,8 +52,7 @@ const UserStats: React.FC<UserStatsProps> = ({ user }) => {
         </div>
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground flex items-center">
-            {/* Replace with actual stat icon and label */}
-            <Star className="mr-2 h-4 w-4" /> Win Rate (Example) 
+            <Star className="mr-2 h-4 w-4" /> Win Rate
           </span>
           <span className="font-semibold">{stats.winRate}%</span>
         </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,8 +20,8 @@ const gameFormSchema = z.object({
   rtp: z.coerce.number().min(0).max(100).optional().nullable(),
   status: z.enum(['active', 'inactive', 'maintenance']).default('active'),
   description: z.string().optional().nullable(),
-  cover: z.string().url('Must be a valid URL').optional().nullable(),
-  banner: z.string().url('Must be a valid URL').optional().nullable(),
+  cover: z.string().url('Must be a valid URL for cover image').optional().nullable().or(z.literal('')),
+  banner: z.string().url('Must be a valid URL for banner image').optional().nullable().or(z.literal('')),
   is_popular: z.boolean().default(false),
   is_new: z.boolean().default(false),
   is_featured: z.boolean().default(false),
@@ -28,36 +29,54 @@ const gameFormSchema = z.object({
   tags: z.string().optional().nullable().transform(val => val ? val.split(',').map(tag => tag.trim()).filter(Boolean) : []),
   features: z.string().optional().nullable().transform(val => val ? val.split(',').map(feat => feat.trim()).filter(Boolean) : []),
   themes: z.string().optional().nullable().transform(val => val ? val.split(',').map(theme => theme.trim()).filter(Boolean) : []),
-  volatility: z.enum(['low', 'medium', 'high', '']).optional().nullable(),
+  volatility: z.enum(['low', 'medium', 'high', '']).default('').optional().nullable(),
   lines: z.coerce.number().int().positive().optional().nullable(),
   min_bet: z.coerce.number().positive().optional().nullable(),
   max_bet: z.coerce.number().positive().optional().nullable(),
-  release_date: z.string().optional().nullable().refine(val => !val || !isNaN(Date.parse(val)), { message: "Invalid date format" }),
-  game_id: z.string().optional().nullable(), // External game ID from provider
-  game_code: z.string().optional().nullable(), // Specific game code
+  release_date: z.string().optional().nullable().refine(val => !val || !isNaN(Date.parse(val)) || val === '', { message: "Invalid date format" }),
+  game_id: z.string().optional().nullable(), 
+  game_code: z.string().optional().nullable(),
 });
 
 type GameFormValues = z.infer<typeof gameFormSchema>;
+
+// This type is for the data structure used by react-hook-form's defaultValues and reset,
+// where array fields might be represented as comma-separated strings for <Input /> components.
+type GameFormInputValues = Omit<GameFormValues, 'tags' | 'features' | 'themes'> & {
+  tags?: string;
+  features?: string;
+  themes?: string;
+  category_slugs: string[]; // category_slugs is handled by multi-select/checkbox, so it's string[]
+};
+
 
 export interface GameFormProps {
   onSubmit: (data: GameFormValues) => Promise<void>;
   initialGameData?: Partial<DbGame> | null;
   providers: GameProvider[];
   categories: GameCategory[];
-  onCancel: () => void; // Added onCancel
+  onCancel: () => void; 
 }
 
 const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, providers, categories, onCancel }) => {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialGameData?.category_slugs || []);
+  
+  const getInitialCategorySlugs = (): string[] => {
+    if (!initialGameData?.category_slugs) return [];
+    if (Array.isArray(initialGameData.category_slugs)) return initialGameData.category_slugs.filter(s => typeof s === 'string');
+    if (typeof initialGameData.category_slugs === 'string') return initialGameData.category_slugs.split(',').map(s => s.trim()).filter(Boolean);
+    return [];
+  };
 
-  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<GameFormValues>({
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(getInitialCategorySlugs());
+
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<GameFormValues>({
     resolver: zodResolver(gameFormSchema),
     defaultValues: {
       title: initialGameData?.title || '',
       slug: initialGameData?.slug || '',
       provider_slug: initialGameData?.provider_slug || '',
-      category_slugs: Array.isArray(initialGameData?.category_slugs) ? initialGameData.category_slugs : (typeof initialGameData?.category_slugs === 'string' ? [initialGameData.category_slugs] : []),
-      rtp: initialGameData?.rtp || undefined,
+      category_slugs: getInitialCategorySlugs(),
+      rtp: initialGameData?.rtp ?? undefined,
       status: initialGameData?.status || 'active',
       description: initialGameData?.description || '',
       cover: initialGameData?.cover || '',
@@ -66,13 +85,15 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
       is_new: initialGameData?.is_new || false,
       is_featured: initialGameData?.is_featured || false,
       show_home: initialGameData?.show_home || false,
-      tags: initialGameData?.tags?.join(', ') || '',
-      features: initialGameData?.features?.join(', ') || '',
-      themes: initialGameData?.themes?.join(', ') || '',
+      // For Zod transform to work, these should be strings initially if bound to simple Input
+      // However, GameFormValues expects string[], so the default should be string[]
+      tags: initialGameData?.tags || [], 
+      features: initialGameData?.features || [],
+      themes: initialGameData?.themes || [],
       volatility: initialGameData?.volatility || '',
-      lines: initialGameData?.lines || undefined,
-      min_bet: initialGameData?.min_bet || undefined,
-      max_bet: initialGameData?.max_bet || undefined,
+      lines: initialGameData?.lines ?? undefined,
+      min_bet: initialGameData?.min_bet ?? undefined,
+      max_bet: initialGameData?.max_bet ?? undefined,
       release_date: initialGameData?.release_date || '',
       game_id: initialGameData?.game_id || '',
       game_code: initialGameData?.game_code || '',
@@ -80,56 +101,49 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
   });
 
   useEffect(() => {
-    if (initialGameData) {
-      const categorySlugs = Array.isArray(initialGameData.category_slugs) 
-        ? initialGameData.category_slugs 
-        : typeof initialGameData.category_slugs === 'string' 
-        ? [initialGameData.category_slugs] 
-        : [];
-      reset({
-        ...initialGameData,
-        rtp: initialGameData.rtp ?? undefined,
-        status: initialGameData.status ?? 'active',
-        tags: initialGameData.tags?.join(', ') || '',
-        features: initialGameData.features?.join(', ') || '',
-        themes: initialGameData.themes?.join(', ') || '',
-        category_slugs: categorySlugs,
-        volatility: initialGameData.volatility ?? '',
-        lines: initialGameData.lines ?? undefined,
-        min_bet: initialGameData.min_bet ?? undefined,
-        max_bet: initialGameData.max_bet ?? undefined,
-        release_date: initialGameData.release_date ?? '',
-      });
-      setSelectedCategories(categorySlugs);
-    } else {
-      reset(gameFormSchema.parse({})); // Reset to default empty/valid state
-      setSelectedCategories([]);
-    }
+    const initialCats = getInitialCategorySlugs();
+    const defaultVals: GameFormInputValues = { // Use GameFormInputValues for reset
+      title: initialGameData?.title || '',
+      slug: initialGameData?.slug || '',
+      provider_slug: initialGameData?.provider_slug || '',
+      category_slugs: initialCats,
+      rtp: initialGameData?.rtp ?? undefined,
+      status: initialGameData?.status || 'active',
+      description: initialGameData?.description || '',
+      cover: initialGameData?.cover || '',
+      banner: initialGameData?.banner || '',
+      is_popular: initialGameData?.is_popular || false,
+      is_new: initialGameData?.is_new || false,
+      is_featured: initialGameData?.is_featured || false,
+      show_home: initialGameData?.show_home || false,
+      tags: initialGameData?.tags?.join(', ') || '', // String for input
+      features: initialGameData?.features?.join(', ') || '', // String for input
+      themes: initialGameData?.themes?.join(', ') || '', // String for input
+      volatility: initialGameData?.volatility || '',
+      lines: initialGameData?.lines ?? undefined,
+      min_bet: initialGameData?.min_bet ?? undefined,
+      max_bet: initialGameData?.max_bet ?? undefined,
+      release_date: initialGameData?.release_date || '',
+      game_id: initialGameData?.game_id || '',
+      game_code: initialGameData?.game_code || '',
+    };
+    reset(defaultVals as any); // Cast to any because RHF reset type is strict on GameFormValues
+    setSelectedCategories(initialCats);
   }, [initialGameData, reset]);
   
   const handleCategoryChange = (categorySlug: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(categorySlug)
-        ? prev.filter(slug => slug !== categorySlug)
-        : [...prev, categorySlug]
-    );
+    const newSelectedCategories = selectedCategories.includes(categorySlug)
+        ? selectedCategories.filter(slug => slug !== categorySlug)
+        : [...selectedCategories, categorySlug];
+    setSelectedCategories(newSelectedCategories);
+    setValue('category_slugs', newSelectedCategories, { shouldValidate: true });
   };
 
-  useEffect(() => {
-    // Update react-hook-form's value for category_slugs when selectedCategories changes
-    // This might not be directly needed if Controller handles it, but good for explicit sync
-    control.setValue('category_slugs', selectedCategories, { shouldValidate: true });
-  }, [selectedCategories, control]);
-
-
   const processSubmit = async (data: GameFormValues) => {
+    // data.tags, data.features, data.themes are already string[] due to Zod transform
+    // data.category_slugs is also string[] due to Controller and setValue
     try {
-      // Ensure category_slugs is an array for submission
-      const dataToSubmit = {
-        ...data,
-        category_slugs: selectedCategories,
-      };
-      await onSubmit(dataToSubmit);
+      await onSubmit(data);
     } catch (error) {
       toast.error('Submission failed. Please check the form.');
       console.error('Form submission error:', error);
@@ -160,7 +174,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
             name="provider_slug"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || ""}>
                 <SelectTrigger id="provider_slug"><SelectValue placeholder="Select provider" /></SelectTrigger>
                 <SelectContent>
                   {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
@@ -178,7 +192,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
             name="status"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || "active"}>
                 <SelectTrigger id="status"><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
@@ -195,25 +209,31 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
       {/* Categories Checkboxes */}
       <div>
         <Label>Categories</Label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2 border rounded-md max-h-48 overflow-y-auto">
-          {categories.map(category => (
-            <div key={category.id} className="flex items-center space-x-2">
-              <Checkbox
-                id={`category-${category.slug}`}
-                checked={selectedCategories.includes(category.slug)}
-                onCheckedChange={() => handleCategoryChange(category.slug)}
-              />
-              <Label htmlFor={`category-${category.slug}`} className="font-normal">{category.name}</Label>
-            </div>
-          ))}
-        </div>
+        <Controller
+            name="category_slugs"
+            control={control}
+            render={({ field }) => ( // field value will be string[]
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-2 border rounded-md max-h-48 overflow-y-auto">
+                {categories.map(category => (
+                    <div key={category.id} className="flex items-center space-x-2">
+                    <Checkbox
+                        id={`category-${category.slug}`}
+                        checked={selectedCategories.includes(category.slug)}
+                        onCheckedChange={() => handleCategoryChange(category.slug)}
+                    />
+                    <Label htmlFor={`category-${category.slug}`} className="font-normal">{category.name}</Label>
+                    </div>
+                ))}
+                </div>
+            )}
+        />
         {errors.category_slugs && <p className="text-red-500 text-sm">{errors.category_slugs.message}</p>}
       </div>
       
        {/* RTP */}
         <div>
           <Label htmlFor="rtp">RTP (%)</Label>
-          <Controller name="rtp" control={control} render={({ field }) => <Input id="rtp" type="number" step="0.01" {...field} value={field.value ?? ''} />} />
+          <Controller name="rtp" control={control} render={({ field }) => <Input id="rtp" type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} value={field.value ?? ''} />} />
           {errors.rtp && <p className="text-red-500 text-sm">{errors.rtp.message}</p>}
         </div>
         
@@ -227,33 +247,51 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
         {/* Cover Image URL */}
         <div>
           <Label htmlFor="cover">Cover Image URL</Label>
-          <Controller name="cover" control={control} render={({ field }) => <Input id="cover" {...field} value={field.value ?? ''} />} />
+          <Controller name="cover" control={control} render={({ field }) => <Input id="cover" {...field} value={field.value ?? ''} placeholder="https://example.com/image.png"/>} />
           {errors.cover && <p className="text-red-500 text-sm">{errors.cover.message}</p>}
         </div>
 
         {/* Banner Image URL */}
         <div>
           <Label htmlFor="banner">Banner Image URL</Label>
-          <Controller name="banner" control={control} render={({ field }) => <Input id="banner" {...field} value={field.value ?? ''} />} />
+          <Controller name="banner" control={control} render={({ field }) => <Input id="banner" {...field} value={field.value ?? ''} placeholder="https://example.com/banner.png"/>} />
           {errors.banner && <p className="text-red-500 text-sm">{errors.banner.message}</p>}
         </div>
         
         {/* Tags */}
         <div>
           <Label htmlFor="tags">Tags (comma-separated)</Label>
-          <Controller name="tags" control={control} render={({ field }) => <Input id="tags" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value ?? ''} />} />
+          <Controller 
+            name="tags" 
+            control={control} 
+            render={({ field }) => <Input id="tags" {...field} 
+            value={Array.isArray(field.value) ? field.value.join(', ') : (field.value || '')}
+            onChange={e => field.onChange(e.target.value)} // Pass string to RHF, Zod will transform
+          />} />
         </div>
 
         {/* Features */}
         <div>
           <Label htmlFor="features">Features (comma-separated)</Label>
-          <Controller name="features" control={control} render={({ field }) => <Input id="features" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value ?? ''} />} />
+          <Controller 
+            name="features" 
+            control={control} 
+            render={({ field }) => <Input id="features" {...field} 
+            value={Array.isArray(field.value) ? field.value.join(', ') : (field.value || '')}
+            onChange={e => field.onChange(e.target.value)}
+          />} />
         </div>
 
         {/* Themes */}
         <div>
           <Label htmlFor="themes">Themes (comma-separated)</Label>
-          <Controller name="themes" control={control} render={({ field }) => <Input id="themes" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value ?? ''} />} />
+          <Controller 
+            name="themes" 
+            control={control} 
+            render={({ field }) => <Input id="themes" {...field} 
+            value={Array.isArray(field.value) ? field.value.join(', ') : (field.value || '')}
+            onChange={e => field.onChange(e.target.value)}
+          />} />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -264,7 +302,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
                     name="volatility"
                     control={control}
                     render={({ field }) => (
-                        <Select onValueChange={field.onChange} defaultValue={field.value ?? ''}>
+                        <Select onValueChange={field.onChange} value={field.value ?? ''}>
                             <SelectTrigger id="volatility"><SelectValue placeholder="Select volatility" /></SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="low">Low</SelectItem>
@@ -279,7 +317,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
             {/* Lines */}
             <div>
                 <Label htmlFor="lines">Lines</Label>
-                <Controller name="lines" control={control} render={({ field }) => <Input id="lines" type="number" {...field} value={field.value ?? ''} />} />
+                <Controller name="lines" control={control} render={({ field }) => <Input id="lines" type="number" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseInt(e.target.value))} value={field.value ?? ''} />} />
             </div>
         </div>
 
@@ -287,19 +325,19 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
             {/* Min Bet */}
             <div>
                 <Label htmlFor="min_bet">Min Bet</Label>
-                <Controller name="min_bet" control={control} render={({ field }) => <Input id="min_bet" type="number" step="0.01" {...field} value={field.value ?? ''} />} />
+                <Controller name="min_bet" control={control} render={({ field }) => <Input id="min_bet" type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} value={field.value ?? ''} />} />
             </div>
             {/* Max Bet */}
             <div>
                 <Label htmlFor="max_bet">Max Bet</Label>
-                <Controller name="max_bet" control={control} render={({ field }) => <Input id="max_bet" type="number" step="0.01" {...field} value={field.value ?? ''} />} />
+                <Controller name="max_bet" control={control} render={({ field }) => <Input id="max_bet" type="number" step="0.01" {...field} onChange={e => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))} value={field.value ?? ''} />} />
             </div>
         </div>
         
         {/* Release Date */}
         <div>
             <Label htmlFor="release_date">Release Date (YYYY-MM-DD)</Label>
-            <Controller name="release_date" control={control} render={({ field }) => <Input id="release_date" type="date" {...field} value={field.value ?? ''} />} />
+            <Controller name="release_date" control={control} render={({ field }) => <Input id="release_date" type="date" {...field} value={field.value?.split('T')[0] ?? ''} />} />
             {errors.release_date && <p className="text-red-500 text-sm">{errors.release_date.message}</p>}
         </div>
         
@@ -315,7 +353,6 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
                 <Controller name="game_code" control={control} render={({ field }) => <Input id="game_code" {...field} value={field.value ?? ''} />} />
             </div>
         </div>
-
 
       {/* Boolean Flags */}
       <div className="space-y-2">
@@ -342,7 +379,7 @@ const GameForm: React.FC<GameFormProps> = ({ onSubmit, initialGameData, provider
           Cancel
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? (initialGameData ? 'Updating...' : 'Adding...') : (initialGameData ? 'Update Game' : 'Add Game')}
+          {isSubmitting ? (initialGameData?.id ? 'Updating...' : 'Adding...') : (initialGameData?.id ? 'Update Game' : 'Add Game')}
         </Button>
       </div>
     </form>

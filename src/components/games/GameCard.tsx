@@ -2,29 +2,28 @@
 import React from 'react';
 import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Heart, PlayCircle, Star } from 'lucide-react';
+import { Heart, PlayCircle } from 'lucide-react'; // Removed Star as it's not used here
 import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils'; // For conditional class names
+import { cn } from '@/lib/utils';
 
 export interface GameCardProps {
   game: Game;
   isFavorite: boolean;
   onToggleFavorite: (gameId: string) => void;
   className?: string;
-  onPlay?: (game: Game) => void; // Optional: if launching game directly from card
+  onPlay?: (game: Game) => void;
 }
 
 const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite, className, onPlay }) => {
   const navigate = useNavigate();
 
   const handlePlay = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigation if card itself is a link
+    e.stopPropagation(); 
     if (onPlay) {
       onPlay(game);
     } else if (game.slug) {
       navigate(`/casino/game/${game.slug}`);
     } else {
-      // Fallback or error if no slug and no onPlay
       console.warn("No slug or onPlay handler for game:", game.title);
     }
   };
@@ -59,6 +58,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             isFavorite ? "text-red-500 hover:text-red-400" : "text-white/70 hover:text-white"
           )}
           onClick={handleToggleFavorite}
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
           <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
         </Button>

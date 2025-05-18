@@ -1,16 +1,17 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
-import GameList from '@/components/games/GameList';
+import GamesGrid from '@/components/games/GamesGrid'; // Changed from GameList to GamesGrid
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react'; // Removed RefreshCw as it's handled in MobileWalletSummary
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import MobileWalletSummary from '@/components/user/MobileWalletSummary'; // Ensure this is imported
+import MobileWalletSummary from '@/components/user/MobileWalletSummary';
 
 const FavoritesPage = () => {
   const { user, isAuthenticated, refreshWalletBalance } = useAuth();
-  const { getFavoriteGames, isLoading: gamesLoading, favoriteGameIds, toggleFavoriteGame } = useGames();
+  const { getFavoriteGames, isLoading: gamesLoadingContext, favoriteGameIds, toggleFavoriteGame } = useGames();
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
   const navigate = useNavigate();
@@ -19,7 +20,8 @@ const FavoritesPage = () => {
     if (isAuthenticated && user) {
       setLoadingFavorites(true);
       try {
-        const favs = await getFavoriteGames(); // This is from useGames, already maps DbGame to Game
+        // getFavoriteGames already maps DbGame to Game if necessary internally
+        const favs = await getFavoriteGames(); 
         setFavoriteGames(favs);
       } catch (error) {
         console.error("Failed to fetch favorite games:", error);
@@ -35,7 +37,7 @@ const FavoritesPage = () => {
 
   useEffect(() => {
     fetchFavorites();
-  }, [fetchFavorites, favoriteGameIds]); // Re-fetch if favoriteGameIds change (e.g. after toggle)
+  }, [fetchFavorites, favoriteGameIds]); // Re-fetch if favoriteGameIds change
 
   const handleRefreshWallet = async () => {
     if (refreshWalletBalance) {
@@ -53,7 +55,7 @@ const FavoritesPage = () => {
     );
   }
 
-  const isLoading = gamesLoading || loadingFavorites;
+  const isLoading = gamesLoadingContext || loadingFavorites;
 
 
   return (
@@ -68,18 +70,19 @@ const FavoritesPage = () => {
         <MobileWalletSummary 
           user={user}
           showRefresh={true} 
-          onRefresh={handleRefreshWallet}
+          onRefresh={handleRefreshWallet} // onRefresh is handled by MobileWalletSummary now or uses context
         />
       </div>
       
-      {isLoading ? (
-        <p>Loading favorite games...</p>
-      ) : favoriteGames.length > 0 ? (
-        <GameList games={favoriteGames} />
-      ) : (
-        <div className="text-center py-10">
-          <p className="text-xl text-muted-foreground">You haven't added any games to your favorites yet.</p>
-          <p className="mt-2">Explore our games and click the heart icon to save them here!</p>
+      <GamesGrid
+        games={favoriteGames}
+        loading={isLoading}
+        emptyMessage="You haven't added any games to your favorites yet. Explore our games and click the heart icon to save them here!"
+      />
+      {/* Custom empty state message handled by GamesGrid, but if more complex UI needed: */}
+      {!isLoading && favoriteGames.length === 0 && (
+         <div className="text-center py-10">
+          {/* This part is somewhat redundant if GamesGrid handles emptyMessage well */}
           <Button onClick={() => navigate('/casino/main')} className="mt-4">Explore Games</Button>
         </div>
       )}

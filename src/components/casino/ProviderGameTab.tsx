@@ -4,26 +4,28 @@ import { TabsContent } from '@/components/ui/tabs';
 import GameCard from '@/components/games/GameCard';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGames } from '@/hooks/useGames'; // Added useGames
+import { Game } from '@/types'; // Ensure Game type is imported
 import { toast } from 'sonner';
 
 interface ProviderGameTabProps {
-  value: 'gitslotpark' | 'pragmaticplay';
-  games: any[];
-  onGameClick: (game: any) => void;
+  value: string; // Changed from specific enums to string for flexibility
+  games: Game[]; // Changed to Game[]
+  onGameClick: (game: Game) => void; // Changed to Game
 }
 
 const ProviderGameTab = ({ value, games, onGameClick }: ProviderGameTabProps) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { favoriteGameIds, toggleFavoriteGame } = useGames();
 
-  const handleGameClick = (game: any) => {
+  const handleGameCardPlay = (game: Game) => {
     if (!isAuthenticated) {
       toast.error("Please log in to play games");
-      navigate('/login');
+      navigate('/auth/login'); // Corrected path
       return;
     }
-    
-    onGameClick(game);
+    onGameClick(game); // This is the original onGameClick passed to the tab
   };
 
   return (
@@ -32,17 +34,10 @@ const ProviderGameTab = ({ value, games, onGameClick }: ProviderGameTabProps) =>
         {games.map((game) => (
           <GameCard 
             key={game.id}
-            id={game.id}
-            title={game.title}
-            image={game.image}
-            provider={game.provider}
-            isPopular={game.isPopular}
-            isNew={game.isNew}
-            rtp={game.rtp}
-            isFavorite={false}
-            minBet={game.minBet}
-            maxBet={game.maxBet}
-            onClick={() => handleGameClick(game)}
+            game={game}
+            isFavorite={favoriteGameIds.has(game.id)}
+            onToggleFavorite={toggleFavoriteGame}
+            onPlay={handleGameCardPlay} // GameCard's onPlay will call the tab's onGameClick
           />
         ))}
       </div>

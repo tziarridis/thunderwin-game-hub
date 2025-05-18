@@ -1,5 +1,12 @@
 import { Session } from "@supabase/supabase-js";
 
+export interface UserStatsType {
+  gamesPlayed?: number;
+  totalWagered?: number;
+  winRate?: number;
+  // Add other stat fields as needed
+}
+
 export interface User {
   id: string; 
   email: string; 
@@ -23,15 +30,16 @@ export interface User {
   displayName?: string; 
   avatar?: string; 
   isActive?: boolean; 
-  balance?: number; 
+  balance?: number; // This seems to be a direct balance, distinct from wallet. Review usage.
   vipLevel?: number; 
-  kycStatus?: KycStatusType | string; // Use KycStatusType
+  kycStatus?: KycStatusType | string; 
   twoFactorEnabled?: boolean; 
   emailVerified?: boolean; 
   lastLogin?: string; 
   registrationDate?: string; 
   status?: string; 
   name?: string; 
+  stats?: UserStatsType; // Added stats property
 }
 
 export interface AuthContextType {
@@ -41,13 +49,14 @@ export interface AuthContextType {
   error: any;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password?: string) => Promise<any>; // Renamed from signIn
-  register: (username: string, email: string, password?: string, metadata?: any) => Promise<any>; // Renamed from signUp and updated signature
+  wallet: Wallet | null; // Added wallet property
+  login: (email: string, password?: string) => Promise<any>; 
+  register: (username: string, email: string, password?: string, metadata?: any) => Promise<any>; 
   signOut: () => Promise<void>;
   adminLogin: (email: string, password?: string) => Promise<any>;
   updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
   refreshWalletBalance: () => Promise<Wallet | null>;
-  deposit: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; // Added
+  deposit: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; 
   updateUserSettings?: (settings: Partial<User>) => Promise<{ error?: any }>; 
 }
 
@@ -154,7 +163,7 @@ export interface GameProvider {
   description?: string;
   isActive: boolean; 
   order?: number;
-  games_count?: number;
+  games_count?: number; // Corrected from gamesCount for consistency if DB uses this
 }
 
 export interface GameCategory {
@@ -251,15 +260,15 @@ export interface BonusTemplate {
   maxAmount?: number; 
   freeSpinsCount?: number; 
   wageringRequirement: number; 
-  gameRestrictions?: string[] | string; // Allow string for form data
+  gameRestrictions?: string[] | string; 
   durationDays?: number; 
   minDeposit?: number; 
   promoCode?: string; 
   targetVipLevel?: string; 
-  targetVipLevelId?: string; // For bonusService.ts
+  targetVipLevelId?: string; 
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string; // Should be string if coming from DB typically
+  updatedAt: string; // Should be string
 }
 
 export interface BonusTemplateFormData {
@@ -385,27 +394,32 @@ export interface TransactionServiceType {
   getTransactionById: (transactionId: string) => Promise<ApiResponse<Transaction | null>>;
   createTransaction: (transactionData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ApiResponse<Transaction>>;
   updateTransactionStatus: (transactionId: string, status: Transaction['status']) => Promise<ApiResponse<Transaction>>;
-  fetchUserTransactions?: (userId: string, page: number, limit: number) => Promise<{ data: Transaction[]; total: number }>; // For Transactions.tsx
+  fetchUserTransactions?: (userId: string, page: number, limit: number) => Promise<{ data: Transaction[]; total: number }>; 
 }
 
-// Added for UserProfile.tsx
 export interface UserProfileData {
   user: User;
   wallet?: Wallet;
-  recentTransactions?: Transaction[]; // Or WalletTransaction[]
-  stats?: {
-    gamesPlayed?: number;
-    totalWagered?: number;
-    vipLevel?: number;
-    // other stats
-  };
+  recentTransactions?: Transaction[]; 
+  stats?: UserStatsType; // Changed to UserStatsType
   kycStatus?: KycStatusType;
   lastLogin?: string;
   registrationDate?: string;
 }
 
 export interface WalletTransaction extends Transaction {
-  // Can be extended with display-specific fields if needed
-  // For now, it's an alias or extension of Transaction
-  description?: string; // Example additional field
+  description?: string; 
+}
+
+// Added for VipBonusManagement page (bonusService)
+export interface BonusServiceType {
+  getAllBonusTemplates: () => Promise<ApiResponse<BonusTemplate[]>>;
+  createBonusTemplate: (data: Partial<BonusTemplate>) => Promise<ApiResponse<BonusTemplate>>;
+  updateBonusTemplate: (id: string, data: Partial<BonusTemplate>) => Promise<ApiResponse<BonusTemplate>>;
+  deleteBonusTemplate: (id: string) => Promise<ApiResponse<{ success: boolean }>>; // Adjusted return type
+  // Keep other existing methods from the actual bonusService file
+  fetchBonusTypes?: () => Promise<any[]>; // Example, adjust as per actual service
+  fetchUserBonuses?: (userId: string) => Promise<any[]>; // Example
+  fetchVipLevels?: () => Promise<any[]>; // Example
+  claimBonus?: (userId: string, bonusTypeId: string) => Promise<any>; // Example
 }

@@ -1,102 +1,81 @@
 
 import React from 'react';
-import { User, Wallet } from '@/types'; // Assuming Wallet type contains necessary fields
+import { User, Wallet } from '@/types';
 import { Button } from '@/components/ui/button';
-import { CreditCard, RefreshCw, Gift } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext'; // To get user and wallet directly
+import { RefreshCw, WalletCards } from 'lucide-react'; // Using WalletCards from lucide
+import { useAuth } from '@/contexts/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
 export interface MobileWalletSummaryProps {
-  user: User | null; // Expecting the full user object which might contain wallet info or wallet itself
-  // Wallet info can also be passed directly if preferred
-  balance?: number; 
-  currency?: string;
-  symbol?: string;
-  bonusBalance?: number;
+  user: User | null;
   showRefresh?: boolean;
-  onRefresh?: () => void; // Optional refresh handler
+  onRefresh?: () => Promise<void>;
   className?: string;
 }
 
 const MobileWalletSummary: React.FC<MobileWalletSummaryProps> = ({ 
   user, 
-  balance: propBalance, 
-  currency: propCurrency, 
-  symbol: propSymbol,
-  bonusBalance: propBonusBalance,
   showRefresh = false, 
-  onRefresh, 
+  onRefresh,
   className 
 }) => {
-  const navigate = useNavigate();
-  const { wallet: contextWallet, loading: authLoading, refreshWalletBalance } = useAuth(); // Use wallet from AuthContext
+  const { wallet: contextWallet, loading: authLoading, refreshWalletBalance } = useAuth();
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  // Determine wallet data source: props or context
-  const isLoading = authLoading; // Use auth loading state for skeleton
-  const currentWallet = contextWallet; // Prioritize context wallet
-  
-  const displayBalance = currentWallet?.balance ?? propBalance ?? 0;
-  const displayCurrency = currentWallet?.currency ?? propCurrency ?? 'N/A';
-  const displaySymbol = currentWallet?.symbol ?? propSymbol ?? '$';
-  const displayBonusBalance = currentWallet?.bonusBalance ?? propBonusBalance ?? 0;
-
+  const wallet = contextWallet; // Prioritize wallet from context
 
   const handleRefresh = async () => {
-    if (onRefresh) {
-      onRefresh();
-    } else if (refreshWalletBalance) {
+    if (onRefresh) { // If a specific onRefresh is passed, use it
+      setIsRefreshing(true);
+      await onRefresh();
+      setIsRefreshing(false);
+    } else if (refreshWalletBalance) { // Otherwise, use the context's refresh
+      setIsRefreshing(true);
       await refreshWalletBalance();
+      setIsRefreshing(false);
     }
   };
 
-  if (isLoading) {
+  const isLoading = authLoading || isRefreshing;
+
+  if (isLoading && !wallet) { // Show skeleton only if no wallet data yet and loading
     return (
-      <div className={`p-3 bg-muted/50 rounded-lg space-y-2 ${className}`}>
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-8 w-full" />
+      <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
+        <Skeleton className="h-6 w-20" />
+        <Skeleton className="h-8 w-8 rounded-full" />
       </div>
     );
   }
-  
-  if (!user) { // No user, no summary
-    return null;
-  }
 
-  return (
-    <div className={`p-3 bg-card border rounded-lg shadow-sm ${className}`}>
-      <div className="flex justify-between items-center mb-2">
-        <div>
-          <p className="text-sm text-muted-foreground">Main Balance</p>
-          <p className="text-xl font-semibold">
-            {displaySymbol}{displayBalance.toFixed(2)} <span className="text-xs">{displayCurrency}</span>
-          </p>
-        </div>
-        {showRefresh && (
-          <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+  if (!user || !wallet) {
+    return (
+      <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
+        <span className="text-sm text-muted-foreground">N/A</span>
+        {showRefresh && onRefresh && (
+          <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         )}
       </div>
-      
-      {typeof displayBonusBalance === 'number' && displayBonusBalance > 0 && (
-         <div className="mb-3">
-            <p className="text-xs text-muted-foreground">Bonus Balance</p>
-            <p className="text-sm font-medium">
-              {displaySymbol}{displayBonusBalance.toFixed(2)} <span className="text-xs">{displayCurrency}</span>
-            </p>
-        </div>
-      )}
+    );
+  }
 
-      <div className="flex gap-2">
-        <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => navigate('/payment/deposit')}>
-          <CreditCard className="mr-2 h-4 w-4" /> Deposit
-        </Button>
-        <Button variant="secondary" size="sm" className="flex-1" onClick={() => navigate('/bonuses')}>
-            <Gift className="mr-2 h-4 w-4" /> Bonuses
-        </Button>
+  return (
+    <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
+      <div className="flex items-center space-x-2">
+        <WalletCards className="h-5 w-5 text-primary" />
+        <div>
+          <span className="block text-sm font-semibold">
+            {wallet.symbol}{wallet.balance.toFixed(2)}
+          </span>
+          <span className="block text-xs text-muted-foreground">{wallet.currency}</span>
+        </div>
       </div>
+      {showRefresh && (onRefresh || refreshWalletBalance) && (
+        <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        </Button>
+      )}
     </div>
   );
 };

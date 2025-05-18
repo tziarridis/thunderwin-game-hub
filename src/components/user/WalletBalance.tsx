@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { User, Wallet } from '@/types'; // Ensure Wallet type is imported
+import { User, Wallet } from '@/types'; 
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/contexts/AuthContext'; // To get user and wallet directly
+import { useAuth } from '@/contexts/AuthContext'; 
 
 export interface WalletBalanceProps {
-  user: User | null; // User object, might contain wallet or be used to fetch it
-  // Wallet info can also be passed directly
-  balance?: number;
+  user: User | null; 
+  balance?: number; // Prop balance can be a fallback or for specific display cases
   currency?: string;
   symbol?: string;
   className?: string;
@@ -22,18 +21,20 @@ const WalletBalance: React.FC<WalletBalanceProps> = ({
 }) => {
   const { wallet: contextWallet, loading: authLoading } = useAuth();
 
-  const isLoading = authLoading; // Use auth loading state for skeleton
-  const currentWallet = contextWallet; // Prioritize context wallet
+  const isLoading = authLoading; 
+  const currentWallet = contextWallet; 
 
+  // Determine display values, prioritizing context wallet, then props, then defaults
   const displayBalance = currentWallet?.balance ?? propBalance ?? 0;
-  const displayCurrency = currentWallet?.currency ?? propCurrency ?? 'N/A';
-  const displaySymbol = currentWallet?.symbol ?? propSymbol ?? '$';
+  const displayCurrency = currentWallet?.currency ?? propCurrency ?? 'N/A'; // Default currency
+  const displaySymbol = currentWallet?.symbol ?? propSymbol ?? '$'; // Default symbol
 
-  if (isLoading) {
+  if (isLoading && !currentWallet) { // Show skeleton if loading and no wallet data yet
     return <Skeleton className={`h-8 w-24 ${className}`} />;
   }
 
-  if (!user || !currentWallet) { // If no user or no wallet data (even after loading)
+  // If not loading, but still no user or no wallet data (context or props)
+  if (!user || (!currentWallet && propBalance === undefined)) { 
     return <span className={`text-sm text-muted-foreground ${className}`}>N/A</span>;
   }
 
@@ -48,4 +49,3 @@ const WalletBalance: React.FC<WalletBalanceProps> = ({
 };
 
 export default WalletBalance;
-
