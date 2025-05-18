@@ -177,6 +177,7 @@ export interface Wallet {
   balance: number;
   createdAt: string;
   updatedAt: string;
+  vipLevel?: number; // Added vipLevel property
 }
 
 export interface Transaction {
@@ -218,9 +219,11 @@ export interface Promotion {
   ctaLink?: string; // Link for the call to action
   startDate?: string;
   endDate?: string;
-  type: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; // Type of promotion
+  promotionType: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; // Added promotionType field
   termsLink?: string; // Link to terms and conditions
   isActive: boolean;
+  bonusPercentage?: number; // Added bonusPercentage field
+  maxBonusAmount?: number; // Added maxBonusAmount field
   wageringRequirement?: number; // Optional: if bonus related
   games?: string[]; // Optional: applicable games
   promoCode?: string; // Optional: promo code

@@ -35,4 +35,3 @@ export const uploadKycDocument = async (file: File, documentType: string, userId
   await new Promise(resolve => setTimeout(resolve, 1000));
   return { success: true, fileUrl: `/uploads/mock-${file.name}`, message: "Document uploaded successfully (mock)." };
 };
-
