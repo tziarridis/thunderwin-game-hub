@@ -1,4 +1,3 @@
-
 export interface Wallet {
   id: string;
   userId: string;
@@ -6,10 +5,13 @@ export interface Wallet {
   currency: string;
   symbol: string;
   vipLevel: number;
+  vipPoints?: number; // Added vipPoints as optional
   bonusBalance: number;
   cryptoBalance: number;
   demoBalance: number;
   isActive: boolean;
+  // Retaining other properties from the original file if they exist
+  lastTransactionDate?: string | Date; // From previous walletService version, ensure it's here if needed
 }
 
 export interface WalletTransaction {
@@ -23,6 +25,12 @@ export interface WalletTransaction {
   gameId?: string;
   gameName?: string;
   provider?: string;
+  // Add description if it's used by TransactionQueryService and exists in DB
+  description?: string; 
+  balance_before?: number;
+  balance_after?: number;
+  round_id?: string;
+  session_id?: string;
 }
 
 export interface WalletFilter {

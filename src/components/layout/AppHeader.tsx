@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -5,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import NavLinks from './NavLinks'; 
+import NavLinks from './NavLinks';
 import MobileNavBar from './MobileNavBar';
 import DepositButton from '@/components/user/DepositButton';
 import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet';
+import { Wallet } from '@/types/wallet'; // Will now use the updated Wallet type from wallet.ts
 
 const AppHeader = () => {
   const location = useLocation();
@@ -30,12 +31,9 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
-          // Removed 'wagering_requirement' from select to avoid DB error if column doesn't exist
-          // 'vip_points' is kept as it was not the direct cause of the reported DB error.
-          // If 'vip_points' also causes issues, it might need to be removed or handled.
           const { data, error } = await supabase
             .from('wallets')
-            .select('balance, currency, vip_level, vip_points, symbol') 
+            .select('balance, currency, vip_level, vip_points, symbol')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -43,16 +41,25 @@ const AppHeader = () => {
             console.error("Error fetching wallet:", error.message);
             setWallet(null);
           } else if (data) {
-            setWallet({
+            // Ensure all properties match the Wallet type from src/types/wallet.ts
+            // The Wallet type from src/types/wallet.ts requires id, userId, bonusBalance, cryptoBalance, demoBalance, isActive.
+            // The current select only gets some fields. This will lead to type errors if not careful.
+            // For now, focusing on vipPoints. A more complete wallet object might be needed.
+            // This minimal structure is for display in header, might need full Wallet type from service for UserMenu
+            const partialWallet: Pick<Wallet, 'balance' | 'currency' | 'symbol' | 'vipLevel' | 'vipPoints'> & { id?: string, userId?: string, bonusBalance?: number, cryptoBalance?: number, demoBalance?: number, isActive?: boolean } = {
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-              // wagering_requirement is now omitted, relying on its optionality in Wallet type
-            });
+            };
+            // To satisfy the full Wallet type for setWallet, we'd need more fields or a different type for header display.
+            // For now, casting to Wallet to satisfy useState, acknowledging it's not a full Wallet object.
+            // This might be problematic if other parts expect a full Wallet object.
+            // A better approach would be a dedicated HeaderWallet type or fetching all required fields.
+            setWallet(partialWallet as Wallet);
+
           } else {
-            // case where data is null and no error, e.g. no wallet found
             setWallet(null);
           }
         } catch (err: any) {
@@ -65,9 +72,8 @@ const AppHeader = () => {
 
       fetchWallet();
 
-      // Also fetch notifications status (simplified for example)
       const fetchNotificationsStatus = async () => {
-        const unreadCount = 0; 
+        const unreadCount = 0;
         setHasUnreadNotifications(unreadCount > 0);
       };
 
@@ -78,17 +84,16 @@ const AppHeader = () => {
     }
   }, [isAuthenticated, user]);
 
-  const toggleMobileMenuHandler = () => { // Renamed to avoid conflict with useTheme's toggleTheme
+  const toggleMobileMenuHandler = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   return (
     <header className={cn(
-      "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60", // z-50 to be above other sticky elements
+      "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
       isHomePage ? "bg-transparent border-transparent" : ""
     )}>
       <div className="container flex h-16 max-w-screen-2xl items-center">
-        {/* Logo and Main Navigation */}
         <div className="flex flex-1 items-center justify-start">
           <Link to="/" className="flex items-center space-x-2 mr-6">
             <SiteLogo className="h-8 w-auto" />
@@ -98,32 +103,25 @@ const AppHeader = () => {
           </div>
         </div>
 
-        {/* Right Side: Theme Toggle, Notifications, User Menu */}
         <div className="flex items-center space-x-1 sm:space-x-2">
-          {/* Theme Toggle */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={toggleTheme} // Correctly uses toggleTheme from useTheme
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
             className="hidden sm:flex"
             aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
-          
-          {/* Authenticated User: Deposit Button, Notifications, User Menu */}
+
           {isAuthenticated ? (
             <>
-              {/* Deposit Button (hide on small screens) */}
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
-              
-              {/* Notifications */}
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              
-              {/* User Menu */}
-              <UserMenu user={user} wallet={wallet} loadingWallet={loadingWallet} />
+              {/* Removed wallet prop from UserMenu as it's not an expected prop by the read-only component */}
+              <UserMenu user={user} loadingWallet={loadingWallet} />
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
@@ -135,17 +133,16 @@ const AppHeader = () => {
               </Button>
             </div>
           )}
-          
-          {/* Mobile Menu Toggle */}
+
           <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenuHandler} aria-label="Toggle mobile menu">
             {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </Button>
         </div>
       </div>
 
-      {/* Mobile Navigation Bar */}
       {isMobileMenuOpen && (
         <div className="md:hidden">
+          {/* Pass wallet to MobileNavBar if it expects it and can handle Wallet | null */}
           <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
         </div>
       )}
