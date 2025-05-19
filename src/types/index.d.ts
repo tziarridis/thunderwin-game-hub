@@ -128,7 +128,7 @@ export interface GameLaunchOptions {
 export interface User {
   id: string;
   aud?: string;
-  role?: string;
+  role?: string; // Role name like 'admin', 'user'
   email?: string;
   email_confirmed_at?: string;
   phone?: string;
@@ -141,8 +141,10 @@ export interface User {
   };
   user_metadata: {
     avatar_url?: string;
-    full_name?: string;
+    full_name?: string; // Often combination of first and last
     name?: string; // Often used for display name
+    first_name?: string; // Added
+    last_name?: string; // Added
     // any other custom metadata
     [key: string]: any;
   };
@@ -160,10 +162,25 @@ export interface User {
   }>;
   created_at?: string;
   updated_at?: string;
-  // Custom application-specific fields that might be merged from a 'profiles' table
+  // Custom application-specific fields that might be merged from a 'profiles' or 'users' table
   username?: string;
-  vip_level?: number; // Corrected from vipLevel
-  // Add other custom fields as needed
+  vip_level?: number;
+  // Added based on UserForm and Supabase users table
+  status?: string; // e.g., 'active', 'pending'
+  banned?: boolean;
+  role_id?: number; // If using numeric role IDs
+  country?: string;
+  city?: string;
+  address?: string;
+  birthdate?: string; // Consider Date type if parsing
+  kyc_status?: string;
+  two_factor_enabled?: boolean;
+  // For UserStats
+  stats?: {
+    totalBets?: number;
+    totalWagered?: number;
+    totalWins?: number;
+  };
 }
 
 export interface Wallet {
@@ -172,6 +189,7 @@ export interface Wallet {
   user_id: string;
   balance: number;
   currency: string;
+  symbol?: string; // Added for currency symbol
   // ... other wallet fields
 }
 
@@ -196,4 +214,14 @@ export interface Promotion {
   start_date?: string;
   end_date?: string;
   status?: 'active' | 'expired' | 'upcoming';
+}
+
+// Added Affiliate type
+export interface Affiliate {
+  id: string;
+  user_id: string; // The user who is an affiliate
+  code: string; // Unique affiliate code
+  commission_rate: number; // Percentage or fixed amount
+  created_at: string;
+  // Add other relevant fields
 }

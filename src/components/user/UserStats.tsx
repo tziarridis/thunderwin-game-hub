@@ -1,64 +1,43 @@
-
 import React from 'react';
 import { User } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Target, Star } from 'lucide-react'; // Added Star import
+import { DollarSign, TrendingUp, TrendingDown } from 'lucide-react';
 
-export interface UserStatsProps {
-  user: User | null; 
+interface UserStatsProps {
+  user: User | null;
 }
 
 const UserStats: React.FC<UserStatsProps> = ({ user }) => {
-  // Use user.stats if available, otherwise mock stats
-  const stats = {
-    gamesPlayed: user?.stats?.gamesPlayed ?? 125, 
-    totalWagered: user?.stats?.totalWagered ?? 5600,
-    winRate: user?.stats?.winRate ?? 55, 
-  };
-
   if (!user) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Player Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-                <p>Loading stats...</p> {/* Or "Log in to see stats" */}
-            </CardContent>
-        </Card>
-    );
+    return <p>Loading stats...</p>; // Or some skeleton loader
   }
 
+  // Use optional chaining and provide default values
+  const totalBets = user.stats?.totalBets || 0;
+  const totalWagered = user.stats?.totalWagered || 0;
+  const totalWins = user.stats?.totalWins || 0;
+
+  const stats = [
+    { title: 'Total Bets Placed', value: totalBets.toLocaleString(), icon: <TrendingUp className="h-5 w-5 text-blue-500" /> },
+    { title: 'Total Wagered', value: `$${totalWagered.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, icon: <DollarSign className="h-5 w-5 text-green-500" /> },
+    { title: 'Total Wins', value: `$${totalWins.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, icon: <TrendingDown className="h-5 w-5 text-red-500" /> }, // Example, might be winnings
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-            <BarChart3 className="mr-2 h-5 w-5 text-primary" />
-            Player Statistics
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground flex items-center">
-            <TrendingUp className="mr-2 h-4 w-4" /> Games Played
-          </span>
-          <span className="font-semibold">{stats.gamesPlayed}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground flex items-center">
-            <Target className="mr-2 h-4 w-4" /> Total Wagered
-          </span>
-          <span className="font-semibold">${stats.totalWagered.toLocaleString()}</span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-muted-foreground flex items-center">
-            <Star className="mr-2 h-4 w-4" /> Win Rate
-          </span>
-          <span className="font-semibold">{stats.winRate}%</span>
-        </div>
-        {/* Add more relevant stats here */}
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 md:grid-cols-3">
+      {stats.map((stat) => (
+        <Card key={stat.title}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+            {stat.icon}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stat.value}</div>
+            {/* <p className="text-xs text-muted-foreground">+20.1% from last month</p> */}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 };
 

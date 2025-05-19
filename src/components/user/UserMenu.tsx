@@ -1,10 +1,5 @@
 
 import React from 'react';
-import { User } from '@/types'; // Changed from AuthUser to User
-import { Button } from '@/components/ui/button';
-import { LogOut, User as UserIcon, Settings, ChevronDown } from 'lucide-react'; // Added ChevronDown for better UX
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,79 +7,92 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { User } from '@/types';
+import { LogOut, UserCircle, Settings, ShieldCheck, BarChart3, Gem, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 interface UserMenuProps {
-  user: User; // Changed from AuthUser to User
-  onSignOut?: () => void; // Optional onSignOut prop for custom handling if needed
+  user: User;
+  onSignOut: () => void;
 }
 
 const UserMenu: React.FC<UserMenuProps> = ({ user, onSignOut }) => {
-  const { signOut: contextSignOut } = useAuth(); // Use signOut from context
   const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    if (onSignOut) {
-      onSignOut();
-    } else {
-      await contextSignOut(); // Use signOut from context
-      navigate('/');
-    }
-  };
+  const { isAdmin } = useAuth(); // Get isAdmin status
 
   const getInitials = (name?: string, email?: string) => {
     if (name) {
       const names = name.split(' ');
-      if (names.length > 1 && names[0] && names[names.length - 1]) {
+      if (names.length > 1) {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
       }
-      if (names[0] && names[0].length > 1) return name.substring(0, 2).toUpperCase();
-      if (names[0]) return names[0][0].toUpperCase();
+      return name.substring(0, 2).toUpperCase();
     }
-    if (email && email[0]) return email[0].toUpperCase();
+    if (email) {
+      return email.substring(0, 2).toUpperCase();
+    }
     return 'U';
   };
-  
-  const userDisplayName = user.displayName || user.username || "User";
+
+  const displayName = user.user_metadata?.name || user.username || user.email;
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="flex items-center space-x-2 px-2 py-1 h-9 rounded-md hover:bg-white/10">
-          <Avatar className="h-7 w-7">
-            {/* Prefer avatar_url, then avatar, then fallback */}
-            <AvatarImage src={user.avatar_url || user.avatar || ''} alt={userDisplayName} />
-            <AvatarFallback>{getInitials(userDisplayName, user.email)}</AvatarFallback>
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={avatarUrl} alt={displayName || 'User Avatar'} />
+            <AvatarFallback>{getInitials(displayName, user.email)}</AvatarFallback>
           </Avatar>
-          <span className="hidden sm:inline text-sm font-medium text-white">{userDisplayName.length > 10 ? `${userDisplayName.substring(0,8)}...` : userDisplayName}</span>
-          <ChevronDown className="h-4 w-4 text-white/70 hidden sm:inline" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-casino-thunder-dark border-casino-thunder-gray-light text-white" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1 p-1">
-            <p className="text-sm font-medium leading-none">{userDisplayName}</p>
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{displayName}</p>
             {user.email && (
-              <p className="text-xs leading-none text-gray-400">
+              <p className="text-xs leading-none text-muted-foreground">
                 {user.email}
               </p>
             )}
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator className="bg-casino-thunder-gray-light/50" />
-        <DropdownMenuItem onClick={() => navigate('/profile')} className="hover:bg-casino-thunder-gold/20 focus:bg-casino-thunder-gold/20 cursor-pointer">
-          <UserIcon className="mr-2 h-4 w-4" />
-          Profile
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => navigate('/profile')}>
+          <UserCircle className="mr-2 h-4 w-4" />
+          <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/settings')} className="hover:bg-casino-thunder-gold/20 focus:bg-casino-thunder-gold/20 cursor-pointer">
+        <DropdownMenuItem onClick={() => navigate('/wallet')}> {/* Assuming /wallet route exists */}
+          <Gem className="mr-2 h-4 w-4" /> {/* Changed to Gem or appropriate icon */}
+          <span>Wallet</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/transactions')}>
+          <BarChart3 className="mr-2 h-4 w-4" />
+          <span>Transactions</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => navigate('/settings')}>
           <Settings className="mr-2 h-4 w-4" />
-          Settings
+          <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator className="bg-casino-thunder-gray-light/50" />
-        <DropdownMenuItem onClick={handleSignOut} className="text-casino-thunder-gold hover:!text-casino-thunder-gold hover:bg-casino-thunder-gold/20 focus:bg-casino-thunder-gold/20 cursor-pointer">
+        <DropdownMenuItem onClick={() => navigate('/kyc')}>
+          <ShieldCheck className="mr-2 h-4 w-4" />
+          <span>KYC Verification</span>
+        </DropdownMenuItem>
+        {isAdmin && (
+            <DropdownMenuItem onClick={() => navigate('/admin/dashboard')}>
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                <span>Admin Dashboard</span>
+            </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          <span>Log out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

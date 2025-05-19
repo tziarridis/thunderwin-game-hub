@@ -1,85 +1,71 @@
-import { useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Game, GameLaunchOptions, Wallet } from '@/types'; // Changed DbWallet to Wallet
+import { gameAggregatorService } from '@/services/gameAggregatorService'; // Assuming you have this service
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { walletService } from '@/services/walletService';
-import { DbWallet } from '@/types';
+import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Assuming this component exists
 
 interface AggregatorGameLauncherProps {
-  game: any;
-  provider: 'gitslotpark' | 'pragmaticplay';
-  buttonText?: string;
-  variant?: 'default' | 'outline' | 'destructive' | 'secondary' | 'ghost' | 'link';
-  className?: string;
-  size?: 'default' | 'sm' | 'lg' | 'icon';
+  game: Game;
+  options: GameLaunchOptions;
+  wallet?: Wallet | null; // Changed DbWallet to Wallet
 }
 
-const AggregatorGameLauncher = ({
-  game,
-  provider,
-  buttonText = 'Play Game',
-  variant = 'default',
-  className = '',
-  size = 'default'
-}: AggregatorGameLauncherProps) => {
-  const [isLaunching, setIsLaunching] = useState(false);
-  const { isAuthenticated, user } = useAuth();
-  const navigate = useNavigate();
-  
-  const handleLaunch = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to play games");
-      navigate('/login');
-      return;
-    }
-    
-    try {
-      setIsLaunching(true);
-      
-      if (user?.id) {
-        const walletResponse = await walletService.getWalletByUserId(user.id);
-        // Ensure walletResponse.data is not null and is a single DbWallet
-        const singleWallet = walletResponse.success && walletResponse.data ? (walletResponse.data as DbWallet) : null;
-        if (!singleWallet || singleWallet.balance <= 0) {
-          toast.error("Insufficient funds. Please deposit to play.");
-          setIsLaunching(false);
-          return;
+const AggregatorGameLauncher: React.FC<AggregatorGameLauncherProps> = ({ game, options, wallet }) => {
+  const [launchUrl, setLaunchUrl] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const loadGame = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!game.provider_slug || !game.game_id) {
+          throw new Error("Provider slug or game ID is missing.");
         }
+        const url = await gameAggregatorService.getGameLaunchUrl(game.provider_slug, game.game_id, options);
+        setLaunchUrl(url);
+      } catch (err: any) {
+        setError(err.message || 'Failed to launch game');
+        toast.error(`Failed to launch game: ${err.message || 'Unknown error'}`);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Route to the correct seamless page based on provider
-      if (provider === 'gitslotpark') {
-        navigate(`/casino/gitslotpark-seamless?gameCode=${game.gameCode}`);
-      } else if (provider === 'pragmaticplay') {
-        navigate(`/casino/seamless?gameCode=${game.gameCode}`);
-      }
-      
-      toast.success(`Launching: ${game.title}`);
-    } catch (error: any) {
-      console.error('Error launching game:', error);
-      toast.error(`Error launching game: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsLaunching(false);
-    }
-  };
-  
+    };
+
+    loadGame();
+  }, [game, options]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading game...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-full items-center justify-center text-red-500">
+        <p>Error: {error}</p>
+      </div>
+    );
+  }
+
   return (
-    <Button 
-      variant={variant}
-      onClick={handleLaunch}
-      disabled={isLaunching}
-      className={className}
-      size={size}
-    >
-      {isLaunching ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Launching...
-        </>
-      ) : buttonText}
-    </Button>
+    <div className="relative h-full">
+      {launchUrl ? (
+        <ResponsiveEmbed src={launchUrl} />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <p>Waiting to launch game...</p>
+        </div>
+      )}
+    </div>
   );
 };
 

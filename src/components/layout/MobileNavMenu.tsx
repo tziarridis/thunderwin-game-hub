@@ -1,81 +1,114 @@
-
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User } from '@/types'; // App's User type
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Home, UserCircle, LogOut, Settings, ShieldCheck, Star, Gift, Wallet, Percent } from 'lucide-react'; // Added icons
+import { User, Wallet as UserWallet } from '@/types'; // Renamed Wallet to UserWallet to avoid conflict
+import { Home, Gift, Gem, ShieldCheck, LogOut, UserCircle, Settings, HelpCircle, BarChart3, ExternalLink, KeyRound, ShieldAlert, LayoutDashboard } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 interface MobileNavMenuProps {
   user: User | null;
   isAuthenticated: boolean;
   onSignOut: () => void;
-  onClose: () => void; // To close the menu
+  onClose: () => void;
 }
 
 const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ user, isAuthenticated, onSignOut, onClose }) => {
   const navigate = useNavigate();
+  const { isAdmin, wallet } = useAuth(); // Get isAdmin and wallet from useAuth
 
-  const handleNavigate = (path: string) => {
+  const handleNavigation = (path: string) => {
     navigate(path);
-    onClose(); // Close menu after navigation
+    onClose();
   };
+
+  const menuItems = [
+    { label: 'Home', icon: <Home className="h-5 w-5" />, path: '/', authRequired: false },
+    { label: 'Casino', icon: <Gem className="h-5 w-5" />, path: '/casino', authRequired: false },
+    { label: 'Promotions', icon: <Gift className="h-5 w-5" />, path: '/promotions', authRequired: false },
+    // Add more general navigation items here
+  ];
+
+  const userMenuItems = [
+    { label: 'Profile', icon: <UserCircle className="h-5 w-5" />, path: '/profile', authRequired: true },
+    { label: 'Wallet', icon: <KeyRound className="h-5 w-5" />, path: '/wallet', authRequired: true }, // Changed icon
+    { label: 'Bonuses', icon: <Gift className="h-5 w-5" />, path: '/bonuses', authRequired: true },
+    { label: 'Transactions', icon: <BarChart3 className="h-5 w-5" />, path: '/transactions', authRequired: true },
+    { label: 'Settings', icon: <Settings className="h-5 w-5" />, path: '/settings', authRequired: true },
+    { label: 'KYC', icon: <ShieldCheck className="h-5 w-5" />, path: '/kyc', authRequired: true },
+    { label: 'Responsible Gambling', icon: <ShieldAlert className="h-5 w-5" />, path: '/support/responsible-gaming', authRequired: true },
+    { label: 'Help Center', icon: <HelpCircle className="h-5 w-5" />, path: '/support/help', authRequired: false },
+  ];
   
-  const userDisplayName = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Player";
-  const userAvatar = user?.user_metadata?.avatar_url;
+  // Admin menu item
+  const adminMenuItem = { label: 'Admin Dashboard', icon: <LayoutDashboard className="h-5 w-5" />, path: '/admin/dashboard', authRequired: true, adminOnly: true };
 
 
   return (
-    <div 
-        className="fixed inset-0 top-16 z-40 bg-background/95 backdrop-blur-sm md:hidden animate-in slide-in-from-bottom-full duration-300"
-        onClick={onClose} // Close on overlay click
-    >
-      <div 
-        className="absolute left-0 top-0 h-full w-full max-w-xs bg-background shadow-xl flex flex-col p-4 pt-6"
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside menu
-      >
+    <div className="fixed inset-0 top-16 z-40 bg-background/95 backdrop-blur-sm md:hidden">
+      <div className="container mx-auto px-4 py-6 h-[calc(100vh-4rem)] overflow-y-auto">
         {isAuthenticated && user && (
-          <div className="flex flex-col items-center mb-6">
-            <Avatar className="h-20 w-20 mb-3">
-              <AvatarImage src={userAvatar} alt={userDisplayName} />
-              <AvatarFallback>{userDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <p className="font-semibold text-lg">{userDisplayName}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
+          <div className="mb-6 p-4 border-b border-border">
+            <h3 className="font-semibold text-lg">{user.user_metadata?.name || user.username || user.email}</h3>
+            {wallet && (
+              <p className="text-sm text-muted-foreground">
+                Balance: {wallet.balance.toFixed(2)} {wallet.currency}
+              </p>
+            )}
           </div>
         )}
-        
-        <nav className="flex flex-col space-y-1">
-          <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/')}><Home className="mr-3 h-5 w-5" /> Home</Button>
-          <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/casino')}><Gift className="mr-3 h-5 w-5" /> Casino</Button>
-          <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/promotions')}><Percent className="mr-3 h-5 w-5" /> Promotions</Button>
 
-          {isAuthenticated && user && (
-            <>
-              <Separator className="my-2"/>
-              <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/user/profile')}><UserCircle className="mr-3 h-5 w-5" /> Profile</Button>
-              <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/wallet')}><Wallet className="mr-3 h-5 w-5" /> Wallet</Button>
-              <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/user/favorites')}><Star className="mr-3 h-5 w-5" /> Favorites</Button>
-              <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/user/settings')}><Settings className="mr-3 h-5 w-5" /> Settings</Button>
-              {user.isAdmin && ( // Check if user is admin
-                <Button variant="ghost" className="justify-start text-base py-3" onClick={() => handleNavigate('/admin/dashboard')}><ShieldCheck className="mr-3 h-5 w-5" /> Admin Panel</Button>
-              )}
-              <Separator className="my-2"/>
-              <Button variant="ghost" className="justify-start text-base py-3 text-red-500 hover:text-red-600" onClick={onSignOut}>
-                <LogOut className="mr-3 h-5 w-5" /> Sign Out
-              </Button>
-            </>
-          )}
-          {!isAuthenticated && (
-            <>
-              <Separator className="my-2"/>
-              <Button variant="default" className="w-full text-base py-3" onClick={() => handleNavigate('/auth/login')}>Log In</Button>
-              <Button variant="outline" className="w-full text-base py-3 mt-2" onClick={() => handleNavigate('/auth/signup')}>Sign Up</Button>
-            </>
+        <nav className="flex flex-col gap-2 mb-6">
+          {menuItems.map((item) => (
+            <Button
+              key={item.label}
+              variant="ghost"
+              className="justify-start text-base py-3 px-3"
+              onClick={() => handleNavigation(item.path)}
+            >
+              {item.icon}
+              <span className="ml-3">{item.label}</span>
+            </Button>
+          ))}
+          {isAuthenticated && userMenuItems.map((item) => (
+             <Button
+              key={item.label}
+              variant="ghost"
+              className="justify-start text-base py-3 px-3"
+              onClick={() => handleNavigation(item.path)}
+            >
+              {item.icon}
+              <span className="ml-3">{item.label}</span>
+            </Button>
+          ))}
+          {isAuthenticated && isAdmin && ( // Check isAdmin from useAuth
+            <Button
+              variant="ghost"
+              className="justify-start text-base py-3 px-3 text-primary"
+              onClick={() => handleNavigation(adminMenuItem.path)}
+            >
+              {adminMenuItem.icon}
+              <span className="ml-3">{adminMenuItem.label}</span>
+            </Button>
           )}
         </nav>
-        <Button variant="outline" size="lg" className="mt-auto" onClick={onClose}>Close</Button>
+
+        <div className="mt-auto pt-6 border-t border-border">
+          {isAuthenticated ? (
+            <Button variant="destructive" className="w-full justify-start py-3 px-3" onClick={onSignOut}>
+              <LogOut className="h-5 w-5" />
+              <span className="ml-3">Sign Out</span>
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Button className="w-full justify-center" onClick={() => handleNavigation('/auth/login')}>
+                Log In
+              </Button>
+              <Button variant="outline" className="w-full justify-center" onClick={() => handleNavigation('/auth/signup')}>
+                Sign Up
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

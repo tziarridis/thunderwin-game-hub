@@ -1,82 +1,50 @@
-
 import React from 'react';
-import { User, Wallet } from '@/types';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, WalletCards } from 'lucide-react'; // Using WalletCards from lucide
-import { useAuth } from '@/contexts/AuthContext';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { PlusCircle, ArrowDownCircle } from 'lucide-react';
+import { Wallet as UserWalletType } from '@/types'; // Ensure correct Wallet type is imported
 
-export interface MobileWalletSummaryProps {
-  user: User | null;
-  showRefresh?: boolean;
-  onRefresh?: () => Promise<void>;
-  className?: string;
+interface MobileWalletSummaryProps {
+  wallet: UserWalletType | null;
+  onDepositClick: () => void;
+  onWithdrawClick: () => void;
 }
 
-const MobileWalletSummary: React.FC<MobileWalletSummaryProps> = ({ 
-  user, 
-  showRefresh = false, 
-  onRefresh,
-  className 
-}) => {
-  const { wallet: contextWallet, loading: authLoading, refreshWalletBalance } = useAuth();
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
-
-  const wallet = contextWallet; // Prioritize wallet from context
-
-  const handleRefresh = async () => {
-    if (onRefresh) { // If a specific onRefresh is passed, use it
-      setIsRefreshing(true);
-      await onRefresh();
-      setIsRefreshing(false);
-    } else if (refreshWalletBalance) { // Otherwise, use the context's refresh
-      setIsRefreshing(true);
-      await refreshWalletBalance();
-      setIsRefreshing(false);
-    }
-  };
-
-  const isLoading = authLoading || isRefreshing;
-
-  if (isLoading && !wallet) { // Show skeleton only if no wallet data yet and loading
+const MobileWalletSummary: React.FC<MobileWalletSummaryProps> = ({ wallet, onDepositClick, onWithdrawClick }) => {
+  if (!wallet) {
     return (
-      <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
-        <Skeleton className="h-6 w-20" />
-        <Skeleton className="h-8 w-8 rounded-full" />
-      </div>
-    );
-  }
-
-  if (!user || !wallet) {
-    return (
-      <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
-        <span className="text-sm text-muted-foreground">N/A</span>
-        {showRefresh && onRefresh && (
-          <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          </Button>
-        )}
+      <div className="p-4 bg-card border rounded-lg shadow animate-pulse">
+        <div className="h-6 bg-muted rounded w-3/4 mb-2"></div>
+        <div className="h-4 bg-muted rounded w-1/2"></div>
       </div>
     );
   }
 
   return (
-    <div className={`p-3 bg-card border rounded-lg shadow flex items-center justify-between ${className}`}>
-      <div className="flex items-center space-x-2">
-        <WalletCards className="h-5 w-5 text-primary" />
-        <div>
-          <span className="block text-sm font-semibold">
-            {wallet.symbol}{wallet.balance.toFixed(2)}
-          </span>
-          <span className="block text-xs text-muted-foreground">{wallet.currency}</span>
+    <Card className="shadow-md">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">My Wallet</CardTitle>
+        {/* <CardDescription>Overview of your funds.</CardDescription> */}
+      </CardHeader>
+      <CardContent className="pb-4">
+        <div className="text-3xl font-bold text-primary">
+          {wallet.balance.toLocaleString(undefined, { style: 'currency', currency: wallet.currency, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </div>
-      </div>
-      {showRefresh && (onRefresh || refreshWalletBalance) && (
-        <Button variant="ghost" size="icon" onClick={handleRefresh} disabled={isRefreshing}>
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <div className="text-xs text-muted-foreground mt-1">
+           {wallet.currency} {wallet.symbol && `(${wallet.symbol})`}
+        </div>
+        {/* Placeholder for bonus balance or other details */}
+        {/* <p className="text-xs text-muted-foreground mt-2">Bonus: 0.00 {wallet.currency}</p> */}
+      </CardContent>
+      <CardFooter className="grid grid-cols-2 gap-2 pt-0">
+        <Button onClick={onDepositClick} className="w-full">
+          <PlusCircle className="mr-2 h-4 w-4" /> Deposit
         </Button>
-      )}
-    </div>
+        <Button variant="outline" onClick={onWithdrawClick} className="w-full">
+          <ArrowDownCircle className="mr-2 h-4 w-4" /> Withdraw
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 

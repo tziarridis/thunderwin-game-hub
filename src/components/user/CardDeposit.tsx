@@ -1,255 +1,184 @@
-
 import React, { useState } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { CreditCard, DollarSign } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { paymentService } from '@/services/paymentService';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
-interface CardDepositProps {
-  onComplete?: () => void;
-  className?: string;
-}
-
-// Define deposit form validation schema
-const depositSchema = z.object({
-  amount: z.number().min(10).max(10000),
-  cardNumber: z.string().regex(/^\d{16}$/, "Card number must be 16 digits"),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, "Expiry must be in MM/YY format"),
-  cvv: z.string().regex(/^\d{3}$/, "CVV must be 3 digits")
+// Define schema for form validation
+const cardFormSchema = z.object({
+  amount: z.string().min(1, { message: "Amount is required" })
+    .refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: "Amount must be a positive number",
+    }),
+  cardName: z.string().min(3, { message: "Name on card is required" }),
+  saveCard: z.boolean().optional(),
 });
 
-type DepositFormData = z.infer<typeof depositSchema>;
+type CardFormValues = z.infer<typeof cardFormSchema>;
 
-const CardDeposit: React.FC<CardDepositProps> = ({ onComplete, className }) => {
-  const { user, refreshWalletBalance } = useAuth();
+interface CardDepositProps {
+  onSuccess?: (data: any) => void;
+  onFail?: (error: any) => void;
+}
+
+const CardDeposit: React.FC<CardDepositProps> = ({ onSuccess, onFail }) => {
+  const { user, wallet, refreshWalletBalance } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<Partial<DepositFormData>>({
-    amount: 100,
-    cardNumber: '',
-    expiryDate: '',
-    cvv: ''
+  const [stripeReady, setStripeReady] = useState(true); // Set to true for now, would be set by Stripe initialization
+
+  const form = useForm<CardFormValues>({
+    resolver: zodResolver(cardFormSchema),
+    defaultValues: {
+      amount: "",
+      cardName: user?.user_metadata?.full_name || "",
+      saveCard: false,
+    },
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [depositSuccess, setDepositSuccess] = useState(false);
 
-  // Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    // Format card number with spaces
-    if (name === 'cardNumber') {
-      const formatted = value.replace(/\s/g, '').substr(0, 16);
-      setFormData({ ...formData, [name]: formatted });
-      return;
-    }
-    
-    // Format expiry date with /
-    if (name === 'expiryDate') {
-      // Allow only digits and format as MM/YY
-      const formatted = value
-        .replace(/\D/g, '')
-        .replace(/^(\d{2})(\d)/, '$1/$2')
-        .substr(0, 5);
-      setFormData({ ...formData, [name]: formatted });
-      return;
-    }
-    
-    // Handle amount special case
-    if (name === 'amount') {
-      // Convert to number for amount
-      const numValue = parseFloat(value);
-      setFormData({ ...formData, [name]: isNaN(numValue) ? undefined : numValue });
-      return;
-    }
-    
-    // Default handling for other fields
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const validateForm = () => {
-    try {
-      depositSchema.parse({
-        amount: formData.amount || 0,
-        cardNumber: formData.cardNumber || '',
-        expiryDate: formData.expiryDate || '',
-        cvv: formData.cvv || ''
-      });
-      setErrors({});
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.errors.forEach(err => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as string] = err.message;
-          }
-        });
-        setErrors(newErrors);
-      }
-      return false;
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
-    
+  const onSubmit = async (data: CardFormValues) => {
     setIsLoading(true);
     
     try {
-      // Simulate API call with a 1.5 second delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Example parameters for depositWithCard
+      const depositAmount = parseFloat(data.amount);
+      const paymentMethodId = 'pm_card_visa'; // This would come from Stripe Elements
+
+      if (!user || !wallet) {
+        toast.error("User or wallet information is missing.");
+        setIsLoading(false);
+        return;
+      }
       
-      // Mock successful deposit
-      // In a real implementation, this would be a call to your deposit API
-      // For example: const result = await depositService.processDeposit(formData);
-      const mockResult = { 
-        success: true, 
-        message: "Deposit successful",
-        transaction: {
-          id: `tx-${Date.now()}`,
-          amount: formData.amount,
-          currency: user?.currency || 'USD',
-          date: new Date().toISOString(),
-        }
-      };
-      
-      if (mockResult.success) {
-        // Refresh wallet balance
-        await refreshWalletBalance();
-        
-        toast.success("Deposit successful!", {
-          description: `$${formData.amount} has been added to your wallet.`
-        });
-        
-        setDepositSuccess(true);
-        
-        // Clear form
-        setFormData({
-          amount: 100,
-          cardNumber: '',
-          expiryDate: '',
-          cvv: ''
-        });
-        
-        // Call onComplete callback if provided
-        if (onComplete) {
-          onComplete();
-        }
+      // Call the deposit service
+      // const response = await paymentService.depositWithCard({
+      //   userId: user.id,
+      //   amount: depositAmount,
+      //   currency: wallet.currency,
+      //   paymentMethodId: paymentMethodId, 
+      //   description: `Deposit of ${depositAmount} ${wallet.currency}`,
+      //   customerName: data.cardName,
+      //   customerEmail: user.email || "not@available.com"
+      // });
+
+      // MOCK SUCCESS for now
+      const response = { success: true, data: { transactionId: "mock_tx_id", status: "succeeded", amount: depositAmount } };
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+
+      if (response.success) {
+        toast.success(`Successfully deposited ${depositAmount} ${wallet.currency}`);
+        await refreshWalletBalance(); // Refresh wallet balance after successful deposit
+        if (onSuccess) onSuccess(response.data);
       } else {
-        toast.error("Deposit failed", {
-          description: mockResult.message || "Please try again later."
-        });
+        toast.error("Deposit failed. Please try again.");
+        if (onFail) onFail(new Error("Deposit failed"));
       }
     } catch (error) {
       console.error("Deposit error:", error);
-      toast.error("Deposit failed", { 
-        description: "An error occurred while processing your deposit."
-      });
+      toast.error("An error occurred during deposit. Please try again.");
+      if (onFail) onFail(error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  if (!user) {
+    return <p>Please log in to make a deposit.</p>;
+  }
+  
+  if (!wallet) {
+     return <p>Loading wallet information...</p>;
+  }
+
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5" />
-          Card Deposit
-        </CardTitle>
-        <CardDescription>Add funds to your casino wallet using your credit or debit card.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="amount">Amount ({user?.currency || 'USD'})</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                id="amount"
-                name="amount"
-                type="number"
-                placeholder="100"
-                className="pl-9"
-                value={formData.amount || ''}
-                onChange={handleInputChange}
-                min={10}
-                max={10000}
-              />
-            </div>
-            {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount}</p>}
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="cardNumber">Card Number</Label>
-            <Input 
-              id="cardNumber"
-              name="cardNumber"
-              placeholder="0000 0000 0000 0000"
-              value={formData.cardNumber}
-              onChange={handleInputChange}
-            />
-            {errors.cardNumber && <p className="text-xs text-destructive mt-1">{errors.cardNumber}</p>}
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="expiryDate">Expiry Date</Label>
-              <Input 
-                id="expiryDate"
-                name="expiryDate"
-                placeholder="MM/YY"
-                value={formData.expiryDate}
-                onChange={handleInputChange}
-              />
-              {errors.expiryDate && <p className="text-xs text-destructive mt-1">{errors.expiryDate}</p>}
-            </div>
-            
-            <div className="space-y-1">
-              <Label htmlFor="cvv">CVV</Label>
-              <Input 
-                id="cvv"
-                name="cvv"
-                type="password" 
-                placeholder="123"
-                maxLength={3}
-                value={formData.cvv}
-                onChange={handleInputChange}
-              />
-              {errors.cvv && <p className="text-xs text-destructive mt-1">{errors.cvv}</p>}
-            </div>
-          </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Amount Field */}
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount {wallet && `(${wallet.currency})`}</FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="e.g., 50.00" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Card Name Field */}
+        <FormField
+          control={form.control}
+          name="cardName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name on Card</FormLabel>
+              <FormControl>
+                <Input placeholder="John M. Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
-          <div className="pt-2">
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-            >
-              {isLoading ? "Processing..." : "Deposit Funds"}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-      <CardFooter className="flex flex-col space-y-2">
-        <div className="text-xs text-muted-foreground">
-          Your payment information is processed securely. We do not store your card details.
+        {/* Placeholder for Stripe Card Element */}
+        <div className="form-group">
+            <Label htmlFor="card-element">Credit or debit card</Label>
+            {/* 
+              This is where Stripe's CardElement would be mounted.
+              For now, it's a placeholder. You'd need to integrate Stripe.js and React Stripe.js.
+              <div id="card-element" className="p-3 border border-input rounded-md"></div> 
+            */}
+            <div className="p-3 border border-input rounded-md bg-gray-50 text-sm text-gray-500">
+              Stripe Card Element placeholder
+            </div>
+            <div id="card-errors" role="alert" className="text-sm text-destructive mt-1"></div>
         </div>
-      </CardFooter>
-    </Card>
+
+
+        {/* Save Card Checkbox - Optional */}
+        {/* <FormField
+          control={form.control}
+          name="saveCard"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Save card for future payments
+                </FormLabel>
+              </div>
+            </FormItem>
+          )}
+        /> */}
+
+        <Button type="submit" className="w-full" disabled={isLoading || !stripeReady}>
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {`Pay ${form.getValues('amount') || '0.00'} ${wallet?.currency || ''}`}
+        </Button>
+      </form>
+    </Form>
   );
 };
 

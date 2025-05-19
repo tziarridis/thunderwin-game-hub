@@ -4,12 +4,12 @@ import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useL
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import UserMenu from "@/components/user/UserMenu";
-import { User } from "@/types"; // Using your app's User type
+// User type is not directly used here, but UserMenu uses it.
 import MobileNavMenu from "./MobileNavMenu";
-import { Menu, X, Search, Wallet, Gift } from "lucide-react";
+import { Menu, X, Wallet } from "lucide-react"; // Gift removed as it's not used directly here
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import SiteLogo from "@/components/SiteLogo"; // Assuming you have a logo component
+import SiteLogo from "@/components/SiteLogo"; // This should now resolve
 
 const AppHeader = () => {
   const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth(); // Added wallet
@@ -19,7 +19,7 @@ const AppHeader = () => {
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    await signOut(); // signOut is now available
+    await signOut(); 
     setMobileMenuOpen(false);
     navigate("/");
   };
@@ -35,12 +35,13 @@ const AppHeader = () => {
     if(mobileMenuOpen) {
         setMobileMenuOpen(false);
     }
-  }, [location, mobileMenuOpen]); // Depend on location
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location]); // mobileMenuOpen removed from deps to avoid re-triggering itself
 
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/60", // Adjusted height and style
+      "fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/60", 
       "transition-all duration-300"
     )}>
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
@@ -49,17 +50,16 @@ const AppHeader = () => {
           {/* <span className="font-bold text-xl hidden sm:inline">YourSite</span> */}
         </Link>
 
-        {/* Desktop Navigation (placeholder, expand as needed) */}
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-3 lg:gap-4">
           <Button variant="link" asChild><Link to="/casino">Casino</Link></Button>
           <Button variant="link" asChild><Link to="/promotions">Promotions</Link></Button>
-          {/* <Button variant="link" asChild><Link to="/live-casino">Live Casino</Link></Button> */}
-          {/* <Button variant="link" asChild><Link to="/sports">Sports</Link></Button> */}
+          {/* Add more links as needed */}
         </nav>
 
         <div className="flex items-center gap-2 md:gap-3">
           {authLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <LocalLoader className="h-5 w-5 animate-spin" /> // Renamed to LocalLoader
           ) : isAuthenticated && user ? (
             <>
               {wallet && (
@@ -98,8 +98,9 @@ const AppHeader = () => {
     </header>
   );
 };
-// Placeholder for Loader2 if not already available globally
-const Loader2 = ({ className }: { className?: string }) => <div className={cn("animate-spin rounded-full h-5 w-5 border-b-2 border-current", className)}></div>;
+
+// Renamed Loader2 to LocalLoader to avoid conflict if lucide-react's Loader2 is also imported/used.
+const LocalLoader = ({ className }: { className?: string }) => <div className={cn("animate-spin rounded-full h-5 w-5 border-b-2 border-current", className)}></div>;
 
 
 export default AppHeader;

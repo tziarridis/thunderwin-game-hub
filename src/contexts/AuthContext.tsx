@@ -1,24 +1,25 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Wallet } from '@/types'; // Assuming your local User type aligns or extends SupabaseUser
-import { userService } from '@/services/userService'; // To fetch user profile
-import { walletService } from '@/services/walletService'; // To fetch wallet
+import { User, Wallet } from '@/types'; 
+import { userService } from '@/services/userService'; 
+import { walletService } from '@/services/walletService'; 
 import { toast } from 'sonner';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null; // Use your extended User type
+  user: User | null; 
   session: Session | null;
   loading: boolean;
-  isAdmin?: boolean; // Added for admin checks
+  isAdmin: boolean; // Changed from optional
   signIn: (credentials: { email: string; password?: string; provider?: 'google' | 'discord' }) => Promise<any>;
   signUp: (credentials: { email: string; password?: string; data?:object }) => Promise<any>;
-  signOut: () => Promise<void>; // Added
+  signOut: () => Promise<void>; 
   refreshUser: () => Promise<void>;
-  refreshWalletBalance: () => Promise<void>; // Added
-  wallet: Wallet | null; // Added
-  deposit?: () => void; // Added placeholder
+  refreshWalletBalance: () => Promise<void>; 
+  wallet: Wallet | null; 
+  deposit: () => void; // Kept as non-optional based on previous fixes
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,44 +34,68 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserProfileAndWallet = async (supabaseUser: SupabaseUser | null) => {
     if (supabaseUser) {
       try {
-        const userProfile = await userService.getUserProfile(supabaseUser.id);
-        const userWallet = await walletService.getWalletByUserId(supabaseUser.id);
+        // Pass supabaseUser.id directly
+        const userProfilePromise = userService.getUserProfile(supabaseUser.id);
+        const userWalletPromise = walletService.getWalletByUserId(supabaseUser.id);
+
+        const [userProfileResult, userWalletResult] = await Promise.all([userProfilePromise, userWalletPromise]);
+        
+        const userProfile = userProfileResult; // Assuming userService.getUserProfile directly returns User profile or null
 
         if (userProfile) {
-          // Merge Supabase user data with your profile data
           const appUser: User = {
-            ...supabaseUser, // Base Supabase user fields
-            ...userProfile, // Custom profile fields
-            // Ensure all fields from your User type are covered
+            ...supabaseUser, 
+            ...userProfile, 
             username: userProfile.username || supabaseUser.email?.split('@')[0],
             vip_level: userProfile.vip_level || 0,
-            // ... other merged fields
+            role: userProfile.role || supabaseUser.role || 'user', // Prioritize profile role
+            // Ensure user_metadata is merged correctly if profile has its own metadata
+            user_metadata: {
+                ...supabaseUser.user_metadata,
+                ...userProfile.user_metadata, // Profile metadata takes precedence
+                name: userProfile.user_metadata?.name || userProfile.first_name || supabaseUser.user_metadata?.full_name,
+                first_name: userProfile.first_name || userProfile.user_metadata?.first_name,
+                last_name: userProfile.last_name || userProfile.user_metadata?.last_name,
+                avatar_url: userProfile.user_metadata?.avatar_url || supabaseUser.user_metadata?.avatar_url,
+            },
+            // Add other direct fields from profile if they exist
+            status: userProfile.status,
+            banned: userProfile.banned,
+            // role_id: userProfile.role_id, // If you store role_id
           };
           setUser(appUser);
-          // Example admin check (replace with your actual role logic)
-          setIsAdmin(userProfile.role === 'admin'); // Assuming role is in your profile
+          setIsAdmin(appUser.role === 'admin'); 
         } else {
-          // Profile might not exist yet, set basic user from Supabase
            const basicUser: User = {
             ...supabaseUser,
             user_metadata: supabaseUser.user_metadata || {},
-            // Set defaults for missing profile fields
             username: supabaseUser.email?.split('@')[0],
             vip_level: 0,
+            role: supabaseUser.role || 'user',
           };
           setUser(basicUser);
-          setIsAdmin(false);
+          setIsAdmin(basicUser.role === 'admin');
         }
-        if(userWallet.success && userWallet.data){
-            setWallet(userWallet.data as Wallet);
+
+        if(userWalletResult.success && userWalletResult.data){
+            setWallet(userWalletResult.data as Wallet);
         } else {
             setWallet(null);
+            // console.warn("Failed to fetch wallet or no wallet found:", userWalletResult.error);
         }
 
       } catch (error) {
         console.error("Error fetching user profile/wallet:", error);
-        setUser(supabaseUser as User); // Fallback to Supabase user object
-        setIsAdmin(false);
+        // Fallback to Supabase user object, ensure it conforms to User type
+        const fallbackUser: User = {
+            ...supabaseUser,
+            user_metadata: supabaseUser.user_metadata || {},
+            username: supabaseUser.email?.split('@')[0],
+            vip_level: 0,
+            role: supabaseUser.role || 'user',
+        };
+        setUser(fallbackUser);
+        setIsAdmin(fallbackUser.role === 'admin');
         setWallet(null);
       }
     } else {
@@ -116,16 +141,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password: credentials.password,
       });
     } else {
+      setLoading(false); // Ensure loading is set to false in case of error
+      toast.error("Password or provider must be provided for sign in.");
       throw new Error("Password or provider must be provided for sign in.");
     }
     
     if (response.error) {
       toast.error(response.error.message);
     } else if (response.data.user && response.data.session) {
-      await fetchUserProfileAndWallet(response.data.user);
+      // User profile and wallet are fetched by onAuthStateChange listener
+      // await fetchUserProfileAndWallet(response.data.user); // Can be redundant if onAuthStateChange handles it
       toast.success("Signed in successfully!");
     } else if (!response.data.session && !credentials.provider) {
-        // This case might indicate email confirmation pending for password sign-in
         toast.info("Please check your email to confirm your account.");
     }
     setLoading(false);
@@ -136,18 +163,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     const response = await supabase.auth.signUp({
       email: credentials.email,
-      password: credentials.password || '', // Supabase requires a password, even if it's to be overwritten or for OAuth later
+      password: credentials.password || '', 
       options: {
-        data: credentials.data, // For additional user_metadata on signup
-        emailRedirectTo: `${window.location.origin}/auth/welcome` // Or your desired welcome page
+        data: credentials.data, 
+        emailRedirectTo: `${window.location.origin}/auth/welcome` 
       }
     });
     if (response.error) {
       toast.error(response.error.message);
     } else if (response.data.user) {
-       // User created, session might or might not be set depending on email confirmation settings
       if (response.data.session) {
-        await fetchUserProfileAndWallet(response.data.user);
+        // await fetchUserProfileAndWallet(response.data.user); // Redundant if onAuthStateChange handles it
         toast.success("Account created and signed in!");
       } else {
         toast.success("Account created! Please check your email to confirm your registration.");
@@ -163,36 +189,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       toast.error(error.message);
     } else {
-      setUser(null);
-      setSession(null);
-      setIsAdmin(false);
-      setWallet(null);
+      // State clearing is handled by onAuthStateChange listener
       toast.success("Signed out successfully!");
     }
     setLoading(false);
   };
   
   const refreshUser = async () => {
-    if (session?.user) {
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    if (currentSession?.user) {
         setLoading(true);
-        await fetchUserProfileAndWallet(session.user);
+        await fetchUserProfileAndWallet(currentSession.user);
         setLoading(false);
     }
   };
 
   const refreshWalletBalance = async () => {
-    if (user) {
-        const userWallet = await walletService.getWalletByUserId(user.id);
-        if(userWallet.success && userWallet.data){
-            setWallet(userWallet.data as Wallet);
+    if (user) { // Check if user object exists
+        const userWalletResult = await walletService.getWalletByUserId(user.id);
+        if(userWalletResult.success && userWalletResult.data){
+            setWallet(userWalletResult.data as Wallet);
+        } else {
+            // console.warn("Failed to refresh wallet balance:", userWalletResult.error);
         }
     }
   };
 
   const deposit = () => {
-    // Placeholder for deposit functionality
-    toast.info("Deposit functionality not yet implemented.");
-    // Example: navigate('/deposit') or open a modal
+    toast.info("Deposit functionality placeholder. Navigate or open modal here.");
+    // Example: navigate('/wallet/deposit');
   };
 
 
@@ -210,3 +235,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

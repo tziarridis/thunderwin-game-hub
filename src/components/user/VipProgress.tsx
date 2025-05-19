@@ -1,46 +1,77 @@
 
 import React from 'react';
-import { User } from '@/types';
+import { User, Wallet } from '@/types'; // Import Wallet
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Star } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Gem, Star } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
-export interface VipProgressProps {
-  user: User | null;
+interface VipProgressProps {
+  // User prop might not be needed if wallet and vip_level are from AuthContext
 }
 
-const VipProgress: React.FC<VipProgressProps> = ({ user }) => {
+const VipProgress: React.FC<VipProgressProps> = () => {
+  const { user, wallet } = useAuth(); // Get user and wallet from AuthContext
+
   if (!user) {
-    return <div>Loading VIP progress...</div>;
+    return <p>Loading VIP status...</p>;
   }
 
-  const currentLevel = user.vipLevel || 0;
-  const pointsForNextLevel = (currentLevel + 1) * 1000; 
-  const currentPoints = (user.balance || 0) * 10; 
-  const progressPercentage = Math.min((currentPoints / pointsForNextLevel) * 100, 100);
+  const vipLevel = user.vip_level || 0;
+  // Assuming wallet might contain points or progress towards next level
+  // For now, let's make a simple progress based on current level
+  // This logic needs to be defined based on your VIP system
+  const progressToNextLevel = (vipLevel % 5) * 20 + 10; // Example placeholder
+  const currentLevelName = `VIP Level ${vipLevel}`;
+  const nextLevelName = `VIP Level ${vipLevel + 1}`;
+
+
+  // Placeholder for actual VIP level names and progress logic
+  const vipTiers = [
+    { name: "Bronze", pointsRequired: 0, icon: <Star className="text-yellow-600" /> },
+    { name: "Silver", pointsRequired: 1000, icon: <Star className="text-gray-400" /> },
+    { name: "Gold", pointsRequired: 5000, icon: <Star className="text-yellow-400" /> },
+    { name: "Platinum", pointsRequired: 20000, icon: <Gem className="text-blue-400" /> },
+    { name: "Diamond", pointsRequired: 100000, icon: <Gem className="text-purple-400" /> },
+  ];
+
+  const currentTier = vipTiers.slice().reverse().find(tier => (wallet?.vip_points || 0) >= tier.pointsRequired) || vipTiers[0];
+  const currentTierIndex = vipTiers.indexOf(currentTier);
+  const nextTier = vipTiers[currentTierIndex + 1];
+  
+  let tierProgress = 0;
+  if (nextTier && currentTier) {
+    const pointsInCurrentTier = (wallet?.vip_points || 0) - currentTier.pointsRequired;
+    const pointsForNextTier = nextTier.pointsRequired - currentTier.pointsRequired;
+    tierProgress = pointsForNextTier > 0 ? (pointsInCurrentTier / pointsForNextTier) * 100 : 0;
+  } else if (currentTierIndex === vipTiers.length -1 ) { // Max tier
+    tierProgress = 100;
+  }
+
 
   return (
-    <Card className="mt-4">
+    <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
-          <Star className="mr-2 h-5 w-5 text-yellow-400" />
-          VIP Progress
+          {currentTier.icon}
+          <span className="ml-2">VIP Status: {currentTier.name} (Level {vipLevel})</span>
         </CardTitle>
-        <CardDescription>
-          You are currently Level {currentLevel}. Earn {pointsForNextLevel - currentPoints > 0 ? pointsForNextLevel - currentPoints : 0} more points to reach Level {currentLevel + 1}.
-        </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Removed indicatorClassName, use className for styling the indicator if needed via progress.tsx variant or direct style */}
-        <Progress value={progressPercentage} className="w-full h-3 bg-yellow-400" /> 
-        {/* Example: if indicator takes primary color, you can set a class like className="[&>div]:bg-yellow-400" 
-            Or, if the progress bar is one color, style it directly with bg-yellow-400 as above.
-            Shadcn progress indicator usually inherits primary color or can be styled via variant in ui/progress.tsx
-        */}
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>Current Points: {currentPoints}</span>
-          <span>Next Level: {pointsForNextLevel}</span>
-        </div>
+        <Progress value={tierProgress} className="w-full mb-2" />
+        {nextTier ? (
+          <p className="text-sm text-muted-foreground">
+            {(wallet?.vip_points || 0).toLocaleString()} / {nextTier.pointsRequired.toLocaleString()} points to {nextTier.name}
+          </p>
+        ) : (
+           <p className="text-sm text-muted-foreground">Max VIP Tier Reached!</p>
+        )}
+        {/* Example of showing current balance from wallet */}
+        {wallet && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Current Balance: {wallet.balance.toFixed(2)} {wallet.currency}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
