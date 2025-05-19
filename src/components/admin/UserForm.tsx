@@ -1,252 +1,154 @@
+
 import React, { useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User } from '@/types'; 
+import { User } from '@/types';
 import { toast } from 'sonner';
-
-// Define Zod schema based on User type properties
-const userStatusEnum = z.enum(['active', 'pending', 'suspended', 'banned']);
-const userRoleEnum = z.enum(['user', 'admin', 'editor']);
-const kycStatusEnum = z.enum(['pending', 'approved', 'rejected', 'none']);
-
+// import { userService } from '@/services/userService'; // Assuming you have a userService
 
 const userFormSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
-  email: z.string().email('Invalid email address'),
-  role: userRoleEnum.optional(),
-  status: userStatusEnum.optional(),
-  vip_level: z.number().min(0).optional(),
-  banned: z.boolean().optional(),
-  
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  country: z.string().optional(),
-  city: z.string().optional(),
-  address: z.string().optional(),
-  phone: z.string().optional(), 
-  birthdate: z.string().optional(), 
-  kyc_status: kycStatusEnum.optional(),
-  two_factor_enabled: z.boolean().optional(),
+  email: z.string().email({ message: "Invalid email address." }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters." }).optional(),
+  full_name: z.string().optional(),
+  avatar_url: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
+  role: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'banned']).default('active'),
+  kyc_status: z.enum(['verified', 'pending', 'rejected', 'not_submitted']).default('not_submitted'),
   currency: z.string().optional(),
   language: z.string().optional(),
+  vip_level: z.coerce.number().int().min(0).optional(),
 });
 
-type UserFormData = z.infer<typeof userFormSchema>;
-type UserStatus = z.infer<typeof userStatusEnum>;
-type UserRole = z.infer<typeof userRoleEnum>;
-type KycStatus = z.infer<typeof kycStatusEnum>;
-
+type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
   user?: User | null;
-  onSubmit: (data: UserFormData, userId?: string) => Promise<void>;
+  onSave: (data: UserFormValues, userId?: string) => Promise<void>;
   isEditing?: boolean;
 }
 
-const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }) => {
-  const { register, handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<UserFormData>({
+const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) => {
+  const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      username: '',
-      email: '',
-      role: 'user',
-      status: 'active',
-      vip_level: 0,
-      banned: false,
-      first_name: '',
-      last_name: '',
-      country: '',
-      city: '',
-      address: '',
-      phone: '',
-      birthdate: '',
-      kyc_status: 'none',
-      two_factor_enabled: false,
-      currency: 'USD',
-      language: 'en',
+      email: user?.email || '',
+      username: user?.user_metadata?.username || '',
+      full_name: user?.user_metadata?.full_name || '',
+      avatar_url: user?.user_metadata?.avatar_url || '',
+      role: user?.role || 'user', // default to 'user'
+      status: user?.status || 'active',
+      kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
+      currency: user?.user_metadata?.currency || 'USD',
+      language: user?.user_metadata?.language || 'en',
+      vip_level: user?.user_metadata?.vip_level || 0,
     },
   });
 
   useEffect(() => {
     if (user) {
-      reset({
-        username: user.username || '',
+      form.reset({
         email: user.email || '',
-        role: (user.role as UserRole) || 'user', // Cast to ensure type compatibility
-        status: (user.status as UserStatus) || 'active', // Cast to ensure type compatibility
-        vip_level: user.vip_level || 0,
-        banned: user.banned || false,
-        first_name: user.user_metadata?.first_name || '',
-        last_name: user.user_metadata?.last_name || '',
-        country: user.user_metadata?.country || '',
-        city: user.user_metadata?.city || '',
-        address: user.user_metadata?.address || '',
-        phone: user.phone || user.user_metadata?.phone || '',
-        birthdate: user.user_metadata?.birthdate || '',
-        kyc_status: (user.user_metadata?.kyc_status as KycStatus) || 'none', // Cast
-        two_factor_enabled: user.user_metadata?.two_factor_enabled || false,
+        username: user.user_metadata?.username || '',
+        full_name: user.user_metadata?.full_name || '',
+        avatar_url: user.user_metadata?.avatar_url || '',
+        role: user.role || 'user',
+        status: user.status || 'active',
+        kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
         currency: user.user_metadata?.currency || 'USD',
         language: user.user_metadata?.language || 'en',
+        vip_level: user.user_metadata?.vip_level || 0,
       });
     }
-  }, [user, reset]);
+  }, [user, form]);
 
-  const handleFormSubmit = async (data: UserFormData) => {
+  const onSubmit = async (data: UserFormValues) => {
     try {
-      await onSubmit(data, user?.id);
-      toast.success(isEditing ? 'User updated successfully!' : 'User created successfully!');
-    } catch (error: any) {
-      toast.error(`Error: ${error.message || 'Failed to save user.'}`);
+      await onSave(data, user?.id);
+      toast.success(`User ${isEditing ? 'updated' : 'created'} successfully.`);
+    } catch (error) {
+      toast.error(`Failed to ${isEditing ? 'update' : 'create'} user.`);
+      console.error(error);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Core Fields */}
-        <div>
-          <Label htmlFor="username">Username</Label>
-          <Input id="username" {...register('username')} />
-          {errors.username && <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" {...register('email')} />
-          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="role">Role</Label>
-          <Controller
-            name="role"
-            control={control}
-            render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value || 'user'}>
-                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="editor">Editor</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.role && <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="status">Status</Label>
-          <Controller
-            name="status"
-            control={control}
-            render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value || 'active'}>
-                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                  <SelectItem value="banned">Banned</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-          {errors.status && <p className="text-red-500 text-sm mt-1">{errors.status.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="vip_level">VIP Level</Label>
-          <Input id="vip_level" type="number" {...register('vip_level', { valueAsNumber: true })} />
-          {errors.vip_level && <p className="text-red-500 text-sm mt-1">{errors.vip_level.message}</p>}
-        </div>
-        <div className="flex items-center space-x-2 pt-6">
-            <Controller
-                name="banned"
-                control={control}
-                render={({ field }) => (
-                    <Switch id="banned" checked={field.value} onCheckedChange={field.onChange} />
-                )}
-            />
-            <Label htmlFor="banned">Banned</Label>
-            {errors.banned && <p className="text-red-500 text-sm mt-1">{errors.banned.message}</p>}
-        </div>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div>
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" {...form.register('email')} />
+        {form.formState.errors.email && <p className="text-red-500 text-sm">{form.formState.errors.email.message}</p>}
       </div>
-
-      <h3 className="text-lg font-medium border-t pt-6 mt-6">User Details (Optional)</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <Label htmlFor="first_name">First Name</Label>
-          <Input id="first_name" {...register('first_name')} />
-        </div>
-        <div>
-          <Label htmlFor="last_name">Last Name</Label>
-          <Input id="last_name" {...register('last_name')} />
-        </div>
-        <div>
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" {...register('phone')} />
-        </div>
-        <div>
-          <Label htmlFor="birthdate">Birthdate (YYYY-MM-DD)</Label>
-          <Input id="birthdate" type="date" {...register('birthdate')} />
-        </div>
-        <div>
-          <Label htmlFor="country">Country</Label>
-          <Input id="country" {...register('country')} />
-        </div>
-        <div>
-          <Label htmlFor="city">City</Label>
-          <Input id="city" {...register('city')} />
-        </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="address">Address</Label>
-          <Input id="address" {...register('address')} />
-        </div>
-        <div>
-          <Label htmlFor="currency">Preferred Currency</Label>
-          <Input id="currency" {...register('currency')} />
-        </div>
-        <div>
-          <Label htmlFor="language">Preferred Language</Label>
-          <Input id="language" {...register('language')} />
-        </div>
-        <div>
-          <Label htmlFor="kyc_status">KYC Status</Label>
-           <Controller
-            name="kyc_status"
-            control={control}
-            render={({ field }) => (
-              <Select onValueChange={field.onChange} value={field.value || 'none'}>
-                <SelectTrigger><SelectValue placeholder="Select KYC status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          />
-        </div>
-         <div className="flex items-center space-x-2 pt-6">
-            <Controller
-                name="two_factor_enabled"
-                control={control}
-                render={({ field }) => (
-                    <Switch id="two_factor_enabled" checked={field.value} onCheckedChange={field.onChange} />
-                )}
-            />
-            <Label htmlFor="two_factor_enabled">2FA Enabled</Label>
-        </div>
+      <div>
+        <Label htmlFor="username">Username</Label>
+        <Input id="username" {...form.register('username')} />
+        {form.formState.errors.username && <p className="text-red-500 text-sm">{form.formState.errors.username.message}</p>}
       </div>
-      <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
-        {isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
+      <div>
+        <Label htmlFor="full_name">Full Name</Label>
+        <Input id="full_name" {...form.register('full_name')} />
+      </div>
+      <div>
+        <Label htmlFor="avatar_url">Avatar URL</Label>
+        <Input id="avatar_url" {...form.register('avatar_url')} />
+        {form.formState.errors.avatar_url && <p className="text-red-500 text-sm">{form.formState.errors.avatar_url.message}</p>}
+      </div>
+      <div>
+        <Label htmlFor="role">Role</Label>
+        <Input id="role" {...form.register('role')} />
+      </div>
+      <div>
+        <Label htmlFor="status">Status</Label>
+        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned')} defaultValue={form.getValues('status')}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="banned">Banned</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="kyc_status">KYC Status</Label>
+        <Select onValueChange={(value) => form.setValue('kyc_status', value as 'verified' | 'pending' | 'rejected' | 'not_submitted')} defaultValue={form.getValues('kyc_status')}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select KYC status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="not_submitted">Not Submitted</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="currency">Currency</Label>
+        <Input id="currency" {...form.register('currency')} />
+      </div>
+       <div>
+        <Label htmlFor="language">Language</Label>
+        <Input id="language" {...form.register('language')} />
+      </div>
+      <div>
+        <Label htmlFor="vip_level">VIP Level</Label>
+        <Input id="vip_level" type="number" {...form.register('vip_level')} />
+        {form.formState.errors.vip_level && <p className="text-red-500 text-sm">{form.formState.errors.vip_level.message}</p>}
+      </div>
+      
+      <Button type="submit" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
       </Button>
     </form>
   );
 };
 
 export default UserForm;
+

@@ -2,14 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useGames } from '@/hooks/useGames'; 
 import { useAuth } from '@/contexts/AuthContext'; 
-import { Game, GameLaunchOptions } from '@/types';
+import { Game, GameLaunchOptions } from '@/types'; // Corrected import
 import { toast } from 'sonner';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import ResponsiveEmbed from '@/components/ResponsiveEmbed';
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; 
-import { gameService } from '@/services/gameService'; // Import gameService
+// import { gameService } from '@/services/gameService'; // Import gameService - Not used directly here
 
 // import GameProperties from './GameProperties'; 
 // import GameReviews from './GameReviews'; 
@@ -43,12 +43,13 @@ const GameLauncher = () => {
       
       if (fetchedGame) {
         setGame(fetchedGame);
-        const currentCategory = fetchedGame.categoryName || (Array.isArray(fetchedGame.category_slugs) ? fetchedGame.category_slugs[0] : fetchedGame.category_slugs) || fetchedGame.category;
+        const currentCategory = fetchedGame.categoryName || 
+          (Array.isArray(fetchedGame.category_slugs) ? fetchedGame.category_slugs[0] : typeof fetchedGame.category_slugs === 'string' ? fetchedGame.category_slugs : fetchedGame.category);
         const currentProvider = fetchedGame.providerName || fetchedGame.provider_slug || fetchedGame.provider;
 
         const filteredRelatedGames = allGames
           .filter(g => {
-            const gCategory = g.categoryName || (Array.isArray(g.category_slugs) ? g.category_slugs[0] : g.category_slugs) || g.category;
+            const gCategory = g.categoryName || (Array.isArray(g.category_slugs) ? g.category_slugs[0] : typeof g.category_slugs === 'string' ? g.category_slugs : g.category);
             const gProvider = g.providerName || g.provider_slug || g.provider;
             return String(g.id) !== String(fetchedGame!.id) && (gCategory === currentCategory || gProvider === currentProvider);
           })
@@ -89,7 +90,7 @@ const GameLauncher = () => {
     const launchOptions: GameLaunchOptions = {
       mode,
       user_id: user?.id, 
-      username: user?.username || user?.email?.split('@')[0],
+      username: user?.user_metadata?.username || user?.email?.split('@')[0], // Corrected username
       currency: user?.user_metadata?.currency || 'USD', 
       platform: 'web', 
       language: user?.user_metadata?.language || 'en',
@@ -115,25 +116,20 @@ const GameLauncher = () => {
   
   const isDemoModeAvailable = (gameToCheck: Game | null): boolean => {
     if (!gameToCheck) return false;
-    // Check tags for demo availability
+    if (gameToCheck.only_demo) return true;
     if (gameToCheck.tags && (gameToCheck.tags.includes('demo_playable') || gameToCheck.tags.includes('demo'))) {
         return true;
     }
-    // Fallback: some providers might not allow demo for all games.
-    // Example: Pragmatic Play often has demo mode. Others might not.
-    // This logic can be expanded based on specific provider rules if gameService doesn't abstract it.
-    // For now, assume if not explicitly tagged, it might not be available or depends on provider.
-    // If gameService is available and has a specific method, use it:
-    // return gameService.isDemoAvailable(gameToCheck); // If gameService has this method
-    return false; // Default to false if no clear indicator
+    // Default to true if not explicitly disabled (e.g. via a 'real_only' tag or specific provider rule)
+    // The launchGame service should ultimately confirm this.
+    return true; 
   };
 
 
   useEffect(() => {
     if (game && !launchUrl && !isLoading && !error) {
-      const gameTags = game.tags || [];
-      const canPlayReal = isAuthenticated && !gameTags.includes('demo_only');
-      const preferDemo = !isAuthenticated || gameTags.includes('demo_only');
+      const canPlayReal = isAuthenticated && !game.only_demo;
+      const preferDemo = !isAuthenticated || game.only_demo;
       
       if (preferDemo && isDemoModeAvailable(game)) {
          handleLaunchGame('demo');
@@ -199,7 +195,7 @@ const GameLauncher = () => {
                 <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title || 'Game image'} className="max-h-[150px] md:max-h-[200px] mb-4 opacity-70 rounded-md object-contain" />
                 <p className="text-lg text-white/70 mb-4 text-center">Ready to play {game.title}?</p>
                  <div className="flex flex-col sm:flex-row gap-4">
-                    {isAuthenticated && !(game.tags || []).includes('demo_only') && (
+                    {isAuthenticated && !(game.only_demo) && (
                         <Button onClick={() => handleLaunchGame('real')} size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                             Play Real Money
                         </Button>
@@ -210,7 +206,7 @@ const GameLauncher = () => {
                         </Button>
                     )}
                 </div>
-                {!isDemoModeAvailable(game) && !(isAuthenticated && !(game.tags || []).includes('demo_only')) && (
+                {!isDemoModeAvailable(game) && !(isAuthenticated && !(game.only_demo)) && (
                      <p className="text-sm text-muted-foreground mt-4">This game may not have a demo version or requires login for real play.</p>
                 )}
             </AspectRatio>

@@ -1,55 +1,60 @@
 
 import React from 'react';
-import { Promotion } from '@/types'; // Using the new Promotion type
+import { Promotion } from '@/types'; // Corrected import
 import PromotionCard from './PromotionCard';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import Autoplay from "embla-carousel-autoplay"; // Ensure this is installed
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import Autoplay from "embla-carousel-autoplay";
 
 interface PromotionSliderProps {
   promotions: Promotion[];
-  className?: string;
-  autoplayDelay?: number;
+  title?: string;
+  itemsToShow?: number; // For large screens
+  itemsToScroll?: number;
 }
 
-const PromotionSlider: React.FC<PromotionSliderProps> = ({ promotions, className, autoplayDelay = 5000 }) => {
+const PromotionSlider: React.FC<PromotionSliderProps> = ({ 
+  promotions, 
+  title, 
+  itemsToShow = 3, 
+  itemsToScroll = 1 
+}) => {
   if (!promotions || promotions.length === 0) {
-    return (
-      <div className={`py-8 text-center ${className}`}>
-        <p className="text-muted-foreground">No promotions available at the moment.</p>
-      </div>
-    );
+    return null; // Or a message like "No active promotions"
   }
 
   return (
-    <div className={`py-8 ${className}`}>
+    <div className="py-8">
+      {title && <h2 className="text-3xl font-bold mb-6 text-center text-white">{title}</h2>}
       <Carousel
         opts={{
           align: "start",
-          loop: promotions.length > 1,
+          loop: promotions.length > itemsToShow, // Loop only if there are enough items
+          slidesToScroll: itemsToScroll,
         }}
-        plugins={promotions.length > 1 ? [Autoplay({ delay: autoplayDelay, stopOnInteraction: true })] : []}
+        plugins={[
+          Autoplay({
+            delay: 5000,
+            stopOnInteraction: true,
+          }),
+        ]}
         className="w-full"
       >
         <CarouselContent className="-ml-4">
           {promotions.map((promo, index) => (
-            <CarouselItem key={promo.id || index} className="pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-              <div className="p-1 h-full">
-                <PromotionCard promotion={promo} className="h-full flex flex-col" />
-              </div>
+            <CarouselItem 
+              key={promo.id || index} 
+              // Adjust basis for different screen sizes for responsiveness
+              className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5" 
+            >
+              <PromotionCard promotion={promo} />
             </CarouselItem>
           ))}
         </CarouselContent>
-        {promotions.length > 1 && (
-            <>
-                <CarouselPrevious className="absolute left-[-10px] top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
-                <CarouselNext className="absolute right-[-10px] top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
-            </>
+        {promotions.length > 1 && ( // Show controls only if more than one item
+          <>
+            <CarouselPrevious className="absolute left-[-15px] top-1/2 -translate-y-1/2 hidden sm:flex disabled:opacity-30" />
+            <CarouselNext className="absolute right-[-15px] top-1/2 -translate-y-1/2 hidden sm:flex disabled:opacity-30" />
+          </>
         )}
       </Carousel>
     </div>
@@ -57,3 +62,4 @@ const PromotionSlider: React.FC<PromotionSliderProps> = ({ promotions, className
 };
 
 export default PromotionSlider;
+

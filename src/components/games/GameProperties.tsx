@@ -1,54 +1,70 @@
 
 import React from 'react';
 import { Game } from '@/types';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tag, Calendar, Percent, BarChart3, Zap, Aperture } from 'lucide-react'; // Added Aperture for themes
 
 interface GamePropertiesProps {
-  game: Game | null;
+  game: Game;
 }
 
 const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
-  if (!game) return <p className="text-muted-foreground">Game properties not available.</p>;
+  const properties = [
+    { label: 'Provider', value: game.providerName || game.provider_slug || game.provider, icon: <Aperture className="h-4 w-4 mr-2" /> },
+    { label: 'Category', value: game.categoryName || (Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.category_slugs), icon: <Tag className="h-4 w-4 mr-2" /> },
+    { label: 'RTP', value: game.rtp ? `${game.rtp}%` : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
+    { label: 'Volatility', value: game.volatility || 'N/A', icon: <BarChart3 className="h-4 w-4 mr-2" /> },
+    { label: 'Lines', value: game.lines ? game.lines.toString() : 'N/A', icon: <BarChart3 className="h-4 w-4 mr-2" /> }, // Re-using BarChart3, consider more specific icon
+    { label: 'Release Date', value: game.releaseDate ? new Date(game.releaseDate).toLocaleDateString() : 'N/A', icon: <Calendar className="h-4 w-4 mr-2" /> }, // Corrected property name
+    { label: 'Min Bet', value: game.minBet ? game.minBet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
+    { label: 'Max Bet', value: game.maxBet ? game.maxBet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
+    { label: 'Status', value: game.status || 'N/A', icon: <Zap className="h-4 w-4 mr-2" /> },
+  ];
+
+  const renderList = (title: string, items?: string[]) => {
+    if (!items || items.length === 0) return null;
+    return (
+      <div>
+        <h4 className="font-semibold text-sm mb-1">{title}:</h4>
+        <ul className="list-disc list-inside text-xs space-y-0.5">
+          {items.map((item, index) => <li key={index}>{item}</li>)}
+        </ul>
+      </div>
+    );
+  };
 
   return (
-    <div className="bg-card p-4 sm:p-6 rounded-lg shadow space-y-3">
-      <h3 className="text-lg font-semibold mb-3">Game Properties</h3>
-      <div className="flex flex-wrap gap-2">
-        {game.rtp && <Badge variant="outline">RTP: {typeof game.rtp === 'number' ? `${game.rtp}%` : game.rtp}</Badge>}
-        {game.volatility && <Badge variant="outline" className="capitalize">Volatility: {game.volatility}</Badge>}
-        {game.minBet && <Badge variant="outline">Min Bet: {game.minBet}</Badge>}
-        {game.maxBet && <Badge variant="outline">Max Bet: {game.maxBet}</Badge>}
-        {game.lines && <Badge variant="outline">Lines: {game.lines}</Badge>}
-      </div>
-      {game.features && game.features.length > 0 && (
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Features:</p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {game.features.map(feature => <Badge key={feature} variant="secondary">{feature}</Badge>)}
-          </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Game Properties</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+          {properties.map((prop, index) => (
+            prop.value && prop.value !== 'N/A' && (
+              <div key={index} className="flex items-center text-sm">
+                {prop.icon}
+                <span className="font-medium capitalize">{prop.label}:&nbsp;</span>
+                <span className="text-muted-foreground truncate">{prop.value}</span>
+              </div>
+            )
+          ))}
         </div>
-      )}
-       {game.themes && game.themes.length > 0 && (
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Themes:</p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {game.themes.map(theme => <Badge key={theme} variant="secondary">{theme}</Badge>)}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2 border-t border-border mt-3">
+          {renderList('Features', game.features)}
+          {renderList('Tags', game.tags)}
+          {renderList('Themes', game.themes)}
         </div>
-      )}
-      {game.tags && game.tags.length > 0 && (
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Tags:</p>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {game.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)} {/* Changed "info" to "secondary" */}
-          </div>
-        </div>
-      )}
-       {game.release_date && ( // Changed from releaseDate
-         <p className="text-sm text-muted-foreground mt-2">Release Date: {game.release_date}</p>
-       )}
-    </div>
+        {game.description && (
+           <div className="pt-3 border-t border-border mt-3">
+             <h4 className="font-semibold text-sm mb-1">Description:</h4>
+             <p className="text-xs text-muted-foreground">{game.description}</p>
+           </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
 export default GameProperties;
+

@@ -1,113 +1,117 @@
+
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { User, Wallet as UserWallet } from '@/types'; // Renamed Wallet to UserWallet to avoid conflict
-import { Home, Gift, Gem, ShieldCheck, LogOut, UserCircle, Settings, HelpCircle, BarChart3, ExternalLink, KeyRound, ShieldAlert, LayoutDashboard } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useAuth } from '@/contexts/AuthContext';
+import { User, LogIn, UserPlus, Home, Gift, Trophy, Star, LogOut, Settings, ShieldCheck, LifeBuoy, Briefcase } from 'lucide-react'; // Added icons
 
 interface MobileNavMenuProps {
-  user: User | null;
-  isAuthenticated: boolean;
-  onSignOut: () => void;
-  onClose: () => void;
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ user, isAuthenticated, onSignOut, onClose }) => {
+const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ isOpen, setIsOpen }) => {
+  const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
-  const { isAdmin, wallet } = useAuth(); // Get isAdmin and wallet from useAuth
 
   const handleNavigation = (path: string) => {
     navigate(path);
-    onClose();
+    setIsOpen(false);
   };
 
-  const menuItems = [
-    { label: 'Home', icon: <Home className="h-5 w-5" />, path: '/', authRequired: false },
-    { label: 'Casino', icon: <Gem className="h-5 w-5" />, path: '/casino', authRequired: false },
-    { label: 'Promotions', icon: <Gift className="h-5 w-5" />, path: '/promotions', authRequired: false },
-    // Add more general navigation items here
+  const handleLogout = async () => {
+    await logout();
+    setIsOpen(false);
+    navigate('/');
+  };
+
+  const mainLinks = [
+    { path: '/', label: 'Home', icon: <Home className="h-5 w-5 mr-3" /> },
+    { path: '/casino', label: 'Casino Games', icon: <Briefcase className="h-5 w-5 mr-3" /> }, // Using Briefcase for casino
+    { path: '/live-casino', label: 'Live Casino', icon: <User className="h-5 w-5 mr-3" /> }, // Using User for live casino (placeholder)
+    { path: '/promotions', label: 'Promotions', icon: <Gift className="h-5 w-5 mr-3" /> },
+    // { path: '/tournaments', label: 'Tournaments', icon: <Trophy className="h-5 w-5 mr-3" /> },
+    // { path: '/vip', label: 'VIP Program', icon: <Star className="h-5 w-5 mr-3" /> },
   ];
 
-  const userMenuItems = [
-    { label: 'Profile', icon: <UserCircle className="h-5 w-5" />, path: '/profile', authRequired: true },
-    { label: 'Wallet', icon: <KeyRound className="h-5 w-5" />, path: '/wallet', authRequired: true }, // Changed icon
-    { label: 'Bonuses', icon: <Gift className="h-5 w-5" />, path: '/bonuses', authRequired: true },
-    { label: 'Transactions', icon: <BarChart3 className="h-5 w-5" />, path: '/transactions', authRequired: true },
-    { label: 'Settings', icon: <Settings className="h-5 w-5" />, path: '/settings', authRequired: true },
-    { label: 'KYC', icon: <ShieldCheck className="h-5 w-5" />, path: '/kyc', authRequired: true },
-    { label: 'Responsible Gambling', icon: <ShieldAlert className="h-5 w-5" />, path: '/support/responsible-gaming', authRequired: true },
-    { label: 'Help Center', icon: <HelpCircle className="h-5 w-5" />, path: '/support/help', authRequired: false },
+  const userLinks = [
+    { path: '/user/dashboard', label: 'Dashboard', icon: <User className="h-5 w-5 mr-3" /> },
+    { path: '/user/profile', label: 'Profile Settings', icon: <Settings className="h-5 w-5 mr-3" /> },
+    { path: '/user/wallet', label: 'Wallet & Transactions', icon: <Briefcase className="h-5 w-5 mr-3" /> }, // Placeholder icon
+    { path: '/user/kyc', label: 'KYC Verification', icon: <ShieldCheck className="h-5 w-5 mr-3" /> },
+    { path: '/user/responsible-gambling', label: 'Responsible Gambling', icon: <LifeBuoy className="h-5 w-5 mr-3" /> },
   ];
-  
-  // Admin menu item
-  const adminMenuItem = { label: 'Admin Dashboard', icon: <LayoutDashboard className="h-5 w-5" />, path: '/admin/dashboard', authRequired: true, adminOnly: true };
 
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 top-16 z-40 bg-background/95 backdrop-blur-sm md:hidden">
-      <div className="container mx-auto px-4 py-6 h-[calc(100vh-4rem)] overflow-y-auto">
+    <div 
+      className="md:hidden fixed inset-0 top-16 bg-casino-thunder-dark/95 backdrop-blur-md z-40 p-6 overflow-y-auto"
+      // Adjust top based on header height, current is top-16 (64px)
+    >
+      <div className="flex flex-col h-full">
         {isAuthenticated && user && (
-          <div className="mb-6 p-4 border-b border-border">
-            <h3 className="font-semibold text-lg">{user.user_metadata?.name || user.username || user.email}</h3>
-            {wallet && (
-              <p className="text-sm text-muted-foreground">
-                Balance: {wallet.balance.toFixed(2)} {wallet.currency}
-              </p>
-            )}
+          <div className="mb-6 p-4 bg-card rounded-lg text-center">
+            <p className="text-lg font-semibold">{user.user_metadata?.full_name || user.user_metadata?.username || 'Player'}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         )}
 
-        <nav className="flex flex-col gap-2 mb-6">
-          {menuItems.map((item) => (
-            <Button
-              key={item.label}
-              variant="ghost"
-              className="justify-start text-base py-3 px-3"
-              onClick={() => handleNavigation(item.path)}
-            >
-              {item.icon}
-              <span className="ml-3">{item.label}</span>
-            </Button>
-          ))}
-          {isAuthenticated && userMenuItems.map((item) => (
-             <Button
-              key={item.label}
-              variant="ghost"
-              className="justify-start text-base py-3 px-3"
-              onClick={() => handleNavigation(item.path)}
-            >
-              {item.icon}
-              <span className="ml-3">{item.label}</span>
-            </Button>
-          ))}
-          {isAuthenticated && isAdmin && ( // Check isAdmin from useAuth
-            <Button
-              variant="ghost"
-              className="justify-start text-base py-3 px-3 text-primary"
-              onClick={() => handleNavigation(adminMenuItem.path)}
-            >
-              {adminMenuItem.icon}
-              <span className="ml-3">{adminMenuItem.label}</span>
-            </Button>
-          )}
-        </nav>
+        <Accordion type="multiple" defaultValue={['main-links', 'user-links']} className="w-full space-y-4">
+          <AccordionItem value="main-links" className="border-b-0">
+            <AccordionTrigger className="text-lg font-semibold hover:no-underline py-3 px-2 rounded-md hover:bg-white/5">Main Menu</AccordionTrigger>
+            <AccordionContent className="pt-2 space-y-1">
+              {mainLinks.map(link => (
+                <Button
+                  key={link.path}
+                  variant="ghost"
+                  className="w-full justify-start text-base py-3 px-2 h-auto"
+                  onClick={() => handleNavigation(link.path)}
+                >
+                  {link.icon}{link.label}
+                </Button>
+              ))}
+            </AccordionContent>
+          </AccordionItem>
 
-        <div className="mt-auto pt-6 border-t border-border">
+          {isAuthenticated && (
+            <AccordionItem value="user-links" className="border-b-0">
+              <AccordionTrigger className="text-lg font-semibold hover:no-underline py-3 px-2 rounded-md hover:bg-white/5">My Account</AccordionTrigger>
+              <AccordionContent className="pt-2 space-y-1">
+                {userLinks.map(link => (
+                  <Button
+                    key={link.path}
+                    variant="ghost"
+                    className="w-full justify-start text-base py-3 px-2 h-auto"
+                    onClick={() => handleNavigation(link.path)}
+                  >
+                    {link.icon}{link.label}
+                  </Button>
+                ))}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+        </Accordion>
+        
+        <div className="mt-auto space-y-3 pt-6 border-t border-border">
           {isAuthenticated ? (
-            <Button variant="destructive" className="w-full justify-start py-3 px-3" onClick={onSignOut}>
-              <LogOut className="h-5 w-5" />
-              <span className="ml-3">Sign Out</span>
+            <Button variant="destructive" className="w-full text-base py-3 h-auto" onClick={handleLogout}>
+              <LogOut className="h-5 w-5 mr-3" /> Logout
             </Button>
           ) : (
-            <div className="flex flex-col gap-2">
-              <Button className="w-full justify-center" onClick={() => handleNavigation('/auth/login')}>
-                Log In
+            <>
+              <Button variant="outline" className="w-full text-base py-3 h-auto border-primary text-primary" onClick={() => handleNavigation('/login')}>
+                <LogIn className="h-5 w-5 mr-3" /> Login
               </Button>
-              <Button variant="outline" className="w-full justify-center" onClick={() => handleNavigation('/auth/signup')}>
-                Sign Up
+              <Button className="w-full text-base py-3 h-auto bg-primary text-primary-foreground" onClick={() => handleNavigation('/register')}>
+                <UserPlus className="h-5 w-5 mr-3" /> Register
               </Button>
-            </div>
+            </>
           )}
+          <Button variant="ghost" className="w-full text-base text-muted-foreground mt-4" onClick={() => setIsOpen(false)}>
+            Close Menu
+          </Button>
         </div>
       </div>
     </div>
@@ -115,3 +119,4 @@ const MobileNavMenu: React.FC<MobileNavMenuProps> = ({ user, isAuthenticated, on
 };
 
 export default MobileNavMenu;
+

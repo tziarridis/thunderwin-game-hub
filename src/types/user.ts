@@ -1,3 +1,4 @@
+
 export interface UserIdentity {
   id: string;
   user_id: string;
@@ -34,6 +35,7 @@ export interface User {
     kyc_status?: 'verified' | 'pending' | 'rejected' | 'not_submitted';
     currency?: string;
     language?: string;
+    vip_level?: number; // Added vip_level here
     [key: string]: any; // Allow other custom properties
   };
   aud: string;
@@ -59,23 +61,4 @@ export interface User {
   // For AdminHeader, username is typically in user_metadata.
 }
 
-export interface UserIdentity {
-  id: string;
-  user_id: string;
-  identity_data?: {
-    [key: string]: any;
-  };
-  provider: string;
-  last_sign_in_at?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Minimal profile type if you have a separate profiles table
-export interface Profile {
-  id: string; // Usually matches User.id
-  username?: string;
-  avatar_url?: string;
-  full_name?: string;
-  // any other profile fields
-}
+// Duplicates removed

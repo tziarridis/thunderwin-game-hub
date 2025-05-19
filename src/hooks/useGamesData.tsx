@@ -1,8 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Game, DbGame } from '@/types'; // Game from game.ts, DbGame from types/index.d.ts
-import { gameService } from '@/services/gameService'; // Use the consolidated gameService
-import { useAuth } from '@/contexts/AuthContext'; // Keep for user context if needed for favorites later
+import { Game } from '@/types'; // Game from game.ts
+import { gameService } from '@/services/gameService';
 import { toast } from 'sonner';
 
 interface UseGamesDataProps {
@@ -13,6 +12,7 @@ interface UseGamesDataProps {
   latest?: boolean;
   limit?: number;
   searchQuery?: string;
+  initialOffset?: number; // Added initialOffset
 }
 
 export const useGamesData = ({
@@ -22,22 +22,24 @@ export const useGamesData = ({
   popular,
   latest,
   limit = 12,
-  searchQuery = ''
+  searchQuery = '',
+  initialOffset = 0, // Default initialOffset to 0
 }: UseGamesDataProps = {}) => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  // const { user } = useAuth(); // Not directly used in fetchGames, favorites are client-side
+  const [offset, setOffset] = useState(initialOffset); // Use offset state
 
-  const fetchGames = useCallback(async (offset = 0) => {
+  const fetchGames = useCallback(async (currentOffset: number, replace: boolean = false) => {
+    // `replace` flag to determine if we append or replace games array
     try {
       setLoading(true);
       
-      const { games: fetchedGames, count } = await gameService.getAllGames({
+      const result = await gameService.getAllGames({
         limit,
-        offset,
+        offset: currentOffset,
         category,
         provider,
         search: searchQuery,
@@ -46,14 +48,18 @@ export const useGamesData = ({
         latest,
       });
       
-      if (offset === 0) {
+      const fetchedGames = result.games;
+      const count = result.count;
+
+      if (replace) {
         setGames(fetchedGames);
       } else {
         setGames(prev => [...prev, ...fetchedGames]);
       }
       
       setTotalCount(count || 0);
-      setHasMore(fetchedGames.length >= limit && (offset + limit) < (count || 0));
+      // Corrected hasMore logic
+      setHasMore(fetchedGames.length > 0 && (currentOffset + fetchedGames.length) < (count || 0));
       setError(null);
     } catch (err: any) {
       console.error('Error fetching games in useGamesData:', err);
@@ -62,19 +68,25 @@ export const useGamesData = ({
     } finally {
       setLoading(false);
     }
-  }, [category, provider, featured, popular, latest, limit, searchQuery]); // Removed user?.id as it's not used for fetching
+  }, [category, provider, featured, popular, latest, limit, searchQuery]);
 
   useEffect(() => {
-    fetchGames(0); // Initial fetch
-  }, [fetchGames]);
+    setGames([]); // Clear games when filters change
+    setOffset(0); // Reset offset
+    fetchGames(0, true); // Initial fetch, replacing games
+  }, [fetchGames]); // fetchGames itself has dependencies that trigger re-fetch
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
-    fetchGames(games.length);
-  }, [fetchGames, games.length, hasMore, loading]);
+    const nextOffset = offset + limit;
+    setOffset(nextOffset); // Update offset state
+    fetchGames(nextOffset, false); // Fetch next page, appending games
+  }, [fetchGames, offset, limit, hasMore, loading]);
 
   const refresh = useCallback(() => {
-    fetchGames(0);
+    setGames([]); // Clear games
+    setOffset(0); // Reset offset
+    fetchGames(0, true); // Re-fetch first page, replacing games
   }, [fetchGames]);
 
   return {
@@ -89,3 +101,4 @@ export const useGamesData = ({
 };
 
 export default useGamesData;
+

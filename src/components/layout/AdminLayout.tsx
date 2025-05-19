@@ -1,41 +1,40 @@
+
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import AdminSidebar from '@/components/admin/AdminSidebar'; // Corrected import path
-import AdminHeader from '@/components/admin/AdminHeader';   // Corrected import path
-import { useAuth } from '@/contexts/AuthContext'; // For user info
+import { Outlet, Navigate } from 'react-router-dom';
+import AdminHeader from '@/components/admin/AdminHeader'; // Make sure this path is correct
+import AdminSidebar from './AdminSidebar'; // Make sure this path is correct
+import { useAuth } from '@/contexts/AuthContext';
+import { Toaster } from '@/components/ui/sonner';
 
 const AdminLayout: React.FC = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
-    return <div>Loading admin area...</div>; // Or a proper loader
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
-  // Basic check, can be expanded with roles if needed
-  // This should ideally be handled by route protection as well
-  if (!isAdmin && !loading) { 
-    // Redirect or show an unauthorized message
-    // For now, just a message. Consider navigating to /admin/login or /
-    return (
-        <div className="flex flex-col items-center justify-center h-screen">
-            <p className="text-2xl font-semibold text-red-500">Access Denied</p>
-            <p className="text-muted-foreground">You do not have permission to view this page.</p>
-            {/* Link to go home or login? */}
-        </div>
-    );
+  if (!user || !isAdmin) {
+    // Redirect to login or home page if not authenticated or not an admin
+    return <Navigate to="/login" replace />;
   }
   
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
       <AdminSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader user={user} /> 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-200 p-6">
+        <AdminHeader /> {/* Removed user prop */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6">
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </div>
   );
 };
 
 export default AdminLayout;
+

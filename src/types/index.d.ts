@@ -3,6 +3,7 @@ export * from './game'; // Game type is now primarily defined in game.ts
 export * from './transaction';
 export * from './wallet';
 export * from './affiliate';
+export * from './promotion'; // Added this export
 
 // General API response type
 export interface ApiResponse<T> {
@@ -31,13 +32,13 @@ export interface DbGame {
   provider_slug?: string; // Denormalized or from a view, maps to Game.provider_slug
 
   game_type?: string; // Maps to Game.categoryName
-  category_slugs?: string[]; // Should be string array in DB or parsed
+  category_slugs?: string[] | string; // Can be string array in DB or parsed, or single string
 
   cover?: string; // Maps to Game.image
   banner?: string; // Maps to Game.banner
 
   description?: string;
-  rtp?: number; // Should be numeric in DB
+  rtp?: number | string; // Should be numeric in DB, but handle string from source
 
   is_popular?: boolean;
   is_new?: boolean;
@@ -86,5 +87,6 @@ export interface DbGame {
 export interface WalletType {
   balance: number | null;
   currency: string;
+  vipLevel?: number; // Added vipLevel to WalletType for AppHeader display
   // other wallet properties
 }

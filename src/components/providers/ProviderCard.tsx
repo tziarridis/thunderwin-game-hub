@@ -1,55 +1,57 @@
 
 import React from 'react';
-import { GameProvider } from '@/types'; // Using the new GameProvider type
+import { GameProvider } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ChevronRight } from 'lucide-react';
 
 interface ProviderCardProps {
   provider: GameProvider;
   className?: string;
+  onSelectProvider?: (slug: string) => void;
 }
 
-const ProviderCard: React.FC<ProviderCardProps> = ({ provider, className }) => {
+const ProviderCard: React.FC<ProviderCardProps> = ({ provider, className, onSelectProvider }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    // Navigate to a page displaying games by this provider, e.g., /casino/providers/provider-slug
-    if (provider.slug) {
-      navigate(`/casino/providers/${provider.slug}`);
+    if (onSelectProvider) {
+      onSelectProvider(provider.slug);
     } else {
-      // Fallback or error if slug is not available
-      console.warn(`Provider ${provider.name} does not have a slug.`);
+      navigate(`/casino/provider/${provider.slug}`);
     }
   };
 
   return (
     <Card 
-      className={`overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer group ${className}`}
+      className={`overflow-hidden shadow-lg hover:shadow-primary/20 transition-all duration-300 group ${className} cursor-pointer`}
       onClick={handleClick}
     >
       <CardHeader className="p-0">
-        <AspectRatio ratio={16 / 9} className="bg-muted">
-          {provider.logo ? (
-            <img
-              src={provider.logo}
-              alt={`${provider.name} logo`}
-              className="object-contain w-full h-full p-4 transition-transform duration-300 group-hover:scale-105"
+        <div className="aspect-[2/1] bg-slate-800 flex items-center justify-center overflow-hidden">
+          {provider.logoUrl ? (
+            <img 
+              src={provider.logoUrl} 
+              alt={`${provider.name} logo`} 
+              className="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-110" 
             />
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <span className="text-muted-foreground text-sm">{provider.name}</span>
-            </div>
+            <span className="text-2xl font-bold text-white/70 group-hover:text-white">{provider.name}</span>
           )}
-        </AspectRatio>
+        </div>
       </CardHeader>
-      <CardContent className="p-4 text-center">
-        <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
+      <CardContent className="p-3 md:p-4">
+        <CardTitle className="text-base font-semibold truncate group-hover:text-primary transition-colors">
           {provider.name}
         </CardTitle>
-        {provider.game_count !== undefined && (
-          <p className="text-sm text-muted-foreground">{provider.game_count} games</p>
-        )}
+        {/* Removed game_count as it's not on the type */}
+        {/* provider.game_count !== undefined && (
+          <p className="text-xs text-muted-foreground">{provider.game_count} games</p>
+        )*/}
+        <Button variant="link" className="p-0 h-auto text-xs text-primary mt-1 group-hover:underline">
+          View Games <ChevronRight className="ml-1 h-3 w-3" />
+        </Button>
       </CardContent>
     </Card>
   );

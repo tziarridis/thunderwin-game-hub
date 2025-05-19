@@ -1,125 +1,128 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { User, Wallet as WalletIcon, ShieldCheck, Gift, Star, Activity, Settings, LogOut } from 'lucide-react'; // Assuming icons are for illustration
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress"; // For VIP progress
-import { Wallet } from '@/types'; // App's Wallet type
+import { DollarSign, Heart, Award, TrendingUp, CreditCard, Gamepad2, UserCircle, ShieldCheck, AlertCircle, MessageSquare } from 'lucide-react';
+import TransactionsList from '@/components/user/TransactionsList';
+import VipProgress from '@/components/user/VipProgress';
+import FeaturedGames from '@/components/marketing/FeaturedGames';
+import UserPageLoadingSkeleton from './UserPageLoadingSkeleton';
+import { User } from '@/types'; // Ensure User type is imported
 
-// Example Dashboard Stats Interface
-interface DashboardStats {
-  totalDeposits: number;
-  totalWithdrawals: number;
-  totalWagered: number;
-  totalWins: number;
-  activeBonuses: number;
-}
+const Dashboard: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+  // const { data: walletData, isLoading: walletLoading, error: walletError } = useQuery(['wallet', user?.id], () => fetchWallet(user!.id), { enabled: !!user });
+  // const { data: transactionsData, isLoading: transactionsLoading, error: transactionsError } = useQuery(['transactions', user?.id], () => fetchTransactions(user!.id), { enabled: !!user });
+  // const { data: gameStats, isLoading: gameStatsLoading, error: gameStatsError } = useQuery(['gameStats', user?.id], () => fetchGameStats(user!.id), { enabled: !!user });
 
-const UserDashboard: React.FC = () => {
-  const { user, wallet, signOut } = useAuth(); // signOut is now from context
-  const navigate = useNavigate();
+  // Placeholder data until API calls are set up
+  const [walletData, setWalletData] = useState({ balance: 1234.56, currency: 'USD', bonus_balance: 50.00, last_deposit: 100.00 });
+  const [transactionsData, setTransactionsData] = useState([
+    { id: '1', date: '2023-05-15', type: 'deposit', amount: 100.00, status: 'completed' },
+    { id: '2', date: '2023-05-14', type: 'win', amount: 25.50, status: 'completed', game: 'Slots Deluxe' },
+    { id: '3', date: '2023-05-13', type: 'withdrawal', amount: -50.00, status: 'pending' },
+  ]);
+  const [gameStats, setGameStats] = useState({ favorite_game: 'Gold Rush', total_bets: 500, total_wins: 250 });
+  const [isLoading, setIsLoading] = useState(true); // General loading for placeholders
 
-  // Placeholder data - replace with actual data fetching
-  const stats: DashboardStats = {
-    totalDeposits: 1250.75,
-    totalWithdrawals: 300.00,
-    totalWagered: 5800.50,
-    totalWins: 6200.25,
-    activeBonuses: 2,
-  };
-  
-  const vipProgress = (user?.vip_level || 0) * 20; // Example: 5 levels, 20% per level
+  useEffect(() => {
+    // Simulate data fetching
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/'); // Redirect to home after sign out
-  };
+
+  if (authLoading || isLoading) {
+    return <UserPageLoadingSkeleton title="My Dashboard" />;
+  }
 
   if (!user) {
-    // This should ideally be handled by a route guard, but as a fallback:
-    navigate('/auth/login');
-    return null;
+    return <p className="text-center text-red-500">User not found. Please log in.</p>;
   }
   
-  const userDisplayName = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || "Player";
-  const userAvatar = user.user_metadata?.avatar_url;
+  const userVipLevel = user.user_metadata?.vip_level || 0; // Corrected access
+
+  const statsCards = [
+    { title: "Current Balance", value: `${walletData.balance.toFixed(2)} ${walletData.currency}`, icon: DollarSign, description: `Bonus: ${walletData.bonus_balance.toFixed(2)} ${walletData.currency}` },
+    { title: "Favorite Game", value: gameStats.favorite_game, icon: Heart, description: `Total Bets: ${gameStats.total_bets}` },
+    { title: "VIP Level", value: userVipLevel, icon: Award, description: "Keep playing to level up!" }, // Used userVipLevel
+    { title: "Last Deposit", value: `${walletData.last_deposit.toFixed(2)} ${walletData.currency}`, icon: TrendingUp, description: "Quick & easy deposits" },
+  ];
 
   return (
-    <div className="space-y-6 md:space-y-8">
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={userAvatar} alt={userDisplayName} />
-              <AvatarFallback>{userDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
-              <CardTitle className="text-2xl font-bold">Welcome back, {userDisplayName}!</CardTitle>
-              <CardDescription>Here's your casino overview.</CardDescription>
-            </div>
-          </div>
-          <Button variant="outline" onClick={() => navigate('/user/profile')}>Edit Profile</Button>
-        </CardHeader>
-        <CardContent>
-          {/* VIP Level and Progress */}
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-1">
-              <p className="text-sm font-medium text-muted-foreground">VIP Level: <span className="text-primary font-semibold">{user.vip_level || 0}</span></p>
-              <p className="text-sm text-primary font-semibold">{vipProgress}% to next level</p> {/* Example next level text */}
-            </div>
-            <Progress value={vipProgress} className="w-full h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Wallet Overview */}
-      {wallet && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center"><WalletIcon className="mr-2 h-5 w-5 text-primary" /> Wallet Balance</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-3xl font-bold">{wallet.balance.toFixed(2)} <span className="text-lg text-muted-foreground">{wallet.currency}</span></p>
-            {/* <p className="text-sm text-muted-foreground">Bonus Balance: {wallet.balance_bonus?.toFixed(2) || '0.00'} {wallet.currency}</p> */}
-            <div className="flex gap-2 pt-2">
-              <Button onClick={() => navigate('/wallet/deposit')}>Deposit</Button>
-              <Button variant="outline" onClick={() => navigate('/wallet/withdraw')}>Withdraw</Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Stats Grid - Placeholder */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Example Stat Card */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Wagered</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.totalWagered.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">+20.1% from last month</p>
-          </CardContent>
-        </Card>
-        {/* Add more stat cards for totalDeposits, totalWins, activeBonuses etc. */}
+    <div className="space-y-8 p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-3xl font-bold text-white">Welcome, {user.user_metadata?.full_name || user.user_metadata?.username || user.email}!</h1>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary/10">
+            <Link to="/user/wallet/deposit"><CreditCard className="mr-2 h-4 w-4" /> Deposit</Link>
+          </Button>
+           <Button asChild className="bg-primary hover:bg-primary/80 text-primary-foreground">
+             <Link to="/casino"><Gamepad2 className="mr-2 h-4 w-4" /> Play Games</Link>
+           </Button>
+        </div>
       </div>
 
-      {/* Quick Actions / Navigation */}
-      <Card>
-        <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <Button variant="outline" className="flex-col h-auto py-4" onClick={() => navigate('/user/favorites')}><Star className="mb-1 h-6 w-6"/>My Favorites</Button>
-          <Button variant="outline" className="flex-col h-auto py-4" onClick={() => navigate('/promotions')}><Gift className="mb-1 h-6 w-6"/>Promotions</Button>
-          <Button variant="outline" className="flex-col h-auto py-4" onClick={() => navigate('/user/transactions')}><Activity className="mb-1 h-6 w-6"/>History</Button>
-          <Button variant="outline" className="flex-col h-auto py-4" onClick={() => navigate('/user/settings')}><Settings className="mb-1 h-6 w-6"/>Settings</Button>
-          <Button variant="outline" className="flex-col h-auto py-4 text-destructive hover:bg-destructive/10" onClick={handleSignOut}><LogOut className="mb-1 h-6 w-6"/>Sign Out</Button>
-        </CardContent>
-      </Card>
+      {/* Quick Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsCards.map((card, index) => (
+          <Card key={index} className="bg-card shadow-lg hover:shadow-primary/20 transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+              <card.icon className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">
+                {card.title === "VIP Level" && typeof card.value === 'number' ? `Level ${card.value}` : card.value}
+              </div>
+              <p className="text-xs text-muted-foreground pt-1">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* VIP Progress */}
+        <div className="lg:col-span-1">
+          <VipProgress currentLevel={userVipLevel} currentPoints={user.user_metadata?.vip_points || 250} pointsToNextLevel={1000} />
+        </div>
+
+        {/* Recent Activity / Transactions */}
+        <div className="lg:col-span-2">
+          <TransactionsList title="Recent Activity" transactions={transactionsData.slice(0, 5)} showViewAllLink="/user/transactions" />
+        </div>
+      </div>
+
+      {/* Quick Actions / Recommended Games */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-semibold mb-4 text-white">Quick Actions</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {[
+              { label: "My Profile", icon: UserCircle, path: "/user/profile" },
+              { label: "Verify KYC", icon: ShieldCheck, path: "/user/kyc" },
+              { label: "Set Limits", icon: AlertCircle, path: "/user/responsible-gambling" },
+              { label: "Support", icon: MessageSquare, path: "/support" },
+            ].map(action => (
+              <Button key={action.label} variant="outline" className="flex-col h-24 text-center" asChild>
+                <Link to={action.path}>
+                  <action.icon className="h-8 w-8 mb-1 text-primary" />
+                  {action.label}
+                </Link>
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Placeholder for Recommended Games - using FeaturedGames component */}
+        <FeaturedGames title="Recommended For You" tag="popular" count={6} />
+
+      </div>
     </div>
   );
 };
 
-export default UserDashboard;
+export default Dashboard;

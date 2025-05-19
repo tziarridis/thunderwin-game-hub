@@ -1,26 +1,29 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useGames } from '@/hooks/useGames'; // This hook provides games, categories, providers etc.
-import GameGrid from '@/components/games/GameGrid'; // General purpose grid
+import { useGames } from '@/hooks/useGames'; 
+import GameGrid from '@/components/games/GameGrid'; 
 import GameCategories from '@/components/games/GameCategories'; 
 import PopularProviders from '@/components/casino/PopularProviders';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search, FilterX } from 'lucide-react'; // Added Search, FilterX
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Game, GameProvider as ProviderType } from '@/types'; // ProviderType from game.ts now
+import { Game, GameProvider as ProviderType, GameCategory } from '@/types'; // Added GameCategory
 import { useNavigate } from 'react-router-dom';
-import FeaturedGames from '@/components/marketing/FeaturedGames'; // Can use this for a featured section
+import FeaturedGames from '@/components/marketing/FeaturedGames'; 
+import { toast } from 'sonner'; // Added toast
+import { Button } from '@/components/ui/button'; // Added Button
 
 const CasinoMain = () => {
-  // useGames hook from context provides games, loading, error, categories, providers
   const { 
-    games, // All games
-    isLoading: isLoadingGames, 
+    games: allGames, // Renamed from 'games' to 'allGames' to avoid conflict with filteredGames
+    isLoading: isLoadingGamesGlobal, // Renamed to avoid conflict
     error: gamesError, 
-    categories: gameCategories, // These are {id, name, slug, icon}
-    providers: gameProviders, // These are {id, name, slug, logoUrl, status}
-    launchGame, // For handling play action
-    fetchGamesAndProviders, // To refresh data if needed
+    categories: gameCategoriesFromContext, // Renamed
+    providers: gameProvidersFromContext,   // Renamed
+    launchGame,
+    fetchGamesAndProviders,
+    filterGames, // from useGames
+    filteredGames: gamesFromFilterHook // from useGames
   } = useGames();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,96 +31,93 @@ const CasinoMain = () => {
   const [selectedProviderSlug, setSelectedProviderSlug] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Refetch if needed, though useGames fetches initially
   useEffect(() => {
-    // if (games.length === 0 && !isLoadingGames) {
-    // fetchGamesAndProviders();
+    // Initial fetch is handled by useGames provider
+    // if (allGames.length === 0 && !isLoadingGamesGlobal) {
+    // fetchGamesAndProviders(); // Redundant if useGames fetches on mount
     // }
   }, []);
+  
+  useEffect(() => {
+    filterGames(searchTerm, selectedCategorySlug || undefined, selectedProviderSlug || undefined);
+  }, [searchTerm, selectedCategorySlug, selectedProviderSlug, filterGames]);
 
 
   const handleGamePlay = async (game: Game) => {
-    // Example: Using launchGame from useGames hook
-    if (game.game_id && game.provider_slug) {
-      const launchUrl = await launchGame(game, { mode: 'real' });
-      if (launchUrl) {
-        window.open(launchUrl, '_blank');
+    try {
+      // game.game_id is external ID, game.id is internal DB ID
+      const gameIdentifier = game.game_id || game.id; 
+      if (gameIdentifier) {
+        const launchUrl = await launchGame(game, { mode: 'real' }); // Default to real mode
+        if (launchUrl) {
+          window.open(launchUrl, '_blank');
+        } else {
+          toast.error("Could not launch game. The game might be unavailable.");
+        }
       } else {
-        toast.error("Could not launch game.");
+        toast.error("Cannot launch game: missing game identifier.");
+        // Fallback: navigate to game details page if slug exists
+        if(game.slug) navigate(`/casino/game/${game.slug}`);
       }
-    } else {
-      // Fallback: navigate to game details page
-      navigate(`/casino/game/${game.slug || game.id}`);
+    } catch (error: any) {
+        toast.error(`Error launching game: ${error.message}`);
+        if(game.slug) navigate(`/casino/game/${game.slug}`);
     }
   };
   
-  // Enhanced filtering logic
-  const filteredGames = useMemo(() => {
-    return games.filter(game => {
-      const titleMatch = !searchTerm || game.title.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const categoryMatch = !selectedCategorySlug || 
-        (Array.isArray(game.category_slugs) && game.category_slugs.includes(selectedCategorySlug)) ||
-        game.category === selectedCategorySlug || // Fallback for older data structure
-        game.categoryName === selectedCategorySlug; // Fallback for display name if used as slug
-
-      const providerMatch = !selectedProviderSlug || 
-        game.provider_slug === selectedProviderSlug ||
-        game.provider === selectedProviderSlug; // Fallback
-
-      return titleMatch && categoryMatch && providerMatch;
-    });
-  }, [games, searchTerm, selectedCategorySlug, selectedProviderSlug]);
-
-  // Format categories for GameCategories component
   const displayCategories = useMemo(() => 
-    gameCategories.map(cat => ({ name: cat.name, slug: cat.slug, icon: cat.icon }))
-  , [gameCategories]);
+    gameCategoriesFromContext.map(cat => ({ name: cat.name, slug: cat.slug, icon: cat.icon }))
+  , [gameCategoriesFromContext]);
 
-  // Format providers for PopularProviders component
   const displayProviders = useMemo(() => 
-    gameProviders.map(prov => ({ name: prov.name, slug: prov.slug, logoUrl: prov.logoUrl }))
-  , [gameProviders]);
+    gameProvidersFromContext.map(prov => ({ name: prov.name, slug: prov.slug, logoUrl: prov.logoUrl }))
+  , [gameProvidersFromContext]);
 
 
-  if (isLoadingGames && games.length === 0) {
+  if (isLoadingGamesGlobal && allGames.length === 0) {
     return (
       <div className="container mx-auto py-12 text-center">
         <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-        <p className="mt-4">Loading casino games...</p>
+        <p className="mt-4 text-white/70">Loading casino games...</p>
       </div>
     );
   }
 
   if (gamesError) {
-    return <div className="container mx-auto py-12 text-center text-destructive">Error loading games: {gamesError}</div>;
+    return <div className="container mx-auto py-12 text-center text-destructive">Error loading games: {String(gamesError)}</div>;
   }
 
   return (
     <div className="container mx-auto py-8 px-4 space-y-12">
-      {/* Featured Games Section using the marketing component */}
-      <FeaturedGames title="Top Casino Picks" count={6} />
+      <FeaturedGames title="Top Casino Picks" tag="featured" count={6} />
       
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end p-4 bg-card rounded-lg shadow sticky top-16 z-40 backdrop-blur-sm">
-        <div>
+      <div className="sticky top-16 z-40 bg-card/80 dark:bg-background/80 backdrop-blur-md p-4 rounded-lg shadow-xl space-y-4 md:space-y-0 md:flex md:flex-row md:gap-4 md:items-end">
+        <div className="flex-grow">
           <label htmlFor="search-games" className="block text-sm font-medium text-muted-foreground mb-1">Search Games</label>
-          <Input
-            id="search-games"
-            type="text"
-            placeholder="Search by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
-          />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              id="search-games"
+              type="search"
+              placeholder="Search by title..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 bg-input border-border text-white"
+            />
+            {searchTerm && (
+              <Button variant="ghost" size="icon" className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setSearchTerm('')}>
+                <FilterX className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-        <div>
+        <div className="flex-grow md:flex-grow-0 md:w-1/4">
           <label htmlFor="category-filter" className="block text-sm font-medium text-muted-foreground mb-1">Category</label>
           <Select value={selectedCategorySlug || ''} onValueChange={(value) => setSelectedCategorySlug(value === '' ? null : value)}>
-            <SelectTrigger id="category-filter">
+            <SelectTrigger id="category-filter" className="w-full bg-input border-border text-white">
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border-border text-white">
               <SelectItem value="">All Categories</SelectItem>
               {displayCategories.map(category => (
                 <SelectItem key={category.slug} value={category.slug}>{category.name}</SelectItem>
@@ -125,13 +125,13 @@ const CasinoMain = () => {
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="flex-grow md:flex-grow-0 md:w-1/4">
           <label htmlFor="provider-filter" className="block text-sm font-medium text-muted-foreground mb-1">Provider</label>
            <Select value={selectedProviderSlug || ''} onValueChange={(value) => setSelectedProviderSlug(value === '' ? null : value)}>
-            <SelectTrigger id="provider-filter">
+            <SelectTrigger id="provider-filter" className="w-full bg-input border-border text-white">
               <SelectValue placeholder="All Providers" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-popover border-border text-white">
               <SelectItem value="">All Providers</SelectItem>
               {displayProviders.map(provider => (
                 <SelectItem key={provider.slug} value={provider.slug}>{provider.name}</SelectItem>
@@ -141,10 +141,9 @@ const CasinoMain = () => {
         </div>
       </div>
 
-      {/* Game Categories Display */}
-      {displayCategories.length > 0 && !selectedCategorySlug && (
+      {displayCategories.length > 0 && !selectedCategorySlug && !selectedProviderSlug && !searchTerm && (
         <section>
-          <h2 className="text-3xl font-bold mb-6 text-center">Game Categories</h2>
+          <h2 className="text-3xl font-bold mb-6 text-center text-white">Game Categories</h2>
           <GameCategories 
             categories={displayCategories}
             onSelectCategory={(slug) => setSelectedCategorySlug(slug)}
@@ -153,26 +152,29 @@ const CasinoMain = () => {
         </section>
       )}
       
-      {/* Popular Providers Display */}
-      {displayProviders.length > 0 && !selectedProviderSlug && (
+      {displayProviders.length > 0 && !selectedProviderSlug && !selectedCategorySlug && !searchTerm && (
          <PopularProviders 
-            providers={displayProviders}
+            providers={displayProviders} // These should be GameProvider[]
             onSelectProvider={(slug) => setSelectedProviderSlug(slug)}
         />
       )}
 
-      {/* Main Game Grid */}
       <section>
-        <h2 className="text-3xl font-bold mb-6 text-center">
-          {selectedCategorySlug || selectedProviderSlug ? 'Filtered Games' : 'All Games'}
+        <h2 className="text-3xl font-bold mb-6 text-center text-white">
+          {selectedCategorySlug || selectedProviderSlug || searchTerm ? 'Filtered Games' : 'All Games'}
         </h2>
-        {isLoadingGames && <div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></div>}
-        {!isLoadingGames && filteredGames.length === 0 && (
-          <p className="text-center text-muted-foreground py-8">No games match your current filters.</p>
+        {isLoadingGamesGlobal && gamesFromFilterHook.length === 0 && <div className="text-center py-8"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>}
+        {!isLoadingGamesGlobal && gamesFromFilterHook.length === 0 && (
+          <div className="text-center py-10">
+            <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-xl text-muted-foreground">No games match your current filters.</p>
+            {(selectedCategorySlug || selectedProviderSlug || searchTerm) && (
+                 <Button variant="link" onClick={() => { setSearchTerm(''); setSelectedCategorySlug(null); setSelectedProviderSlug(null);}} className="mt-4">Clear Filters</Button>
+            )}
+          </div>
         )}
-        {!isLoadingGames && filteredGames.length > 0 && (
-          // GameGrid expects onGameClick to be handled by GameCard's onPlay prop
-          <GameGrid games={filteredGames} /> 
+        {!isLoadingGamesGlobal && gamesFromFilterHook.length > 0 && (
+          <GameGrid games={gamesFromFilterHook} /> // GameGrid uses onPlay from GameCard
         )}
       </section>
     </div>
@@ -180,3 +182,4 @@ const CasinoMain = () => {
 };
 
 export default CasinoMain;
+

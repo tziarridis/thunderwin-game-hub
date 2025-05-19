@@ -1,124 +1,132 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-// import { userService } from '@/services/userService'; // If direct profile updates are needed
-// import { User } from '@/types'; // If using a more specific User type for form
+// import { userService } from '@/services/userService'; // If you have a specific service for user updates
 
-const ProfileDetails: React.FC = () => {
-  const { user, signOut, refreshUser } = useAuth(); // signOut and refreshUser from context
-  const [formData, setFormData] = useState({
-    email: '',
-    fullName: '', // Example: map to user_metadata.full_name
-    username: '', // Example: map to custom 'username' field in your profile
-    // Add other fields as necessary
+const profileSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters').optional().or(z.literal('')),
+  full_name: z.string().optional(),
+  avatar_url: z.string().url('Invalid URL format').optional().or(z.literal('')),
+  // email: z.string().email(), // Email typically not changed here directly, or requires verification
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
+
+const Profile: React.FC = () => {
+  const { user, loading, updateUserMetadata } = useAuth(); // Assuming updateUserMetadata exists in AuthContext
+
+  const { control, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      username: '',
+      full_name: '',
+      avatar_url: '',
+    }
   });
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setFormData({
-        email: user.email || '',
-        fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-        username: user.username || user.email?.split('@')[0] || '', // Using app User type field
+      reset({
+        username: user.user_metadata?.username || '',
+        full_name: user.user_metadata?.full_name || '',
+        avatar_url: user.user_metadata?.avatar_url || '',
       });
     }
-  }, [user]);
+  }, [user, reset]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    setIsLoading(true);
+  const onSubmit = async (data: ProfileFormValues) => {
+    if (!user) {
+      toast.error('User not authenticated.');
+      return;
+    }
     try {
-      // Example: Update user metadata via Supabase auth or custom profile table
-      // const { data, error } = await supabase.auth.updateUser({
-      //   data: { full_name: formData.fullName, /* other metadata */ }
-      // });
-      // Or use userService to update your 'profiles' table
-      // await userService.updateUserProfile(user.id, { username: formData.username, full_name: formData.fullName });
+      // Construct payload ensuring we don't send undefined if value is empty string converting to undefined for Supabase
+      const metadataToUpdate = {
+        username: data.username || undefined,
+        full_name: data.full_name || undefined,
+        avatar_url: data.avatar_url || undefined,
+      };
       
-      // For this example, let's assume a placeholder success
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+      await updateUserMetadata(metadataToUpdate); // Call the method from AuthContext
       toast.success('Profile updated successfully!');
-      if (refreshUser) await refreshUser(); // Refresh user data in context
     } catch (error: any) {
+      console.error('Profile update error:', error);
       toast.error(error.message || 'Failed to update profile.');
-    } finally {
-      setIsLoading(false);
     }
   };
-  
-  const userDisplayName = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || "User";
-  const userAvatar = user?.user_metadata?.avatar_url;
+
+  if (loading) {
+    return <p>Loading profile...</p>; // Replace with a skeleton loader
+  }
 
   if (!user) {
-    return <p>Loading user profile...</p>; // Or redirect to login
+    return <p>Please log in to view your profile.</p>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card className="mb-6">
-        <CardHeader className="items-center text-center">
-            <Avatar className="w-24 h-24 mb-4">
-                <AvatarImage src={userAvatar} alt={userDisplayName} />
-                <AvatarFallback className="text-3xl">{userDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <CardTitle className="text-2xl">{userDisplayName}</CardTitle>
-            <CardDescription>Manage your profile information and settings.</CardDescription>
-        </CardHeader>
-      </Card>
-
-      <Card>
+    <div className="max-w-2xl mx-auto p-4 md:p-6">
+      <Card className="bg-card">
         <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>Update your personal details.</CardDescription>
+          <CardTitle className="text-2xl">My Profile</CardTitle>
+          <CardDescription>Update your personal information. Your email is {user.email}.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" value={formData.email} disabled />
-              <p className="text-xs text-muted-foreground">Email cannot be changed here.</p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" name="fullName" value={formData.fullName} onChange={handleChange} />
-            </div>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" name="username" value={formData.username} onChange={handleChange} />
+              <Controller
+                name="username"
+                control={control}
+                render={({ field }) => <Input id="username" placeholder="Your cool username" {...field} />}
+              />
+              {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
             </div>
-            {/* Add more fields like phone, address etc. as needed */}
-            <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-              {isLoading ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
 
-      <Card className="mt-6">
-          <CardHeader>
-              <CardTitle>Account Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-              <Button variant="destructive" onClick={signOut} className="w-full sm:w-auto">
-                Sign Out
-              </Button>
-              {/* Add other actions like Change Password, Delete Account if needed */}
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name</Label>
+              <Controller
+                name="full_name"
+                control={control}
+                render={({ field }) => <Input id="full_name" placeholder="Your full name" {...field} />}
+              />
+              {errors.full_name && <p className="text-sm text-red-500">{errors.full_name.message}</p>}
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="avatar_url">Avatar URL</Label>
+              <Controller
+                name="avatar_url"
+                control={control}
+                render={({ field }) => <Input id="avatar_url" placeholder="https://example.com/avatar.png" {...field} />}
+              />
+              {errors.avatar_url && <p className="text-sm text-red-500">{errors.avatar_url.message}</p>}
+            </div>
+             {user.user_metadata.avatar_url && (
+                <div className="flex items-center space-x-3">
+                    <img src={user.user_metadata.avatar_url} alt="Current avatar" className="h-16 w-16 rounded-full object-cover" />
+                    <p className="text-xs text-muted-foreground">Current avatar</p>
+                </div>
+            )}
+
           </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );
 };
 
-export default ProfileDetails;
+export default Profile;
+

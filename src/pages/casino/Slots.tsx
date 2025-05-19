@@ -1,26 +1,27 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
-import { Game, GameProvider as ProviderType } from '@/types';
-import CasinoGameGrid from '@/components/casino/GameGrid'; // Using the /casino/GameGrid
+import { Game, GameProvider as ProviderType, GameCategory } from '@/types'; // Added GameCategory
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, FilterX } from 'lucide-react'; // Added FilterX
+import { Search, FilterX, Loader2 } from 'lucide-react'; 
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext'; 
-import { Button } from '@/components/ui/button'; // For Load More
+import { Button } from '@/components/ui/button'; 
 
 const ITEMS_PER_PAGE = 24;
 
 const Slots = () => {
   const { 
-    games, 
-    isLoading, 
-    error, 
-    filterGames, 
-    providers, // These are {id, name, slug, logoUrl, status}
-    categories, 
-    filteredGames, // This is the result of filterGames
+    games: allGames, // All games from context
+    isLoading: isLoadingGamesGlobal, // Global loading state
+    error: gamesErrorGlobal, // Global error state
+    filterGames, // Method to apply filters
+    filteredGames, // Games after context-level filtering
+    providers: gameProvidersFromContext, // Providers from context
+    categories: gameCategoriesFromContext, // Categories from context
     launchGame 
   } = useGames();
   const { isAuthenticated, user } = useAuth();
@@ -30,16 +31,21 @@ const Slots = () => {
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
   
   const slotsCategorySlug = useMemo(() => {
-    const slotsCat = categories.find(cat => cat.name.toLowerCase().includes('slots') || cat.slug.toLowerCase().includes('slots'));
-    return slotsCat?.slug || 'slots'; 
-  }, [categories]);
+    const slotsCat = gameCategoriesFromContext.find(cat => cat.name.toLowerCase().includes('slots') || cat.slug.toLowerCase().includes('slots'));
+    return slotsCat?.slug || 'slots'; // Default to 'slots' if not found or if categories are not loaded yet
+  }, [gameCategoriesFromContext]);
 
+  // Apply filters using the method from useGames context
   useEffect(() => {
-    filterGames(searchTerm, slotsCategorySlug, selectedProviderSlug);
+    // Only filter if slotsCategorySlug is determined
+    if (slotsCategorySlug) {
+      filterGames(searchTerm, slotsCategorySlug, selectedProviderSlug);
+    }
     setVisibleCount(ITEMS_PER_PAGE); // Reset visible count on filter change
   }, [searchTerm, selectedProviderSlug, slotsCategorySlug, filterGames]);
 
   const displayedGames = useMemo(() => {
+    // `filteredGames` from `useGames` are already filtered by term, category, provider
     return filteredGames.slice(0, visibleCount);
   }, [filteredGames, visibleCount]);
 
@@ -52,16 +58,14 @@ const Slots = () => {
   };
 
   const handleGameClick = async (game: Game) => {
-    if (!isAuthenticated || !user) {
+    if (!isAuthenticated && !game.only_demo) {
       toast.error("Please log in to play.");
+      // Potentially navigate to login: navigate('/login');
       return;
     }
     try {
       const gameUrl = await launchGame(game, {
-        mode: 'real',
-        // playerId: user.id, // playerId is usually handled by the launchGame service/backend
-        // currency: user.user_metadata.currency || 'EUR', // currency from user_metadata
-        // platform: 'web', // platform can be set if needed
+        mode: game.only_demo || !isAuthenticated ? 'demo' : 'real',
       });
       if (gameUrl) {
         window.open(gameUrl, '_blank');
@@ -73,7 +77,7 @@ const Slots = () => {
     }
   };
 
-  if (error) return <p className="text-red-500 text-center py-10">Error loading slot games: {error}</p>;
+  if (gamesErrorGlobal) return <p className="text-red-500 text-center py-10">Error loading slot games: {String(gamesErrorGlobal)}</p>;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -101,15 +105,15 @@ const Slots = () => {
           </SelectTrigger>
           <SelectContent className="bg-card border-border text-white">
             <SelectItem value="all">All Providers</SelectItem>
-            {providers.map((provider: ProviderType) => ( // Make sure ProviderType matches what's in useGames
+            {gameProvidersFromContext.map((provider: ProviderType) => ( 
               <SelectItem key={provider.id} value={provider.slug || String(provider.id)}>{provider.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {isLoading && displayedGames.length === 0 ? (
-         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {isLoadingGamesGlobal && displayedGames.length === 0 ? (
+         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg bg-slate-700" />)}
          </div>
       ) : (
@@ -117,24 +121,24 @@ const Slots = () => {
           <CasinoGameGrid 
             games={displayedGames} 
             onGameClick={handleGameClick} 
-            // showEmptyMessage can be used here, GameGrid handles empty itself
           />
           {hasMore && (
             <div className="text-center mt-8">
-              <Button onClick={loadMoreGames} variant="outline" disabled={isLoading}>
-                {isLoading ? 'Loading...' : 'Load More Slots'}
+              <Button onClick={loadMoreGames} variant="outline" disabled={isLoadingGamesGlobal}>
+                {isLoadingGamesGlobal ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</>) : 'Load More Slots'}
               </Button>
             </div>
           )}
-          {!isLoading && displayedGames.length === 0 && searchTerm && (
+          {!isLoadingGamesGlobal && displayedGames.length === 0 && (searchTerm || selectedProviderSlug) && (
              <div className="text-center py-10">
                 <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-xl text-muted-foreground">No slot games found matching "{searchTerm}".</p>
+                <p className="text-xl text-muted-foreground">No slot games found matching your filters.</p>
              </div>
           )}
-           {!isLoading && displayedGames.length === 0 && !searchTerm && (
+           {!isLoadingGamesGlobal && displayedGames.length === 0 && !searchTerm && !selectedProviderSlug && (
              <div className="text-center py-10">
-                <p className="text-xl text-muted-foreground">No slot games currently available.</p>
+                <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-xl text-muted-foreground">No slot games currently available for the "{slotsCategorySlug}" category.</p>
              </div>
           )}
         </>
@@ -144,3 +148,4 @@ const Slots = () => {
 };
 
 export default Slots;
+
