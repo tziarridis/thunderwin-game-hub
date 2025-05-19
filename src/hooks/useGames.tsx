@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Game, GameLaunchOptions } from '@/types';
 import { gameService } from '@/services/gameService'; 
-import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService'; // For specific provider call
+import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService';
 import { supabase } from '@/integrations/supabase/client'; 
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext'; 
@@ -41,7 +41,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setIsLoading(true);
     setError(null);
     try {
-      // Use getAllGames instead of getGames
       const fetchedGames = await gameService.getAllGames(filter); 
       setGames(fetchedGames);
       const uniqueCategories = new Set<string>();
@@ -99,12 +98,13 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [user?.id, isAuthenticated, fetchFavorites]);
 
+
   const getGameById = async (id: string): Promise<Game | null> => {
     const localGame = games.find(g => getGameIdString(g.id) === id || getGameIdString(g.game_id) === id || getGameIdString(g.game_code) === id);
     if (localGame) return localGame;
     try {
       setIsLoading(true);
-      const game = await gameService.getGameById(id); // This method exists on gameService
+      const game = await gameService.getGameById(id);
       setIsLoading(false);
       return game;
     } catch (err) {
@@ -115,11 +115,13 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const getGameBySlug = async (slug: string): Promise<Game | null> => {
-     const localGame = games.find(g => g.slug === slug);
+    const localGame = games.find(g => g.slug === slug);
     if (localGame) return localGame;
     try {
       setIsLoading(true);
-      const allGames = await gameService.getAllGames({ slug }); // Use getAllGames with filter
+      // Corrected: Use 'search' if 'slug' is not a direct filter option for getAllGames
+      // This assumes 'slug' values are searchable text.
+      const allGames = await gameService.getAllGames({ search: slug }); 
       const game = allGames.find(g => g.slug === slug) || null;
       setIsLoading(false);
       return game;
@@ -171,15 +173,11 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const fetchGameLaunchUrl = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     try {
-      // Since gameService.getGameLaunchUrl doesn't exist or is problematic,
-      // and LaunchGame.tsx uses pragmaticPlayService directly,
-      // we'll try to use pragmaticPlayService here if applicable.
-      // This is a temporary workaround. A proper gameService abstraction is needed.
       if (game.provider_slug === 'pragmaticplay' || game.provider === 'pragmaticplay') {
         const url = await pragmaticPlayService.getLaunchUrl(
-            {}, // config - assuming default or to be enhanced
+            {}, 
             game.game_id || game.id.toString(),
-            options.user_id || 'demoUser', // playerId
+            options.user_id || 'demoUser', 
             options.mode,
             options.language || 'en',
             options.currency || 'USD',
@@ -188,7 +186,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         );
         return url;
       } else {
-        // For other providers, we don't have a generic launch mechanism here yet via gameService
         console.error(`Game launch for provider '${game.provider_slug || game.provider}' is not supported through this generic hook yet.`);
         toast.error(`Launching ${game.title} from provider '${game.provider_slug || game.provider}' is not yet supported here.`);
         return null;
@@ -208,14 +205,15 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (options.mode === 'real' && user) {
       options.user_id = user.id;
       options.username = user.username || user.email?.split('@')[0];
-      options.currency = user.user_metadata?.currency || 'USD';
-      options.language = user.user_metadata?.language || 'en';
+      options.currency = user.user_metadata?.currency || 'USD'; // Ensure currency is from user_metadata if available
+      options.language = user.user_metadata?.language || 'en'; // Ensure language is from user_metadata if available
     } else if (options.mode === 'demo') {
         options.language = options.language || 'en';
         options.currency = options.currency || 'USD';
     }
     return fetchGameLaunchUrl(game, options);
   };
+
 
   return (
     <GamesContext.Provider value={{ 

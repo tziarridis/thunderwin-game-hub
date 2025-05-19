@@ -2,14 +2,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Wallet } from '@/types';
-import userService from '@/services/userService'; // Changed to default import
+import userService from '@/services/userService';
 import { walletService } from '@/services/walletService';
 import { toast } from 'sonner';
 
 // Define specific types for role and status to be used for casting
 type UserRole = 'user' | 'admin' | 'editor';
-// Assuming UserStatus is defined in types or we can define it here if not
-// For now, let's assume User type has status correctly typed or it's part of user_metadata
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -38,7 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserProfileAndWallet = async (supabaseUser: SupabaseUser | null) => {
     if (supabaseUser) {
       try {
-        // Use userService.getUserById instead of non-existent getUserProfile
         const userProfilePromise = userService.getUserById(supabaseUser.id);
         const userWalletPromise = walletService.getWalletByUserId(supabaseUser.id);
 
@@ -47,25 +44,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let appUser: User | null = null;
 
         if (userProfileResult.status === 'fulfilled' && userProfileResult.value) {
-          const profile = userProfileResult.value as User; // Cast fetched profile to User
+          const profile = userProfileResult.value as User;
           appUser = {
             ...supabaseUser,
             ...profile,
             id: supabaseUser.id,
             email: supabaseUser.email,
             username: profile.username || supabaseUser.email?.split('@')[0],
-            // Ensure role is correctly typed or provide a default from UserRole
             role: (profile.role as UserRole) || supabaseUser.role as UserRole || 'user',
             vip_level: profile.vip_level || 0,
             user_metadata: {
                 ...(supabaseUser.user_metadata || {}),
                 ...(profile.user_metadata || {}),
-                name: profile.user_metadata?.name || profile.first_name || supabaseUser.user_metadata?.full_name,
-                first_name: profile.first_name || profile.user_metadata?.first_name,
-                last_name: profile.last_name || profile.user_metadata?.last_name,
+                name: profile.user_metadata?.name || supabaseUser.user_metadata?.full_name, // Use metadata primarily
+                first_name: profile.user_metadata?.first_name, // Corrected: access from profile.user_metadata
+                last_name: profile.user_metadata?.last_name,   // Corrected: access from profile.user_metadata
                 avatar_url: profile.user_metadata?.avatar_url || supabaseUser.user_metadata?.avatar_url,
             },
-            status: profile.status, // Assuming User type has status correctly typed
+            status: profile.status,
             banned: profile.banned,
           };
         } else {
@@ -76,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             user_metadata: supabaseUser.user_metadata || {},
             username: supabaseUser.email?.split('@')[0],
             vip_level: 0,
-            role: (supabaseUser.role as UserRole) || 'user', // Ensure role is correctly typed
+            role: (supabaseUser.role as UserRole) || 'user',
           };
         }
         setUser(appUser);
@@ -102,7 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             user_metadata: supabaseUser.user_metadata || {},
             username: supabaseUser.email?.split('@')[0],
             vip_level: 0,
-            role: (supabaseUser.role as UserRole) || 'user', // Ensure role is correctly typed
+            role: (supabaseUser.role as UserRole) || 'user',
         };
         setUser(fallbackUser);
         setIsAdmin(fallbackUser?.role === 'admin');

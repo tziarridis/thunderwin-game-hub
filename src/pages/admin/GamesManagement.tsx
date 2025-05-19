@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable, ColumnFiltersState, getFilteredRowModel } from '@tanstack/react-table';
-import { Game, DbGame } from '@/types';
+import { Game } from '@/types'; // DbGame removed as Game type should be sufficient, adapt if needed
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import GameForm from '@/components/admin/GameForm';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { gameService } from '@/services/gameService'; // Main service for CRUD
-import { adaptDbGameToGame, adaptGameToDbGame } from '@/components/admin/GameAdapter';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // DialogFooter, DialogClose removed as not used
+import { gameService } from '@/services/gameService';
+// adaptDbGameToGame, adaptGameToDbGame removed as GameForm should handle Game type
 import { PlusCircle, Edit, Trash2, RefreshCw, Search } from 'lucide-react';
-import ResponsiveContainer from '@/components/ui/responsive-container'; // Assuming this is a custom component
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader'; // Reusable page header
+import { ResponsiveContainer } from '@/components/ui/responsive-container'; // Corrected import
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 
 const GamesManagement = () => {
   const [games, setGames] = useState<Game[]>([]);
@@ -25,13 +25,8 @@ const GamesManagement = () => {
   const fetchGames = async () => {
     setIsLoading(true);
     try {
-      const dbGames = await gameService.getGames(); // This should return raw DbGame[]
-      // Adapt DbGame to Game if your service returns DbGame and table expects Game
-      // If gameService.getGames() already returns Game[], this map is not needed.
-      // For this example, let's assume getGames directly returns Game[] for simplicity,
-      // or it handles adaptation internally. If it returns DbGame[], adapt it:
-      // const adaptedGames = dbGames.map(adaptDbGameToGame);
-      setGames(dbGames); // Assuming gameService.getGames() returns Game[]
+      const fetchedGames = await gameService.getAllGames(); // Corrected: use getAllGames
+      setGames(fetchedGames); 
     } catch (error) {
       console.error('Failed to fetch games:', error);
       toast.error('Failed to load games.');
@@ -46,17 +41,18 @@ const GamesManagement = () => {
 
   const handleFormSubmit = async (data: Partial<Game>, id?: string | number) => {
     try {
-      // const dbGameData = adaptGameToDbGame(data as Game); // Adapt Game to DbGame/Partial<DbGame> for saving
-      if (id) {
-        await gameService.updateGame(String(id), data as Game); // gameService.updateGame should expect Game or Partial<Game>
+      const gameId = id || editingGame?.id;
+      if (gameId) {
+        // Ensure data is at least Partial<Game>. GameForm should provide this.
+        await gameService.updateGame(String(gameId), data as Game); 
         toast.success('Game updated successfully!');
       } else {
-        await gameService.createGame(data as Game); // gameService.createGame should expect Game
+        await gameService.createGame(data as Game); 
         toast.success('Game created successfully!');
       }
       setIsFormOpen(false);
       setEditingGame(null);
-      fetchGames(); // Refresh list
+      fetchGames(); 
     } catch (error: any) {
       console.error('Failed to save game:', error);
       toast.error(`Error: ${error.message || 'Failed to save game.'}`);
@@ -73,7 +69,7 @@ const GamesManagement = () => {
       try {
         await gameService.deleteGame(String(gameId));
         toast.success('Game deleted successfully!');
-        fetchGames(); // Refresh list
+        fetchGames(); 
       } catch (error: any) {
         console.error('Failed to delete game:', error);
         toast.error(`Error: ${error.message || 'Failed to delete game.'}`);
@@ -88,24 +84,24 @@ const GamesManagement = () => {
       cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
     },
     {
-      accessorKey: "providerName",
+      accessorKey: "providerName", // Or provider_slug, provider
       header: "Provider",
-      cell: ({ row }) => row.original.providerName || row.original.provider_slug || 'N/A',
+      cell: ({ row }) => row.original.providerName || row.original.provider_slug || row.original.provider || 'N/A',
     },
     {
-      accessorKey: "categoryName",
+      accessorKey: "categoryName", // Or category_slugs, category
       header: "Category",
-      cell: ({ row }) => row.original.categoryName || (Array.isArray(row.original.category_slugs) ? row.original.category_slugs.join(', ') : row.original.category_slugs) || 'N/A',
+      cell: ({ row }) => row.original.categoryName || (Array.isArray(row.original.category_slugs) ? row.original.category_slugs.join(', ') : row.original.category_slugs) || row.original.category || 'N/A',
     },
     {
       accessorKey: "rtp",
       header: "RTP (%)",
-      cell: ({ row }) => row.original.rtp || 'N/A',
+      cell: ({ row }) => (row.original.rtp ? (typeof row.original.rtp === 'number' ? `${row.original.rtp.toFixed(2)}%` : `${row.original.rtp}%`) : 'N/A'),
     },
     {
       accessorKey: "status",
       header: "Status",
-      cell: ({ row }) => <span className={`px-2 py-1 text-xs rounded-full ${row.original.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{row.original.status || 'N/A'}</span>,
+      cell: ({ row }) => <span className={`px-2 py-1 text-xs rounded-full ${row.original.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-700/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-700/30 dark:text-red-300'}`}>{row.original.status || 'N/A'}</span>,
     },
     {
       id: "actions",
@@ -139,6 +135,7 @@ const GamesManagement = () => {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 10 } }, // Default page size
   });
 
   return (
@@ -166,7 +163,7 @@ const GamesManagement = () => {
                         </DialogDescription>
                     </DialogHeader>
                     <GameForm
-                        game={editingGame}
+                        game={editingGame} // Pass the Game object or null
                         onSubmit={handleFormSubmit}
                         onCancel={() => { setIsFormOpen(false); setEditingGame(null); }}
                         isEditing={!!editingGame}
@@ -186,18 +183,22 @@ const GamesManagement = () => {
             className="w-full"
             />
         </div>
-        {/* Add more specific column filters here if needed */}
       </div>
 
-      {isLoading && <p>Loading games...</p>}
-      {!isLoading && (
+      {isLoading && games.length === 0 && <p className="text-center py-4">Loading games...</p>}
+      {!isLoading && games.length === 0 && !globalFilter && (
+         <p className="text-center py-4 text-muted-foreground">No games found. Try adding some!</p>
+      )}
+      
         <div className="rounded-md border overflow-hidden">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map(headerGroup => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map(header => (
-                    <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
+                    <TableHead key={header.id} 
+                        className={header.column.getCanSort() ? 'cursor-pointer select-none' : ''}
+                        onClick={header.column.getToggleSortingHandler()}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                       {{
                         asc: ' ▲',
@@ -211,7 +212,7 @@ const GamesManagement = () => {
             <TableBody>
               {table.getRowModel().rows.length ? (
                 table.getRowModel().rows.map(row => (
-                  <TableRow key={row.id}>
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                     {row.getVisibleCells().map(cell => (
                       <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -222,14 +223,14 @@ const GamesManagement = () => {
               ) : (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="h-24 text-center">
-                    No games found.
+                    {globalFilter ? "No games match your search." : (isLoading ? "Loading..." : "No games found.")}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </div>
-      )}
+      
       <div className="flex items-center justify-between space-x-2 py-4">
         <Button
           variant="outline"
