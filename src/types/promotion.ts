@@ -37,6 +37,11 @@ export interface Promotion {
   claimInstructions?: string;
   maxRedemptions?: number; // Total times the promotion can be redeemed
   tags?: string[];
+
+  // Added to satisfy PromotionCard.tsx (read-only component)
+  link?: string;
+  startDate?: string | Date;
+  endDate?: string | Date;
 }
 
 export interface PromotionFilter {

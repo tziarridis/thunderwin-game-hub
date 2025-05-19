@@ -13,7 +13,7 @@ import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet'; // Will now use the updated Wallet type from wallet.ts
+import { Wallet } from '@/types/wallet';
 
 const AppHeader = () => {
   const location = useLocation();
@@ -22,7 +22,7 @@ const AppHeader = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
+  const [loadingWallet, setLoadingWallet] = useState<boolean>(false); // Keep loadingWallet state for other uses if any
 
   const isHomePage = location.pathname === '/';
 
@@ -33,7 +33,7 @@ const AppHeader = () => {
         try {
           const { data, error } = await supabase
             .from('wallets')
-            .select('balance, currency, vip_level, vip_points, symbol')
+            .select('balance, currency, vip_level, vip_points, symbol, id, user_id, bonus_balance, crypto_balance, demo_balance, is_active, last_transaction_date') // Fetch all required fields for Wallet type
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -41,24 +41,20 @@ const AppHeader = () => {
             console.error("Error fetching wallet:", error.message);
             setWallet(null);
           } else if (data) {
-            // Ensure all properties match the Wallet type from src/types/wallet.ts
-            // The Wallet type from src/types/wallet.ts requires id, userId, bonusBalance, cryptoBalance, demoBalance, isActive.
-            // The current select only gets some fields. This will lead to type errors if not careful.
-            // For now, focusing on vipPoints. A more complete wallet object might be needed.
-            // This minimal structure is for display in header, might need full Wallet type from service for UserMenu
-            const partialWallet: Pick<Wallet, 'balance' | 'currency' | 'symbol' | 'vipLevel' | 'vipPoints'> & { id?: string, userId?: string, bonusBalance?: number, cryptoBalance?: number, demoBalance?: number, isActive?: boolean } = {
+            setWallet({
+              id: data.id,
+              userId: data.user_id,
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-            };
-            // To satisfy the full Wallet type for setWallet, we'd need more fields or a different type for header display.
-            // For now, casting to Wallet to satisfy useState, acknowledging it's not a full Wallet object.
-            // This might be problematic if other parts expect a full Wallet object.
-            // A better approach would be a dedicated HeaderWallet type or fetching all required fields.
-            setWallet(partialWallet as Wallet);
-
+              bonusBalance: data.bonus_balance ?? 0,
+              cryptoBalance: data.crypto_balance ?? 0,
+              demoBalance: data.demo_balance ?? 0,
+              isActive: data.is_active ?? false,
+              lastTransactionDate: data.last_transaction_date,
+            });
           } else {
             setWallet(null);
           }
@@ -73,7 +69,9 @@ const AppHeader = () => {
       fetchWallet();
 
       const fetchNotificationsStatus = async () => {
-        const unreadCount = 0;
+        // Placeholder: Replace with actual logic to fetch unread notifications count
+        // Example: const { count } = await notificationsService.getUnreadCount(user.id);
+        const unreadCount = 0; // Assuming 0 for now
         setHasUnreadNotifications(unreadCount > 0);
       };
 
@@ -120,8 +118,8 @@ const AppHeader = () => {
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              {/* Removed wallet prop from UserMenu as it's not an expected prop by the read-only component */}
-              <UserMenu user={user} loadingWallet={loadingWallet} />
+              {/* Removed loadingWallet prop as it's not expected by UserMenu */}
+              <UserMenu user={user} />
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
@@ -142,7 +140,6 @@ const AppHeader = () => {
 
       {isMobileMenuOpen && (
         <div className="md:hidden">
-          {/* Pass wallet to MobileNavBar if it expects it and can handle Wallet | null */}
           <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
         </div>
       )}
