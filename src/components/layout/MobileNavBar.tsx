@@ -3,7 +3,6 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-// User type import not directly used, App's User type is from useAuth
 import { Home, UserCircle, LogOut, LogIn, UserPlus, Gift, Wallet as WalletIcon } from 'lucide-react'; // Renamed Wallet to WalletIcon
 import { WalletType } from '@/types'; // Import WalletType
 
@@ -44,7 +43,7 @@ const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose, wallet }) => {
                     <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/profile')}> {/* Changed from /wallet to /profile */}
                         <WalletIcon className="h-5 w-5 mb-0.5" />
                         <span className="text-xs">
-                          {wallet ? `${new Intl.NumberFormat(user.user_metadata.language || 'en-US', { style: 'currency', currency: wallet.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(wallet.balance || 0)}` : 'Wallet'}
+                          {wallet ? `${new Intl.NumberFormat(user.user_metadata?.language || 'en-US', { style: 'currency', currency: wallet.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(wallet.balance || 0)}` : 'Wallet'}
                         </span>
                     </Button>
                     <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/profile')}>

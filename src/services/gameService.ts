@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Game, DbGame, GameProvider, GameCategory } from '@/types'; // Ensure correct types are imported
 import { PostgrestResponse } from '@supabase/supabase-js';
@@ -23,7 +24,6 @@ const mapDbGameToGame = (dbGame: DbGame & { providers?: { name: string; slug: st
       features = (dbGame.features as unknown as string).split(',').map(s => s.trim()); // Fallback
     }
   }
-
 
   return {
     id: String(dbGame.id), // Ensure id is string
@@ -104,23 +104,13 @@ export const gameService = {
     
     let query = supabase
       .from('games')
-      .select('*, providers!inner(name, slug)', { count: 'exact' }) // Ensure providers is an inner join if games must have a provider
-      // The join on game_categories needs to be verified based on schema.
-      // If games.category_slugs is an array or games.game_type is used, direct join might not be needed or possible this way.
-      // For now, removing direct join on game_categories and will rely on game.category_slugs or game.game_type.
-      // .select('*, providers(name, slug), game_categories!left(name, slug)') // Left join for categories if game might not have one or relation is complex
+      .select('*, providers(name, slug)', { count: 'exact' }) 
 
     if (provider) {
-      // Assumes providers.slug exists and is filterable.
-      // If filtering on provider_slug which is on the games table directly:
-      // query = query.eq('provider_slug', provider); 
-      // If filtering on the joined providers table's slug:
       query = query.eq('providers.slug', provider);
     }
 
     if (category) {
-      // If category_slugs is an array column in 'games' table
-      // query = query.contains('category_slugs', [category]);
       // If game_type is a simple string column for category slug
       query = query.eq('game_type', category);
     }
@@ -132,7 +122,7 @@ export const gameService = {
       query = query.is('is_featured', true);
     }
     if (popular) {
-      query = query.is('is_popular', true); // or 'show_home'
+      query = query.is('is_popular', true); 
     }
     if (tag) {
         query = query.contains('tags', [tag]);
@@ -190,9 +180,9 @@ export const gameService = {
   // Fetch game providers
   async getGameProviders(): Promise<GameProvider[]> {
     const { data, error } = await supabase
-      .from('providers') // Assuming 'providers' is your table name
-      .select('id, name, slug, logo_url, status') // Use logo_url
-      .eq('status', 'active'); // Optionally filter by active status
+      .from('providers') 
+      .select('id, name, slug, logo_url, status') 
+      .eq('status', 'active'); 
 
     if (error) {
       console.error('Error fetching game providers:', error);
@@ -201,8 +191,8 @@ export const gameService = {
     return data ? data.map(p => ({
         id: p.id,
         name: p.name,
-        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'), // Ensure slug exists
-        logoUrl: p.logo_url || undefined, // Map logo_url
+        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'), 
+        logoUrl: p.logo_url || undefined, 
         status: p.status as GameProvider['status']
     })) : [];
   },
@@ -210,11 +200,10 @@ export const gameService = {
   // Fetch game categories
   async getGameCategories(): Promise<GameCategory[]> {
     const { data, error } = await supabase
-      .from('game_categories') // Assuming 'game_categories' is your table name
-      .select('id, name, slug, icon, image, order') // Ensure correct fields
-      .eq('status', 'active') // Optionally filter
+      .from('game_categories') 
+      .select('id, name, slug, icon, image, order') 
+      .eq('status', 'active') 
       .order('order', { ascending: true });
-
 
     if (error) {
       console.error('Error fetching game categories:', error);
@@ -227,7 +216,38 @@ export const gameService = {
         icon: c.icon || undefined,
         image: c.image || undefined,
         order: c.order || 0,
-        // game_count can be derived or fetched if needed
     })) : [];
   },
+  
+  // Add createGame and updateGame methods
+  async createGame(gameData: Partial<DbGame>): Promise<Game | null> {
+    const { data, error } = await supabase
+      .from('games')
+      .insert(gameData)
+      .select('*, providers(name, slug)')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error creating game:', error);
+      throw error;
+    }
+    
+    return data ? mapDbGameToGame(data) : null;
+  },
+  
+  async updateGame(id: string, gameData: Partial<DbGame>): Promise<Game | null> {
+    const { data, error } = await supabase
+      .from('games')
+      .update(gameData)
+      .eq('id', id)
+      .select('*, providers(name, slug)')
+      .maybeSingle();
+      
+    if (error) {
+      console.error('Error updating game:', error);
+      throw error;
+    }
+    
+    return data ? mapDbGameToGame(data) : null;
+  }
 };

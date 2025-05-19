@@ -1,11 +1,11 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
-import { Game, GameLaunchOptions, GameCategory, GameProvider } from '@/types'; // Ensure all types are imported
-import { gameService } from '@/services/gameService'; 
-import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService'; // Assuming this service path is correct
-import { supabase } from '@/integrations/supabase/client'; 
+import { Game, GameLaunchOptions, GameCategory, GameProvider } from '@/types';
+import { gameService } from '@/services/gameService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext'; 
-import gameProviderService from '@/services/gameProviderService'; // Import the new service
+import { useAuth } from '@/contexts/AuthContext';
+import gameProviderService from '@/services/gameProviderService'; // Assuming this exists
 
 const getGameIdString = (gameId: string | number | undefined): string => {
   if (gameId === undefined) return '';
@@ -16,17 +16,14 @@ interface GamesContextType {
   games: Game[];
   isLoading: boolean;
   error: Error | null;
-  categories: GameCategory[]; // Typed categories
-  providers: GameProvider[];   // Typed providers
-  fetchGamesAndProviders: (filter?: any) => Promise<void>; // Renamed for clarity
+  categories: GameCategory[];
+  providers: GameProvider[];
+  fetchGamesAndProviders: (filter?: any) => Promise<void>;
   getGameById: (id: string) => Promise<Game | null>;
   getGameBySlug: (slug: string) => Promise<Game | null>;
   favoriteGameIds: Set<string>;
   toggleFavoriteGame: (gameId: string) => Promise<void>;
   launchGame: (game: Game, options: Omit<GameLaunchOptions, 'user_id' | 'username' | 'currency' | 'language'> & Partial<Pick<GameLaunchOptions, 'user_id' | 'username' | 'currency' | 'language'>>) => Promise<string | null>;
-  // fetchGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>; // This seems redundant if launchGame uses gameProviderService
-  
-  // For Slots.tsx and potentially other filtered views
   filteredGames: Game[];
   filterGames: (searchTerm?: string, categorySlug?: string, providerSlug?: string) => void;
 }
@@ -34,7 +31,7 @@ interface GamesContextType {
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
 export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [allGames, setAllGames] = useState<Game[]>([]); // Store all fetched games
+  const [allGames, setAllGames] = useState<Game[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   
@@ -48,7 +45,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [currentSearchTerm, setCurrentSearchTerm] = useState<string | undefined>();
   const [currentCategorySlug, setCurrentCategorySlug] = useState<string | undefined>();
   const [currentProviderSlug, setCurrentProviderSlug] = useState<string | undefined>();
-
 
   const fetchGamesAndProviders = useCallback(async (filter?: any) => {
     setIsLoading(true);
@@ -66,8 +62,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
               id: slug, 
               slug: slug, 
               name: game.categoryName || slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-              // game_count: 0, // Initialize, can be aggregated later if needed
-              // order: 0, // Added default order
             });
           }
         });
@@ -75,30 +69,19 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Sort categories if order is available, or by name
       const sortedCategories = Array.from(uniqueCategoriesMap.values()).sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.name.localeCompare(b.name));
       setCategories(sortedCategories);
-      
-      const dbProvidersData = await supabase.from('providers').select('id, name, slug, logo_url, status').eq('status', 'active');
-      if (dbProvidersData.data) {
-          setProviders(dbProvidersData.data.map(p => ({
-              id: p.id,
-              name: p.name,
-              slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
-              logoUrl: p.logo_url || undefined,
-              status: p.status as GameProvider['status'],
-              // game_count: 0 // Initialize
-          })).sort((a,b) => a.name.localeCompare(b.name)));
-      } else {
-        // Fallback if fetching from DB fails (less ideal)
-        const uniqueProvidersMap = new Map<string, GameProvider>();
-        fetchedGames.forEach(game => {
-          if (game.provider_slug && !uniqueProvidersMap.has(game.provider_slug)) {
-            uniqueProvidersMap.set(game.provider_slug, {
-              id: game.provider_id || game.provider_slug,
-              slug: game.provider_slug,
-              name: game.providerName || game.provider_slug,
-            });
-          }
-        });
-        setProviders(Array.from(uniqueProvidersMap.values()).sort((a,b) => a.name.localeCompare(b.name)));
+
+      try {
+        // Try to get providers from database using the service
+        const dbProvidersData = await gameService.getGameProviders();
+        if (dbProvidersData && dbProvidersData.length > 0) {
+          setProviders(dbProvidersData.sort((a, b) => a.name.localeCompare(b.name)));
+        } else {
+          // Fallback to collecting from games if no providers from service
+          fallbackProviders();
+        }
+      } catch (err) {
+        console.error("Error fetching providers from service:", err);
+        fallbackProviders();
       }
 
     } catch (err: any) {
@@ -108,6 +91,21 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setIsLoading(false);
     }
   }, []);
+
+  // Fallback method to collect providers from games if DB fetch fails
+  const fallbackProviders = () => {
+    const uniqueProvidersMap = new Map<string, GameProvider>();
+    allGames.forEach(game => {
+      if (game.provider_slug && !uniqueProvidersMap.has(game.provider_slug)) {
+        uniqueProvidersMap.set(game.provider_slug, {
+          id: game.provider_id || game.provider_slug,
+          slug: game.provider_slug,
+          name: game.providerName || game.provider_slug,
+        });
+      }
+    });
+    setProviders(Array.from(uniqueProvidersMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+  };
 
   const fetchFavorites = useCallback(async () => {
     if (!user?.id) {
@@ -127,7 +125,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [user?.id]);
 
-
   useEffect(() => {
     fetchGamesAndProviders(); 
     if (isAuthenticated) {
@@ -144,7 +141,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setFavoriteGameIds(new Set());
     }
   }, [user?.id, isAuthenticated, fetchFavorites]);
-
 
   const getGameById = async (id: string): Promise<Game | null> => {
     const localGame = allGames.find(g => getGameIdString(g.id) === id || getGameIdString(g.game_id) === id || getGameIdString(g.game_code) === id);
@@ -218,8 +214,9 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return null;
     }
 
+    // Create full options with defaults from user data
     const fullOptions: GameLaunchOptions = {
-      ...options,
+      mode: options.mode, // Required
       user_id: options.mode === 'real' && user ? user.id : undefined,
       username: options.mode === 'real' && user ? (user.user_metadata?.username || user.email?.split('@')[0]) : 'demo_player',
       currency: options.mode === 'real' && user ? (user.user_metadata?.currency || 'USD') : (options.currency || 'USD'),
@@ -235,6 +232,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     try {
       const providerIdentifier = game.provider_slug || String(game.provider_id);
 
+      // Assuming gameProviderService.getLaunchUrl exists and takes these parameters
       const url = await gameProviderService.getLaunchUrl({
         gameId: game.game_id,
         providerId: providerIdentifier,
@@ -247,7 +245,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return null;
     }
   };
-
 
   const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
     setCurrentSearchTerm(searchTerm);
@@ -272,7 +269,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
     return gamesToFilter;
   }, [allGames, currentSearchTerm, currentCategorySlug, currentProviderSlug]);
-
 
   return (
     <GamesContext.Provider value={{ 

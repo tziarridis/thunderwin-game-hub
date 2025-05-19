@@ -1,136 +1,145 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, Moon, Sun, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import SiteLogo from '@/components/SiteLogo';
+import { useTheme } from '@/contexts/ThemeContext';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import MobileNavMenu from './MobileNavMenu';
-import UserMenu from '@/components/user/UserMenu';
-import { Wallet, LogIn, UserPlus, Menu, X } from 'lucide-react';
-import { useIsMobile } from '@/hooks/use-mobile';
+import NavLinks from './NavLinks'; 
+import MobileNavBar from './MobileNavBar';
+import DepositButton from '@/components/user/DepositButton';
+import UserMenu from '@/components/layout/UserMenu';
+import SiteLogo from '@/components/SiteLogo';
+import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
 import { WalletType } from '@/types';
 
-
 const AppHeader = () => {
-  const { user, isAuthenticated, loading, logout } = useAuth();
-  const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const { user, isAuthenticated } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isMobile = useIsMobile();
-  const navigate = useNavigate();
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<WalletType | null>(null);
+  const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-  
+  const isHomePage = location.pathname === '/';
+
   useEffect(() => {
     if (isAuthenticated && user) {
       const fetchWallet = async () => {
-        const { data, error } = await supabase
-          .from('wallets')
-          .select('balance, currency, vip_level, vip_points') // Fetched vip_level and vip_points
-          .eq('user_id', user.id)
-          .maybeSingle();
+        setLoadingWallet(true);
+        try {
+          const { data, error } = await supabase
+            .from('wallets')
+            .select('balance, currency, vip_level, vip_points')
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-        if (error) {
-          console.error("Error fetching wallet:", error);
-          // Check if it's a "column does not exist" error specifically for vip_level or vip_points
-          if (error.message.includes("column \"vip_level\" does not exist") || error.message.includes("column \"vip_points\" does not exist")) {
-            // Try fetching without them if they don't exist, or log a more specific warning
-            console.warn("Attempting to fetch wallet without vip_level/vip_points due to schema mismatch.");
-            const { data: basicData, error: basicError } = await supabase
-              .from('wallets')
-              .select('balance, currency')
-              .eq('user_id', user.id)
-              .maybeSingle();
-            if(basicError) console.error("Error fetching basic wallet info:", basicError);
-            else if (basicData) setWallet(basicData as WalletType); // vipLevel and vipPoints will be undefined
+          if (error) {
+            console.error("Error fetching wallet:", error);
+            setWallet(null);
+          } else if (data) {
+            setWallet({
+              balance: data.balance,
+              currency: data.currency || 'USD',
+              vipLevel: data.vip_level,
+              vipPoints: data.vip_points,
+            });
           }
-        } else if (data) {
-          // Map vip_level to vipLevel and vip_points to vipPoints
-          setWallet({
-            balance: data.balance,
-            currency: data.currency,
-            vipLevel: data.vip_level,
-            vipPoints: data.vip_points,
-          } as WalletType);
+        } catch (err) {
+          console.error("Error in wallet fetch:", err);
+          setWallet(null);
+        } finally {
+          setLoadingWallet(false);
         }
       };
+
       fetchWallet();
+
+      // Also fetch notifications status (simplified for example)
+      const fetchNotificationsStatus = async () => {
+        // This would be replaced with actual notifications query
+        setHasUnreadNotifications(Math.random() > 0.5); // Random for demo
+      };
+
+      fetchNotificationsStatus();
     } else {
       setWallet(null);
+      setHasUnreadNotifications(false);
     }
   }, [isAuthenticated, user]);
 
-
-  const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/'); // Redirect to home after logout
-  }
-
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
 
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 
-                  ${isScrolled || isMobileMenuOpen ? 'bg-casino-thunder-dark/95 backdrop-blur-md shadow-lg' : 'bg-transparent'}`}
-    >
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <SiteLogo className="h-8 md:h-10" />
+    <header className={cn(
+      "sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+      isHomePage ? "bg-transparent border-transparent" : ""
+    )}>
+      <div className="container flex h-16 max-w-screen-2xl items-center">
+        {/* Logo and Main Navigation */}
+        <div className="flex flex-1 items-center justify-start">
+          <Link to="/" className="flex items-center space-x-2">
+            <SiteLogo className="h-8 w-auto" />
+          </Link>
+          <div className="hidden md:flex md:items-center md:ml-6 space-x-1">
+            <NavLinks />
+          </div>
+        </div>
 
-        {!isMobile && (
-          <nav className="hidden md:flex items-center space-x-3 lg:space-x-4">
-            <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/">Home</Link></Button>
-            <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/casino">Casino</Link></Button>
-            <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/live-casino">Live Casino</Link></Button>
-            <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/promotions">Promotions</Link></Button>
-          </nav>
-        )}
-
-        <div className="flex items-center space-x-2 md:space-x-3">
-          {loading ? (
-            <div className="h-8 w-20 bg-gray-700 animate-pulse rounded-md"></div>
-          ) : isAuthenticated && user ? (
+        {/* Right Side: Theme Toggle, Notifications, User Menu */}
+        <div className="flex items-center space-x-2">
+          {/* Theme Toggle */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={toggleTheme}
+            className="hidden sm:flex"
+          >
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+          
+          {/* Authenticated User: Deposit Button, Notifications, User Menu */}
+          {isAuthenticated ? (
             <>
-              {wallet && !isMobile && (
-                 <Button variant="ghost" onClick={() => navigate('/profile')} className="text-sm hidden sm:flex"> {/* Updated to navigate to /profile (user dashboard) */}
-                    <Wallet className="mr-2 h-4 w-4 text-primary" /> 
-                    {new Intl.NumberFormat(user.user_metadata.language || 'en-US', { style: 'currency', currency: wallet.currency || 'USD' }).format(wallet.balance || 0)}
-                    {wallet.vipLevel !== undefined && <span className="ml-2 text-xs text-amber-400">(VIP {wallet.vipLevel})</span>}
-                 </Button>
-              )}
-              <UserMenu user={user} onLogout={handleLogout} />
+              {/* Deposit Button (hide on small screens) */}
+              <div className="hidden md:block">
+                <DepositButton />
+              </div>
+              
+              {/* Notifications */}
+              <NotificationsDropdown hasUnread={hasUnreadNotifications} />
+              
+              {/* User Menu */}
+              <UserMenu user={user} wallet={wallet} loadingWallet={loadingWallet} />
             </>
           ) : (
-            <>
-              <Button variant="outline" size={isMobile ? "sm" : "default"} onClick={() => navigate('/login')} className="border-primary text-primary hover:bg-primary/10">
-                <LogIn className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Login</span>
+            <div className="hidden md:flex items-center space-x-2">
+              <Button variant="ghost" asChild>
+                <Link to="/login">Log In</Link>
               </Button>
-              <Button size={isMobile ? "sm" : "default"} onClick={() => navigate('/register')} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                 <UserPlus className="mr-0 sm:mr-2 h-4 w-4" /> <span className="hidden sm:inline">Register</span>
+              <Button asChild>
+                <Link to="/register">Sign Up</Link>
               </Button>
-            </>
+            </div>
           )}
-          {isMobile && (
-            <Button variant="ghost" size="icon" onClick={toggleMobileMenu} className="text-white md:hidden">
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
-          )}
+          
+          {/* Mobile Menu Toggle */}
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenu}>
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
         </div>
       </div>
 
-      {isMobile && (
-        <MobileNavMenu 
-          isOpen={isMobileMenuOpen} 
-          setIsOpen={setIsMobileMenuOpen}
-          wallet={wallet} // Pass wallet to MobileNavMenu
-        />
+      {/* Mobile Navigation Bar */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden">
+          <MobileNavBar onClose={toggleMobileMenu} wallet={wallet} />
+        </div>
       )}
     </header>
   );
