@@ -1,47 +1,60 @@
-
 // This file might have been named promotion.d.ts previously. Ensuring content matches.
 export interface Promotion {
   id: string;
   title: string;
   description: string;
-  // 'type' was the original field, 'promotionType' appears in errors from read-only components.
-  // Including both for now, or decide which one is canonical. Let's use 'type' as primary.
-  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament_prize' | 'welcome_bonus' | 'reload_bonus' | 'loyalty_reward' | string; // Allow string for flexibility if new types come from API
-  promotionType?: string; // Add field from error if it's distinct or used by components
+  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament_prize' | 'welcome_bonus' | 'reload_bonus' | 'loyalty_reward' | 'deposit_match' | 'tournament' | 'no_deposit_bonus' | string; // Allow string for flexibility
+  promotionType?: string; 
   
-  value?: number; // e.g., bonus percentage or number of spins
-  bonusPercentage?: number; // Added from error
-  freeSpinsCount?: number; // Added from error
+  value?: number; 
+  bonusPercentage?: number; 
+  freeSpinsCount?: number;
 
-  currency?: string; // For monetary values
+  currency?: string; 
   wageringRequirement?: number;
   minDeposit?: number;
   maxBonusAmount?: number;
   
-  validFrom: string | Date;
-  validUntil: string | Date;
+  validFrom: string | Date; // Matched to mock data (start_date) via startDate
+  validUntil: string | Date | null; // Matched to mock data (end_date) via endDate, allow null
   
-  games?: string[]; // Applicable games (IDs or slugs)
-  code?: string; // Promo code
+  games?: string[]; 
+  code?: string; 
   
-  isActive: boolean;
-  status?: 'active' | 'inactive' | 'expired' | 'upcoming' | string; // Added from error, allow string
+  isActive: boolean; // This should be derived or set based on 'status' or fetched data
+  status?: 'active' | 'inactive' | 'expired' | 'upcoming' | string; 
   
-  usageLimitPerUser?: number; // Added from error
-  category?: string; // Added from error, e.g., 'sports', 'casino', 'live-casino'
+  usageLimitPerUser?: number; 
+  category?: string; 
   
-  // Optional: For more complex promotions
-  termsAndConditions?: string;
-  imageUrl?: string;
-  targetAudience?: 'new_users' | 'existing_users' | 'vip_only' | 'all';
+  termsAndConditions?: string; // Matched to mock data (terms_and_conditions)
+  imageUrl?: string; // Matched to mock data (image_url)
+  targetAudience?: 'new_users' | 'existing_users' | 'vip_only' | 'all' | string; // 'eligibility.type'
   claimInstructions?: string;
-  maxRedemptions?: number; // Total times the promotion can be redeemed
+  maxRedemptions?: number; 
   tags?: string[];
 
-  // Added to satisfy PromotionCard.tsx (read-only component)
   link?: string;
-  startDate?: string | Date;
-  endDate?: string | Date;
+  startDate?: string | Date; // Corresponds to mock's start_date
+  endDate?: string | Date | null; // Corresponds to mock's end_date, allow null
+
+  // Fields from mock data that were not directly in Promotion type
+  cta_text?: string; // From mock
+  eligibility?: { 
+    type: string;
+    min_deposit?: number;
+    min_vip_level?: string;
+    [key: string]: any; 
+  }; // From mock
+  bonus_details?: { 
+    percentage?: number;
+    max_amount?: number;
+    currency?: string;
+    free_spins_count?: number;
+    game_slug?: string;
+    prize_pool?: number;
+    [key: string]: any; 
+  }; // From mock
 }
 
 export interface PromotionFilter {

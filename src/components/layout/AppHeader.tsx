@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -18,7 +17,7 @@ import { Wallet } from '@/types/wallet';
 const AppHeader = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, isAuthenticated, logout } = useAuth(); // Added logout
+  const { user, isAuthenticated, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -31,20 +30,15 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
-          // Adjusted select query to remove potentially non-existent columns based on error
-          // "column 'bonus_balance' does not exist on 'wallets'"
-          // We will rely on the `?? 0` or `|| default` in the mapping below
-          // to handle fields if they are not returned or if the `Wallet` type expects them.
+          // Corrected 'is_active' to 'active' in the select query
           const { data, error } = await supabase
             .from('wallets')
-            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, is_active, last_transaction_date')
+            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, last_transaction_date') // Use 'active'
             .eq('user_id', user.id)
             .maybeSingle();
 
           if (error) {
             console.error("Error fetching wallet:", error.message);
-            // Check if the error object itself is being assigned to data
-            // and ensure data is null if there's an error.
             setWallet(null);
           } else if (data) {
             setWallet({
@@ -55,11 +49,10 @@ const AppHeader = () => {
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-              // Assuming these might not be in the DB based on previous errors, default to 0
-              bonusBalance: (data as any).bonus_balance ?? 0,
-              cryptoBalance: (data as any).crypto_balance ?? 0,
-              demoBalance: (data as any).demo_balance ?? 0,
-              isActive: data.is_active ?? false,
+              bonusBalance: (data as any).bonus_balance ?? 0, // Keep as is if not in direct select
+              cryptoBalance: (data as any).crypto_balance ?? 0, // Keep as is
+              demoBalance: (data as any).demo_balance ?? 0, // Keep as is
+              isActive: data.active ?? false, // Map data.active to isActive
               lastTransactionDate: data.last_transaction_date,
             });
           } else {
@@ -76,7 +69,6 @@ const AppHeader = () => {
       fetchWallet();
 
       const fetchNotificationsStatus = async () => {
-        // Placeholder: Replace with actual logic to fetch unread notifications count
         const unreadCount = 0; 
         setHasUnreadNotifications(unreadCount > 0);
       };
@@ -93,6 +85,7 @@ const AppHeader = () => {
   };
 
   return (
+    
     <header className={cn(
       "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
       isHomePage ? "bg-transparent border-transparent" : ""
@@ -118,13 +111,13 @@ const AppHeader = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          {isAuthenticated && user ? ( // Ensure user is also checked
+          {isAuthenticated && user ? ( 
             <>
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              <UserMenu user={user} onLogout={logout} /> {/* Added onLogout prop */}
+              <UserMenu user={user} onLogout={logout} />
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
@@ -145,7 +138,6 @@ const AppHeader = () => {
 
       {isMobileMenuOpen && (
         <div className="md:hidden">
-          {/* Pass wallet to MobileNavBar, it handles null */}
           <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
         </div>
       )}
