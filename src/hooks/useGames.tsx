@@ -1,53 +1,11 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
-import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame, User } from '@/types';
-import { gameService } from '@/services/gameService'; 
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types'; // Removed User as it's from useAuth
+import { gameService, mapDbGameToGame } from '@/services/gameService'; 
 import { toast } from 'sonner';
-import { Session } from '@supabase/supabase-js';
-import { useAuth } from '@/contexts/AuthContext';
+// import { Session } from '@supabase/supabase-js'; // Not directly used here for session logic
+import { useAuth } from '@/contexts/AuthContext'; // For user ID
 
-// Helper to map DbGame to Game, can be more sophisticated
-const mapDbGameToGame = (dbGame: DbGame): Game => {
-  return {
-    id: dbGame.id,
-    slug: dbGame.slug,
-    title: dbGame.title || 'Unknown Title',
-    provider: dbGame.provider_slug || dbGame.provider_id?.toString() || 'unknown-provider',
-    category: Array.isArray(dbGame.category_slugs) ? (dbGame.category_slugs[0] || 'unknown-category') : (dbGame.category_slugs || 'unknown-category'),
-    image: dbGame.cover || dbGame.image_url || '/placeholder.svg', 
-    game_id: dbGame.game_id,
-    name: dbGame.title, 
-    providerName: dbGame.provider_name, 
-    categoryName: dbGame.category_names ? (Array.isArray(dbGame.category_names) ? dbGame.category_names.join(', ') : dbGame.category_names) : undefined,
-    category_slugs: dbGame.category_slugs,
-    description: dbGame.description,
-    rtp: dbGame.rtp,
-    volatility: dbGame.volatility,
-    minBet: dbGame.min_bet,
-    maxBet: dbGame.max_bet,
-    isNew: dbGame.is_new,
-    isPopular: dbGame.is_popular,
-    is_featured: dbGame.is_featured,
-    show_home: dbGame.show_home,
-    tags: dbGame.tags,
-    jackpot: dbGame.jackpot_amount ? true : undefined, // Example logic for jackpot
-    releaseDate: dbGame.release_date,
-    release_date: dbGame.release_date,
-    views: dbGame.views,
-    created_at: dbGame.created_at,
-    updated_at: dbGame.updated_at,
-    provider_id: dbGame.provider_id,
-    provider_slug: dbGame.provider_slug,
-    features: dbGame.features,
-    themes: dbGame.themes,
-    lines: dbGame.lines,
-    cover: dbGame.cover,
-    banner: dbGame.banner,
-    image_url: dbGame.image_url,
-    status: dbGame.status,
-    game_code: dbGame.game_code,
-    isFavorite: false, // Default, will be updated by favorite logic
-  };
-};
+// Helper mapDbGameToGame is now imported from gameService
 
 
 interface GamesContextType {
@@ -58,13 +16,13 @@ interface GamesContextType {
   isLoading: boolean;
   error: string | null;
   fetchGamesAndProviders: () => Promise<void>;
-  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string, tags?: string[]) => void; // Added tags
+  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string, tags?: string[]) => void;
   launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   getGameById: (id: string) => Promise<Game | null>;
-  getGameBySlug: (slug: string) => Promise<Game | null>; // Added
-  getRelatedGames: (categorySlug: string | undefined, currentGameId: string | number | undefined, limit?: number) => Promise<Game[]>; // Added
-  getFavoriteGames: () => Promise<Game[]>;
-  loading: boolean;
+  getGameBySlug: (slug: string) => Promise<Game | null>;
+  getRelatedGames: (categorySlug: string | undefined, currentGameId: string | number | undefined, limit?: number) => Promise<Game[]>;
+  getFavoriteGames: () => Promise<Game[]>; // Returns Game[] now
+  loading: boolean; // alias for isLoading
   favoriteGameIds: Set<string>;
   toggleFavoriteGame: (gameId: string) => Promise<void>;
   incrementGameView: (gameId: string) => Promise<void>;
@@ -80,20 +38,20 @@ const GamesContext = createContext<GamesContextType>({
   categories: [],
   isLoading: true,
   error: null,
-  fetchGamesAndProviders: () => Promise.resolve(),
+  fetchGamesAndProviders: async () => {},
   filterGames: () => {},
-  launchGame: () => Promise.resolve(null),
-  getGameById: () => Promise.resolve(null),
-  getGameBySlug: () => Promise.resolve(null), // Added
-  getRelatedGames: () => Promise.resolve([]), // Added
-  getFavoriteGames: () => Promise.resolve([]),
-  loading: false,
+  launchGame: async () => null,
+  getGameById: async () => null,
+  getGameBySlug: async () => null,
+  getRelatedGames: async () => [],
+  getFavoriteGames: async () => [],
+  loading: true,
   favoriteGameIds: new Set(),
-  toggleFavoriteGame: () => Promise.resolve(),
-  incrementGameView: () => Promise.resolve(),
-  addGame: () => Promise.resolve(null),
-  updateGame: () => Promise.resolve(null),
-  deleteGame: () => Promise.resolve(false),
+  toggleFavoriteGame: async () => {},
+  incrementGameView: async () => {},
+  addGame: async () => null,
+  updateGame: async () => null,
+  deleteGame: async () => false,
 });
 
 export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
@@ -104,7 +62,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
-  const { user, session } = useAuth();
+  const { user } = useAuth(); // Get user for favorites
 
   const fetchGamesAndProviders = useCallback(async () => {
     setIsLoading(true);
@@ -117,9 +75,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       ]);
 
       if (gamesResponse.success && providersResponse.success && categoriesResponse.success) {
-        const fetchedGames = gamesResponse.data.map(mapDbGameToGame);
+        const fetchedGames = gamesResponse.data.map(mapDbGameToGame); // Use imported mapper
         setGames(fetchedGames);
-        setFilteredGames(fetchedGames); // Initialize filteredGames with all games
+        setFilteredGames(fetchedGames);
         setProviders(providersResponse.data);
         setCategories(categoriesResponse.data);
       } else {
@@ -175,17 +133,16 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   }, [games]);
   
   const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    setIsLoading(true);
+    setIsLoading(true); // Consider if this loading state is needed or if page handles its own
     setError(null);
     try {
-      // Ensure game_id and provider_slug are present for gameService.createSession
       if (!game.game_id || !game.provider_slug) {
         const errorMsg = "Game ID or provider slug is missing for launching the game.";
         setError(errorMsg);
         toast.error(errorMsg);
         return null;
       }
-      const response = await gameService.createSession(game.game_id, game.provider_slug, options); // Use game_id and provider_slug
+      const response = await gameService.createSession(game.game_id, game.provider_slug, options);
       if (response.success && response.data?.launch_url) {
         return response.data.launch_url;
       } else {
@@ -201,64 +158,60 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       toast.error(errorMessage);
       return null;
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Reset loading state
     }
   }, []);
 
   const getGameById = useCallback(async (id: string): Promise<Game | null> => {
-    setIsLoading(true);
+    // setIsLoading(true); // Consider implications of global loading state here
     setError(null);
     try {
       const response = await gameService.getGameById(id);
       if (response.success && response.data) {
-        return mapDbGameToGame(response.data);
+        return mapDbGameToGame(response.data); // Use imported mapper
       } else {
-        setError(response.error || 'Game not found');
-        // toast.error(response.error || 'Game not found'); // Avoid toast if game not found is a common case
+        // setError(response.error || 'Game not found'); // Avoid setting global error for not found
         return null;
       }
     } catch (err: any) {
       console.error("Error getting game by ID:", err);
       const errorMessage = err.message || 'An unexpected error occurred';
-      setError(errorMessage);
+      // setError(errorMessage); // Avoid setting global error
       toast.error(errorMessage);
       return null;
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   }, []);
   
   const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
-    setIsLoading(true);
+    // setIsLoading(true);
     setError(null);
     try {
-      console.log(`Fetching game by slug: ${slug}`);
-      // Assuming gameService has a method getGameBySlug
+      console.log(`useGames: fetching game by slug: ${slug}`);
       const response = await gameService.getGameBySlug(slug);
       if (response.success && response.data) {
-        return mapDbGameToGame(response.data);
+        console.log(`useGames: found game by slug: ${slug}`, response.data);
+        return mapDbGameToGame(response.data); // Use imported mapper
       } else {
-        console.warn(`Game with slug "${slug}" not found or error: ${response.error}`);
-        // setError(response.error || 'Game not found'); // Avoid toast for not found
+        console.warn(`useGames: Game with slug "${slug}" not found or error: ${response.error}`);
         return null;
       }
     } catch (err: any) {
       console.error(`Error getting game by slug ${slug}:`, err);
       const errorMessage = err.message || 'An unexpected error occurred';
-      setError(errorMessage);
+      // setError(errorMessage);
       toast.error(errorMessage);
       return null;
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
   }, []);
 
   const getRelatedGames = useCallback(async (categorySlug: string | undefined, currentGameId: string | number | undefined, limit: number = 5): Promise<Game[]> => {
-    // setIsLoading(true); // Potentially skip loading state for related games for smoother UX
     try {
       if (!categorySlug) return [];
-      // This is a simplified client-side filter.
-      // For production, this should ideally be an API call: gameService.getRelatedGames(categorySlug, currentGameId, limit)
+      // Client-side filter for related games. Could be an API call for better performance.
       const related = games
         .filter(game => 
           ((Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug)) || game.category === categorySlug) &&
@@ -270,62 +223,60 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Error getting related games:", err);
       toast.error(err.message || 'Failed to load related games.');
       return [];
-    } finally {
-      // setIsLoading(false);
     }
   }, [games]);
 
   const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
-    setIsLoading(true);
+    // setIsLoading(true); // Consider loading state management
     setError(null);
     try {
-      if (!user || !session) {
-        return [];
+      if (!user) { // Check for user from useAuth()
+        // toast.info("Log in to see your favorite games."); // Optional: inform user
+        return []; // Not logged in, no favorites to fetch
       }
-      const response = await gameService.getFavoriteGames(user.id);
+      const response = await gameService.getFavoriteGames(user.id); // Use user.id
       if (response.success && response.data) {
-        return response.data.map(mapDbGameToGame);
+        return response.data.map(mapDbGameToGame); // Use imported mapper
       } else {
-        setError(response.error || 'Failed to fetch favorite games');
+        // setError(response.error || 'Failed to fetch favorite games');
         toast.error(response.error || 'Failed to fetch favorite games');
         return [];
       }
     } catch (err: any) {
       console.error("Error fetching favorite games:", err);
       const errorMessage = err.message || 'An unexpected error occurred';
-      setError(errorMessage);
+      // setError(errorMessage);
       toast.error(errorMessage);
       return [];
     } finally {
-      setIsLoading(false);
+      // setIsLoading(false);
     }
-  }, [user, session]);
+  }, [user]); // Depend on user from useAuth
 
   useEffect(() => {
-    if (user && session) {
+    if (user) { // If user is logged in
       getFavoriteGames().then(favoriteGamesFromDb => {
         const favIds = new Set(favoriteGamesFromDb.map(game => game.id as string));
         setFavoriteGameIds(favIds);
-        // Update the 'isFavorite' status in the main games list
+        // Update isFavorite status in main games list
         setGames(prevGames => prevGames.map(g => ({ ...g, isFavorite: favIds.has(g.id as string) })));
-        setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => ({ ...g, isFavorite: favIds.has(g.id as string) })));
+        setFilteredGames(prevFiltered => prevFiltered.map(g => ({ ...g, isFavorite: favIds.has(g.id as string) })));
 
       });
-    } else {
+    } else { // User logged out
       setFavoriteGameIds(new Set());
        setGames(prevGames => prevGames.map(g => ({ ...g, isFavorite: false })));
-       setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => ({ ...g, isFavorite: false })));
+       setFilteredGames(prevFiltered => prevFiltered.map(g => ({ ...g, isFavorite: false })));
     }
-  }, [user, session, getFavoriteGames]);
+  }, [user, getFavoriteGames]); // Rerun when user changes
 
   const toggleFavoriteGame = useCallback(async (gameId: string): Promise<void> => {
-    if (!user || !session) {
+    if (!user) { // Check for user
       toast.info("Please log in to save favorite games.");
       return;
     }
 
     const isCurrentlyFavorite = favoriteGameIds.has(gameId);
-    // Optimistic update
     const newFavoriteGameIds = new Set(favoriteGameIds);
     if (isCurrentlyFavorite) {
       newFavoriteGameIds.delete(gameId);
@@ -334,88 +285,73 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     }
     setFavoriteGameIds(newFavoriteGameIds);
     
-    // Update game lists optimistically
+    // Optimistic UI update for game lists
     const updateFavStatus = (g: Game) => g.id === gameId ? { ...g, isFavorite: !isCurrentlyFavorite } : g;
     setGames(prevGames => prevGames.map(updateFavStatus));
     setFilteredGames(prevFilteredGames => prevFilteredGames.map(updateFavStatus));
 
-
     try {
-      const response = await gameService.toggleFavoriteGame(user.id, gameId, !isCurrentlyFavorite);
+      const response = await gameService.toggleFavoriteGame(user.id, gameId, !isCurrentlyFavorite); // Pass user.id
       if (response.success) {
         toast.success(!isCurrentlyFavorite ? "Added to favorites!" : "Removed from favorites!");
-        // State already updated optimistically
       } else {
         // Revert optimistic update on failure
-        const revertedFavoriteGameIds = new Set(favoriteGameIds);
-        if (isCurrentlyFavorite) {
-          revertedFavoriteGameIds.add(gameId);
-        } else {
-          revertedFavoriteGameIds.delete(gameId);
-        }
-        setFavoriteGameIds(revertedFavoriteGameIds);
+        setFavoriteGameIds(favoriteGameIds); // Revert to old set
         const revertFavStatus = (g: Game) => g.id === gameId ? { ...g, isFavorite: isCurrentlyFavorite } : g;
         setGames(prevGames => prevGames.map(revertFavStatus));
         setFilteredGames(prevFilteredGames => prevFilteredGames.map(revertFavStatus));
         toast.error(response.error || "Failed to update favorite status.");
       }
     } catch (error: any) {
-      // Revert optimistic update on error
-      const revertedFavoriteGameIds = new Set(favoriteGameIds);
-      if (isCurrentlyFavorite) {
-        revertedFavoriteGameIds.add(gameId);
-      } else {
-        revertedFavoriteGameIds.delete(gameId);
-      }
-      setFavoriteGameIds(revertedFavoriteGameIds);
+      // Revert on error
+      setFavoriteGameIds(favoriteGameIds);
       const revertFavStatusOnError = (g: Game) => g.id === gameId ? { ...g, isFavorite: isCurrentlyFavorite } : g;
       setGames(prevGames => prevGames.map(revertFavStatusOnError));
       setFilteredGames(prevFilteredGames => prevFilteredGames.map(revertFavStatusOnError));
-
       console.error("Error toggling favorite game:", error);
       toast.error(error.message || "An unexpected error occurred.");
     }
-  }, [favoriteGameIds, user, session, games, filteredGames]);
+  }, [favoriteGameIds, user, games, filteredGames]);
 
   const incrementGameView = useCallback(async (gameId: string): Promise<void> => {
     try {
       await gameService.incrementGameView(gameId);
-      // Optimistically update the views count in the local state
+      // Optimistically update views (optional, can also re-fetch or rely on eventual consistency)
       setGames(prevGames =>
-        prevGames.map(game =>
-          game.id === gameId ? { ...game, views: (game.views || 0) + 1 } : game
+        prevGames.map(g =>
+          g.id === gameId ? { ...g, views: (g.views || 0) + 1 } : g
         )
       );
       setFilteredGames(prevFilteredGames =>
-        prevFilteredGames.map(game =>
-          game.id === gameId ? { ...game, views: (game.views || 0) + 1 } : game
+        prevFilteredGames.map(g =>
+          g.id === gameId ? { ...g, views: (g.views || 0) + 1 } : g
         )
       );
     } catch (error: any) {
       console.error("Error incrementing game view:", error);
-      // Optionally handle the error, e.g., show a toast
-      // toast.error(error.message || "Failed to update view count.");
+      // toast.error(error.message || "Failed to update view count."); // Optional
     }
   }, []);
   
+  // Admin Functions - ensure these are only callable by authorized users,
+  // ideally through separate admin-only hooks or context, or with role checks.
   const addGame = useCallback(async (gameData: Partial<DbGame>): Promise<DbGame | null> => {
     setIsLoading(true);
     try {
       const newDbGame = await gameService.addGame(gameData);
       if (newDbGame) {
-        const newGame = mapDbGameToGame(newDbGame); 
+        const newGame = mapDbGameToGame(newDbGame); // Use imported mapper
         setGames(prevGames => [...prevGames, newGame]);
-        setFilteredGames(prevFilteredGames => [...prevFilteredGames, newGame]); 
+        setFilteredGames(prevFiltered => [...prevFiltered, newGame]); 
         toast.success(`Game "${newGame.title}" added successfully.`);
         return newDbGame;
       }
       return null;
-    } catch (err: any)
-    {
+    } catch (err: any) {
       console.error("Error adding game:", err);
       const errorMessage = err.message || "Failed to add game.";
       toast.error(errorMessage);
-      setError(errorMessage);
+      setError(errorMessage); // Consider if global error is appropriate
       return null;
     } finally {
       setIsLoading(false);
@@ -427,9 +363,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const updatedDbGame = await gameService.updateGame(gameId, gameData);
       if (updatedDbGame) {
-        const updatedGame = mapDbGameToGame(updatedDbGame); 
+        const updatedGame = mapDbGameToGame(updatedDbGame); // Use imported mapper
         setGames(prevGames => prevGames.map(g => g.id === gameId ? updatedGame : g));
-        setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => g.id === gameId ? updatedGame : g));
+        setFilteredGames(prevFiltered => prevFiltered.map(g => g.id === gameId ? updatedGame : g));
         toast.success(`Game "${updatedGame.title}" updated successfully.`);
         return updatedDbGame;
       }
@@ -451,7 +387,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       const success = await gameService.deleteGame(gameId);
       if (success) {
         setGames(prevGames => prevGames.filter(game => game.id !== gameId));
-        setFilteredGames(prevFilteredGames => prevFilteredGames.filter(game => game.id !== gameId));
+        setFilteredGames(prevFiltered => prevFiltered.filter(game => game.id !== gameId));
         toast.success("Game deleted successfully.");
         return true;
       } else {
@@ -468,7 +404,6 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-
   return (
     <GamesContext.Provider value={{ 
       games, 
@@ -481,8 +416,8 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       filterGames,
       launchGame,
       getGameById,
-      getGameBySlug, // Added
-      getRelatedGames, // Added
+      getGameBySlug,
+      getRelatedGames,
       favoriteGameIds,
       toggleFavoriteGame,
       getFavoriteGames,
@@ -498,5 +433,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const useGames = () => {
-  return useContext(GamesContext);
+  const context = useContext(GamesContext);
+  if (context === undefined) {
+    throw new Error('useGames must be used within a GamesProvider');
+  }
+  return context;
 };

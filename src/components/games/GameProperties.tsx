@@ -8,11 +8,11 @@ interface GamePropertiesProps {
 }
 
 const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
-  if (!game) return null;
+  if (!game) return <p className="text-muted-foreground">Game properties not available.</p>;
 
   return (
-    <div className="space-y-3">
-      <h4 className="text-md font-semibold">Game Properties</h4>
+    <div className="bg-card p-4 sm:p-6 rounded-lg shadow space-y-3">
+      <h3 className="text-lg font-semibold mb-3">Game Properties</h3>
       <div className="flex flex-wrap gap-2">
         {game.rtp && <Badge variant="outline">RTP: {game.rtp}%</Badge>}
         {game.volatility && <Badge variant="outline" className="capitalize">Volatility: {game.volatility}</Badge>}
@@ -36,6 +36,17 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
           </div>
         </div>
       )}
+      {game.tags && game.tags.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">Tags:</p>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {game.tags.map(tag => <Badge key={tag} variant="info">{tag}</Badge>)}
+          </div>
+        </div>
+      )}
+       {game.releaseDate && (
+         <p className="text-sm text-muted-foreground mt-2">Release Date: {game.releaseDate}</p>
+       )}
     </div>
   );
 };

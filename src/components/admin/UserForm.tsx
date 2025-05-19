@@ -1,231 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '@/types'; // User type from main types
+import { User } from '@/types'; // Assuming User type includes all necessary fields
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { toast } from 'sonner';
+
+// Define a more specific type for form data, using User properties
+type UserFormData = Partial<Omit<User, 'id' | 'app_metadata' | 'user_metadata' | 'identities' | 'aud' | 'role' | 'email_confirmed_at' | 'phone' | 'confirmed_at' | 'last_sign_in_at'>> & {
+  // Include fields that are directly editable and part of your custom User structure
+  email?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  status?: 'active' | 'inactive' | 'banned'; // Maps to User['status']
+  vip_level?: number; // Maps to User['vip_level']
+  // Add other fields as needed from your User type that are form-editable
+  // For example, if these are stored in user_metadata or a linked profile:
+  country?: string;
+  city?: string;
+  address?: string;
+  birthdate?: string; // as string 'YYYY-MM-DD'
+  kyc_status?: 'pending' | 'approved' | 'rejected' | 'not_submitted';
+  two_factor_enabled?: boolean;
+  email_verified?: boolean; // Typically from Supabase auth user
+  // Any other custom fields
+  role_id?: number; // Custom role ID from your users table
+  banned?: boolean; // Custom banned flag
+};
+
 
 interface UserFormProps {
-  initialValues?: User;
-  onSubmit: (data: Partial<User>) => void;
+  user?: User | null;
+  onSubmit: (userData: UserFormData) => Promise<void>;
+  onCancel: () => void;
+  isLoading?: boolean;
 }
 
-// Define a type for the form data based on User, but allowing for partial updates
-type UserFormData = Partial<Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'lastLogin'>>;
-
-
-const UserForm = ({ initialValues, onSubmit }: UserFormProps) => {
+const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading }) => {
   const [formData, setFormData] = useState<UserFormData>({});
 
   useEffect(() => {
-    if (initialValues) {
+    if (user) {
       setFormData({
-        username: initialValues.username || '',
-        email: initialValues.email || '',
-        firstName: initialValues.firstName || '',
-        lastName: initialValues.lastName || '',
-        displayName: initialValues.displayName || '',
-        avatar: initialValues.avatar || '', // or avatar_url
-        role: initialValues.role || 'user',
-        isActive: initialValues.isActive !== undefined ? initialValues.isActive : true,
-        balance: initialValues.balance || 0,
-        currency: initialValues.currency || 'USD',
-        vipLevel: initialValues.vipLevel || 0,
-        country: initialValues.country || '',
-        city: initialValues.city || '',
-        address: initialValues.address || '',
-        phone: initialValues.phone || '',
-        birthdate: initialValues.birthdate || '', // Changed from birthDate
-        kycStatus: initialValues.kycStatus || 'not_submitted',
-        twoFactorEnabled: initialValues.twoFactorEnabled || false,
-        emailVerified: initialValues.emailVerified || false,
+        email: user.email,
+        username: user.username || user.user_metadata?.username,
+        first_name: user.first_name || user.user_metadata?.full_name?.split(' ')[0],
+        last_name: user.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' '),
+        avatar_url: user.avatar_url || user.user_metadata?.avatar_url,
+        status: user.status || 'active',
+        banned: user.banned || false,
+        vip_level: user.vip_level || 0,
+        role_id: user.role_id || 3, // Default to a 'user' role_id if applicable
+        // Map other User properties to form fields
+        country: user.country, // Assuming these exist on User type
+        city: user.city,
+        address: user.address,
+        birthdate: user.birthdate, // Expects YYYY-MM-DD string
+        kyc_status: user.kyc_status,
+        two_factor_enabled: user.two_factor_enabled,
+        email_verified: user.user_metadata?.email_verified,
       });
     } else {
-      // Default for new user
+      // Reset form for new user
       setFormData({
-        username: '',
         email: '',
-        role: 'user',
-        isActive: true,
-        kycStatus: 'not_submitted',
-        emailVerified: false,
-        twoFactorEnabled: false,
-        vipLevel: 0,
-        balance: 0,
-        currency: 'USD'
-        // ... other defaults
+        username: '',
+        first_name: '',
+        last_name: '',
+        avatar_url: '',
+        status: 'active',
+        banned: false,
+        vip_level: 0,
+        role_id: 3, // Default role_id
       });
     }
-  }, [initialValues]);
+  }, [user]);
 
-  const handleChange = (field: keyof UserFormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSelectChange = (name: keyof UserFormData, value: string | number) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Construct the object with all known User fields, even if partial
-    const submitData: Partial<User> = { ...formData };
-    onSubmit(submitData);
+    if (!formData.email) {
+        toast.error("Email is required.");
+        return;
+    }
+    try {
+      await onSubmit(formData);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to submit user form.");
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="username">Username</Label>
-          <Input
-            id="username"
-            value={formData.username || ''}
-            onChange={(e) => handleChange('username', e.target.value)}
-            required
-          />
-        </div>
-        
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email || ''}
-            onChange={(e) => handleChange('email', e.target.value)}
-            required
-          />
+          <Input id="email" name="email" type="email" value={formData.email || ''} onChange={handleChange} required />
         </div>
-
         <div>
-          <Label htmlFor="firstName">First Name</Label>
-          <Input
-            id="firstName"
-            value={formData.firstName || ''}
-            onChange={(e) => handleChange('firstName', e.target.value)}
-          />
+          <Label htmlFor="username">Username</Label>
+          <Input id="username" name="username" value={formData.username || ''} onChange={handleChange} />
         </div>
-
         <div>
-          <Label htmlFor="lastName">Last Name</Label>
-          <Input
-            id="lastName"
-            value={formData.lastName || ''}
-            onChange={(e) => handleChange('lastName', e.target.value)}
-          />
+          <Label htmlFor="first_name">First Name</Label>
+          <Input id="first_name" name="first_name" value={formData.first_name || ''} onChange={handleChange} />
         </div>
-        
         <div>
-          <Label htmlFor="balance">Balance (Informational)</Label>
-          <Input
-            id="balance"
-            type="number"
-            step="0.01"
-            value={formData.balance || 0}
-            onChange={(e) => handleChange('balance', parseFloat(e.target.value))}
-          />
+          <Label htmlFor="last_name">Last Name</Label>
+          <Input id="last_name" name="last_name" value={formData.last_name || ''} onChange={handleChange} />
         </div>
-        
         <div>
-          <Label htmlFor="vipLevel">VIP Level</Label>
-          <Select
-            value={String(formData.vipLevel || 0)}
-            onValueChange={(value) => handleChange('vipLevel', parseInt(value))}
-          >
-            <SelectTrigger id="vipLevel">
-              <SelectValue placeholder="Select VIP Level" />
-            </SelectTrigger>
+          <Label htmlFor="avatar_url">Avatar URL</Label>
+          <Input id="avatar_url" name="avatar_url" value={formData.avatar_url || ''} onChange={handleChange} />
+        </div>
+        <div>
+          <Label htmlFor="status">Status</Label>
+          <Select value={formData.status || 'active'} onValueChange={(value) => handleSelectChange('status', value)}>
+            <SelectTrigger id="status"><SelectValue placeholder="Select status" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Level 0</SelectItem>
-              <SelectItem value="1">Level 1</SelectItem>
-              <SelectItem value="2">Level 2</SelectItem>
-              <SelectItem value="3">Level 3</SelectItem>
-              <SelectItem value="4">Level 4</SelectItem>
-              <SelectItem value="5">Level 5</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="banned">Banned</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        
         <div>
-          <Label htmlFor="isActive">Status (Is Active)</Label>
-          <Switch
-            id="isActive"
-            checked={formData.isActive || false}
-            onCheckedChange={(checked) => handleChange('isActive', checked)}
-          />
+          <Label htmlFor="vip_level">VIP Level</Label>
+          <Input id="vip_level" name="vip_level" type="number" value={formData.vip_level || 0} onChange={handleChange} />
         </div>
-        
-        <div>
-          <Label htmlFor="role">Role</Label>
-          <Select
-            value={formData.role || 'user'}
-            onValueChange={(value) => handleChange('role', value as User['role'])}
-          >
-            <SelectTrigger id="role">
-              <SelectValue placeholder="Select Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="moderator">Moderator</SelectItem>
-              <SelectItem value="user">User</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div>
-          <Label htmlFor="kycStatus">KYC Status</Label>
-           <Select
-            value={formData.kycStatus || 'not_submitted'}
-            onValueChange={(value) => handleChange('kycStatus', value as User['kycStatus'])}
-          >
-            <SelectTrigger id="kycStatus">
-              <SelectValue placeholder="Select KYC Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="not_submitted">Not Submitted</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="verified">Verified</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
          <div>
-          <Label htmlFor="emailVerified">Email Verified</Label>
-          <Switch
-            id="emailVerified"
-            checked={formData.emailVerified || false}
-            onCheckedChange={(checked) => handleChange('emailVerified', checked)}
-          />
+          <Label htmlFor="role_id">Role ID (e.g. 1 Admin, 2 Mod, 3 User)</Label>
+          <Input id="role_id" name="role_id" type="number" value={formData.role_id || 3} onChange={handleChange} />
         </div>
-
-        <div>
-          <Label htmlFor="twoFactorEnabled">2FA Enabled</Label>
-          <Switch
-            id="twoFactorEnabled"
-            checked={formData.twoFactorEnabled || false}
-            onCheckedChange={(checked) => handleChange('twoFactorEnabled', checked)}
-          />
+        {/* Add more fields as needed, e.g., country, city, etc. */}
+         <div>
+          <Label htmlFor="birthdate">Birthdate</Label>
+          <Input id="birthdate" name="birthdate" type="date" value={formData.birthdate || ''} onChange={handleChange} />
         </div>
+      </div>
 
-        <div>
-          <Label htmlFor="birthdate">Birth Date</Label>
-          <Input
-            id="birthdate"
-            type="date"
-            value={formData.birthdate ? formData.birthdate.toString().split('T')[0] : ''}
-            onChange={(e) => handleChange('birthdate', e.target.value)}
-          />
+      <div className="space-y-2 pt-4">
+        <div className="flex items-center space-x-2">
+            <Checkbox id="banned" name="banned" checked={!!formData.banned} onCheckedChange={(checked) => setFormData(prev => ({...prev, banned: !!checked}))} />
+            <Label htmlFor="banned">Is Banned</Label>
         </div>
-
+         <div className="flex items-center space-x-2">
+            <Checkbox id="two_factor_enabled" name="two_factor_enabled" checked={!!formData.two_factor_enabled} onCheckedChange={(checked) => setFormData(prev => ({...prev, two_factor_enabled: !!checked}))} />
+            <Label htmlFor="two_factor_enabled">Two-Factor Auth Enabled</Label>
+        </div>
+         <div className="flex items-center space-x-2">
+            <Checkbox id="email_verified" name="email_verified" checked={!!formData.email_verified} onCheckedChange={(checked) => setFormData(prev => ({...prev, email_verified: !!checked}))} />
+            <Label htmlFor="email_verified">Email Verified</Label>
+        </div>
       </div>
       
-      <div className="flex justify-end">
-        <Button type="submit">
-          {initialValues?.id ? 'Update User' : 'Create User'}
+
+      <div className="flex justify-end space-x-3 pt-6">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Saving...' : (user?.id ? 'Save Changes' : 'Create User')}
         </Button>
       </div>
     </form>

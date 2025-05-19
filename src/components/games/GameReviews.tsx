@@ -2,11 +2,11 @@
 import React from 'react';
 
 interface GameReviewsProps {
-  gameId: string | number | undefined;
+  gameId: string | number | undefined; // Keep existing prop
 }
 
 const GameReviews: React.FC<GameReviewsProps> = ({ gameId }) => {
-  if (!gameId) return null;
+  if (!gameId) return null; // Keep existing guard
 
   // Placeholder content
   return (
