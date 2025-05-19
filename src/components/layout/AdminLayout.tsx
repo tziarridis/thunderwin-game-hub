@@ -1,50 +1,45 @@
 
-import React, { PropsWithChildren } from 'react'; // Added PropsWithChildren
+import React, { ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import AdminSidebar from './AdminSidebar';
-import AppHeader from './AppHeader'; 
-import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminHeader from '@/components/admin/AdminHeader';
+import { Loader2 } from 'lucide-react';
 
-// Define props if AdminLayout itself is to be configured via props by its parent
-// interface AdminLayoutProps {
-//   // exampleProp?: string;
-// }
+interface AdminLayoutProps {
+  children?: ReactNode; // Allow children prop for direct nesting if needed
+}
 
-// Use PropsWithChildren if AdminLayout is meant to wrap children directly,
-// though with Outlet, it's usually not needed for the main content.
-const AdminLayout: React.FC<PropsWithChildren<{}>> = ({ children }) => { // Added PropsWithChildren for flexibility, though Outlet is primary
-  const { user, loading, isAuthenticated, isAdmin } = useAuth(); // Added isAdmin
-  const [collapsed, setCollapsed] = React.useState(false);
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+  const { isAuthenticated, user, loading, isAdmin } = useAuth();
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen"><div className="text-xl">Loading...</div></div>;
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  if (!isAuthenticated) {
-    // For admin section, typically redirect to an admin-specific login or a general login
-    return <Navigate to="/admin/login" replace />; 
-  }
-  
-  if (!isAdmin && user?.role !== 'admin') { // Check isAdmin from context or user.role
-    toast.error("Access Denied: You do not have admin privileges.");
-    return <Navigate to="/" replace />;
+  if (!isAuthenticated || !isAdmin) { // Check isAdmin status
+    // Redirect them to the /login page, but save the current location they were
+    // trying to go to when they were redirected. This allows us to send them
+    // along to that page after they login, which is a nicer user experience
+    // than dropping them off on the home page.
+    return <Navigate to="/auth/login" replace />; // Or a specific "unauthorized" page
   }
 
   return (
     <div className="flex h-screen bg-muted/40">
-      <AdminSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} /> 
+      <AdminSidebar />
       <div className="flex flex-col flex-1">
-        <AppHeader />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {children || <Outlet />}{/* Render children if passed, otherwise Outlet */}
+        <AdminHeader user={user} />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          {children || <Outlet />} {/* Render children or Outlet */}
         </main>
       </div>
-      <Toaster />
     </div>
   );
 };
 
 export default AdminLayout;
-

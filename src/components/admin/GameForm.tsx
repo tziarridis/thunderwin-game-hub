@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Game, DbGame, GameProvider, GameCategory } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 interface GameFormProps {
-  game?: Game | DbGame | null; // Can be existing Game (for UI) or DbGame (from DB)
+  game?: Game | DbGame | null;
   providers: GameProvider[];
   categories: GameCategory[];
   onSubmit: (gameData: Partial<DbGame>) => Promise<void>;
@@ -27,21 +26,21 @@ const GameForm: React.FC<GameFormProps> = ({
   onCancel,
   isLoading,
 }) => {
-  const [formData, setFormData] = useState<Partial<DbGame>>({
+  const [formData, setFormData] = useState<Partial<DbGame & { features_str?: string; themes_str?: string; tags_str?: string }>>({
     title: '',
     slug: '',
     provider_id: undefined,
     provider_slug: '',
-    category_slugs: [], // Initialize as empty array
+    category_slugs: [],
     description: '',
     rtp: 0,
     volatility: 'medium',
     min_bet: 0,
     max_bet: 0,
     lines: 0,
-    features: [], // Initialize as empty array
-    themes: [], // Initialize as empty array
-    tags: [],
+    features_str: '', // Changed from features
+    themes_str: '',   // Changed from themes
+    tags_str: '',     // Changed from tags
     image_url: '',
     cover: '',
     banner: '',
@@ -50,65 +49,56 @@ const GameForm: React.FC<GameFormProps> = ({
     is_popular: false,
     is_featured: false,
     show_home: false,
-    game_id: '', // External game ID from provider
-    game_code: '', // External game code
+    game_id: '', 
+    game_code: '', 
     release_date: undefined,
   });
 
   useEffect(() => {
     if (game) {
-      // Adapt game (which might be UI Game type) to DbGame structure for form
-      const dbGameData: Partial<DbGame> = {
-        ...game, // Spread existing game data
-        id: 'id' in game ? game.id : undefined, // Ensure ID is from DbGame if present
+      const gameFeatures = Array.isArray(game.features) ? game.features : (typeof game.features === 'string' ? game.features.split(',').map(f => f.trim()).filter(Boolean) : []);
+      const gameThemes = Array.isArray(game.themes) ? game.themes : (typeof game.themes === 'string' ? game.themes.split(',').map(t => t.trim()).filter(Boolean) : []);
+      const gameTags = Array.isArray(game.tags) ? game.tags : (typeof game.tags === 'string' ? game.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
+
+      const dbGameData: Partial<DbGame & { features_str?: string; themes_str?: string; tags_str?: string }> = {
+        id: 'id' in game ? game.id : undefined,
         title: game.title || '',
         slug: game.slug || '',
-        // @ts-ignore
-        provider_id: 'provider_id' in game ? game.provider_id : (providers.find(p => p.slug === game.provider)?.id),
-        // @ts-ignore
-        provider_slug: 'provider_slug' in game ? game.provider_slug : game.provider,
-        // @ts-ignore
-        category_slugs: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : []),
+        provider_id: 'provider_id' in game ? game.provider_id : undefined,
+        provider_slug: ('provider_slug' in game && game.provider_slug) || ('provider' in game && game.provider) || '',
+        category_slugs: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : (game.category ? [game.category] : [])),
         description: game.description || '',
-        // @ts-ignore
-        rtp: game.rtp || 0,
-        // @ts-ignore
-        volatility: game.volatility || 'medium',
-        // @ts-ignore
-        min_bet: 'minBet' in game && game.minBet !== undefined ? game.minBet : ('min_bet' in game ? game.min_bet : 0),
-        // @ts-ignore
-        max_bet: 'maxBet' in game && game.maxBet !== undefined ? game.maxBet : ('max_bet' in game ? game.max_bet : 0),
-        // @ts-ignore
+        rtp: typeof game.rtp === 'string' ? parseFloat(game.rtp) : (game.rtp || 0),
+        volatility: ('volatility' in game && game.volatility) || 'medium',
+        min_bet: ('minBet' in game && game.minBet !== undefined) ? game.minBet : (('min_bet' in game ? game.min_bet : undefined) ?? 0),
+        max_bet: ('maxBet' in game && game.maxBet !== undefined) ? game.maxBet : (('max_bet' in game ? game.max_bet : undefined) ?? 0),
         lines: game.lines || 0,
-        features: Array.isArray(game.features) ? game.features : (typeof game.features === 'string' ? game.features.split(',').map(f => f.trim()).filter(f => f) : []),
-        themes: Array.isArray(game.themes) ? game.themes : (typeof game.themes === 'string' ? game.themes.split(',').map(t => t.trim()).filter(t => t) : []),
-        tags: Array.isArray(game.tags) ? game.tags : (typeof game.tags === 'string' ? game.tags.split(',').map(t => t.trim()).filter(t => t) : []),
-        image_url: 'image_url' in game ? game.image_url : (game.image || ''), // Prefer image_url, fallback to image
-        cover: 'cover' in game ? game.cover : (game.image || ''), // Prefer cover, fallback to image
-        banner: 'banner' in game ? game.banner : '',
+        
+        features_str: gameFeatures.join(', '),
+        themes_str: gameThemes.join(', '),
+        tags_str: gameTags.join(', '),
+
+        image_url: ('image_url' in game && game.image_url) || ('image' in game && game.image) || '',
+        cover: ('cover' in game && game.cover) || ('image' in game && game.image) || '',
+        banner: ('banner' in game && game.banner) || '',
         status: game.status || 'active',
-        // @ts-ignore
-        is_new: 'is_new' in game ? game.is_new : (game.isNew || false),
-        // @ts-ignore
-        is_popular: 'is_popular' in game ? game.is_popular : (game.isPopular || false),
+        is_new: ('is_new' in game ? game.is_new : ('isNew' in game ? game.isNew : false)) ?? false,
+        is_popular: ('is_popular' in game ? game.is_popular : ('isPopular' in game ? game.isPopular : false)) ?? false,
         is_featured: game.is_featured || false,
         show_home: game.show_home || false,
-        // @ts-ignore
         game_id: game.game_id || '',
         game_code: game.game_code || '',
-        // @ts-ignore
-        release_date: 'release_date' in game ? game.release_date : (game.releaseDate || undefined),
+        release_date: ('release_date' in game ? game.release_date : ('releaseDate' in game ? game.releaseDate : undefined)) || undefined,
       };
       setFormData(dbGameData);
     }
-  }, [game, providers]);
+  }, [game]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    // @ts-ignore
     const isCheckbox = type === 'checkbox';
     // @ts-ignore
-    setFormData(prev => ({ ...prev, [name]: isCheckbox ? e.target.checked : value }));
+    setFormData(prev => ({ ...prev, [name]: isCheckbox ? (e.target as HTMLInputElement).checked : value }));
   };
 
   const handleSelectChange = (name: string, value: string | string[]) => {
@@ -134,18 +124,21 @@ const GameForm: React.FC<GameFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Convert comma-separated strings for features, themes, tags to arrays if they are strings
-    const dataToSubmit = {
+    const dataToSubmit: Partial<DbGame> = {
       ...formData,
-      features: typeof formData.features === 'string' ? formData.features.split(',').map(f => f.trim()).filter(f => f) : formData.features,
-      themes: typeof formData.themes === 'string' ? formData.themes.split(',').map(t => t.trim()).filter(t => t) : formData.themes,
-      tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : formData.tags,
+      features: formData.features_str ? formData.features_str.split(',').map(f => f.trim()).filter(Boolean) : [],
+      themes: formData.themes_str ? formData.themes_str.split(',').map(t => t.trim()).filter(Boolean) : [],
+      tags: formData.tags_str ? formData.tags_str.split(',').map(t => t.trim()).filter(Boolean) : [],
       rtp: formData.rtp ? parseFloat(String(formData.rtp)) : undefined,
       min_bet: formData.min_bet ? parseFloat(String(formData.min_bet)) : undefined,
       max_bet: formData.max_bet ? parseFloat(String(formData.max_bet)) : undefined,
       lines: formData.lines ? parseInt(String(formData.lines), 10) : undefined,
     };
-    // console.log("Submitting game data:", dataToSubmit); 
+    // Remove the temporary string fields
+    delete (dataToSubmit as any).features_str;
+    delete (dataToSubmit as any).themes_str;
+    delete (dataToSubmit as any).tags_str;
+    
     try {
       await onSubmit(dataToSubmit);
     } catch (error: any) {
@@ -154,7 +147,6 @@ const GameForm: React.FC<GameFormProps> = ({
     }
   };
   
-  // Helper to get string value for inputs, even if number
   const getStringValue = (value: any): string => {
     if (value === null || value === undefined) return '';
     return String(value);
@@ -163,7 +155,7 @@ const GameForm: React.FC<GameFormProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{game?.id ? 'Edit Game' : 'Add New Game'}</CardTitle>
+        <CardTitle>{formData?.id ? 'Edit Game' : 'Add New Game'}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -200,11 +192,10 @@ const GameForm: React.FC<GameFormProps> = ({
             </div>
             <div>
               <Label htmlFor="category_slugs">Category (Primary)</Label>
-               {/* For simplicity, using single select for primary category. For multi-select, you'd need a different component or Checkbox group */}
               <Select
                 name="category_slugs"
                 // @ts-ignore
-                value={Array.isArray(formData.category_slugs) && formData.category_slugs.length > 0 ? formData.category_slugs[0] : formData.category_slugs || ''}
+                value={Array.isArray(formData.category_slugs) && formData.category_slugs.length > 0 ? formData.category_slugs[0] : (formData.category_slugs as string || '')}
                 onValueChange={(value) => handleMultiSelectChange('category_slugs', value ? [value] : [])}
               >
                 <SelectTrigger>
@@ -236,16 +227,16 @@ const GameForm: React.FC<GameFormProps> = ({
 
             {/* Textareas for arrays (comma-separated) & Description */}
             <div>
-              <Label htmlFor="features">Features (comma-separated)</Label>
-              <Textarea id="features" name="features" value={Array.isArray(formData.features) ? formData.features.join(', ') : formData.features || ''} onChange={handleChange} />
+              <Label htmlFor="features_str">Features (comma-separated)</Label>
+              <Textarea id="features_str" name="features_str" value={formData.features_str || ''} onChange={handleChange} />
             </div>
             <div>
-              <Label htmlFor="themes">Themes (comma-separated)</Label>
-              <Textarea id="themes" name="themes" value={Array.isArray(formData.themes) ? formData.themes.join(', ') : formData.themes || ''} onChange={handleChange} />
+              <Label htmlFor="themes_str">Themes (comma-separated)</Label>
+              <Textarea id="themes_str" name="themes_str" value={formData.themes_str || ''} onChange={handleChange} />
             </div>
             <div>
-              <Label htmlFor="tags">Tags (comma-separated)</Label>
-              <Textarea id="tags" name="tags" value={Array.isArray(formData.tags) ? formData.tags.join(', ') : formData.tags || ''} onChange={handleChange} />
+              <Label htmlFor="tags_str">Tags (comma-separated)</Label>
+              <Textarea id="tags_str" name="tags_str" value={formData.tags_str || ''} onChange={handleChange} />
             </div>
             <div className="md:col-span-2">
               <Label htmlFor="description">Description</Label>
@@ -324,7 +315,7 @@ const GameForm: React.FC<GameFormProps> = ({
               Cancel
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? (game?.id ? 'Saving...' : 'Adding...') : (game?.id ? 'Save Changes' : 'Add Game')}
+              {isLoading ? (formData?.id ? 'Saving...' : 'Adding...') : (formData?.id ? 'Save Changes' : 'Add Game')}
             </Button>
           </div>
         </form>

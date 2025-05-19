@@ -1,100 +1,115 @@
-
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
-import { Card, CardContent } from '@/components/ui/card';
+import GameCard from '@/components/games/GameCard'; // Main GameCard
 import { Button } from '@/components/ui/button';
-import { Play, Star } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel"; // Ensure this path is correct
 
-const FeaturedGames = () => {
-  const { games, isLoading } = useGames();
+interface FeaturedGamesProps {
+  title?: string;
+  count?: number; // Number of games to show
+  categorySlug?: string; // Optional: filter by category
+  tag?: string; // Optional: filter by a specific tag (e.g., "featured")
+}
+
+const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 
+  title = "Featured Games", 
+  count = 12,
+  categorySlug,
+  tag
+}) => {
+  const { games, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
+  const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
   const navigate = useNavigate();
 
-  // Get featured games (either marked as featured or popular)
-  const featuredGames = React.useMemo(() => {
-    return games
-      .filter(game => game.is_featured || game.isPopular)
-      .slice(0, 6);
-  }, [games]);
+  useEffect(() => {
+    if (games.length > 0) {
+      let filtered = games;
+      if (categorySlug) {
+        filtered = filtered.filter(g => 
+            (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
+            g.category === categorySlug
+        );
+      }
+      if (tag) {
+        filtered = filtered.filter(g => g.tags?.includes(tag));
+      } else {
+        // Default to is_featured or show_home if no specific tag/category
+        filtered = filtered.filter(g => g.is_featured || g.show_home);
+      }
+      setFeaturedGames(filtered.slice(0, count));
+    }
+  }, [games, count, categorySlug, tag]);
 
-  const handleGameClick = (gameId: string) => {
-    navigate(`/casino/game/${gameId}`);
+  const handlePlayGame = (game: Game) => {
+    // Navigate to game details page or use launchGame hook
+    if (game.slug) {
+      navigate(`/casino/game/${game.slug}`);
+    } else if (game.id) {
+      navigate(`/casino/game/${String(game.id)}`); // Fallback if slug isn't there
+    } else if (game.game_id && game.provider_slug) { // Direct launch as last resort
+        launchGame(game, { mode: 'real' }).then(url => url && window.open(url, '_blank'));
+    }
   };
 
-  return (
-    <section className="py-16 bg-gray-900">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">Featured Games</h2>
-          <Button variant="outline" onClick={() => navigate('/casino/main')}>
-            View All Games
-          </Button>
-        </div>
+  if (isLoading && featuredGames.length === 0) {
+    return (
+      <div className="py-8 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+        <p className="text-muted-foreground mt-2">Loading Games...</p>
+      </div>
+    );
+  }
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="bg-gray-800 border-gray-700">
-                <Skeleton className="h-48 rounded-t-lg" />
-                <CardContent className="p-4">
-                  <Skeleton className="h-5 w-2/3 mb-2" />
-                  <Skeleton className="h-4 w-1/3" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : featuredGames.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400">No featured games available</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
-            {featuredGames.map(game => (
-              <Card 
-                key={game.id} 
-                className="group bg-gray-800 border-gray-700 overflow-hidden rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/20"
-              >
-                <div className="relative">
-                  <img 
-                    src={game.image || '/placeholder.svg'} 
-                    alt={game.title || 'Casino Game'} 
-                    className="w-full h-48 object-cover transition-transform group-hover:scale-105"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = '/placeholder.svg'; 
-                    }}
+  if (!isLoading && featuredGames.length === 0) {
+    return null; // Or a "No featured games" message
+  }
+
+  return (
+    <section className="py-8 md:py-12">
+      <div className="container mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl sm:text-3xl font-bold">{title}</h2>
+          {/* <Button variant="outline" onClick={() => navigate('/casino')}>View All <ChevronRight className="ml-2 h-4 w-4" /></Button> */}
+        </div>
+        
+        <Carousel
+          opts={{
+            align: "start",
+            loop: featuredGames.length > 5, // Loop if enough items
+          }}
+          className="w-full"
+        >
+          <CarouselContent className="-ml-4">
+            {featuredGames.map((game) => (
+              <CarouselItem key={String(game.id)} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+                <div className="p-1 h-full"> {/* Ensure cards in carousel item take full height */}
+                   <GameCard
+                    game={game}
+                    isFavorite={favoriteGameIds.has(String(game.id))}
+                    onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
+                    onPlay={() => handlePlayGame(game)}
+                    className="h-full" // Make GameCard take full height of its container
                   />
-                  
-                  {/* Overlay on hover */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button 
-                      className="bg-blue-600 hover:bg-blue-500"
-                      onClick={() => handleGameClick(game.id)}
-                    >
-                      <Play className="mr-2 h-4 w-4" />
-                      Play Now
-                    </Button>
-                  </div>
-                  
-                  {/* Tags */}
-                  {game.isPopular && (
-                    <div className="absolute top-2 left-2">
-                      <span className="bg-yellow-500 text-black text-xs px-2 py-1 rounded-sm font-medium flex items-center">
-                        <Star className="h-3 w-3 mr-1" /> Popular
-                      </span>
-                    </div>
-                  )}
                 </div>
-                
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-white mb-1 truncate">{game.title}</h3>
-                  <p className="text-gray-400 text-sm">{game.provider}</p>
-                </CardContent>
-              </Card>
+              </CarouselItem>
             ))}
-          </div>
-        )}
+          </CarouselContent>
+          {featuredGames.length > 5 && ( // Show nav buttons if enough items
+            <>
+                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
+                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
+            </>
+          )}
+        </Carousel>
       </div>
     </section>
   );

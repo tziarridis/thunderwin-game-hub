@@ -14,7 +14,7 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
     <div className="bg-card p-4 sm:p-6 rounded-lg shadow space-y-3">
       <h3 className="text-lg font-semibold mb-3">Game Properties</h3>
       <div className="flex flex-wrap gap-2">
-        {game.rtp && <Badge variant="outline">RTP: {game.rtp}%</Badge>}
+        {game.rtp && <Badge variant="outline">RTP: {typeof game.rtp === 'number' ? `${game.rtp}%` : game.rtp}</Badge>}
         {game.volatility && <Badge variant="outline" className="capitalize">Volatility: {game.volatility}</Badge>}
         {game.minBet && <Badge variant="outline">Min Bet: {game.minBet}</Badge>}
         {game.maxBet && <Badge variant="outline">Max Bet: {game.maxBet}</Badge>}
@@ -40,12 +40,12 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
         <div>
           <p className="text-sm font-medium text-muted-foreground">Tags:</p>
           <div className="flex flex-wrap gap-1 mt-1">
-            {game.tags.map(tag => <Badge key={tag} variant="info">{tag}</Badge>)}
+            {game.tags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)} {/* Changed "info" to "secondary" */}
           </div>
         </div>
       )}
-       {game.releaseDate && (
-         <p className="text-sm text-muted-foreground mt-2">Release Date: {game.releaseDate}</p>
+       {game.release_date && ( // Changed from releaseDate
+         <p className="text-sm text-muted-foreground mt-2">Release Date: {game.release_date}</p>
        )}
     </div>
   );

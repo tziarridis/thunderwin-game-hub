@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { useGames } from '@/hooks/useGames';
 import { Loader2 } from 'lucide-react';
-import { availableProviders } from '@/config/gameProviders';
+// import { availableProviders } from '@/config/gameProviders'; // Not used
 import CurrencyLanguageSelector from '@/components/admin/CurrencyLanguageSelector';
+import { useAuth } from "@/contexts/AuthContext"; // Added for user_id
 
 interface GameLauncherProps {
   game: Game;
@@ -15,6 +16,7 @@ interface GameLauncherProps {
 
 const GameLauncher = ({ game }: GameLauncherProps) => {
   const { launchGame } = useGames();
+  const { user } = useAuth(); // Get user for user_id
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'real' | 'demo'>('demo');
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
@@ -25,12 +27,15 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
       setLoading(true);
       const launchOptions: GameLaunchOptions = {
         mode,
-        playerId: 'demo_player',
+        user_id: user?.id || 'demo_player', // Changed from playerId
         language: selectedLanguage,
         currency: selectedCurrency,
         platform: 'web'
       };
-      await launchGame(game, launchOptions);
+      const gameUrl = await launchGame(game, launchOptions); // launchGame now returns a URL
+      if (gameUrl) {
+        window.open(gameUrl, '_blank');
+      }
     } catch (error) {
       console.error('Error launching game:', error);
     } finally {
@@ -38,11 +43,12 @@ const GameLauncher = ({ game }: GameLauncherProps) => {
     }
   };
   
+  // ... keep existing code (JSX)
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle>Launch Game</CardTitle>
-        <CardDescription>Launch {game.title} with selected provider</CardDescription>
+        <CardDescription>Launch {game.title}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         

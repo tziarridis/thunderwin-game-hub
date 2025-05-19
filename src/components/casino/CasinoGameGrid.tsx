@@ -4,7 +4,6 @@ import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-// Removed supabase client import if not directly used here. toggleFavoriteContext should handle it.
 import { useGames } from '@/hooks/useGames';
 
 interface CasinoGameGridProps {
@@ -39,7 +38,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
                 if (url) window.open(url, '_blank');
             });
     } else {
-        toast.warn("Cannot launch game: missing details or play action.");
+        toast.error("Cannot launch game: missing details or play action.");
     }
   };
   
@@ -47,7 +46,6 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
     return showEmptyMessage ? (
       <div className="text-center py-10">
         <p className="text-muted-foreground text-lg">No games available</p>
-        {/* Consider adding a CTA or image here */}
       </div>
     ) : null;
   }
@@ -56,11 +54,11 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
       {games.map((game) => (
         <GameCard 
-          key={game.id}
-          game={game} // Pass the whole game object
-          isFavorite={favoriteGameIds.has(game.id as string)}
-          onToggleFavorite={() => handleToggleFavorite(game.id as string)}
-          onPlay={() => handlePlay(game)} // Use the new handlePlay
+          key={String(game.id)}
+          game={game}
+          isFavorite={favoriteGameIds.has(String(game.id))}
+          onToggleFavorite={() => handleToggleFavorite(String(game.id))}
+          onPlay={() => handlePlay(game)}
         />
       ))}
     </div>

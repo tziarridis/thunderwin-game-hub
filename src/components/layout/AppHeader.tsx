@@ -1,24 +1,26 @@
 
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom"; // Added useLocation
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import UserMenu from "@/components/user/UserMenu"; // Corrected import path
-import { User } from "@/types"; 
-import MobileNavMenu from "./MobileNavMenu"; // Corrected import
-import { Menu, X, Search, Wallet, Gift } from "lucide-react"; // Removed BadgePercent as it's not used
+import UserMenu from "@/components/user/UserMenu";
+import { User } from "@/types"; // Using your app's User type
+import MobileNavMenu from "./MobileNavMenu";
+import { Menu, X, Search, Wallet, Gift } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import SiteLogo from "@/components/SiteLogo"; // Assuming you have a logo component
 
 const AppHeader = () => {
-  const { user, isAuthenticated, signOut, loading } = useAuth();
+  const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth(); // Added wallet
   const navigate = useNavigate();
+  const location = useLocation(); // Get current location
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isMobile = useIsMobile();
 
   const handleSignOut = async () => {
-    await signOut();
-    setMobileMenuOpen(false); // Close menu on sign out
+    await signOut(); // signOut is now available
+    setMobileMenuOpen(false);
     navigate("/");
   };
 
@@ -33,91 +35,71 @@ const AppHeader = () => {
     if(mobileMenuOpen) {
         setMobileMenuOpen(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate]);
+  }, [location, mobileMenuOpen]); // Depend on location
 
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 h-16 bg-casino-thunder-dark/80 backdrop-blur-md shadow-lg transition-all duration-300",
+      "fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/60", // Adjusted height and style
+      "transition-all duration-300"
     )}>
       <div className="container mx-auto px-4 h-full flex items-center justify-between">
-        {/* Logo and Desktop Nav */}
-        <div className="flex items-center space-x-8">
-          <Link to="/" className="text-2xl font-bold text-casino-thunder-gold hover:text-casino-thunder-highlight transition-colors">
-            ThunderSpin
-          </Link>
-          {!isMobile && (
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/casino" className="text-sm font-medium text-white hover:text-casino-thunder-gold transition-colors">Casino</Link>
-              <Link to="/sports" className="text-sm font-medium text-white hover:text-casino-thunder-gold transition-colors">Sports</Link>
-              <Link to="/promotions" className="text-sm font-medium text-white hover:text-casino-thunder-gold transition-colors">Promotions</Link>
-              <Link to="/vip" className="text-sm font-medium text-white hover:text-casino-thunder-gold transition-colors">VIP</Link>
-            </nav>
-          )}
-        </div>
+        <Link to="/" className="flex items-center gap-2">
+          <SiteLogo className="h-8 w-auto" />
+          {/* <span className="font-bold text-xl hidden sm:inline">YourSite</span> */}
+        </Link>
 
-        {/* Search, Wallet, Auth Buttons */}
-        <div className="flex items-center space-x-2 md:space-x-3">
-          {!isMobile && (
-             <Button variant="ghost" size="icon" className="text-white hover:text-casino-thunder-gold">
-                <Search className="h-5 w-5" />
-            </Button>
-          )}
+        {/* Desktop Navigation (placeholder, expand as needed) */}
+        <nav className="hidden md:flex items-center gap-3 lg:gap-4">
+          <Button variant="link" asChild><Link to="/casino">Casino</Link></Button>
+          <Button variant="link" asChild><Link to="/promotions">Promotions</Link></Button>
+          {/* <Button variant="link" asChild><Link to="/live-casino">Live Casino</Link></Button> */}
+          {/* <Button variant="link" asChild><Link to="/sports">Sports</Link></Button> */}
+        </nav>
 
-          {isAuthenticated && user && !isMobile && (
+        <div className="flex items-center gap-2 md:gap-3">
+          {authLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : isAuthenticated && user ? (
             <>
-              <Button variant="ghost" size="icon" className="text-white hover:text-casino-thunder-gold" onClick={() => navigate('/bonuses')}>
-                <Gift className="h-5 w-5" />
-              </Button>
-               <Button variant="outline" className="border-casino-thunder-gold text-casino-thunder-gold hover:bg-casino-thunder-gold/10" onClick={() => navigate('/profile')}>
-                <Wallet className="h-4 w-4 mr-2" />
-                {(user.balance ?? 0).toLocaleString(undefined, { style: 'currency', currency: user.currency || 'USD' })}
-              </Button>
+              {wallet && (
+                <Button variant="ghost" size="sm" onClick={() => navigate('/wallet')} className="hidden sm:flex items-center">
+                  <Wallet className="h-4 w-4 mr-2" />
+                  {wallet.balance.toFixed(2)} {wallet.currency}
+                </Button>
+              )}
+              <UserMenu user={user} onSignOut={handleSignOut} />
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/auth/login")}>Log In</Button>
+              <Button size="sm" onClick={() => navigate("/auth/signup")} className="bg-primary hover:bg-primary/90 text-primary-foreground">Sign Up</Button>
             </>
           )}
-          
-          {loading ? (
-            <div className="h-9 w-20 bg-gray-700 animate-pulse rounded-md"></div>
-          ) : isAuthenticated && user ? (
-            <UserMenu user={user} onSignOut={handleSignOut} />
-          ) : (
-            <div className="hidden md:flex items-center space-x-2">
-              <Button variant="outline" onClick={() => navigate("/login")} className="border-casino-thunder-gold text-casino-thunder-gold hover:bg-casino-thunder-gold hover:text-black">
-                Log In
-              </Button>
-              <Button onClick={() => navigate("/register")} className="bg-casino-thunder-gold text-black hover:bg-casino-thunder-highlight">
-                Sign Up
-              </Button>
-            </div>
-          )}
-
-          {/* Mobile Menu Trigger */}
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-white hover:text-casino-thunder-gold"
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
-          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="md:hidden" 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle mobile menu"
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
         </div>
       </div>
-
-      {/* Mobile Navigation Menu */}
-      {isMobile && ( // Removed mobileMenuOpen from condition as it's handled by the component itself
+      {mobileMenuOpen && isMobile && (
         <MobileNavMenu 
-          isOpen={mobileMenuOpen} 
-          onClose={() => setMobileMenuOpen(false)} 
           user={user} 
-          isAuthenticated={isAuthenticated}
-          onSignOut={handleSignOut} // Pass the sign out handler
+          isAuthenticated={isAuthenticated} 
+          onSignOut={handleSignOut} 
+          onClose={() => setMobileMenuOpen(false)}
         />
       )}
     </header>
   );
 };
+// Placeholder for Loader2 if not already available globally
+const Loader2 = ({ className }: { className?: string }) => <div className={cn("animate-spin rounded-full h-5 w-5 border-b-2 border-current", className)}></div>;
+
 
 export default AppHeader;

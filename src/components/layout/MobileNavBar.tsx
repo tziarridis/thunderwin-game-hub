@@ -1,133 +1,71 @@
-import React from 'react';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import { Link } from 'react-router-dom';
-import { Home, User, Settings, LogOut, PlusCircle, ListChecks, ShieldCheck } from 'lucide-react';
-import WalletBalance from '@/components/user/WalletBalance';
 
-const MobileNavBar = () => {
-  const { user, isAuthenticated, signOut } = useAuth();
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { User } from '@/types'; // App's User type
+import { Home, UserCircle, LogOut, LogIn, UserPlus, Gift, Wallet } from 'lucide-react'; // Added more icons
+
+interface MobileNavBarProps {
+  onClose: () => void; // To close the menu
+}
+
+const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose }) => {
+  const { user, isAuthenticated, signOut, wallet } = useAuth(); // signOut is now available, added wallet
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/auth/login');
+    onClose(); // Close menu after action
+    navigate('/');
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    onClose(); // Close menu after navigation
   };
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Menu />
-        </Button>
-      </SheetTrigger>
-      <SheetContent className="w-full sm:w-64">
-        <SheetHeader>
-          <SheetTitle>Menu</SheetTitle>
-          <SheetDescription>
-            Explore your account and settings.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="py-4">
-          {isAuthenticated && user ? (
-            <div className="flex items-center space-x-4">
-              <Avatar>
-                <AvatarImage src={user.avatar_url} alt={user.username} />
-                <AvatarFallback>{user.username?.slice(0, 2).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-              <div className="space-y-1">
-                <h4 className="text-sm font-semibold">{user.username}</h4>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-1">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-32" />
-              </div>
-            </div>
-          )}
-        </div>
-        <Separator />
-        <div className="py-4">
-          <ul className="space-y-2">
-            <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/casino">
-                  <Home className="mr-2 h-4 w-4" />
-                  Casino
-                </Link>
-              </Button>
-            </li>
-            <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/profile">
-                  <User className="mr-2 h-4 w-4" />
-                  Profile
-                </Link>
-              </Button>
-            </li>
-             <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/payment/deposit">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Deposit
-                </Link>
-              </Button>
-            </li>
-            <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/kyc">
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  KYC Verification
-                </Link>
-              </Button>
-            </li>
-            <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/transactions">
-                  <ListChecks className="mr-2 h-4 w-4" />
-                  Transactions
-                </Link>
-              </Button>
-            </li>
-            <li>
-              <Button variant="ghost" className="justify-start w-full" asChild>
-                <Link to="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </Button>
-            </li>
-          </ul>
-        </div>
-        <Separator />
-        <div className="py-4">
-          <Button variant="ghost" className="justify-start w-full" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Log out
-          </Button>
-        </div>
-         <Separator />
-         <div className="py-4">
-          <div className="hidden md:block">
+    <nav className="fixed inset-x-0 bottom-0 bg-background border-t border-border p-2 shadow-lg md:hidden z-40">
+        <div className="flex justify-around items-center">
+            <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/')}>
+                <Home className="h-5 w-5 mb-0.5" />
+                <span className="text-xs">Home</span>
+            </Button>
+            <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/casino')}>
+                <Gift className="h-5 w-5 mb-0.5" /> {/* Placeholder for Casino icon */}
+                <span className="text-xs">Casino</span>
+            </Button>
+
             {isAuthenticated && user ? (
-                <WalletBalance user={user} />
+                <>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/wallet')}>
+                        <Wallet className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">Wallet</span>
+                    </Button>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/user/profile')}>
+                        <UserCircle className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">Profile</span>
+                    </Button>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1 text-red-500 hover:text-red-600" onClick={handleSignOut}>
+                        <LogOut className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">Sign Out</span>
+                    </Button>
+                </>
             ) : (
-                <Skeleton className="h-8 w-24" />
+                <>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/auth/login')}>
+                        <LogIn className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">Log In</span>
+                    </Button>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/auth/signup')}>
+                        <UserPlus className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">Sign Up</span>
+                    </Button>
+                </>
             )}
-          </div>
         </div>
-      </SheetContent>
-    </Sheet>
+    </nav>
   );
 };
 

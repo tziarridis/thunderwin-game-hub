@@ -7,14 +7,16 @@ import { toast } from 'sonner';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
-import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Use the new ResponsiveEmbed
-import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
+import ResponsiveEmbed from '@/components/ResponsiveEmbed';
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; // Assuming this is for related games
+// import GameProperties from './GameProperties'; // Import if you want to show properties here
+// import GameReviews from './GameReviews'; // Import for reviews
 
 const GameLauncher = () => {
-  const { gameId } = useParams<{ gameId: string }>();
+  const { gameId } = useParams<{ gameId: string }>(); // This is likely game slug or DB ID
   const navigate = useNavigate();
   const location = useLocation();
-  const { launchGame, getGameById, games: allGames, isLoading: gamesLoading } = useGames();
+  const { launchGame, getGameById, getGameBySlug, games: allGames, isLoading: gamesLoading } = useGames();
   const { user, isAuthenticated } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
@@ -24,22 +26,25 @@ const GameLauncher = () => {
 
   const loadGameDetails = useCallback(async () => {
     if (!gameId) {
-      setError("No game ID provided.");
+      setError("No game identifier provided.");
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedGame = await getGameById(gameId);
+      // Try fetching by slug first, then by ID if slug fetch fails or isn't appropriate
+      let fetchedGame = await getGameBySlug(gameId);
+      if (!fetchedGame) {
+        fetchedGame = await getGameById(gameId);
+      }
+      
       if (fetchedGame) {
         setGame(fetchedGame);
-        // Simulate fetching related games (e.g., same category or provider)
         const filteredRelatedGames = allGames
-          .filter(g => g.id !== fetchedGame.id && (g.category === fetchedGame.category || g.provider === fetchedGame.provider))
-          .slice(0, 6); // Show up to 6 related games
+          .filter(g => g.id !== fetchedGame!.id && (g.category === fetchedGame!.category || g.provider === fetchedGame!.provider))
+          .slice(0, 6);
         setRelatedGames(filteredRelatedGames);
-
       } else {
         setError("Game not found.");
         toast.error("Game not found.");
@@ -51,7 +56,7 @@ const GameLauncher = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [gameId, getGameById, allGames]);
+  }, [gameId, getGameById, getGameBySlug, allGames]);
 
   useEffect(() => {
     loadGameDetails();
@@ -65,19 +70,19 @@ const GameLauncher = () => {
     }
     if (mode === 'real' && !isAuthenticated) {
       toast.error("Please log in to play for real money.");
-      navigate('/login', { state: { from: location.pathname } });
+      navigate('/login', { state: { from: location.pathname } }); // Assuming /login is your login route
       return;
     }
 
-    setIsLoading(true);
+    setIsLoading(true); // Loading for launch action
     setError(null);
 
     const launchOptions: GameLaunchOptions = {
       mode,
-      playerId: user?.id || 'demo-player',
-      currency: user?.currency || 'USD', 
+      user_id: user?.id, // Changed from playerId
+      currency: user?.user_metadata?.currency || 'USD', // Example: get currency from user metadata or a default
       platform: 'web', 
-      language: user?.language || 'en',
+      language: user?.user_metadata?.language || 'en', // Example: get language from user metadata
       returnUrl: `${window.location.origin}/casino` 
     };
 
@@ -94,20 +99,24 @@ const GameLauncher = () => {
       setError(err.message || "Failed to launch game.");
       toast.error(err.message || "Failed to launch game. Please try again later.");
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Done with launch action
     }
   }, [game, isAuthenticated, user, launchGame, navigate, location.pathname]);
 
   useEffect(() => {
+    // Auto-launch logic (e.g. demo mode if not logged in, or if game has demo_only tag)
     if (game && !launchUrl && !isLoading && !error) {
-      if(!isAuthenticated || game.tags?.includes('demo_only')) { 
+      const canPlayReal = isAuthenticated && !game.tags?.includes('demo_only');
+      if (!canPlayReal) { 
          handleLaunchGame('demo');
       }
+      // If the user IS authenticated and game is not demo_only,
+      // we wait for them to click a play button (handled in JSX below)
     }
   }, [game, launchUrl, isLoading, error, handleLaunchGame, isAuthenticated]);
 
-
-  if (isLoading && !game) { 
+  // ... keep existing code (JSX for loading, error, game display, related games)
+  if (isLoading && !game && !launchUrl) { 
     return (
       <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
         <Loader2 className="h-12 w-12 animate-spin text-casino-thunder-green mb-4" />
@@ -155,44 +164,50 @@ const GameLauncher = () => {
       )}
       
       {!isLoading && launchUrl && (
-        // Use the ResponsiveEmbed component here
         <ResponsiveEmbed src={launchUrl} title={game?.title || 'Game'} />
       )}
       
       {!launchUrl && !isLoading && !error && game && ( 
          <div className="w-full bg-black rounded-lg shadow-xl overflow-hidden mb-8">
             <AspectRatio ratio={16 / 9} className="bg-gray-800 flex flex-col items-center justify-center">
-                <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title} className="max-h-[200px] mb-4 opacity-50" />
-                <p className="text-lg text-white/70 mb-2">Ready to play {game.title}?</p>
+                <img src={game.image || game.cover || '/placeholder.svg'} alt={game.title} className="max-h-[200px] mb-4 opacity-50 rounded-md" />
+                <p className="text-lg text-white/70 mb-4">Ready to play {game.title}?</p>
                  <div className="flex gap-4">
-                    {isAuthenticated && (
+                    {isAuthenticated && !game.tags?.includes('demo_only') && (
                         <Button onClick={() => handleLaunchGame('real')} size="lg" className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
                             Play Real Money
                         </Button>
                     )}
-                    <Button onClick={() => handleLaunchGame('demo')} size="lg" variant="outline">
-                        Play Demo
-                    </Button>
+                    {(game.tags?.includes('demo_playable') || !isAuthenticated || game.tags?.includes('demo_only')) && ( // Condition for showing demo button
+                        <Button onClick={() => handleLaunchGame('demo')} size="lg" variant="outline">
+                            Play Demo
+                        </Button>
+                    )}
                 </div>
             </AspectRatio>
         </div>
       )}
 
       {game && (
-        <div className="my-8 p-6 bg-casino-thunder-dark rounded-lg shadow">
+        <div className="my-8 p-6 bg-card rounded-lg shadow">
           <h3 className="text-xl font-semibold mb-2">Game Details</h3>
+          {/* <GameProperties game={game} /> Example of using sub-component */}
           <p className="text-sm text-white/70 mb-1"><strong>RTP:</strong> {game.rtp ? `${game.rtp}%` : 'N/A'}</p>
           <p className="text-sm text-white/70 mb-1"><strong>Volatility:</strong> {game.volatility || 'N/A'}</p>
           {game.description && <p className="text-sm text-white/70 mt-2">{game.description}</p>}
         </div>
       )}
 
+      {/* Placeholder for GameReviews component */}
+      {/* {game && <GameReviews gameId={String(game.id)} />} */}
+
+
       {relatedGames.length > 0 && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-6 text-center">You Might Also Like</h2>
           <CasinoGameGrid 
             games={relatedGames} 
-            onGameClick={(clickedGame) => navigate(`/casino/game/${clickedGame.id}`)} 
+            onGameClick={(clickedGame) => navigate(`/casino/game/${clickedGame.slug || String(clickedGame.id)}`)} 
           />
         </div>
       )}

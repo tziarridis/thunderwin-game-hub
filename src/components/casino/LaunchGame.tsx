@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Game } from "@/types";
-import { useGames } from "@/hooks/useGames";
+import { useGames } from "@/hooks/useGames"; // Not used in this version
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { walletService } from "@/services/walletService";
-import { gameAggregatorService } from "@/services/gameAggregatorService";
+import { gameAggregatorService } from "@/services/gameAggregatorService"; // This is the one being used
 import { GameLaunchOptions } from "@/types";
-import { trackEvent } from "@/utils/analytics";
+// import { trackEvent } from "@/utils/analytics"; // Not used
 import { DbWallet } from '@/types';
 
 interface LaunchGameProps {
@@ -17,22 +17,22 @@ interface LaunchGameProps {
   buttonText?: string;
   variant?: 'default' | 'outline' | 'destructive' | 'secondary' | 'ghost' | 'link';
   className?: string;
-  providerId?: string;
+  providerId?: string; // This seems to be a default/fallback, actual provider comes from game object?
   currency?: string;
   language?: string;
   platform?: 'web' | 'mobile';
   size?: 'default' | 'sm' | 'lg' | 'icon';
 }
-
+// ... keep existing code (component function signature)
 const LaunchGame = ({ 
   game, 
   mode = 'demo', 
   buttonText = 'Play Game', 
   variant = 'default',
   className = '',
-  providerId = 'ppeur',
-  currency = 'USD',
-  language = 'en',
+  // providerId = 'ppeur', // This might be from game.provider_slug or a specific config
+  currency = 'USD', // Default, user's currency should be preferred
+  language = 'en', // Default, user's language should be preferred
   platform = 'web',
   size = 'default'
 }: LaunchGameProps) => {
@@ -47,7 +47,8 @@ const LaunchGame = ({
     
     try {
       setIsLaunching(true);
-      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      const playerId = isAuthenticated && user?.id ? user.id : 'guest'; // Ensure playerId is string for service
+      const gameIdString = String(game.id); // Ensure game.id is string for service
       
       if (mode === 'real' && isAuthenticated && user?.id) {
         const { data: walletData, error } = await walletService.getWalletByUserId(user.id);
@@ -61,7 +62,7 @@ const LaunchGame = ({
         }
       }
       
-      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
+      console.log(`Launching game ${gameIdString} with provider for player ${playerId}`, {
         mode,
         language,
         currency,
@@ -69,9 +70,9 @@ const LaunchGame = ({
       });
       
       const response = await gameAggregatorService.createSession(
-        game.id!,
+        gameIdString, // Use string gameId
         playerId,
-        currency,
+        currency, // TODO: use user.currency from context if available
         platform
       );
       
