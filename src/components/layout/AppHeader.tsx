@@ -18,11 +18,11 @@ import { Wallet } from '@/types/wallet';
 const AppHeader = () => {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth(); // Added logout
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [loadingWallet, setLoadingWallet] = useState<boolean>(false); // Keep loadingWallet state for other uses if any
+  const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
 
   const isHomePage = location.pathname === '/';
 
@@ -31,14 +31,20 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
+          // Adjusted select query to remove potentially non-existent columns based on error
+          // "column 'bonus_balance' does not exist on 'wallets'"
+          // We will rely on the `?? 0` or `|| default` in the mapping below
+          // to handle fields if they are not returned or if the `Wallet` type expects them.
           const { data, error } = await supabase
             .from('wallets')
-            .select('balance, currency, vip_level, vip_points, symbol, id, user_id, bonus_balance, crypto_balance, demo_balance, is_active, last_transaction_date') // Fetch all required fields for Wallet type
+            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, is_active, last_transaction_date')
             .eq('user_id', user.id)
             .maybeSingle();
 
           if (error) {
             console.error("Error fetching wallet:", error.message);
+            // Check if the error object itself is being assigned to data
+            // and ensure data is null if there's an error.
             setWallet(null);
           } else if (data) {
             setWallet({
@@ -49,9 +55,10 @@ const AppHeader = () => {
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-              bonusBalance: data.bonus_balance ?? 0,
-              cryptoBalance: data.crypto_balance ?? 0,
-              demoBalance: data.demo_balance ?? 0,
+              // Assuming these might not be in the DB based on previous errors, default to 0
+              bonusBalance: (data as any).bonus_balance ?? 0,
+              cryptoBalance: (data as any).crypto_balance ?? 0,
+              demoBalance: (data as any).demo_balance ?? 0,
               isActive: data.is_active ?? false,
               lastTransactionDate: data.last_transaction_date,
             });
@@ -70,8 +77,7 @@ const AppHeader = () => {
 
       const fetchNotificationsStatus = async () => {
         // Placeholder: Replace with actual logic to fetch unread notifications count
-        // Example: const { count } = await notificationsService.getUnreadCount(user.id);
-        const unreadCount = 0; // Assuming 0 for now
+        const unreadCount = 0; 
         setHasUnreadNotifications(unreadCount > 0);
       };
 
@@ -112,14 +118,13 @@ const AppHeader = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          {isAuthenticated ? (
+          {isAuthenticated && user ? ( // Ensure user is also checked
             <>
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              {/* Removed loadingWallet prop as it's not expected by UserMenu */}
-              <UserMenu user={user} />
+              <UserMenu user={user} onLogout={logout} /> {/* Added onLogout prop */}
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
@@ -140,6 +145,7 @@ const AppHeader = () => {
 
       {isMobileMenuOpen && (
         <div className="md:hidden">
+          {/* Pass wallet to MobileNavBar, it handles null */}
           <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
         </div>
       )}
