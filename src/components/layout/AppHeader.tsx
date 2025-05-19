@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Moon, Sun } from 'lucide-react'; // Removed Bell as NotificationsDropdown handles it
+import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
@@ -9,19 +8,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import NavLinks from './NavLinks'; 
 import MobileNavBar from './MobileNavBar';
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu'; // Corrected import path
+import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet'; // Changed WalletType to Wallet from wallet.d.ts
+import { Wallet } from '@/types/wallet';
 
 const AppHeader = () => {
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme(); // toggleTheme is now available
+  const { theme, toggleTheme } = useTheme();
   const { user, isAuthenticated } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null); // Changed WalletType to Wallet
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
 
   const isHomePage = location.pathname === '/';
@@ -31,14 +30,17 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
+          // Removed 'wagering_requirement' from select to avoid DB error if column doesn't exist
+          // 'vip_points' is kept as it was not the direct cause of the reported DB error.
+          // If 'vip_points' also causes issues, it might need to be removed or handled.
           const { data, error } = await supabase
             .from('wallets')
-            .select('balance, currency, vip_level, vip_points, symbol, wagering_requirement') // Added more fields to match Wallet type
+            .select('balance, currency, vip_level, vip_points, symbol') 
             .eq('user_id', user.id)
             .maybeSingle();
 
           if (error) {
-            console.error("Error fetching wallet:", error);
+            console.error("Error fetching wallet:", error.message);
             setWallet(null);
           } else if (data) {
             setWallet({
@@ -47,12 +49,14 @@ const AppHeader = () => {
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-              wagering_requirement: data.wagering_requirement ?? 0,
-              // Ensure all required fields from Wallet type are present or optional
+              // wagering_requirement is now omitted, relying on its optionality in Wallet type
             });
+          } else {
+            // case where data is null and no error, e.g. no wallet found
+            setWallet(null);
           }
-        } catch (err) {
-          console.error("Error in wallet fetch:", err);
+        } catch (err: any) {
+          console.error("Error in wallet fetch:", err.message);
           setWallet(null);
         } finally {
           setLoadingWallet(false);
@@ -63,9 +67,7 @@ const AppHeader = () => {
 
       // Also fetch notifications status (simplified for example)
       const fetchNotificationsStatus = async () => {
-        // This would be replaced with actual notifications query
-        // For now, let's assume some logic sets this
-        const unreadCount = 0; // Replace with actual logic
+        const unreadCount = 0; 
         setHasUnreadNotifications(unreadCount > 0);
       };
 
