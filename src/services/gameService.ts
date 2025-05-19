@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Game, DbGame, GameProvider, GameCategory } from '@/types'; // Ensure correct types are imported
 import { PostgrestResponse } from '@supabase/supabase-js';
@@ -249,5 +248,19 @@ export const gameService = {
     }
     
     return data ? mapDbGameToGame(data) : null;
+  },
+
+  // Added deleteGame method
+  async deleteGame(id: string): Promise<{ success: boolean; error?: any }> {
+    const { error } = await supabase
+      .from('games')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting game:', error);
+      return { success: false, error };
+    }
+    return { success: true };
   }
 };

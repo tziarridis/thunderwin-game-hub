@@ -1,4 +1,3 @@
-
 export interface Wallet {
   id?: string;
   user_id?: string;
@@ -13,8 +12,10 @@ export interface Wallet {
   vipLevel?: number;
   vipPoints?: number;
   transactions?: WalletTransaction[];
-  symbol?: string;
-  wagering_requirement?: number;
+  symbol?: string; // Was missing, added based on AppHeader usage
+  wagering_requirement?: number; // Was missing, added based on AppHeader usage
+  time_reminder_enabled?: boolean; // Added for completeness if used elsewhere
+  reminder_interval_minutes?: number; // Added for completeness
 }
 
 export interface WalletTransaction {
