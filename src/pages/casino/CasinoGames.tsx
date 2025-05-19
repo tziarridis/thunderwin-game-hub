@@ -1,172 +1,150 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGames } from '@/hooks/useGames';
 import { Game } from '@/types';
 import GamesGrid from '@/components/games/GamesGrid';
-import GamesGridMobile from '@/components/games/GamesGridMobile';
+// import GamesGridMobile from '@/components/games/GamesGridMobile'; // Using GamesGrid for both for now
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, FilterX } from 'lucide-react';
+import { Search, FilterX, Loader2 } from 'lucide-react'; // Added Loader2
 import { useIsMobile } from '@/hooks/use-mobile';
 import { scrollToTop } from '@/utils/scrollUtils';
 import { useAuth } from '@/contexts/AuthContext';
-import GameLauncher from '@/components/games/GameLauncher';
+// import GameLauncher from '@/components/games/GameLauncher'; // Replaced by useGames launchGame
 import { toast } from 'sonner';
 
+const ITEMS_PER_PAGE = 24;
+
 const CasinoGames = () => {
-  const { category } = useParams<{ category: string }>();
-  const { games, loading } = useGames();
+  const { category: categorySlugFromParams } = useParams<{ category: string }>(); // category slug from URL
+  const { games, isLoading: gamesLoading, launchGame, categories: gameCategories } = useGames();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(24);
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // Format category for display
-  const formatCategory = (category: string | undefined) => {
-    if (!category) return 'All Games';
-    return category
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-  
+  // Determine current category object and name
+  const currentCategory = useMemo(() => 
+    gameCategories.find(cat => cat.slug === categorySlugFromParams)
+  , [gameCategories, categorySlugFromParams]);
+
+  const pageTitle = currentCategory?.name || 
+    (categorySlugFromParams ? categorySlugFromParams.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'All Games');
+
+
   // Filter games based on category and search term
-  useEffect(() => {
-    if (!games) return;
+  const filteredAndSearchedGames = useMemo(() => {
+    let tempGames = [...games];
     
-    let filtered = [...games];
-    
-    // Filter by category if provided
-    if (category) {
-      switch (category) {
-        case 'slots':
-          filtered = filtered.filter(game => game.category === 'slots');
-          break;
-        case 'table-games':
-          filtered = filtered.filter(game => game.category === 'table');
-          break;
-        case 'live-casino':
-          filtered = filtered.filter(game => game.category === 'live');
-          break;
-        case 'jackpots':
-          filtered = filtered.filter(game => game.jackpot);
-          break;
-        case 'new':
-          filtered = filtered.filter(game => game.isNew);
-          break;
-        case 'popular':
-          filtered = filtered.filter(game => game.isPopular);
-          break;
-        case 'favorites':
-          filtered = filtered.filter(game => game.isFavorite);
-          break;
-        default:
-          // No filter
-          break;
-      }
-    }
-    
-    // Filter by search term
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        game => 
-          game.title.toLowerCase().includes(term) || 
-          game.provider.toLowerCase().includes(term)
+    if (categorySlugFromParams && categorySlugFromParams !== 'all-games') {
+      tempGames = tempGames.filter(game => 
+        (Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlugFromParams)) ||
+        game.category === categorySlugFromParams || // Fallback
+        game.categoryName === categorySlugFromParams // Fallback
       );
     }
     
-    setFilteredGames(filtered.slice(0, visibleCount));
-    setHasMore(filtered.length > visibleCount);
-  }, [games, category, searchTerm, visibleCount]);
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      tempGames = tempGames.filter(
+        game => 
+          game.title.toLowerCase().includes(term) || 
+          (game.providerName && game.providerName.toLowerCase().includes(term)) ||
+          (game.provider_slug && game.provider_slug.toLowerCase().includes(term))
+      );
+    }
+    return tempGames;
+  }, [games, categorySlugFromParams, searchTerm]);
   
+  const paginatedGames = useMemo(() => {
+    return filteredAndSearchedGames.slice(0, currentPage * ITEMS_PER_PAGE);
+  }, [filteredAndSearchedGames, currentPage]);
+
+  const hasMore = useMemo(() => {
+    return paginatedGames.length < filteredAndSearchedGames.length;
+  }, [paginatedGames.length, filteredAndSearchedGames.length]);
+  
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const handleLoadMore = () => {
     setLoadingMore(true);
+    // Simulate network delay for UX if needed, or just update state
     setTimeout(() => {
-      setVisibleCount(prev => prev + 24);
+      setCurrentPage(prev => prev + 1);
       setLoadingMore(false);
-    }, 500);
+    }, 300); 
   };
   
-  const handleClearSearch = () => {
-    setSearchTerm('');
-  };
-  
-  const handleGameClick = (game: Game) => {
+  const handleGameClick = async (game: Game) => {
     if (!isAuthenticated) {
       toast.error('Please log in to play this game');
       navigate('/login');
       return;
     }
     
-    navigate(`/casino/game/${game.id}`);
-    scrollToTop();
+    try {
+      const gameUrl = await launchGame(game, {mode: 'real'});
+      if (gameUrl) {
+        window.open(gameUrl, '_blank');
+      } else {
+        // Fallback to details page if no direct launch URL
+        navigate(`/casino/game/${game.slug || game.id}`);
+        scrollToTop();
+      }
+    } catch (error: any) {
+      toast.error(`Could not launch game: ${error.message}`);
+      navigate(`/casino/game/${game.slug || game.id}`); // Fallback
+      scrollToTop();
+    }
   };
+
+  // Reset page on category or search term change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categorySlugFromParams, searchTerm]);
   
+  const GridComponent = GamesGrid; // Could switch between GamesGrid and GamesGridMobile based on isMobile
+
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen">
-      <div className="container mx-auto px-4 py-8 pt-20">
+      <div className="container mx-auto px-4 py-8 pt-20"> {/* Added pt-20 for fixed header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">{formatCategory(category)}</h1>
-          <p className="text-white/70 max-w-2xl mx-auto">
-            {category === 'slots' && 'Spin to win with our huge collection of online slot games.'}
-            {category === 'table-games' && 'Experience classic table games like Blackjack, Roulette, and Poker.'}
-            {category === 'live-casino' && 'Play with live dealers for an authentic casino experience.'}
-            {category === 'jackpots' && 'Try your luck with our progressive jackpot games with massive prize pools.'}
-            {category === 'new' && 'Discover our latest additions to the game library.'}
-            {category === 'popular' && 'Play the games that other players love the most.'}
-            {category === 'favorites' && 'Your favorite games in one place.'}
-            {!category && 'Browse our complete collection of casino games.'}
-          </p>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">{pageTitle}</h1>
+          {/* Descriptive text can be dynamic based on categorySlugFromParams */}
         </div>
         
-        <div className="relative mb-6">
+        <div className="relative mb-6 sticky top-16 bg-background/80 backdrop-blur-md py-4 z-30"> {/* Search bar sticky */}
           <Input
             type="text"
             placeholder="Search games or providers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
+            className="pl-10 py-3 text-base bg-card border-border focus:ring-primary"
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           {searchTerm && (
             <Button 
               variant="ghost" 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2" 
-              onClick={handleClearSearch}
+              size="icon"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-7 w-7" 
+              onClick={() => setSearchTerm('')}
             >
               <FilterX size={18} />
             </Button>
           )}
         </div>
         
-        {isMobile ? (
-          <GamesGridMobile
-            games={filteredGames}
-            loading={loading}
-            onGameClick={handleGameClick}
-            emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
-            loadMore={hasMore ? handleLoadMore : undefined}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-          />
-        ) : (
-          <GamesGrid
-            games={filteredGames}
-            loading={loading}
-            onGameClick={handleGameClick}
-            emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
-            loadMore={hasMore ? handleLoadMore : undefined}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-          />
-        )}
+        <GridComponent
+          games={paginatedGames}
+          loading={gamesLoading && paginatedGames.length === 0}
+          onGameClick={handleGameClick}
+          emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
+          loadMore={hasMore ? handleLoadMore : undefined}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+        />
       </div>
     </div>
   );

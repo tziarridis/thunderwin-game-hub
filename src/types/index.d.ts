@@ -1,12 +1,8 @@
-// ... keep existing code (other type exports)
 export * from './user';
-export * from './game';
+export * from './game'; // Game type is now primarily defined in game.ts
 export * from './transaction';
 export * from './wallet';
-// export * from './bonus'; // If you have this file
-// export * from './analytics'; // If you have this file
-// export * from './support'; // If you have this file
-export * from './affiliate'; // Added this line
+export * from './affiliate';
 
 // General API response type
 export interface ApiResponse<T> {
@@ -16,63 +12,75 @@ export interface ApiResponse<T> {
   error?: any;
 }
 
-// You can also define shared enums or utility types here
+// LoadingStatus
 export type LoadingStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
 
-// Example of a more specific Game type if needed for frontend display
-// This can extend the base Game type from game.ts
-export interface DisplayGame extends Game {
-  isFavorite?: boolean; // Determined client-side
-  // any other client-specific properties
+
+// DisplayGame can extend the Game from game.ts if needed
+export interface DisplayGame extends Game { // Game is now imported from './game'
+  isFavorite?: boolean; 
 }
 
-// Adding DbGame type based on Games.tsx prepareGameForForm
+// DbGame type for Supabase interactions
 export interface DbGame {
-  id?: string;
-  title?: string;
-  slug?: string;
-  provider_slug?: string;
-  category_slugs?: string[];
-  rtp?: number;
-  status?: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived';
+  id: string; // UUID, ensure it's string in Supabase table or cast upon fetch
+  game_name: string; // Maps to Game.title
+  slug: string;
+  
+  provider_id?: string; // Foreign key to providers table (UUID)
+  provider_slug?: string; // Denormalized or from a view, maps to Game.provider_slug
+
+  game_type?: string; // Maps to Game.categoryName
+  category_slugs?: string[]; // Should be string array in DB or parsed
+
+  cover?: string; // Maps to Game.image
+  banner?: string; // Maps to Game.banner
+
   description?: string;
-  cover?: string; // Corresponds to Game.image
-  banner?: string;
+  rtp?: number; // Should be numeric in DB
+
   is_popular?: boolean;
   is_new?: boolean;
   is_featured?: boolean;
   show_home?: boolean;
-  tags?: string[];
-  features?: string[];
-  themes?: string[];
-  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
-  lines?: number; // Assuming number
-  min_bet?: number;
-  max_bet?: number;
-  release_date?: string; // ISO date string
-  game_id?: string; // External game ID from provider
-  game_code?: string; // External game code from provider
-  // Fields from 'games' table in Supabase schema
-  provider_id?: string; // uuid, foreign key to providers table
+
+  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high'; // Enum in DB
+  lines?: number; // Numeric in DB
+  min_bet?: number; // Numeric in DB
+  max_bet?: number; // Numeric in DB
+  
+  features?: string[]; // JSONB array in DB
+  tags?: string[]; // JSONB array in DB
+  themes?: string[]; // JSONB array in DB
+  
+  release_date?: string; // Date or Timestamp in DB, maps to ISO string
+
+  game_id?: string; // External game ID (string)
+  game_code?: string; // External game code (string)
+
+  status?: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived'; // Enum in DB
+  
+  technology?: string;
+  distribution?: string;
+  game_server_url?: string;
+  
   has_lobby?: boolean;
   is_mobile?: boolean;
   has_freespins?: boolean;
   has_tables?: boolean;
   only_demo?: boolean;
+  
   views?: number;
-  created_at?: string; // timestamp with time zone
-  updated_at?: string; // timestamp with time zone
-  game_type?: string; // Maps to Game.categoryName or Game.category
-  technology?: string;
-  distribution?: string;
-  game_server_url?: string;
+  created_at?: string; // timestamptz
+  updated_at?: string; // timestamptz
+  
   // For joining with providers table
-  providers?: { name: string };
-  game_name?: string;
-}
+  providers?: { name: string; slug?: string }; // Include slug if available from join
 
-// Ensure User type in src/types/user.ts includes what's needed by Admin/Users.tsx etc.
-// e.g. id, name, email, role, status, created_at
+  // Keep 'title' if forms are directly using it for DbGame, but game_name is canonical
+  title?: string; // Alias for game_name for form compatibility
+  image_url?: string; // Alias for cover
+}
 
 // WalletType to be used in AppHeader
 export interface WalletType {

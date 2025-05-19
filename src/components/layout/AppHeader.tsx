@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import UserMenu from "@/components/user/UserMenu";
 import MobileNavMenu, { MobileNavMenuProps } from "./MobileNavMenu"; 
-import { Menu, X, Wallet as WalletIcon, Loader2 } from "lucide-react"; // Renamed Wallet to WalletIcon
+import { Menu, X, Wallet as WalletIcon, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import SiteLogo from "@/components/SiteLogo";
-import { User, WalletType } from "@/types"; 
+import { User, WalletType } from "@/types"; // WalletType is from types/index.d.ts
 
 const AppHeader = () => {
     const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth();
@@ -36,21 +35,17 @@ const AppHeader = () => {
         setMobileMenuOpen(false);
     }, [location.pathname]);
 
-
+    // Ensure MobileNavMenuProps aligns with what's passed
     const mobileNavMenuProps: MobileNavMenuProps = {
         isAuthenticated: isAuthenticated,
         onSignOut: handleSignOut,
-        user: user as User, // Cast if user can be null initially and MobileNavMenu expects User
-        // wallet: wallet as WalletType | null, // Assuming MobileNavMenuProps defines wallet
-        // If MobileNavMenuProps does not define wallet, remove this line.
-        // For now, assuming it might take it, but if error persists, remove it.
-        // Based on the error, MobileNavMenuProps does NOT accept wallet. So it's removed.
+        user: user as User, // User can be null, ensure MobileNavMenu handles this
+        // wallet: wallet, // Pass wallet if MobileNavMenuProps defines it
     };
-    if (wallet) {
-      // If MobileNavMenuProps is updated to accept wallet, it can be added here conditionally
-      // For example: (mobileNavMenuProps as any).wallet = wallet;
-      // But it's better to update MobileNavMenuProps definition.
-    }
+    // If MobileNavMenuProps needs wallet and it might be null:
+    // if (wallet) {
+    //   (mobileNavMenuProps as any).wallet = wallet;
+    // }
 
 
     return (
@@ -76,7 +71,7 @@ const AppHeader = () => {
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : isAuthenticated && user ? (
               <>
-                {wallet && (
+                {wallet && ( // Check if wallet exists before rendering
                   <Button 
                     variant="ghost" 
                     size="sm" 

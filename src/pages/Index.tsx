@@ -1,20 +1,16 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-// MainLayout import is removed as it's applied by the router
 import HeroSection from '@/components/marketing/HeroSection';
-import FeaturedGames from '@/components/marketing/FeaturedGames'; // Marketing specific
+import FeaturedGames from '@/components/marketing/FeaturedGames'; // Marketing specific FeaturedGames
 import HowItWorks from '@/components/marketing/HowItWorks';
-// import Testimonials from '@/components/marketing/Testimonials'; // Still commented out
-
-// Footer is part of Layout.tsx, so no need to import here
 
 const Index = () => {
   return (
     <>
       <HeroSection />
-      <FeaturedGames />
+      {/* Using marketing/FeaturedGames which fetches its own data via useGames */}
+      <FeaturedGames title="Hot Picks" tag="featured" count={12} />
       <HowItWorks />
       {/* <Testimonials /> */}
       <div className="py-12 bg-background text-center">

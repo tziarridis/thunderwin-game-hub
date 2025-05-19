@@ -1,274 +1,308 @@
-
-import React, { useState, useEffect, useMemo } from "react";
-import { Search, Plus, Filter, Edit, Trash2, Eye, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Game, DbGame } from "@/types";
-import { useNavigate } from "react-router-dom";
-import GameForm, { GameFormProps } from "@/components/admin/GameForm"; // Import GameFormProps
-import { gameService } from "@/services/gameService";
-import { toast } from "sonner";
-import CMSPageHeader from "@/components/admin/cms/CMSPageHeader";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { useGames } from "@/hooks/useGames";
-
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { gameService } from '@/services/gameService'; // Using the updated gameService
+import { Game, DbGame } from '@/types'; // Using updated types
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, Search, Edit2, Trash2, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import GameForm from '@/components/admin/GameForm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+  ColumnFiltersState,
+} from '@tanstack/react-table';
+import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog'; // Assuming this exists
 
 const GamesManagement = () => {
-  const [games, setGames] = useState<Game[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const gamesPerPage = 10;
-
+  const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingGame, setEditingGame] = useState<Game | null>(null);
-  const navigate = useNavigate();
-  const { fetchGames: refreshGlobalGames, providers: gameProvidersFromHook, categories: gameCategoriesFromHook } = useGames();
+  const [selectedGame, setSelectedGame] = useState<DbGame | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<string | null>(null);
 
 
-  const fetchPageData = async () => {
-    setIsLoading(true);
-    try {
-      const fetchedGames = await gameService.getAllGames({ search: searchQuery });
-      setGames(fetchedGames);
-    } catch (error) {
-      console.error("Failed to fetch games:", error);
-      toast.error("Failed to load games.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data, isLoading, error } = useQuery<{ games: Game[], count: number | null }, Error>({
+    queryKey: ['adminGames', { searchTerm }], // Add filters to queryKey if they affect fetching
+    queryFn: () => gameService.getAllGames({ search: searchTerm, limit: 1000 }), // Fetch all for admin for now
+  });
 
-  useEffect(() => {
-    fetchPageData();
-  }, [searchQuery]);
+  const games = data?.games || [];
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    setCurrentPage(1);
-  };
+  const createMutation = useMutation({
+    mutationFn: (newGameData: Partial<DbGame>) => gameService.createGame(newGameData as Game), // service expects Game-like
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      toast.success('Game created successfully!');
+      setIsFormOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to create game: ${err.message}`);
+    },
+  });
 
-  const handleEdit = (game: Game) => {
-    setEditingGame(game);
+  const updateMutation = useMutation({
+    mutationFn: ({ id, gameData }: { id: string; gameData: Partial<DbGame> }) => gameService.updateGame(id, gameData as Game),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      toast.success('Game updated successfully!');
+      setIsFormOpen(false);
+      setSelectedGame(null);
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to update game: ${err.message}`);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => gameService.deleteGame(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      toast.success('Game deleted successfully!');
+    },
+    onError: (err: any) => {
+      toast.error(`Failed to delete game: ${err.message}`);
+    },
+  });
+
+  const handleCreateNew = () => {
+    setSelectedGame(null);
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (gameId: string | number) => {
-    const gameIdStr = String(gameId);
-    if (window.confirm("Are you sure you want to delete this game?")) {
-      try {
-        await gameService.deleteGame(gameIdStr);
-        toast.success("Game deleted successfully.");
-        fetchPageData(); // Refresh
-        refreshGlobalGames(); // Refresh global context
-      } catch (error: any) {
-        toast.error(`Failed to delete game: ${error.message}`);
-      }
+  const handleEdit = (game: Game) => {
+    // gameService.getGameById expects string ID for DbGame.
+    // The 'game' object here is already a frontend 'Game' type.
+    // We need to map it to DbGame or ensure GameForm can take Game and map internally.
+    // For simplicity, GameForm now takes DbGame.
+    // We need to fetch the full DbGame object or ensure 'game' has all DbGame fields.
+    // Let's assume gameService.getGameById is best.
+    gameService.getGameById(game.id).then(fullGameData => {
+        if (fullGameData) {
+            // The GameForm expects a DbGame. mapDbGameToGameAdapter is used inside GameForm.
+            // So, we can construct a DbGame-like object or fetch it.
+            // For now, let's assume `fullGameData` from `getGameById` is `Game` which is then mapped to `DbGame` in the form or adapter.
+            // This part is tricky: GameForm expects `DbGame`. `game` from the table is `Game`.
+            // Let's pass the `Game` object and let `GameForm` use `mapGameToDbGameAdapter` if it's for creating the initial DbGame-like form state,
+            // or pass `DbGame` directly if `selectedGame` is already `DbGame`.
+            // The current GameForm takes DbGame.
+            // The 'game' object from the table IS of type Game. GameService.getGameById also returns Game.
+            // We need to convert `Game` to `DbGame` to pass to the form.
+            // This is slightly circular. The GameForm expects `DbGame` so it can use `mapDbGameToGameAdapter`.
+            // The simplest approach: if GameForm receives `Game`, it should map it.
+            // Or `selectedGame` state should be `Game`, and `GameForm` receives `Game`.
+            // Let's adjust GameForm to accept `Game` for editing.
+            // For now, assuming `game` (type Game) is what we want to edit.
+            // The selectedGame state variable will be `DbGame | null`. We need to fetch the `DbGame` version.
+            const dbGameRepresentation: DbGame = {
+              id: game.id,
+              game_name: game.title,
+              slug: game.slug,
+              provider_slug: game.provider_slug,
+              game_type: game.categoryName,
+              category_slugs: game.category_slugs,
+              cover: game.image,
+              banner: game.banner,
+              description: game.description,
+              rtp: game.rtp,
+              is_popular: game.isPopular,
+              is_new: game.isNew,
+              is_featured: game.is_featured,
+              show_home: game.show_home,
+              volatility: game.volatility,
+              lines: game.lines,
+              min_bet: game.minBet,
+              max_bet: game.maxBet,
+              features: game.features,
+              tags: game.tags,
+              themes: game.themes,
+              release_date: game.releaseDate,
+              game_id: game.game_id,
+              game_code: game.game_code,
+              status: game.status,
+              // title: game.title // if DbGame also has title for forms
+            };
+            setSelectedGame(dbGameRepresentation);
+            setIsFormOpen(true);
+        } else {
+            toast.error("Could not load game details for editing.");
+        }
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    setGameToDelete(id);
+    setIsConfirmDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (gameToDelete) {
+      deleteMutation.mutate(gameToDelete);
+    }
+    setIsConfirmDeleteDialogOpen(false);
+    setGameToDelete(null);
+  };
+
+  const handleSubmitForm = (data: Partial<DbGame>) => {
+    if (selectedGame && selectedGame.id) {
+      updateMutation.mutate({ id: selectedGame.id, gameData: data });
+    } else {
+      createMutation.mutate(data);
     }
   };
 
-  const prepareGameForForm = (game: Game | null): Partial<DbGame> | null => {
-    if (!game) return null;
-    const ensureNumber = (value: string | number | undefined): number | undefined => {
-      if (value === undefined || value === null || value === '') return undefined;
-      const num = Number(value);
-      return isNaN(num) ? undefined : num;
-    };
-    return {
-        id: String(game.id),
-        title: game.title,
-        slug: game.slug,
-        provider_slug: game.provider_slug || game.provider,
-        category_slugs: Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : (game.categoryName ? [game.categoryName] : [])),
-        rtp: ensureNumber(game.rtp),
-        status: game.status as DbGame['status'] || 'active',
-        description: game.description,
-        cover: game.image,
-        banner: game.banner,
-        is_popular: game.isPopular,
-        is_new: game.isNew,
-        is_featured: game.is_featured,
-        show_home: game.show_home,
-        tags: game.tags,
-        features: game.features,
-        themes: game.themes,
-        volatility: game.volatility,
-        lines: typeof game.lines === 'string' ? parseInt(game.lines) : game.lines,
-        min_bet: ensureNumber(game.minBet),
-        max_bet: ensureNumber(game.maxBet),
-        release_date: game.release_date,
-        game_id: game.game_id ? String(game.game_id) : undefined,
-        game_code: game.game_code ? String(game.game_code) : undefined,
-    };
-  };
-  
-  const gameFormInitialData = editingGame ? prepareGameForForm(editingGame) : null;
-
-  const handleFormSubmit = async (values: Partial<DbGame>) => { // GameForm submits Partial<DbGame>
-    try {
-      const gamePayload: Partial<Game> = { // Map DbGame back to Game for service
-        ...values,
-        title: values.title || values.game_name,
-        image: values.cover,
-        categoryName: values.game_type,
-        minBet: values.min_bet,
-        maxBet: values.max_bet,
-      };
-
-      if (editingGame && editingGame.id) {
-        await gameService.updateGame(String(editingGame.id), gamePayload);
-        toast.success("Game updated successfully.");
-      } else {
-        await gameService.createGame(gamePayload);
-        toast.success("Game created successfully.");
-      }
-      setIsFormOpen(false);
-      setEditingGame(null);
-      fetchPageData(); // Refresh
-      refreshGlobalGames();
-    } catch (error: any) {
-      toast.error(`Failed to save game: ${error.message}`);
+  const columns = useMemo<ColumnDef<Game>[]>(() => [
+    { accessorKey: 'title', header: 'Title', cell: info => info.getValue() },
+    { accessorKey: 'providerName', header: 'Provider', cell: info => info.getValue() || 'N/A' },
+    { accessorKey: 'categoryName', header: 'Category', cell: info => info.getValue() || 'N/A' },
+    { accessorKey: 'status', header: 'Status', cell: info => <span className={`px-2 py-1 text-xs rounded-full ${info.getValue() === 'active' ? 'bg-green-500 text-white' : 'bg-gray-500 text-white'}`}>{String(info.getValue())}</span> },
+    { accessorKey: 'rtp', header: 'RTP', cell: info => `${info.getValue() || 0}%` },
+    { 
+        id: 'actions',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={() => handleEdit(row.original)}><Edit2 className="h-4 w-4" /></Button>
+            <Button variant="destructive" size="sm" onClick={() => handleDelete(row.original.id)}><Trash2 className="h-4 w-4" /></Button>
+          </div>
+        )
     }
-  };
+  ], []);
 
+  const table = useReactTable({
+    data: games,
+    columns,
+    state: { sorting, columnFilters },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualFiltering: false, // Set to true if API handles filtering
+    manualSorting: false, // Set to true if API handles sorting
+  });
 
-  const paginatedGames = useMemo(() => {
-    const startIndex = (currentPage - 1) * gamesPerPage;
-    return games.slice(startIndex, startIndex + gamesPerPage);
-  }, [games, currentPage, gamesPerPage]);
-
-  const totalPages = Math.ceil(games.length / gamesPerPage);
-  
-  const gameFormPropsBase: Omit<GameFormProps, 'game' | 'onSubmit'> = {
-    onCancel: () => {
-      setIsFormOpen(false);
-      setEditingGame(null);
-    },
-  };
+  if (isLoading) return <div className="p-4">Loading games...</div>;
+  if (error) return <div className="p-4 text-red-500">Error loading games: {error.message}</div>;
 
   return (
-    <div className="p-6 space-y-6">
-      <CMSPageHeader
-        title="Games Content Management"
-        description="Add, edit, and manage all game entries for the casino."
-        actions={
-          <Button onClick={() => { setEditingGame(null); setIsFormOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add New Game
-          </Button>
-        }
-      />
-
-      <div className="flex justify-between items-center">
-        <Input
-          placeholder="Search games..."
-          value={searchQuery}
-          onChange={handleSearch}
-          className="max-w-sm"
-          icon={<Search className="h-4 w-4 text-muted-foreground" />}
-        />
-        {/* Filter button can be added here */}
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <h1 className="text-2xl font-bold">Games Management</h1>
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={handleCreateNew}><PlusCircle className="mr-2 h-4 w-4" /> Add New Game</Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{selectedGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
+            </DialogHeader>
+            <GameForm 
+              game={selectedGame} 
+              onSubmit={handleSubmitForm} 
+              onCancel={() => { setIsFormOpen(false); setSelectedGame(null);}} 
+              isLoading={createMutation.isPending || updateMutation.isPending}
+              // Pass actual providers and categories if fetched
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {isLoading && paginatedGames.length === 0 ? (
-        <div className="flex justify-center items-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex flex-col md:flex-row items-center gap-4 bg-card p-4 rounded-lg shadow">
+        <div className="relative w-full md:flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search games (title, provider, category)..."
+            value={(table.getColumn('title')?.getFilterValue() as string) ?? ''} // Example for specific column
+            // Or a global filter: value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            onChange={(event) => {
+                table.getColumn('title')?.setFilterValue(event.target.value); // Example: filter 'title' column
+                // Or implement global filter: table.setGlobalFilter(event.target.value);
+            }}
+            className="pl-10 w-full"
+          />
         </div>
-      ) : (
-        <div className="bg-card rounded-lg shadow-md overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {/* <TableHead className="w-[50px]">Select</TableHead> */}
-                <TableHead>Game Title</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Categories</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+        {/* Add more specific filters here if needed, e.g., for provider or category */}
+      </div>
+      
+      <div className="overflow-x-auto bg-card shadow rounded-lg">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map(header => (
+                  <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{ asc: <ChevronUp className="ml-2 h-4 w-4 inline" />, desc: <ChevronDown className="ml-2 h-4 w-4 inline" /> }[header.column.getIsSorted() as string] ?? null}
+                  </TableHead>
+                ))}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedGames.length > 0 ? paginatedGames.map((game) => (
-                <TableRow key={String(game.id)}>
-                  {/* <TableCell><Checkbox /></TableCell> */}
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <img src={game.image || '/placeholder.svg'} alt={game.title} className="h-10 w-10 rounded-md object-cover" />
-                      <div>
-                        <div className="font-medium">{game.title}</div>
-                        <div className="text-xs text-muted-foreground">ID: {String(game.id).substring(0, 8)}...</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{game.providerName || game.provider_slug || 'N/A'}</TableCell>
-                  <TableCell>
-                    { (Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.categoryName) || 'N/A' }
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={game.status === 'active' ? 'default' : 'outline'}>
-                      {game.status || 'Unknown'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => navigate(`/casino/game/${game.slug || String(game.id)}`)} title="View Game">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(game)} title="Edit Game">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(String(game.id))} className="text-destructive hover:text-destructive-foreground" title="Delete Game">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
                 </TableRow>
-              )) : (
-                <TableRow><TableCell colSpan={5} className="text-center h-24">No games found.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">No games found.</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      {totalPages > 1 && (
-        <div className="flex justify-end items-center space-x-2 pt-4">
+      {/* Pagination */}
+      <div className="flex items-center justify-between gap-2 py-4">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
           >
-            <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            Previous
           </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {currentPage} of {totalPages}
+          <span className="text-sm">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
           </span>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
           >
-            Next <ChevronRight className="h-4 w-4 ml-1" />
+            Next
           </Button>
         </div>
-      )}
 
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingGame ? "Edit Game" : "Add New Game"}</DialogTitle>
-          </DialogHeader>
-          <GameForm
-            {...gameFormPropsBase}
-            onSubmit={handleFormSubmit}
-            game={gameFormInitialData}
-            // providers={gameProvidersFromHook} // Pass these if GameForm needs them for dropdowns
-            // categories={gameCategoriesFromHook}
-          />
-        </DialogContent>
-      </Dialog>
+      <ConfirmationDialog
+        isOpen={isConfirmDeleteDialogOpen}
+        onClose={() => setIsConfirmDeleteDialogOpen(false)}
+        onConfirm={confirmDelete}
+        title="Confirm Deletion"
+        description="Are you sure you want to delete this game? This action cannot be undone."
+        confirmText="Delete"
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 };

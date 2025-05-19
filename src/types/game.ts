@@ -1,71 +1,71 @@
-
+// This will be our primary frontend Game type
 export interface GameProvider {
   id: number | string;
   name: string;
+  slug?: string; // Added slug for providers
   logo?: string;
   description?: string;
-  status: string;
+  status?: string; // Added status
 }
 
 export interface Game {
-  id?: number | string;
-  provider_id?: number;
-  game_server_url?: string;
-  game_id?: string;
-  game_name?: string;
-  game_code?: string;
-  game_type?: string;
+  id: string; // Should be string (UUID from DB)
+  title: string; // Was game_name in DbGame
+  slug: string;
+  
+  providerName?: string; // From DbGame.providers.name or DbGame.provider_slug
+  provider_slug?: string; // Direct from DbGame.provider_slug
+  
+  categoryName?: string; // From DbGame.game_type
+  category_slugs?: string[]; // From DbGame.category_slugs
+
+  image?: string; // Mapped from DbGame.cover
+  banner?: string; // From DbGame.banner
+  
   description?: string;
-  cover?: string;
-  status?: string;
+  rtp?: number;
+  
+  isPopular?: boolean; // Mapped from DbGame.is_popular or DbGame.show_home
+  isNew?: boolean; // Mapped from DbGame.is_new or derived from DbGame.created_at
+  is_featured?: boolean; // Direct from DbGame.is_featured
+  show_home?: boolean; // Direct from DbGame.show_home
+  
+  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
+  lines?: number;
+  minBet?: number; // Mapped from DbGame.min_bet
+  maxBet?: number; // Mapped from DbGame.max_bet
+  
+  features?: string[];
+  tags?: string[];
+  themes?: string[];
+  
+  releaseDate?: string; // Mapped from DbGame.release_date (ISO string)
+  
+  game_id?: string; // External game ID from provider, from DbGame.game_id
+  game_code?: string; // External game code from provider, from DbGame.game_code
+  
+  status?: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived'; // From DbGame.status
+  
+  // Compatibility fields (try to consolidate to above)
+  provider?: string; // Fallback if providerName/provider_slug not available
+  category?: string; // Fallback if categoryName/category_slugs not available
+  cover?: string; // Alias for image, from DbGame.cover
+  image_url?: string; // Another alias for image
+  
+  // Client-side state, not from DB directly mapped here
+  isFavorite?: boolean;
+
+  // Fields that might come from DB but less common on frontend game card
   technology?: string;
   has_lobby?: boolean;
   is_mobile?: boolean;
   has_freespins?: boolean;
   has_tables?: boolean;
   only_demo?: boolean;
-  rtp?: number;
   distribution?: string;
   views?: number;
-  is_featured?: boolean;
-  show_home?: boolean;
   created_at?: string;
   updated_at?: string;
-  
-  // Optional relation property
-  provider?: GameProvider;
-  
-  // Properties for compatibility with the UI Game interface
-  title?: string;
-  name?: string;
-  isPopular?: boolean;
-  isNew?: boolean;
-  jackpot?: boolean;
-  volatility?: string;
-  minBet?: number;
-  maxBet?: number;
-  isFavorite?: boolean;
-  image?: string;
-  category?: string;
-  features?: string[];
-  tags?: string[];
-  releaseDate?: string;
-}
-
-export interface GameListParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  provider_id?: number;
-  game_type?: string;
-  status?: string;
-  is_featured?: boolean;
-  show_home?: boolean;
-}
-
-export interface GameResponse {
-  data: Game[];
-  total: number;
-  page: number;
-  limit: number;
+  provider_id?: string; // Foreign key, less common for direct display
+  game_server_url?: string;
 }

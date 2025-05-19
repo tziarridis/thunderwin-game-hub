@@ -1,4 +1,3 @@
-
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
@@ -8,7 +7,7 @@ import { useGames } from '@/hooks/useGames';
 
 interface CasinoGameGridProps {
   games: Game[];
-  onGameClick?: (game: Game) => void;
+  onGameClick?: (game: Game) => void; // Primary click handler (play/details)
   showEmptyMessage?: boolean;
 }
 
@@ -22,21 +21,26 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
       return;
     }
     if (!gameId) {
-        toast.error("Game ID is missing.");
+        toast.error("Game ID is missing for favorite toggle.");
         return;
     }
     await toggleFavoriteContext(gameId);
   };
 
-  const handlePlay = (game: Game) => {
+  // The onPlay prop of GameCard will call this.
+  // This function decides what 'playing' means for this grid.
+  const handlePlayAction = (game: Game) => {
     if (onGameClick) {
-        onGameClick(game); // For navigating to details page
-    } else if (game.game_id && game.provider_slug) { // Fallback to direct launch if no onGameClick
+        onGameClick(game); // If provided, use the specific click handler from parent (e.g., Slots.tsx)
+    } else if (game.game_id && (game.provider_slug || game.provider)) { 
+        // Fallback to direct launch if no onGameClick and launch details available
         console.log("Direct play from CasinoGameGrid for:", game.title);
         launchGame(game, {mode: 'real'})
             .then(url => {
                 if (url) window.open(url, '_blank');
-            });
+                else toast.error("Could not get game URL.");
+            })
+            .catch(err => toast.error(`Launch error: ${err.message}`));
     } else {
         toast.error("Cannot launch game: missing details or play action.");
     }
@@ -58,7 +62,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           game={game}
           isFavorite={favoriteGameIds.has(String(game.id))}
           onToggleFavorite={() => handleToggleFavorite(String(game.id))}
-          onPlay={() => handlePlay(game)}
+          onPlay={() => handlePlayAction(game)} // Pass the unified play handler
         />
       ))}
     </div>

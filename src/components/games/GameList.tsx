@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { Game } from '@/types';
-import GameCard from './GameCard'; // Main GameCard
+import GameCard from './GameCard'; 
 import { useGames } from '@/hooks/useGames';
-import { useNavigate } from 'react-router-dom'; // For navigation if needed
+import { useNavigate } from 'react-router-dom'; 
+import { toast } from 'sonner'; // For notifications
 
 interface GameListProps {
   games: Game[];
-  title?: string; // Optional title for the list
-  // Add any other props needed, e.g., onGameClick (if GameCard itself doesn't handle it)
+  title?: string; 
 }
 
 const GameList: React.FC<GameListProps> = ({ games, title }) => {
@@ -16,23 +15,22 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
-    return <p className="text-center text-muted-foreground">No games to display.</p>;
+    return <p className="text-center text-muted-foreground py-4">No games to display.</p>;
   }
 
-  const handlePlayGame = (gameToPlay: Game) => {
-    if (gameToPlay.slug) {
-        navigate(`/casino/game/${gameToPlay.slug}`); // Default to details page
-    } else if (gameToPlay.id) {
-        navigate(`/casino/game/${String(gameToPlay.id)}`);
-    } else if (gameToPlay.game_id && gameToPlay.provider_slug) { // Fallback to direct launch
-        launchGame(gameToPlay, { mode: 'real' })
-            .then(launchUrl => {
-                if (launchUrl) {
-                    window.open(launchUrl, '_blank');
-                }
-            });
-    } else {
-        console.warn("Cannot play or view details for game:", gameToPlay.title);
+  const handlePlayGame = async (gameToPlay: Game) => {
+    try {
+      const launchUrl = await launchGame(gameToPlay, { mode: 'real' });
+      if (launchUrl) {
+        window.open(launchUrl, '_blank');
+      } else {
+        // Fallback to details page if no launch URL
+        navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
+      }
+    } catch (error: any) {
+      toast.error(`Could not launch game: ${error.message}`);
+      // Fallback to details page on error
+      navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
     }
   };
 
@@ -42,7 +40,7 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
           <GameCard
-            key={String(game.id)}
+            key={String(game.id)} // Ensure key is unique and string
             game={game}
             isFavorite={favoriteGameIds.has(String(game.id))}
             onToggleFavorite={() => toggleFavoriteGame(String(game.id))}

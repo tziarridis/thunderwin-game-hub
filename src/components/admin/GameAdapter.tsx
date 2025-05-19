@@ -1,118 +1,98 @@
 
 import { Game, DbGame } from '@/types';
 
-// Adapter to transform DbGame (raw from DB) to Game (used in UI/app logic)
-export const adaptDbGameToGame = (dbGame: DbGame): Game => {
+// Maps a DbGame (from Supabase) to a Game (for frontend use, especially in forms/display)
+export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
   return {
-    id: dbGame.id, // Use DB id as primary id for Game type
-    title: dbGame.title,
-    providerName: dbGame.provider_name || dbGame.provider_slug, // Prefer display name
-    provider_slug: dbGame.provider_slug,
-    categoryName: Array.isArray(dbGame.category_names) ? dbGame.category_names.join(', ') : (dbGame.category_slugs && !Array.isArray(dbGame.category_slugs) ? dbGame.category_slugs : undefined),
-    category_slugs: dbGame.category_slugs,
-    image: dbGame.image_url || dbGame.cover, // Prefer image_url, fallback to cover
-    image_url: dbGame.image_url,
-    cover: dbGame.cover,
+    id: String(dbGame.id),
+    title: dbGame.game_name || dbGame.title || 'N/A',
+    slug: dbGame.slug || '',
+    
+    providerName: dbGame.providers?.name || dbGame.provider_slug,
+    provider_slug: dbGame.provider_slug || dbGame.providers?.slug,
+
+    categoryName: dbGame.game_type,
+    category_slugs: Array.isArray(dbGame.category_slugs) ? dbGame.category_slugs : (dbGame.category_slugs ? [dbGame.category_slugs] : []),
+    
+    image: dbGame.cover || dbGame.image_url, // image_url is an alias we added to DbGame for flexibility
     banner: dbGame.banner,
-    rtp: dbGame.rtp,
-    volatility: dbGame.volatility,
-    slug: dbGame.slug,
-    tags: dbGame.tags || [],
-    isNew: dbGame.is_new,
-    isPopular: dbGame.is_popular,
-    is_featured: dbGame.is_featured,
-    show_home: dbGame.show_home,
+    
     description: dbGame.description,
+    rtp: typeof dbGame.rtp === 'string' ? parseFloat(dbGame.rtp) : dbGame.rtp,
+    
+    isPopular: dbGame.is_popular ?? dbGame.show_home ?? false,
+    isNew: dbGame.is_new ?? false,
+    is_featured: dbGame.is_featured ?? false,
+    show_home: dbGame.show_home ?? false,
+
+    volatility: dbGame.volatility,
+    lines: dbGame.lines,
     minBet: dbGame.min_bet,
     maxBet: dbGame.max_bet,
-    lines: dbGame.lines,
+    
     features: dbGame.features || [],
+    tags: dbGame.tags || [],
     themes: dbGame.themes || [],
+    
+    releaseDate: dbGame.release_date,
+    
+    game_id: dbGame.game_id,
+    game_code: dbGame.game_code,
+    
     status: dbGame.status,
-    game_id: dbGame.game_id, // External provider game ID
-    game_code: dbGame.game_code, // External provider game code
-    release_date: dbGame.release_date,
-    provider_id: dbGame.provider_id, // Internal DB provider link
-    // Ensure all required Game fields are mapped
   };
 };
 
-// Adapter to transform Game (used in UI/app logic) back to DbGame (for saving to DB)
-// This might be partial if you only update certain fields
-export const adaptGameToDbGame = (game: Game): Partial<DbGame> => {
-  const dbGame: Partial<DbGame> = {
-    id: typeof game.id === 'string' && game.id.includes('-') ? undefined : game.id, // if it's a UUID, don't send it as id for insert
-    title: game.title,
-    provider_slug: game.provider_slug,
-    // Handle category_slugs carefully: if Game has categoryName, you might need to find/create slugs
-    category_slugs: game.category_slugs, 
-    image_url: game.image_url || game.image,
-    cover: game.cover,
-    banner: game.banner,
-    description: game.description,
-    rtp: typeof game.rtp === 'string' ? parseFloat(game.rtp) : game.rtp,
-    volatility: game.volatility,
-    min_bet: game.minBet,
-    max_bet: game.maxBet,
-    lines: game.lines,
-    features: game.features,
-    themes: game.themes,
-    tags: game.tags,
-    status: game.status,
-    slug: game.slug,
-    game_id: game.game_id,
-    game_code: game.game_code,
-    provider_id: game.provider_id,
-    is_new: game.isNew,
-    is_popular: game.isPopular,
-    is_featured: game.is_featured,
-    show_home: game.show_home,
-    release_date: game.release_date,
-    // provider_name is usually derived or joined, not directly set unless denormalized
-  };
-  // Remove undefined properties to avoid issues with Supabase client partial updates
+// Maps a Game (from frontend/form) to a DbGame (for Supabase)
+export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => {
+  const dbGame: Partial<DbGame> = {};
+
+  if (game.id) dbGame.id = String(game.id); // Usually not needed for insert/update payload directly
+  if (game.title) dbGame.game_name = game.title;
+  if (game.slug) dbGame.slug = game.slug;
+
+  if (game.provider_slug) dbGame.provider_slug = game.provider_slug;
+  // If game.provider_id is available (e.g. selected from a list), set it
+  // if (game.provider_id) dbGame.provider_id = game.provider_id;
+
+
+  if (game.categoryName) dbGame.game_type = game.categoryName;
+  if (game.category_slugs) dbGame.category_slugs = game.category_slugs;
+  
+  if (game.image) dbGame.cover = game.image;
+  else if (game.cover) dbGame.cover = game.cover; // If Game has cover directly
+  if (game.banner) dbGame.banner = game.banner;
+  
+  if (game.description) dbGame.description = game.description;
+  if (game.rtp !== undefined) dbGame.rtp = Number(game.rtp); // Ensure number
+
+  if (game.isPopular !== undefined) dbGame.is_popular = game.isPopular;
+  if (game.isNew !== undefined) dbGame.is_new = game.isNew;
+  if (game.is_featured !== undefined) dbGame.is_featured = game.is_featured;
+  if (game.show_home !== undefined) dbGame.show_home = game.show_home;
+
+  if (game.volatility) dbGame.volatility = game.volatility;
+  if (game.lines !== undefined) dbGame.lines = Number(game.lines); // Ensure number
+  if (game.minBet !== undefined) dbGame.min_bet = Number(game.minBet);
+  if (game.maxBet !== undefined) dbGame.max_bet = Number(game.maxBet);
+
+  if (game.features) dbGame.features = game.features;
+  if (game.tags) dbGame.tags = game.tags;
+  if (game.themes) dbGame.themes = game.themes;
+  
+  if (game.releaseDate) dbGame.release_date = game.releaseDate;
+  
+  if (game.game_id) dbGame.game_id = String(game.game_id);
+  if (game.game_code) dbGame.game_code = String(game.game_code);
+  
+  if (game.status) dbGame.status = game.status;
+
+  // For form compatibility if 'title' is used directly with DbGame object
+  if (game.title) dbGame.title = game.title;
+
+
+  // Clean up undefined properties before sending to Supabase
   Object.keys(dbGame).forEach(key => (dbGame as any)[key] === undefined && delete (dbGame as any)[key]);
+  
   return dbGame;
 };
-
-
-// Example usage:
-// Assuming we have a function to fetch games in DbGame format
-// async function fetchRawGames(): Promise<DbGame[]> {
-//   // ... fetch from Supabase or API
-//   return []; // placeholder
-// }
-
-// async function getAdaptedGames(): Promise<Game[]> {
-//   const rawGames = await fetchRawGames();
-//   return rawGames.map(adaptDbGameToGame);
-// }
-
-// For categoryName, if DbGame has category_names (array) or category_slugs (string/array)
-// const getCategoryDisplayName = (dbGame: DbGame): string | undefined => {
-//   if (Array.isArray(dbGame.category_names) && dbGame.category_names.length > 0) {
-//     return dbGame.category_names.join(', '); // Or just the first one: dbGame.category_names[0]
-//   }
-//   if (dbGame.category_slugs) {
-//     if (Array.isArray(dbGame.category_slugs) && dbGame.category_slugs.length > 0) {
-//       return dbGame.category_slugs.map(slug => slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())).join(', '); // Format slug
-//     }
-//     if (typeof dbGame.category_slugs === 'string') {
-//       return dbGame.category_slugs.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Format slug
-//     }
-//   }
-//   return undefined;
-// };
-
-// // Update adaptDbGameToGame
-// export const adaptDbGameToGameUpdated = (dbGame: DbGame): Game => {
-//   return {
-//     // ... other properties
-//     id: dbGame.id,
-//     title: dbGame.title,
-//     // ...
-//     categoryName: getCategoryDisplayName(dbGame),
-//     category_slugs: dbGame.category_slugs,
-//     // ...
-//   };
-// };

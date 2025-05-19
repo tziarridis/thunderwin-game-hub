@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -6,38 +5,37 @@ import { Heart, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext'; 
+import { Badge } from '@/components/ui/badge'; // Added for New/Featured badges
 
 export interface GameCardProps {
   game: Game;
   isFavorite: boolean;
   onToggleFavorite: (gameId: string) => void;
   className?: string;
-  onPlay?: (game: Game) => void;
+  onPlay?: (game: Game) => void; // For direct play action
+  // onDetailsClick?: (game: Game) => void; // For navigating to details
 }
 
 const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite, className, onPlay }) => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth(); 
 
-  const gameIdStr = String(game.id || game.game_id || game.slug); // Ensure we have a string ID
+  const gameIdStr = String(game.id);
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation(); 
     if (onPlay) {
       onPlay(game);
-    } else if (game.slug) {
+    } else if (game.slug) { // Fallback to navigate if onPlay not provided
       navigate(`/casino/game/${game.slug}`);
     } else if (gameIdStr) {
        navigate(`/casino/game/${gameIdStr}`);
-    }else {
+    } else {
       console.warn("No slug or ID for game navigation:", game.title);
     }
   };
   
   const handleDetailsClick = () => {
-    // If onPlay is defined, card click might be reserved for that.
-    // If onPlay is NOT defined, then card click goes to details.
-    // Or always navigate to details on card click, and play button for actual play.
     if (game.slug) {
         navigate(`/casino/game/${game.slug}`);
     } else if (gameIdStr) {
@@ -57,12 +55,14 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
   };
 
   const providerDisplay = game.providerName || game.provider_slug || game.provider || '';
-  const gameTags = game.tags || [];
+  // const gameTags = game.tags || []; // Not displayed directly on card in this version
 
   return (
     <div 
-      className={cn("bg-card rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col group", className)}
-      // onClick={handleDetailsClick} // Can enable this if card click should always go to details
+      className={cn(
+        "bg-card rounded-lg overflow-hidden shadow-lg hover:shadow-primary/20 transition-all duration-300 flex flex-col group relative",
+        className
+      )}
     >
       <div className="relative">
         <img 
@@ -70,7 +70,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
           alt={game.title || 'Game image'} 
           className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
-          onClick={handleDetailsClick} // Image click navigates to details
+          onClick={handleDetailsClick}
           style={{ cursor: 'pointer' }}
         />
         {isAuthenticated && ( 
@@ -78,7 +78,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             variant="ghost" 
             size="icon" 
             className={cn(
-                "absolute top-2 right-2 rounded-full bg-black/40 hover:bg-black/60 text-white p-1.5 z-10",
+                "absolute top-2 right-2 rounded-full bg-black/40 hover:bg-black/60 text-white p-1.5 z-20", // Ensure z-index is high
                 isFavorite ? "text-red-500 hover:text-red-400" : "text-white/70 hover:text-white"
             )}
             onClick={handleToggleFavorite}
@@ -87,14 +87,15 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
             </Button>
         )}
-        {(game.isNew || game.is_featured) && (
-          <div className="absolute top-2 left-2 bg-primary text-primary-foreground px-2 py-0.5 text-xs font-semibold rounded z-10">
-            {game.isNew ? 'New' : game.is_featured ? 'Featured' : ''}
-          </div>
-        )}
+        {/* Badges for New/Featured */}
+        <div className="absolute top-2 left-2 z-20 space-y-1">
+            {game.isNew && <Badge variant="destructive" className="text-xs">New</Badge>}
+            {game.is_featured && <Badge variant="secondary" className="text-xs bg-amber-500 text-black">Featured</Badge>}
+        </div>
+        
         {/* Overlay Play Button - appears on hover */}
         <div 
-            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-0"
+            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" // z-10 below favorite button
             onClick={handlePlay} 
             style={{ cursor: 'pointer' }}
         >
@@ -104,21 +105,23 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
 
       <div className="p-3 md:p-4 flex flex-col flex-grow">
         <h3 
-            className="text-md font-semibold truncate group-hover:text-primary transition-colors" 
+            className="text-base font-semibold truncate group-hover:text-primary transition-colors leading-tight" 
             title={game.title}
             onClick={handleDetailsClick}
             style={{ cursor: 'pointer' }}
         >
           {game.title || 'Untitled Game'}
         </h3>
-        {providerDisplay && <p className="text-xs text-muted-foreground mb-1">{providerDisplay}</p>}
+        {providerDisplay && <p className="text-xs text-muted-foreground mb-1 truncate">{providerDisplay}</p>}
         
-        {typeof game.rtp === 'number' || (typeof game.rtp === 'string' && game.rtp) ? (
-            <p className="text-xs text-muted-foreground">RTP: {game.rtp}{typeof game.rtp === 'number' ? '%' : ''}</p>
-        ) : null}
-        {game.volatility && (
-            <p className="text-xs text-muted-foreground capitalize">Volatility: {game.volatility}</p>
-        )}
+        <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+            {typeof game.rtp === 'number' && game.rtp > 0 && (
+                <p>RTP: {game.rtp}%</p>
+            )}
+            {game.volatility && (
+                <p className="capitalize">Volatility: {game.volatility}</p>
+            )}
+        </div>
 
         <div className="mt-auto pt-3">
           <Button 

@@ -1,15 +1,17 @@
-
+// This component might be a duplicate of GamesGrid or CasinoGameGrid.
+// For now, ensuring it uses updated types and GameCard props.
+// If it's still used, e.g. by Slots.tsx.
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Loader2, FilterX } from 'lucide-react';
-import { useGames } from '@/hooks/useGames'; // Import useGames
+import { useGames } from '@/hooks/useGames'; 
 
 interface GameGridProps {
   games: Game[];
   loading?: boolean;
-  onGameClick?: (game: Game) => void;
+  onGameClick?: (game: Game) => void; // This prop is for handling click to play/details
   emptyMessage?: string;
   loadMore?: () => void;
   hasMore?: boolean;
@@ -19,15 +21,15 @@ interface GameGridProps {
 const GameGrid = ({
   games,
   loading = false,
-  onGameClick,
+  onGameClick, // This is the primary click handler for the game (e.g. launch or navigate)
   emptyMessage = "No games found",
   loadMore,
   hasMore = false,
   loadingMore = false
 }: GameGridProps) => {
-  const { favoriteGameIds, toggleFavoriteGame } = useGames(); // Get favorites from context
+  const { favoriteGameIds, toggleFavoriteGame } = useGames();
 
-  if (loading && (!games || games.length === 0)) { // Show loader if loading and no games yet
+  if (loading && (!games || games.length === 0)) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
@@ -49,11 +51,11 @@ const GameGrid = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
           <GameCard 
-            key={game.id}
-            game={game} // Pass the whole game object
-            isFavorite={favoriteGameIds.has(game.id as string)} // Use favoriteGameIds from context
-            onToggleFavorite={() => toggleFavoriteGame(game.id as string)}
-            onPlay={onGameClick ? () => onGameClick(game) : undefined}
+            key={String(game.id)} // Ensure key is string
+            game={game}
+            isFavorite={favoriteGameIds.has(String(game.id))}
+            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
+            onPlay={onGameClick ? () => onGameClick(game) : undefined} // GameCard's onPlay prop handles this
           />
         ))}
       </div>

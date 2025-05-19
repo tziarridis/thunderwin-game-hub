@@ -1,4 +1,3 @@
-
 import { Game } from '@/types';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';

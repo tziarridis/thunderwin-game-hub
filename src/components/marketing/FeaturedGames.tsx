@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
-import GameCard from '@/components/games/GameCard'; // Main GameCard
+import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,56 +11,86 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
-} from "@/components/ui/carousel"; // Ensure this path is correct
+} from "@/components/ui/carousel";
+import { toast } from 'sonner'; // For notifications
 
 interface FeaturedGamesProps {
   title?: string;
-  count?: number; // Number of games to show
-  categorySlug?: string; // Optional: filter by category
-  tag?: string; // Optional: filter by a specific tag (e.g., "featured")
+  count?: number; 
+  categorySlug?: string; 
+  tag?: string; // e.g., "featured", "popular"
+  // Potentially add more specific filter props like is_new, is_popular
 }
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 
   title = "Featured Games", 
   count = 12,
   categorySlug,
-  tag
+  tag // This 'tag' can be used to filter by Game.tags OR map to Game.is_featured, Game.isPopular etc.
 }) => {
   const { games, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
-  const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
+  const [filteredGamesToShow, setFilteredGamesToShow] = useState<Game[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (games.length > 0) {
-      let filtered = games;
+      let tempFiltered = [...games]; // Make a mutable copy
+
       if (categorySlug) {
-        filtered = filtered.filter(g => 
+        tempFiltered = tempFiltered.filter(g => 
             (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
-            g.category === categorySlug
+            g.category === categorySlug || // Fallback
+            g.categoryName === categorySlug // Fallback
         );
       }
+      
       if (tag) {
-        filtered = filtered.filter(g => g.tags?.includes(tag));
-      } else {
-        // Default to is_featured or show_home if no specific tag/category
-        filtered = filtered.filter(g => g.is_featured || g.show_home);
+        switch (tag.toLowerCase()) {
+          case 'featured':
+            tempFiltered = tempFiltered.filter(g => g.is_featured);
+            break;
+          case 'popular':
+            tempFiltered = tempFiltered.filter(g => g.isPopular);
+            break;
+          case 'new':
+            tempFiltered = tempFiltered.filter(g => g.isNew);
+            break;
+          default:
+            // If tag is not a special keyword, filter by actual game tags array
+            tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag));
+            break;
+        }
+      } else if (!categorySlug) { 
+        // Default to showing generally featured or popular if no specific tag/category given
+        tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
       }
-      setFeaturedGames(filtered.slice(0, count));
+      
+      // Sort by a metric if needed, e.g., views or created_at for 'new'
+      if (tag === 'new') {
+        tempFiltered.sort((a,b) => new Date(b.releaseDate || b.created_at || 0).getTime() - new Date(a.releaseDate || a.created_at || 0).getTime());
+      }
+
+
+      setFilteredGamesToShow(tempFiltered.slice(0, count));
     }
   }, [games, count, categorySlug, tag]);
 
-  const handlePlayGame = (game: Game) => {
-    // Navigate to game details page or use launchGame hook
-    if (game.slug) {
-      navigate(`/casino/game/${game.slug}`);
-    } else if (game.id) {
-      navigate(`/casino/game/${String(game.id)}`); // Fallback if slug isn't there
-    } else if (game.game_id && game.provider_slug) { // Direct launch as last resort
-        launchGame(game, { mode: 'real' }).then(url => url && window.open(url, '_blank'));
+  const handlePlayGame = async (game: Game) => {
+    try {
+      const gameUrl = await launchGame(game, { mode: 'real' });
+      if (gameUrl) {
+        window.open(gameUrl, '_blank');
+      } else {
+        // If no URL, maybe navigate to details page
+        navigate(`/casino/game/${game.slug || game.id}`);
+      }
+    } catch (e:any) {
+      toast.error(`Error launching game: ${e.message}`);
+      navigate(`/casino/game/${game.slug || game.id}`); // Fallback to details page
     }
   };
 
-  if (isLoading && featuredGames.length === 0) {
+  if (isLoading && filteredGamesToShow.length === 0) {
     return (
       <div className="py-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
@@ -69,8 +99,8 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
     );
   }
 
-  if (!isLoading && featuredGames.length === 0) {
-    return null; // Or a "No featured games" message
+  if (!isLoading && filteredGamesToShow.length === 0) {
+    return null; 
   }
 
   return (
@@ -78,35 +108,39 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       <div className="container mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold">{title}</h2>
-          {/* <Button variant="outline" onClick={() => navigate('/casino')}>View All <ChevronRight className="ml-2 h-4 w-4" /></Button> */}
+          {(categorySlug || tag) && (
+             <Button variant="outline" onClick={() => navigate(`/casino/${categorySlug || tag || 'main'}`)}>
+                View All <ChevronRight className="ml-2 h-4 w-4" />
+             </Button>
+          )}
         </div>
         
         <Carousel
           opts={{
             align: "start",
-            loop: featuredGames.length > 5, // Loop if enough items
+            loop: filteredGamesToShow.length > 5, 
           }}
           className="w-full"
         >
-          <CarouselContent className="-ml-4">
-            {featuredGames.map((game) => (
-              <CarouselItem key={String(game.id)} className="pl-4 basis-1/2 sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
-                <div className="p-1 h-full"> {/* Ensure cards in carousel item take full height */}
+          <CarouselContent className="-ml-2 md:-ml-4"> {/* Adjust margin for pl on item */}
+            {filteredGamesToShow.map((game) => (
+              <CarouselItem key={String(game.id)} className="pl-2 md:pl-4 basis-[48%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
+                <div className="p-1 h-full"> 
                    <GameCard
                     game={game}
                     isFavorite={favoriteGameIds.has(String(game.id))}
                     onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
                     onPlay={() => handlePlayGame(game)}
-                    className="h-full" // Make GameCard take full height of its container
+                    className="h-full" 
                   />
                 </div>
               </CarouselItem>
             ))}
           </CarouselContent>
-          {featuredGames.length > 5 && ( // Show nav buttons if enough items
+          {filteredGamesToShow.length > 5 && ( 
             <>
-                <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
-                <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex" />
+                <CarouselPrevious className="absolute left-[-10px] sm:left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex bg-background/70 hover:bg-background border border-border" />
+                <CarouselNext className="absolute right-[-10px] sm:right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex bg-background/70 hover:bg-background border border-border" />
             </>
           )}
         </Carousel>

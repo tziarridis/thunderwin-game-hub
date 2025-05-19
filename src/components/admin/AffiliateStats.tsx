@@ -1,152 +1,116 @@
-import React from 'react';
-import { Affiliate } from '@/types'; // Ensure Affiliate is exported from types
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-interface AffiliateStatsProps {
-  affiliate: Affiliate | null; // Use the defined Affiliate type
-  // ... other props like historicalData
-}
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Users, DollarSign, BarChart3, AlertCircle } from 'lucide-react';
+import { Affiliate, AffiliateStatSummary } from '@/types'; // Using updated Affiliate type
+// Assume a service exists to fetch affiliate data
+// import { affiliateService } from '@/services/affiliateService'; 
 
-interface StatCardProps {
-  title: string;
-  value: string;
-  className?: string;
-}
+// Mock service until a real one is implemented
+const mockAffiliateService = {
+  getAffiliateStatsSummary: async (): Promise<AffiliateStatSummary> => {
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+    return {
+      totalAffiliates: 150,
+      totalCommissionsPaid: 25000.75,
+      newSignUpsThisMonth: 25,
+    };
+  },
+  getTopAffiliates: async (limit: number = 5): Promise<Affiliate[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      { id: 'aff1', userId: 'user1', name: 'Affiliate Alpha', email: 'alpha@example.com', code: 'ALPHA10', totalCommissions: 5200, clicks: 1200, signUps: 50, depositingUsers: 20, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), status: 'active', total_referred_users: 50, commission_rate_cpa: 10, commission_rate_revenue_share: 25 },
+      { id: 'aff2', userId: 'user2', name: 'Beta Affiliates', email: 'beta@example.com', code: 'BETAADV', totalCommissions: 3800, clicks: 950, signUps: 35, depositingUsers: 15, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), status: 'active', total_referred_users: 35, commission_rate_cpa: 8, commission_rate_revenue_share: 20 },
+      // ... more mock affiliates
+    ].slice(0, limit);
+  }
+};
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, className = '' }) => (
-  <div className="bg-card rounded-lg p-4 shadow">
-    <p className="text-sm text-muted-foreground">{title}</p>
-    <p className={`text-2xl font-bold ${className}`}>{value}</p>
-  </div>
-);
 
-const AffiliateStats: React.FC<AffiliateStatsProps> = ({ affiliate }) => {
-  
+const AffiliateStats = () => {
+  const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useQuery<AffiliateStatSummary, Error>({
+    queryKey: ['affiliateStatsSummary'],
+    queryFn: () => mockAffiliateService.getAffiliateStatsSummary(),
+  });
 
-  if (!affiliate) {
+  const { data: topAffiliates, isLoading: isLoadingTop, error: topAffiliatesError } = useQuery<Affiliate[], Error>({
+    queryKey: ['topAffiliates'],
+    queryFn: () => mockAffiliateService.getTopAffiliates(),
+  });
+
+  const stats = useMemo(() => [
+    { title: 'Total Affiliates', value: summary?.totalAffiliates ?? 0, icon: Users, change: '+5 this week' },
+    { title: 'Commissions Paid (Month)', value: `$${(summary?.totalCommissionsPaid ?? 0 / 12).toFixed(2)}`, icon: DollarSign, change: '+2.5% vs last month' },
+    { title: 'New Sign-ups (Month)', value: summary?.newSignUpsThisMonth ?? 0, icon: BarChart3, change: '-10% vs last month' },
+  ], [summary]);
+
+  if (isLoadingSummary || isLoadingTop) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (summaryError || topAffiliatesError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Affiliate Stats</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>No affiliate data available.</p>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center h-64 text-red-500">
+        <AlertCircle className="h-12 w-12 mb-2" />
+        <p>Error loading affiliate data: {(summaryError || topAffiliatesError)?.message}</p>
+      </div>
     );
   }
 
-  // Placeholder data for charts - replace with actual data processing
-  const monthlyCommissionsData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [
-      {
-        label: 'Commissions Earned',
-        data: [120, 190, 300, 500, 200, 350], // Replace with affiliate.monthlyCommissions or similar
-        borderColor: 'rgb(75, 192, 192)',
-        tension: 0.1,
-      },
-    ],
-  };
-
-  const referredUsersData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [
-      {
-        label: 'Referred Users',
-        data: [5, 8, 12, 15, 10, 18], // Replace with affiliate.monthlyReferrals or similar
-        borderColor: 'rgb(255, 99, 132)',
-        tension: 0.1,
-      },
-    ],
-  };
-
-  // Safely access affiliate properties
-  const username = affiliate.username || affiliate.id || 'N/A';
-  const totalReferredUsers = affiliate.total_referred_users?.toString() ?? 'N/A';
-  const totalCommissionEarned = `$${affiliate.total_commission_earned?.toFixed(2) ?? 'N/A'}`;
-  const referralCode = affiliate.referral_code ?? 'N/A';
-  const status = affiliate.status ?? 'N/A';
-  // Using commission_rate as a general field if specific ones don't exist, or make them optional
-  const commissionRateCpa = affiliate.commission_rate_cpa ?? affiliate.commission_rate;
-  const commissionRateRevenueShare = affiliate.commission_rate_revenue_share;
-
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Affiliate Stats: {typeof username === 'string' || typeof username === 'number' ? username : 'N/A'}</CardTitle>
-        <CardDescription>Overview of affiliate performance.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard title="Total Referred Users" value={totalReferredUsers} />
-          <StatCard title="Total Commission Earned" value={totalCommissionEarned} />
-          <StatCard title="Referral Code" value={referralCode} />
-          <StatCard title="Status" value={status} className="capitalize" />
-           {commissionRateCpa !== undefined && (
-            <StatCard title="CPA Rate" value={`$${Number(commissionRateCpa).toFixed(2)}`} />
-          )}
-          {commissionRateRevenueShare !== undefined && (
-            <StatCard title="Revenue Share" value={`${commissionRateRevenueShare}%`} />
-          )}
-        </div>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {stats.map((stat, index) => (
+          <Card key={index} className="bg-slate-800 border-slate-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-slate-300">{stat.title}</CardTitle>
+              <stat.icon className="h-5 w-5 text-slate-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-white">{stat.value}</div>
+              {/* <p className="text-xs text-slate-400">{stat.change}</p> */}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-medium mb-2">Monthly Commissions</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyCommissionsData.datasets[0].data.map((value, index) => ({
-                  month: monthlyCommissionsData.labels[index],
-                  value
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    name="Commission ($)"
-                    stroke="#8884d8"
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium mb-2">Referred Users</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={referredUsersData.datasets[0].data.map((value, index) => ({
-                  month: referredUsersData.labels[index],
-                  value
-                }))}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    name="Users"
-                    stroke="#82ca9d"
-                    activeDot={{ r: 8 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-white">Top Performing Affiliates</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-700 hover:bg-slate-700/30">
+                <TableHead className="text-slate-300">Name</TableHead>
+                <TableHead className="text-slate-300">Sign-ups</TableHead>
+                <TableHead className="text-slate-300">Commission</TableHead>
+                <TableHead className="text-slate-300">Code</TableHead>
+                <TableHead className="text-slate-300">Status</TableHead>
+                <TableHead className="text-slate-300">Rate (CPA / RevShare)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {topAffiliates?.map((affiliate) => (
+                <TableRow key={affiliate.id} className="border-slate-700 hover:bg-slate-700/30">
+                  <TableCell className="font-medium text-white">{affiliate.name || affiliate.user?.user_metadata?.username || 'N/A'}</TableCell>
+                  <TableCell className="text-slate-300">{affiliate.total_referred_users ?? affiliate.signUps ?? 0}</TableCell>
+                  <TableCell className="text-slate-300">${(affiliate.totalCommissions ?? 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-slate-300">{affiliate.code || 'N/A'}</TableCell>
+                  <TableCell><Badge variant={affiliate.status === 'active' ? 'success' : 'secondary'}>{affiliate.status || 'Pending'}</Badge></TableCell>
+                  <TableCell className="text-slate-300">
+                    ${(affiliate.commission_rate_cpa ?? 0).toFixed(2)} / {affiliate.commission_rate_revenue_share ?? 0}%
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
