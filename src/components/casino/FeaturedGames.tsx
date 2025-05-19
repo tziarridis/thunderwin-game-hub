@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
@@ -6,10 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { Heart, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Heart, PlayCircle, AlertTriangle } from 'lucide-react'; // Removed Loader2 as it's implicitly handled by GameSectionLoading
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext'; // For checking authentication and favorites
-import GameSectionLoading from './GameSectionLoading'; // Import the skeleton loader
+import { useAuth } from '@/contexts/AuthContext';
+import GameSectionLoading from './GameSectionLoading';
 
 interface FeaturedGamesProps {
   count?: number;
@@ -23,11 +22,10 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
     if (isAuthenticated) {
       onToggleFavorite(String(game.id || game.game_id));
     } else {
-      // Consider toast: toast.info("Please log in to manage favorites");
       console.log("User not authenticated, cannot toggle favorite.");
     }
   };
-
+  
   const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay'); 
   
   return (
@@ -76,14 +74,13 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
         </p>
       </CardContent>
       
-      {/* Play button overlay - visible on hover */}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 bg-black/50">
         <Button 
             variant="default" 
             size="lg" 
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg scale-90 group-hover:scale-100 transition-transform"
             onClick={(e) => {
-                e.stopPropagation(); // Prevent card click default action
+                e.stopPropagation(); 
                 onPlay(game, isAuthenticated && !(game.tags || []).includes('demo_only') ? 'real' : 'demo');
             }}
         >
@@ -93,7 +90,6 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
     </Card>
   );
 };
-
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, title = "Featured Games" }) => {
   const { games, isLoading, error, favoriteGameIds, toggleFavoriteGame } = useGames();

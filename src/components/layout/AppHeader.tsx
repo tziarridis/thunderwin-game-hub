@@ -9,7 +9,7 @@ import { Menu, X, Wallet, Loader2 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import SiteLogo from "@/components/SiteLogo";
-import { User, Wallet as WalletType } from "@/types"; // Import WalletType for clarity
+import { User, Wallet as WalletType } from "@/types";
 
 const AppHeader = () => {
     const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth();
@@ -33,9 +33,8 @@ const AppHeader = () => {
     }, [isMobile, mobileMenuOpen]);
 
     useEffect(() => {
-        // Close mobile menu on any route change
         setMobileMenuOpen(false);
-    }, [location.pathname]); // Listen to pathname specifically
+    }, [location.pathname]);
 
 
     return (
@@ -48,18 +47,14 @@ const AppHeader = () => {
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <SiteLogo className="h-8 w-auto" />
-            {/* <span className="font-bold text-xl hidden sm:inline">ThunderWin</span> */}
           </Link>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-3 lg:gap-4">
             <Button variant="link" asChild><Link to="/casino">Casino</Link></Button>
             <Button variant="link" asChild><Link to="/sports">Sports</Link></Button>
             <Button variant="link" asChild><Link to="/promotions">Promotions</Link></Button>
-            {/* Add more links as needed */}
           </nav>
 
-          {/* Auth and User Menu Area */}
           <div className="flex items-center gap-2 md:gap-3">
             {authLoading ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -85,7 +80,6 @@ const AppHeader = () => {
               </>
             )}
 
-            {/* Mobile Menu Toggle */}
             <div className="md:hidden">
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -94,15 +88,14 @@ const AppHeader = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu */}
         {isMobile && mobileMenuOpen && (
           <MobileNavMenu 
-            isOpen={mobileMenuOpen} // This prop is expected by MobileNavMenu
-            setIsOpen={setMobileMenuOpen} // This prop is expected by MobileNavMenu
+            // isOpen prop removed as it's not expected by MobileNavMenu (read-only component)
+            setIsOpen={setMobileMenuOpen} 
             isAuthenticated={isAuthenticated}
             onSignOut={handleSignOut}
-            user={user as User} // Cast to User, as isAuthenticated implies user is not null
-            wallet={wallet as WalletType | null} // Cast to WalletType | null
+            user={user as User} 
+            wallet={wallet as WalletType | null} 
           />
         )}
       </header>

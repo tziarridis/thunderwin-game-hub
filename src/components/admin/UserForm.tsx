@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,33 +7,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User } from '@/types'; // Assuming User type is defined in types/index.d.ts
+import { User } from '@/types'; 
 import { toast } from 'sonner';
 
 // Define Zod schema based on User type properties
+const userStatusEnum = z.enum(['active', 'pending', 'suspended', 'banned']);
+const userRoleEnum = z.enum(['user', 'admin', 'editor']);
+const kycStatusEnum = z.enum(['pending', 'approved', 'rejected', 'none']);
+
+
 const userFormSchema = z.object({
   username: z.string().min(3, 'Username must be at least 3 characters'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['user', 'admin', 'editor']).optional(),
-  status: z.enum(['active', 'pending', 'suspended', 'banned']).optional(), // Added suspended
+  role: userRoleEnum.optional(),
+  status: userStatusEnum.optional(),
   vip_level: z.number().min(0).optional(),
   banned: z.boolean().optional(),
   
-  // User Metadata fields - all optional
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   country: z.string().optional(),
   city: z.string().optional(),
   address: z.string().optional(),
-  phone: z.string().optional(), // Making phone optional and part of metadata for form simplicity
-  birthdate: z.string().optional(), // Expecting YYYY-MM-DD
-  kyc_status: z.enum(['pending', 'approved', 'rejected', 'none']).optional(),
+  phone: z.string().optional(), 
+  birthdate: z.string().optional(), 
+  kyc_status: kycStatusEnum.optional(),
   two_factor_enabled: z.boolean().optional(),
   currency: z.string().optional(),
   language: z.string().optional(),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
+type UserStatus = z.infer<typeof userStatusEnum>;
+type UserRole = z.infer<typeof userRoleEnum>;
+type KycStatus = z.infer<typeof kycStatusEnum>;
+
 
 interface UserFormProps {
   user?: User | null;
@@ -71,19 +78,18 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
       reset({
         username: user.username || '',
         email: user.email || '',
-        role: user.role || 'user',
-        status: user.status || 'active',
+        role: (user.role as UserRole) || 'user', // Cast to ensure type compatibility
+        status: (user.status as UserStatus) || 'active', // Cast to ensure type compatibility
         vip_level: user.vip_level || 0,
         banned: user.banned || false,
-        // Access metadata safely
         first_name: user.user_metadata?.first_name || '',
         last_name: user.user_metadata?.last_name || '',
         country: user.user_metadata?.country || '',
         city: user.user_metadata?.city || '',
         address: user.user_metadata?.address || '',
-        phone: user.phone || user.user_metadata?.phone || '', // Prioritize top-level phone
+        phone: user.phone || user.user_metadata?.phone || '',
         birthdate: user.user_metadata?.birthdate || '',
-        kyc_status: user.user_metadata?.kyc_status || 'none',
+        kyc_status: (user.user_metadata?.kyc_status as KycStatus) || 'none', // Cast
         two_factor_enabled: user.user_metadata?.two_factor_enabled || false,
         currency: user.user_metadata?.currency || 'USD',
         language: user.user_metadata?.language || 'en',
@@ -120,7 +126,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
             name="role"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || 'user'}>
                 <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="user">User</SelectItem>
@@ -138,7 +144,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
             name="status"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || 'active'}>
                 <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="active">Active</SelectItem>
@@ -213,7 +219,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
             name="kyc_status"
             control={control}
             render={({ field }) => (
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} value={field.value || 'none'}>
                 <SelectTrigger><SelectValue placeholder="Select KYC status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
@@ -236,7 +242,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
             <Label htmlFor="two_factor_enabled">2FA Enabled</Label>
         </div>
       </div>
-
       <Button type="submit" disabled={isSubmitting} className="w-full md:w-auto">
         {isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
       </Button>
@@ -245,4 +250,3 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, isEditing = false }
 };
 
 export default UserForm;
-

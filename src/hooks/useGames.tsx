@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Game, GameLaunchOptions } from '@/types';
-import { gameService } from '@/services/gameService'; // Main game service
-import { supabase } from '@/integrations/supabase/client'; // For favorites
+import { gameService } from '@/services/gameService'; 
+import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService'; // For specific provider call
+import { supabase } from '@/integrations/supabase/client'; 
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext'; // To get user_id for favorites and launch
+import { useAuth } from '@/contexts/AuthContext'; 
 
-// Helper to get game ID as string
 const getGameIdString = (gameId: string | number | undefined): string => {
   if (gameId === undefined) return '';
   return String(gameId);
@@ -41,9 +41,9 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedGames = await gameService.getGames(filter);
+      // Use getAllGames instead of getGames
+      const fetchedGames = await gameService.getAllGames(filter); 
       setGames(fetchedGames);
-      // Extract categories and providers
       const uniqueCategories = new Set<string>();
       const uniqueProviders = new Set<string>();
       fetchedGames.forEach(game => {
@@ -54,7 +54,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (game.providerName) uniqueProviders.add(game.providerName);
         else if (game.provider_slug) uniqueProviders.add(game.provider_slug);
         else if (game.provider) uniqueProviders.add(game.provider);
-
       });
       setCategories(Array.from(uniqueCategories));
       setProviders(Array.from(uniqueProviders));
@@ -68,7 +67,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const fetchFavorites = useCallback(async () => {
     if (!user?.id) {
-      setFavoriteGameIds(new Set()); // Clear favorites if no user
+      setFavoriteGameIds(new Set()); 
       return;
     }
     try {
@@ -81,36 +80,31 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setFavoriteGameIds(new Set(data.map(fav => getGameIdString(fav.game_id))));
     } catch (err: any) {
       console.error("Error fetching favorites:", err);
-      // Do not toast here as it might be too noisy
     }
   }, [user?.id]);
 
 
   useEffect(() => {
-    fetchGames(); // Initial fetch
+    fetchGames(); 
     if (isAuthenticated) {
       fetchFavorites();
     } else {
-      setFavoriteGameIds(new Set()); // Clear favorites if user logs out
+      setFavoriteGameIds(new Set()); 
     }
   }, [fetchGames, isAuthenticated, fetchFavorites]);
   
-  // Refetch favorites when user changes
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchFavorites();
     }
   }, [user?.id, isAuthenticated, fetchFavorites]);
 
-
   const getGameById = async (id: string): Promise<Game | null> => {
-    // First, try to find in local state
     const localGame = games.find(g => getGameIdString(g.id) === id || getGameIdString(g.game_id) === id || getGameIdString(g.game_code) === id);
     if (localGame) return localGame;
-    // If not found, fetch from service
     try {
       setIsLoading(true);
-      const game = await gameService.getGameById(id);
+      const game = await gameService.getGameById(id); // This method exists on gameService
       setIsLoading(false);
       return game;
     } catch (err) {
@@ -125,8 +119,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (localGame) return localGame;
     try {
       setIsLoading(true);
-      // Assuming gameService might have getGameBySlug or adapt getGames
-      const allGames = await gameService.getGames({ slug }); // Example filter
+      const allGames = await gameService.getAllGames({ slug }); // Use getAllGames with filter
       const game = allGames.find(g => g.slug === slug) || null;
       setIsLoading(false);
       return game;
@@ -152,7 +145,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     
     try {
       if (isCurrentlyFavorite) {
-        // Remove from favorites
         const { error: deleteError } = await supabase
           .from('favorite_games')
           .delete()
@@ -165,7 +157,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
         toast.success("Removed from favorites");
       } else {
-        // Add to favorites
         const { error: insertError } = await supabase
           .from('favorite_games')
           .insert({ user_id: user.id, game_id: gameIdStr });
@@ -180,38 +171,51 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const fetchGameLaunchUrl = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     try {
-      const launchUrl = await gameService.getGameLaunchUrl(game, options);
-      return launchUrl;
+      // Since gameService.getGameLaunchUrl doesn't exist or is problematic,
+      // and LaunchGame.tsx uses pragmaticPlayService directly,
+      // we'll try to use pragmaticPlayService here if applicable.
+      // This is a temporary workaround. A proper gameService abstraction is needed.
+      if (game.provider_slug === 'pragmaticplay' || game.provider === 'pragmaticplay') {
+        const url = await pragmaticPlayService.getLaunchUrl(
+            {}, // config - assuming default or to be enhanced
+            game.game_id || game.id.toString(),
+            options.user_id || 'demoUser', // playerId
+            options.mode,
+            options.language || 'en',
+            options.currency || 'USD',
+            options.platform || 'WEB',
+            options.returnUrl
+        );
+        return url;
+      } else {
+        // For other providers, we don't have a generic launch mechanism here yet via gameService
+        console.error(`Game launch for provider '${game.provider_slug || game.provider}' is not supported through this generic hook yet.`);
+        toast.error(`Launching ${game.title} from provider '${game.provider_slug || game.provider}' is not yet supported here.`);
+        return null;
+      }
     } catch (err: any) {
-      console.error("Error fetching game launch URL:", err);
+      console.error("Error fetching game launch URL in useGames:", err);
       toast.error(`Could not launch ${game.title}: ${err.message}`);
       return null;
     }
   };
 
-  // This is the launchGame function that pages/components will call
   const launchGame = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     if (options.mode === 'real' && !isAuthenticated) {
       toast.error("Please log in to play for real money.");
-      // Consider redirecting to login page: navigate('/login');
       return null;
     }
-    // Enrich options with user details if available and mode is real
     if (options.mode === 'real' && user) {
       options.user_id = user.id;
       options.username = user.username || user.email?.split('@')[0];
       options.currency = user.user_metadata?.currency || 'USD';
       options.language = user.user_metadata?.language || 'en';
     } else if (options.mode === 'demo') {
-        // Demo mode might not need user specific details, or might use defaults
         options.language = options.language || 'en';
-        options.currency = options.currency || 'USD'; // Provider might require a currency even for demo
+        options.currency = options.currency || 'USD';
     }
-
-
     return fetchGameLaunchUrl(game, options);
   };
-
 
   return (
     <GamesContext.Provider value={{ 
@@ -225,8 +229,8 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         getGameBySlug,
         favoriteGameIds,
         toggleFavoriteGame,
-        launchGame, // Expose the simplified launchGame
-        fetchGameLaunchUrl // Also expose the raw fetch if needed elsewhere
+        launchGame,
+        fetchGameLaunchUrl
     }}>
       {children}
     </GamesContext.Provider>

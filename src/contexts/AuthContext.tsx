@@ -1,24 +1,29 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Wallet } from '@/types'; 
-import { userService } from '@/services/userService'; 
-import { walletService } from '@/services/walletService'; 
+import { User, Wallet } from '@/types';
+import userService from '@/services/userService'; // Changed to default import
+import { walletService } from '@/services/walletService';
 import { toast } from 'sonner';
+
+// Define specific types for role and status to be used for casting
+type UserRole = 'user' | 'admin' | 'editor';
+// Assuming UserStatus is defined in types or we can define it here if not
+// For now, let's assume User type has status correctly typed or it's part of user_metadata
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  user: User | null; 
+  user: User | null;
   session: Session | null;
   loading: boolean;
-  isAdmin: boolean; 
+  isAdmin: boolean;
   signIn: (credentials: { email: string; password?: string; provider?: 'google' | 'discord' }) => Promise<any>;
   signUp: (credentials: { email: string; password?: string; data?:object }) => Promise<any>;
-  signOut: () => Promise<void>; 
+  signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  refreshWalletBalance: () => Promise<void>; 
-  wallet: Wallet | null; 
-  deposit?: () => void; // Made optional as it might be a placeholder
+  refreshWalletBalance: () => Promise<void>;
+  wallet: Wallet | null;
+  deposit?: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,7 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUserProfileAndWallet = async (supabaseUser: SupabaseUser | null) => {
     if (supabaseUser) {
       try {
-        const userProfilePromise = userService.getUserProfile(supabaseUser.id);
+        // Use userService.getUserById instead of non-existent getUserProfile
+        const userProfilePromise = userService.getUserById(supabaseUser.id);
         const userWalletPromise = walletService.getWalletByUserId(supabaseUser.id);
 
         const [userProfileResult, userWalletResult] = await Promise.allSettled([userProfilePromise, userWalletPromise]);
@@ -41,16 +47,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         let appUser: User | null = null;
 
         if (userProfileResult.status === 'fulfilled' && userProfileResult.value) {
-          const profile = userProfileResult.value;
+          const profile = userProfileResult.value as User; // Cast fetched profile to User
           appUser = {
-            ...supabaseUser, 
-            ...profile, 
-            // Ensure properties from SupabaseUser and profile are correctly typed and merged into User
-            id: supabaseUser.id, // Critical: ensure User type expects this from SupabaseUser
+            ...supabaseUser,
+            ...profile,
+            id: supabaseUser.id,
             email: supabaseUser.email,
-            // Example of merging:
             username: profile.username || supabaseUser.email?.split('@')[0],
-            role: profile.role || supabaseUser.role || 'user',
+            // Ensure role is correctly typed or provide a default from UserRole
+            role: (profile.role as UserRole) || supabaseUser.role as UserRole || 'user',
             vip_level: profile.vip_level || 0,
             user_metadata: {
                 ...(supabaseUser.user_metadata || {}),
@@ -60,12 +65,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 last_name: profile.last_name || profile.user_metadata?.last_name,
                 avatar_url: profile.user_metadata?.avatar_url || supabaseUser.user_metadata?.avatar_url,
             },
-            // other direct fields from profile if they exist
-            status: profile.status,
+            status: profile.status, // Assuming User type has status correctly typed
             banned: profile.banned,
           };
         } else {
-           // Fallback if profile fetch fails or returns null
            appUser = {
             ...supabaseUser,
             id: supabaseUser.id,
@@ -73,11 +76,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             user_metadata: supabaseUser.user_metadata || {},
             username: supabaseUser.email?.split('@')[0],
             vip_level: 0,
-            role: supabaseUser.role || 'user',
+            role: (supabaseUser.role as UserRole) || 'user', // Ensure role is correctly typed
           };
         }
         setUser(appUser);
-        setIsAdmin(appUser?.role === 'admin'); 
+        setIsAdmin(appUser?.role === 'admin');
 
         if(userWalletResult.status === 'fulfilled' && userWalletResult.value?.success && userWalletResult.value.data){
             setWallet(userWalletResult.value.data as Wallet);
@@ -90,7 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
         }
 
-      } catch (error) { // Catch errors from Promise.allSettled if any other logic throws
+      } catch (error) {
         console.error("Error processing user profile/wallet results:", error);
         const fallbackUser: User = {
             ...supabaseUser,
@@ -99,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             user_metadata: supabaseUser.user_metadata || {},
             username: supabaseUser.email?.split('@')[0],
             vip_level: 0,
-            role: supabaseUser.role || 'user',
+            role: (supabaseUser.role as UserRole) || 'user', // Ensure role is correctly typed
         };
         setUser(fallbackUser);
         setIsAdmin(fallbackUser?.role === 'admin');
@@ -132,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       subscription?.unsubscribe();
     };
-  }, []); // Ensure empty dependency array for mount/unmount logic
+  }, []);
 
   const signIn = async (credentials: { email: string; password?: string; provider?: 'google' | 'discord' }) => {
     setLoading(true);
@@ -140,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (credentials.provider) {
       response = await supabase.auth.signInWithOAuth({
         provider: credentials.provider,
-        options: { redirectTo: `${window.location.origin}/` } // Ensure redirect is to a valid app page
+        options: { redirectTo: `${window.location.origin}/` } 
       });
     } else if (credentials.password) {
       response = await supabase.auth.signInWithPassword({
@@ -157,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.error(response.error.message);
     } else if (response.data.user && response.data.session) {
       toast.success("Signed in successfully!");
-    } else if (!response.data.session && !credentials.provider && response.data.user) { // User exists but no session (email confirmation pending)
+    } else if (!response.data.session && !credentials.provider && response.data.user) { 
         toast.info("Please check your email to confirm your account.");
     }
     setLoading(false);
@@ -171,7 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password: credentials.password || '', 
       options: {
         data: credentials.data, 
-        emailRedirectTo: `${window.location.origin}/` // Ensure redirect is to a valid app page
+        emailRedirectTo: `${window.location.origin}/`
       }
     });
     if (response.error) {
@@ -179,7 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else if (response.data.user) {
       if (response.data.session) {
         toast.success("Account created and signed in!");
-      } else { // Email confirmation needed
+      } else { 
         toast.success("Account created! Please check your email to confirm your registration.");
       }
     }
@@ -194,7 +197,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       toast.error(error.message);
     } else {
       toast.success("Signed out successfully!");
-      // State clearing (user, session, wallet, isAdmin) is handled by onAuthStateChange
     }
     setLoading(false);
   };
@@ -209,7 +211,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshWalletBalance = async () => {
-    if (user?.id) { // Check if user object and user.id exists
+    if (user?.id) { 
         const userWalletResult = await walletService.getWalletByUserId(user.id);
         if(userWalletResult.success && userWalletResult.data){
             setWallet(userWalletResult.data as Wallet);
@@ -221,24 +223,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const deposit = () => {
     toast.info("Deposit functionality placeholder.");
-    // Example: navigate('/wallet/deposit');
   };
 
-
   return (
-    <AuthContext.Provider value={{ 
-        isAuthenticated: !!user, 
-        user, 
-        session, 
-        loading, 
-        signIn, 
-        signUp, 
-        signOut, 
-        refreshUser, 
-        isAdmin, 
-        refreshWalletBalance, 
-        wallet, 
-        deposit 
+    <AuthContext.Provider value={{
+        isAuthenticated: !!user,
+        user,
+        session,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        refreshUser,
+        isAdmin,
+        refreshWalletBalance,
+        wallet,
+        deposit
     }}>
       {children}
     </AuthContext.Provider>
