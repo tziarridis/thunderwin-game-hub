@@ -4,12 +4,12 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import UserMenu from "@/components/user/UserMenu";
-import MobileNavMenu from "./MobileNavMenu"; 
-import { Menu, X, Wallet, Loader2 } from "lucide-react"; 
+import MobileNavMenu, { MobileNavMenuProps } from "./MobileNavMenu"; 
+import { Menu, X, Wallet as WalletIcon, Loader2 } from "lucide-react"; // Renamed Wallet to WalletIcon
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import SiteLogo from "@/components/SiteLogo";
-import { User, Wallet as WalletType } from "@/types"; // WalletType alias for clarity
+import { User, WalletType } from "@/types"; 
 
 const AppHeader = () => {
     const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth();
@@ -22,42 +22,53 @@ const AppHeader = () => {
         if (signOut) { 
           await signOut();
         }
-        setMobileMenuOpen(false); // Close menu on sign out
+        setMobileMenuOpen(false); 
         navigate("/");
     };
 
     useEffect(() => {
-        // Close mobile menu if screen size changes from mobile to desktop while menu is open
         if (!isMobile && mobileMenuOpen) {
             setMobileMenuOpen(false);
         }
     }, [isMobile, mobileMenuOpen]);
 
-    // Close mobile menu on route change
     useEffect(() => {
         setMobileMenuOpen(false);
     }, [location.pathname]);
+
+
+    const mobileNavMenuProps: MobileNavMenuProps = {
+        isAuthenticated: isAuthenticated,
+        onSignOut: handleSignOut,
+        user: user as User, // Cast if user can be null initially and MobileNavMenu expects User
+        // wallet: wallet as WalletType | null, // Assuming MobileNavMenuProps defines wallet
+        // If MobileNavMenuProps does not define wallet, remove this line.
+        // For now, assuming it might take it, but if error persists, remove it.
+        // Based on the error, MobileNavMenuProps does NOT accept wallet. So it's removed.
+    };
+    if (wallet) {
+      // If MobileNavMenuProps is updated to accept wallet, it can be added here conditionally
+      // For example: (mobileNavMenuProps as any).wallet = wallet;
+      // But it's better to update MobileNavMenuProps definition.
+    }
 
 
     return (
       <header 
         className={cn(
           "fixed top-0 left-0 right-0 z-50 h-16 bg-background/80 backdrop-blur-md border-b border-border/60",
-          "transition-all duration-300" // Ensure smooth transitions for any property changes
+          "transition-all duration-300"
         )}
       >
         <div className="container mx-auto px-4 h-full flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <SiteLogo className="h-8 w-auto" />
-            {/* <span className="font-bold text-xl text-primary">ThunderWin</span> Optional: if SiteLogo doesn't include text */}
           </Link>
 
-          {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-3 lg:gap-4">
             <Button variant="link" asChild><Link to="/casino">Casino</Link></Button>
             <Button variant="link" asChild><Link to="/sports">Sports</Link></Button>
             <Button variant="link" asChild><Link to="/promotions">Promotions</Link></Button>
-            {/* Add more links as needed */}
           </nav>
 
           <div className="flex items-center gap-2 md:gap-3">
@@ -70,9 +81,9 @@ const AppHeader = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={() => navigate('/profile?tab=wallet')} 
-                    className="hidden sm:flex items-center" // Show on sm screens and up
+                    className="hidden sm:flex items-center"
                   >
-                    <Wallet className="h-4 w-4 mr-2" />
+                    <WalletIcon className="h-4 w-4 mr-2" />
                     {(wallet.balance ?? 0).toFixed(2)} {wallet.currency}
                   </Button>
                 )}
@@ -85,7 +96,6 @@ const AppHeader = () => {
               </>
             )}
 
-            {/* Mobile Menu Toggle */}
             <div className="md:hidden">
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -94,22 +104,11 @@ const AppHeader = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Menu - Rendered conditionally */}
         {isMobile && mobileMenuOpen && (
-          <MobileNavMenu 
-            // Removed setIsOpen as it's not an expected prop for MobileNavMenu
-            isAuthenticated={isAuthenticated}
-            onSignOut={handleSignOut} // Pass signout to allow menu to trigger it
-            user={user as User} // Pass user data for display in menu
-            wallet={wallet as WalletType | null} // Pass wallet data
-            // If MobileNavMenu needs to close itself (e.g. after a link click),
-            // it should accept an `onClose` prop, which would call `setMobileMenuOpen(false)` here.
-            // For now, route changes handled by useEffect above will close it.
-          />
+          <MobileNavMenu {...mobileNavMenuProps} />
         )}
       </header>
     );
 };
 
 export default AppHeader;
-

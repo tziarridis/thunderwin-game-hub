@@ -1,6 +1,5 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { Game } from '@/types'; // Removed GameProvider as it's not used locally
+import { Game, DbGame as LocalDbGame } from '@/types'; // Use LocalDbGame to avoid conflict if DbGame is global
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -15,23 +14,12 @@ interface UseGamesDataProps {
   searchQuery?: string;
 }
 
-interface DbGame {
-  id: string;
-  game_name: string;
-  cover: string;
-  game_type: string;
-  rtp: number;
-  show_home: boolean;
-  created_at: string;
-  providers?: { // This structure implies 'providers' is a related table, not a direct column
-    name: string;
-  };
-  min_bet?: number;
-  max_bet?: number;
-  is_popular?: boolean;
-  is_new?: boolean;
-  is_featured?: boolean; // Added for consistency if used in filters
+// Renamed DbGame to LocalDbGame to avoid potential global conflicts if DbGame is defined elsewhere.
+// If DbGame is already correctly typed globally (e.g. in types/index.d.ts), you can use that.
+interface DbGameResponseItem extends LocalDbGame { // LocalDbGame from @/types
+  // any additional fields from the actual response structure if different
 }
+
 
 export const useGamesData = ({
   category,
@@ -55,22 +43,13 @@ export const useGamesData = ({
       
       let query = supabase
         .from('games')
-        .select('*, providers(name)', { count: 'exact' }); // providers(name) assumes a 'providers' table related to 'games'
+        .select('*, providers(name)', { count: 'exact' }); 
       
       if (category && category !== 'all') {
         query = query.eq('game_type', category);
       }
       
-      // Filtering by provider name from a related table needs a specific syntax if 'providers' is a join.
-      // If 'provider' is a direct column on 'games' table (e.g., provider_slug), use:
-      // if (provider) query = query.eq('provider_slug', provider);
-      // For now, assuming 'providers.name' works as intended with RLS or view setup.
       if (provider) {
-         // This might need adjustment based on how 'providers' table is actually structured and related
-         // If 'games' table has a 'provider_id' and 'providers' table has 'id' and 'name',
-         // and you want to filter by provider name, a function or a view might be better.
-         // Or filter by a 'provider_slug' directly on the 'games' table if it exists.
-         // For simplicity, this example assumes 'providers.name' is directly filterable or refers to a column that holds the provider name.
         query = query.eq('providers.name', provider);
       }
       
@@ -79,7 +58,7 @@ export const useGamesData = ({
       }
       
       if (popular) {
-        query = query.eq('show_home', true); // Or 'is_popular' depending on DB schema
+        query = query.eq('show_home', true);
       }
       
       if (latest) {
@@ -92,47 +71,49 @@ export const useGamesData = ({
       
       query = query
         .range(offset, offset + limit - 1)
-        .order('created_at', { ascending: false }); // Default sort, can be overridden by 'latest'
+        .order('created_at', { ascending: false }); 
       
       const { data, error: queryError, count } = await query;
       
       if (queryError) throw queryError;
       
-      let favorites: Record<string, boolean> = {};
-      if (user?.id) {
-        const { data: favData } = await supabase
-          .from('favorite_games')
-          .select('game_id')
-          .eq('user_id', user.id);
-          
-        if (favData) {
-          favorites = favData.reduce((acc: Record<string, boolean>, item: { game_id: string }) => {
-            acc[item.game_id] = true;
-            return acc;
-          }, {});
-        }
-      }
-      
-      const formattedGames = data?.map((game: DbGame) => {
+      // Favorites are handled by useGames hook and applied at the component level
+      // let favorites: Record<string, boolean> = {};
+      // if (user?.id) { ... }
+
+      const formattedGames = data?.map((dbGameItem: DbGameResponseItem) => {
+        // The 'isFavorite' property should not be set here as it's not part of the base Game type.
+        // It's typically derived dynamically in components using favoriteGameIds from useGames.
         const gameObject: Game = {
-          id: game.id,
-          title: game.game_name,
-          // name: game.game_name, // Removed: 'name' is not a property of Game type
-          providerName: game.providers?.name || 'Unknown', // Use providerName for consistency
-          provider: game.providers?.name || 'Unknown', // Keep provider for broader compatibility if needed elsewhere
-          image: game.cover || '/placeholder.svg',
-          categoryName: game.game_type, // Use categoryName
-          category: game.game_type, // Keep category for compatibility
-          rtp: game.rtp,
-          isPopular: game.show_home || game.is_popular || false,
-          isNew: game.is_new || (new Date(game.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000),
-          isFavorite: favorites[game.id] || false,
-          minBet: game.min_bet, // Keep as number | undefined
-          maxBet: game.max_bet, // Keep as number | undefined
-          volatility: 'medium', 
-          features: [],
-          tags: [],
-          slug: game.game_name.toLowerCase().replace(/\s+/g, '-'), // Basic slug generation
+          id: dbGameItem.id || String(Date.now() + Math.random()), // Ensure ID is string
+          title: dbGameItem.game_name || 'Unknown Title',
+          providerName: dbGameItem.providers?.name || dbGameItem.provider_slug || 'Unknown Provider',
+          provider: dbGameItem.providers?.name || dbGameItem.provider_slug || 'Unknown Provider',
+          image: dbGameItem.cover || '/placeholder.svg',
+          categoryName: dbGameItem.game_type || 'Unknown Category',
+          category: dbGameItem.game_type || 'Unknown Category',
+          rtp: typeof dbGameItem.rtp === 'string' ? parseFloat(dbGameItem.rtp) : dbGameItem.rtp, // Ensure rtp is number if possible
+          isPopular: dbGameItem.show_home || dbGameItem.is_popular || false,
+          isNew: dbGameItem.is_new || (dbGameItem.created_at && new Date(dbGameItem.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000),
+          // isFavorite: favorites[game.id] || false, // REMOVED: Game type doesn't have isFavorite
+          minBet: dbGameItem.min_bet,
+          maxBet: dbGameItem.max_bet,
+          volatility: dbGameItem.volatility || 'medium', 
+          features: dbGameItem.features || [],
+          tags: dbGameItem.tags || [],
+          slug: dbGameItem.slug || (dbGameItem.game_name || '').toLowerCase().replace(/\s+/g, '-'),
+          game_id: dbGameItem.game_id,
+          game_code: dbGameItem.game_code,
+          provider_slug: dbGameItem.provider_slug,
+          category_slugs: dbGameItem.category_slugs,
+          status: dbGameItem.status,
+          description: dbGameItem.description,
+          banner: dbGameItem.banner,
+          is_featured: dbGameItem.is_featured,
+          show_home: dbGameItem.show_home,
+          themes: dbGameItem.themes,
+          lines: dbGameItem.lines,
+          release_date: dbGameItem.release_date,
         };
         return gameObject;
       }) || [];
@@ -155,7 +136,6 @@ export const useGamesData = ({
     }
   }, [category, provider, featured, popular, latest, limit, searchQuery, user?.id]);
 
-  // Initial fetch
   useEffect(() => {
     fetchGames(0);
   }, [fetchGames]);
@@ -182,4 +162,3 @@ export const useGamesData = ({
 };
 
 export default useGamesData;
-

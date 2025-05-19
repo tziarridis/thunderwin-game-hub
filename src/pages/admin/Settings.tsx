@@ -1,163 +1,245 @@
+
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import ResponsiveContainer from '@/components/ui/responsive-container';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import CasinoAggregatorSettings from '@/components/admin/CasinoAggregatorSettings';
-import VipLevelManager from '@/components/admin/VipLevelManager';
-// Assuming you might have a settings service
-// import { settingsService, SiteSettings } from '@/services/settingsService';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Globe, Palette, ShieldCheck, Server, CreditCard, Bell } from 'lucide-react';
 
-// Example structure for site settings
-interface SiteSettingsData {
+// Mock settings data structure
+interface GeneralSettings {
   siteName: string;
+  siteUrl: string;
+  adminEmail: string;
   maintenanceMode: boolean;
-  defaultCurrency: string;
-  defaultLanguage: string;
-  registrationOpen: boolean;
-  // Add more settings as needed
+}
+interface AppearanceSettings {
+  theme: 'light' | 'dark' | 'system';
+  primaryColor: string;
+  logoUrl?: string;
+}
+interface SecuritySettings {
+  enable2FA: boolean;
+  sessionTimeout: number; // minutes
+}
+interface APISettings {
+  gameProviderApiKey: string;
+  paymentGatewayKey: string;
 }
 
 const AdminSettings = () => {
-  const [activeTab, setActiveTab] = useState("general");
-  // const [settings, setSettings] = useState<SiteSettingsData | null>(null);
-  // const [isLoading, setIsLoading] = useState(true);
+  const [generalSettings, setGeneralSettings] = useState<GeneralSettings>({
+    siteName: 'ThunderWin Casino',
+    siteUrl: 'https://thunderwin.example.com',
+    adminEmail: 'admin@thunderwin.example.com',
+    maintenanceMode: false,
+  });
 
-  // useEffect(() => {
-  //   const loadSettings = async () => {
-  //     setIsLoading(true);
-  //     try {
-  //       // const fetchedSettings = await settingsService.getSettings();
-  //       // setSettings(fetchedSettings);
-  //       // For now, using placeholder:
-  //       setSettings({
-  //         siteName: "Thunder Casino",
-  //         maintenanceMode: false,
-  //         defaultCurrency: "USD",
-  //         defaultLanguage: "en",
-  //         registrationOpen: true,
-  //       });
-  //     } catch (error) {
-  //       toast.error("Failed to load settings.");
-  //     } finally {
-  //       setIsLoading(false);
-  //     }
-  //   };
-  //   loadSettings();
-  // }, []);
-
-  // const handleSettingChange = (field: keyof SiteSettingsData, value: any) => {
-  //   if (settings) {
-  //     setSettings(prev => prev ? { ...prev, [field]: value } : null);
-  //   }
-  // };
-
-  // const handleSaveSettings = async (category: string) => {
-  //   if (!settings) return;
-  //   toast.info(`Saving ${category} settings...`);
-  //   try {
-  //     // await settingsService.updateSettings(settings);
-  //     // toast.success(`${category} settings updated successfully!`);
-  //     console.log("Simulated save for:", category, settings);
-  //     toast.success(`Simulated save for ${category} settings successful!`);
-  //   } catch (error) {
-  //     toast.error(`Failed to update ${category} settings.`);
-  //   }
-  // };
+  const [appearanceSettings, setAppearanceSettings] = useState<AppearanceSettings>({
+    theme: 'dark',
+    primaryColor: '#34D399', // Emerald 400 as an example
+  });
   
-  // if (isLoading) {
-  //   return <ResponsiveContainer><CMSPageHeader title="Site Settings" /><p>Loading settings...</p></ResponsiveContainer>;
-  // }
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>({
+    enable2FA: false,
+    sessionTimeout: 30,
+  });
+  
+  const [apiSettings, setApiSettings] = useState<APISettings>({
+      gameProviderApiKey: "**********",
+      paymentGatewayKey: "**********",
+  });
 
-  // if (!settings) {
-  //   return <ResponsiveContainer><CMSPageHeader title="Site Settings" /><p>Could not load settings.</p></ResponsiveContainer>;
-  // }
 
+  const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGeneralSettings({ ...generalSettings, [e.target.name]: e.target.value });
+  };
+  
+  const handleAppearanceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAppearanceSettings({ ...appearanceSettings, [e.target.name]: e.target.value });
+  };
+  
+  const handleSecurityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setSecuritySettings({ ...securitySettings, [e.target.name]: value });
+  };
+  
+  const handleApiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setApiSettings({ ...apiSettings, [e.target.name]: e.target.value });
+  };
+
+
+  const handleSaveSettings = (settingsType: string) => {
+    // In a real app, this would call an API to save settings
+    console.log(`Saving ${settingsType} settings:`, 
+      settingsType === 'general' ? generalSettings : 
+      settingsType === 'appearance' ? appearanceSettings :
+      settingsType === 'security' ? securitySettings :
+      apiSettings
+    );
+    toast.success(`${settingsType.charAt(0).toUpperCase() + settingsType.slice(1)} settings saved successfully! (Mocked)`);
+  };
 
   return (
-    <ResponsiveContainer>
-      <CMSPageHeader title="Site Settings" description="Configure various aspects of the platform." />
-      <Tabs defaultValue="general" onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="casino">Casino</TabsTrigger>
-          <TabsTrigger value="vip">VIP Levels</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          {/* Add more tabs like 'Users', 'Security', 'API Keys' etc. */}
+    <div className="p-4 md:p-6 space-y-6">
+      <h1 className="text-2xl md:text-3xl font-bold">Admin Settings</h1>
+      
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+          <TabsTrigger value="general"><Globe className="mr-2 h-4 w-4 inline-block" />General</TabsTrigger>
+          <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 inline-block" />Appearance</TabsTrigger>
+          <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4 inline-block" />Security</TabsTrigger>
+          <TabsTrigger value="api"><Server className="mr-2 h-4 w-4 inline-block" />API Keys</TabsTrigger>
+          <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 inline-block" />Notifications</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="general" className="space-y-6">
-          <div className="p-6 border rounded-lg bg-card">
-            <h3 className="text-lg font-medium mb-4">General Site Settings</h3>
-            <div className="space-y-4">
+        <TabsContent value="general" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>General Settings</CardTitle>
+              <CardDescription>Manage basic site information and operational status.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <Label htmlFor="siteName">Site Name</Label>
-                {/* <Input id="siteName" value={settings.siteName} onChange={(e) => handleSettingChange('siteName', e.target.value)} /> */}
-                <Input id="siteName" placeholder="Your Casino Name" />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="maintenanceMode" className="flex flex-col space-y-1">
-                  <span>Maintenance Mode</span>
-                  <span className="font-normal leading-snug text-muted-foreground">
-                    Temporarily disable access for non-admin users.
-                  </span>
-                </Label>
-                {/* <Switch id="maintenanceMode" checked={settings.maintenanceMode} onCheckedChange={(checked) => handleSettingChange('maintenanceMode', checked)} /> */}
-                <Switch id="maintenanceMode" />
-              </div>
-               <div className="flex items-center justify-between">
-                <Label htmlFor="registrationOpen" className="flex flex-col space-y-1">
-                  <span>User Registration</span>
-                  <span className="font-normal leading-snug text-muted-foreground">
-                    Allow new users to register on the platform.
-                  </span>
-                </Label>
-                {/* <Switch id="registrationOpen" checked={settings.registrationOpen} onCheckedChange={(checked) => handleSettingChange('registrationOpen', checked)} /> */}
-                <Switch id="registrationOpen" defaultChecked={true} />
+                <Input id="siteName" name="siteName" value={generalSettings.siteName} onChange={handleGeneralChange} />
               </div>
               <div>
-                <Label htmlFor="defaultCurrency">Default Currency</Label>
-                {/* <Input id="defaultCurrency" value={settings.defaultCurrency} onChange={(e) => handleSettingChange('defaultCurrency', e.target.value)} /> */}
-                <Input id="defaultCurrency" placeholder="USD" />
+                <Label htmlFor="siteUrl">Site URL</Label>
+                <Input id="siteUrl" name="siteUrl" type="url" value={generalSettings.siteUrl} onChange={handleGeneralChange} />
               </div>
               <div>
-                <Label htmlFor="defaultLanguage">Default Language</Label>
-                {/* <Input id="defaultLanguage" value={settings.defaultLanguage} onChange={(e) => handleSettingChange('defaultLanguage', e.target.value)} /> */}
-                <Input id="defaultLanguage" placeholder="en" />
+                <Label htmlFor="adminEmail">Admin Email</Label>
+                <Input id="adminEmail" name="adminEmail" type="email" value={generalSettings.adminEmail} onChange={handleGeneralChange} />
               </div>
-            </div>
-            <Button className="mt-6" onClick={() => toast.info("Save General Settings clicked (simulation).")}>Save General Settings</Button>
-          </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                    id="maintenanceMode" 
+                    checked={generalSettings.maintenanceMode} 
+                    onCheckedChange={(checked) => setGeneralSettings({...generalSettings, maintenanceMode: checked})}
+                />
+                <Label htmlFor="maintenanceMode">Enable Maintenance Mode</Label>
+              </div>
+              <Button onClick={() => handleSaveSettings('general')}>Save General Settings</Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="casino" className="space-y-6">
-          <CasinoAggregatorSettings />
-          {/* Add specific casino settings form here */}
-          {/* Example: Game display, RTP visibility, etc. */}
-        </TabsContent>
-
-        <TabsContent value="vip" className="space-y-6">
-            <VipLevelManager />
-        </TabsContent>
-
-        <TabsContent value="payments" className="space-y-6">
-           <div className="p-6 border rounded-lg bg-card">
-            <h3 className="text-lg font-medium mb-4">Payment Gateway Configuration</h3>
-            <p className="text-muted-foreground">Configure settings for payment providers, deposit/withdrawal limits, and supported currencies.</p>
-            {/* Placeholder for payment settings form */}
-            <div className="mt-4 p-4 border-dashed border-2 rounded-md text-center">
-                <p className="text-sm text-muted-foreground">Payment gateway settings will be available here.</p>
-            </div>
-            <Button className="mt-6" onClick={() => toast.info("Save Payment Settings clicked (simulation).")}>Save Payment Settings</Button>
-          </div>
+        <TabsContent value="appearance" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Customize the look and feel of your platform.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="theme">Theme</Label>
+                 {/* Basic select, consider using ShadCN Select component */}
+                <select id="theme" name="theme" value={appearanceSettings.theme} onChange={(e) => setAppearanceSettings({...appearanceSettings, theme: e.target.value as AppearanceSettings['theme']})} className="w-full p-2 border rounded">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                    <option value="system">System</option>
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="primaryColor">Primary Color</Label>
+                <Input id="primaryColor" name="primaryColor" type="color" value={appearanceSettings.primaryColor} onChange={handleAppearanceChange} />
+              </div>
+               <div>
+                <Label htmlFor="logoUrl">Logo URL</Label>
+                <Input id="logoUrl" name="logoUrl" placeholder="https://example.com/logo.png" value={appearanceSettings.logoUrl || ''} onChange={handleAppearanceChange} />
+              </div>
+              <Button onClick={() => handleSaveSettings('appearance')}>Save Appearance Settings</Button>
+            </CardContent>
+          </Card>
         </TabsContent>
         
+        <TabsContent value="security" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Security Settings</CardTitle>
+                    <CardDescription>Configure security options for users and the admin panel.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                        <Switch 
+                            id="enable2FA" 
+                            checked={securitySettings.enable2FA}
+                            onCheckedChange={(checked) => setSecuritySettings({...securitySettings, enable2FA: checked})}
+                        />
+                        <Label htmlFor="enable2FA">Enable Two-Factor Authentication (2FA) for Users</Label>
+                    </div>
+                    <div>
+                        <Label htmlFor="sessionTimeout">Session Timeout (minutes)</Label>
+                        <Input 
+                            id="sessionTimeout" 
+                            name="sessionTimeout" 
+                            type="number" 
+                            value={securitySettings.sessionTimeout} 
+                            onChange={(e) => setSecuritySettings({...securitySettings, sessionTimeout: parseInt(e.target.value) || 30})} 
+                        />
+                    </div>
+                    <Button onClick={() => handleSaveSettings('security')}>Save Security Settings</Button>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="api" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>API Keys & Integrations</CardTitle>
+                    <CardDescription>Manage API keys for third-party services.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <Label htmlFor="gameProviderApiKey">Game Provider API Key</Label>
+                        <Input 
+                            id="gameProviderApiKey" 
+                            name="gameProviderApiKey" 
+                            type="password" 
+                            value={apiSettings.gameProviderApiKey} 
+                            onChange={handleApiChange} 
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="paymentGatewayKey">Payment Gateway API Key</Label>
+                        <Input 
+                            id="paymentGatewayKey" 
+                            name="paymentGatewayKey" 
+                            type="password" 
+                            value={apiSettings.paymentGatewayKey} 
+                            onChange={handleApiChange} 
+                        />
+                    </div>
+                    <Button onClick={() => handleSaveSettings('API')}>Save API Settings</Button>
+                </CardContent>
+            </Card>
+        </TabsContent>
+        
+        <TabsContent value="notifications" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Notification Settings</CardTitle>
+                    <CardDescription>Configure email and platform notifications.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-muted-foreground">Notification settings are not yet configurable here. (Placeholder)</p>
+                    {/* Example:
+                    <div className="flex items-center space-x-2">
+                        <Switch id="emailOnNewUser" />
+                        <Label htmlFor="emailOnNewUser">Email admin on new user registration</Label>
+                    </div>
+                    <Button disabled>Save Notification Settings</Button>
+                    */}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
       </Tabs>
-    </ResponsiveContainer>
+    </div>
   );
 };
 
