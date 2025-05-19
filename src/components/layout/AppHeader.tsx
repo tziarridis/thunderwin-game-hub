@@ -4,11 +4,12 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import UserMenu from "@/components/user/UserMenu";
-import MobileNavMenu from "./MobileNavMenu"; // Check if this path is correct
-import { Menu, X, Wallet, Loader2 } from "lucide-react"; // Added Loader2
+import MobileNavMenu from "./MobileNavMenu"; 
+import { Menu, X, Wallet, Loader2 } from "lucide-react"; 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import SiteLogo from "@/components/SiteLogo";
+import { User, Wallet as WalletType } from "@/types"; // Import WalletType for clarity
 
 const AppHeader = () => {
     const { user, isAuthenticated, signOut, loading: authLoading, wallet } = useAuth();
@@ -18,7 +19,7 @@ const AppHeader = () => {
     const isMobile = useIsMobile();
 
     const handleSignOut = async () => {
-        if (signOut) { // signOut can be undefined from context if not careful
+        if (signOut) { 
           await signOut();
         }
         setMobileMenuOpen(false);
@@ -32,10 +33,10 @@ const AppHeader = () => {
     }, [isMobile, mobileMenuOpen]);
 
     useEffect(() => {
-        if (mobileMenuOpen) {
-            setMobileMenuOpen(false);
-        }
-    }, [location, mobileMenuOpen]);
+        // Close mobile menu on any route change
+        setMobileMenuOpen(false);
+    }, [location.pathname]); // Listen to pathname specifically
+
 
     return (
       <header 
@@ -68,11 +69,11 @@ const AppHeader = () => {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => navigate('/profile?tab=wallet')} // Example navigation
+                    onClick={() => navigate('/profile?tab=wallet')} 
                     className="hidden sm:flex items-center"
                   >
                     <Wallet className="h-4 w-4 mr-2" />
-                    {wallet.balance?.toFixed(2)} {wallet.currency}
+                    {(wallet.balance ?? 0).toFixed(2)} {wallet.currency}
                   </Button>
                 )}
                 <UserMenu user={user} onSignOut={handleSignOut} />
@@ -96,12 +97,12 @@ const AppHeader = () => {
         {/* Mobile Navigation Menu */}
         {isMobile && mobileMenuOpen && (
           <MobileNavMenu 
-            isOpen={mobileMenuOpen} 
-            setIsOpen={setMobileMenuOpen} 
+            isOpen={mobileMenuOpen} // This prop is expected by MobileNavMenu
+            setIsOpen={setMobileMenuOpen} // This prop is expected by MobileNavMenu
             isAuthenticated={isAuthenticated}
             onSignOut={handleSignOut}
-            user={user}
-            wallet={wallet}
+            user={user as User} // Cast to User, as isAuthenticated implies user is not null
+            wallet={wallet as WalletType | null} // Cast to WalletType | null
           />
         )}
       </header>

@@ -1,357 +1,188 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from '@tanstack/react-table';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
+import { kycService, KycRequest } from '@/services/kycService'; // Assume kycService exists
+import { Eye, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import ResponsiveContainer from '@/components/ui/responsive-container';
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import React, { useState, useEffect } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Check, 
-  X, 
-  Eye, 
-  Search, 
-  Clock, 
-} from "lucide-react";
-import { KycRequest, KycStatusType } from "@/types"; // Changed KycStatus to KycStatusType
 
-export const KycManagement = () => {
-  const [requests, setRequests] = useState<KycRequest[]>([]);
-  const [filter, setFilter] = useState<string>("all"); 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<string>("pending"); 
-  const [selectedRequest, setSelectedRequest] = useState<KycRequest | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
-  
+const KycManagement = () => {
+  const [kycRequests, setKycRequests] = useState<KycRequest[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const fetchKycRequests = async () => {
+    setIsLoading(true);
+    try {
+      const data = await kycService.getAllKycRequests();
+      setKycRequests(data);
+    } catch (error) {
+      console.error('Failed to fetch KYC requests:', error);
+      toast.error('Failed to load KYC requests.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const mockRequests: KycRequest[] = [
-      {
-        id: "1",
-        userId: "user-1",
-        user: { username: "John Doe", email: "john@example.com", id: "user-1" },
-        documentType: "passport",
-        documentNumber: "P12345678",
-        submittedAt: "2023-06-15T14:30:00Z",
-        status: 'pending',
-        documentImage: "https://example.com/documents/passport1.jpg",
-        documentUrls: ["https://example.com/documents/passport1.jpg"],
-        rejectionReason: ""
-      },
-      {
-        id: "2",
-        userId: "user-2",
-        user: { username: "Jane Smith", email: "jane@example.com", id: "user-2" },
-        documentType: "national_id",
-        documentNumber: "ID98765432",
-        submittedAt: "2023-06-10T09:45:00Z",
-        status: 'verified',
-        verificationDate: "2023-06-12T11:20:00Z",
-        documentImage: "https://example.com/documents/id1.jpg",
-        documentUrls: ["https://example.com/documents/id1.jpg", "https://example.com/documents/id1_back.jpg"],
-        rejectionReason: ""
-      },
-      {
-        id: "3",
-        userId: "user-3",
-        user: { username: "Mike Johnson", email: "mike@example.com", id: "user-3" },
-        documentType: "driving_license",
-        documentNumber: "DL12345678",
-        submittedAt: "2023-06-08T16:15:00Z",
-        status: 'rejected',
-        documentImage: "https://example.com/documents/license1.jpg",
-        documentUrls: ["https://example.com/documents/license1.jpg"],
-        rejectionReason: "Document expired. Please submit a valid document."
-      }
-    ];
-    
-    setRequests(mockRequests);
+    fetchKycRequests();
   }, []);
-  
-  const handleApprove = (kycRequest: KycRequest) => {
-    const updatedRequests = requests.map((req) => {
-      if (req.id === kycRequest.id) {
-        return {
-          ...req,
-          status: 'verified' as KycStatusType,
-          verificationDate: new Date().toISOString()
-        };
-      }
-      return req;
-    });
-    setRequests(updatedRequests);
+
+  const handleUpdateRequestStatus = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
+    try {
+      await kycService.updateKycRequestStatus(id, status);
+      toast.success(`KYC request ${status === 'approved' ? 'approved' : status === 'rejected' ? 'rejected' : 'set to pending'}.`);
+      fetchKycRequests(); // Refresh list
+    } catch (error: any) {
+      toast.error(`Error: ${error.message || 'Failed to update KYC status.'}`);
+    }
   };
   
-  const handleReject = () => {
-    if (!selectedRequest || !rejectionReason) return;
-    
-    const updatedRequests = requests.map((req) => {
-      if (req.id === selectedRequest.id) {
-        return {
-          ...req,
-          status: 'rejected' as KycStatusType,
-          rejectionReason: rejectionReason
-        };
-      }
-      return req;
-    });
-    
-    setRequests(updatedRequests);
-    setIsDialogOpen(false);
-    setRejectionReason("");
-    setSelectedRequest(null);
-  };
-  
-  const openRejectDialog = (kycRequest: KycRequest) => {
-    setSelectedRequest(kycRequest);
-    setIsDialogOpen(true);
-  };
-  
-  const viewDetails = (kycRequest: KycRequest) => {
-    alert(`Viewing details for ${kycRequest.user?.username || kycRequest.userId}`);
-  };
-  
-  const filteredRequests = requests.filter((req) => {
-    const matchesStatus = filter === "all" || req.status === filter;
-    const matchesSearch = 
-      searchQuery.trim() === "" || 
-      (req.user?.username && req.user.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (req.user?.email && req.user.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      req.userId.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
+  const columns = useMemo<ColumnDef<KycRequest>[]>(() => [
+    {
+        accessorKey: "user_id", // Or a username/email if joined
+        header: "User ID / Email",
+        cell: ({ row }) => row.original.user_details?.email || row.original.user_id,
+    },
+    {
+        accessorKey: "document_type",
+        header: "Document Type",
+    },
+    {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+            const status = row.original.status;
+            let colorClass = "";
+            if (status === 'approved') colorClass = "text-green-600 bg-green-100";
+            else if (status === 'rejected') colorClass = "text-red-600 bg-red-100";
+            else if (status === 'pending') colorClass = "text-yellow-600 bg-yellow-100";
+            return <span className={`px-2 py-1 text-xs rounded-full ${colorClass}`}>{status}</span>;
+        }
+    },
+    {
+        accessorKey: "created_at",
+        header: "Submission Date",
+        cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
+    },
+    {
+        accessorKey: "updated_at",
+        header: "Last Update",
+        cell: ({ row }) => new Date(row.original.updated_at).toLocaleDateString(),
+    },
+    {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+            <div className="flex items-center space-x-2">
+                <Button variant="outline" size="sm" onClick={() => alert(`Viewing details for ${row.original.id}`)} title="View Details">
+                    <Eye className="h-4 w-4" />
+                </Button>
+                 <Select 
+                    defaultValue={row.original.status}
+                    onValueChange={(newStatus: 'approved' | 'rejected' | 'pending') => 
+                        handleUpdateRequestStatus(row.original.id, newStatus)}
+                 >
+                    <SelectTrigger className="h-9 text-xs w-[120px]">
+                        <SelectValue placeholder="Change Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approve</SelectItem>
+                        <SelectItem value="rejected">Reject</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        ),
+    },
+  ], []);
+
+  const table = useReactTable({
+    data: kycRequests,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
-  
-  return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">KYC Management</h1>
-      
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users, emails..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+
+ return (
+    <ResponsiveContainer>
+      <CMSPageHeader title="KYC Management" description="Review and manage user KYC submissions.">
+        <Button onClick={fetchKycRequests} variant="outline" disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} mr-2`} />
+            Refresh Requests
+        </Button>
+      </CMSPageHeader>
+
+      {isLoading && <p className="text-center py-4">Loading KYC requests...</p>}
+      {!isLoading && (
+        <div className="rounded-md border overflow-hidden">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {{
+                        asc: ' ▲',
+                        desc: ' ▼',
+                      }[header.column.getIsSorted() as string] ?? null}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map(row => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No KYC requests found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-        
-        <Select
-          value={filter}
-          onValueChange={(value) => setFilter(value as KycStatusType | "all")}
+      )}
+      <div className="flex items-center justify-between space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
         >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Filter Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="submitted">Submitted</SelectItem>
-            <SelectItem value="resubmit_required">Resubmit Required</SelectItem>
-          </SelectContent>
-        </Select>
+          Previous
+        </Button>
+        <span className="text-sm text-muted-foreground">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+        </Button>
       </div>
-      
-      <Tabs 
-        value={activeTab} 
-        onValueChange={(value) => setActiveTab(value as KycStatusType | "all")}
-      >
-        <TabsList className="mb-4">
-          <TabsTrigger value="pending" className="flex items-center">
-            <Clock className="mr-2 h-4 w-4" />
-            Pending
-          </TabsTrigger>
-          <TabsTrigger value="verified" className="flex items-center">
-            <Check className="mr-2 h-4 w-4" />
-            Verified
-          </TabsTrigger>
-          <TabsTrigger value="rejected" className="flex items-center">
-            <X className="mr-2 h-4 w-4" />
-            Rejected
-          </TabsTrigger>
-          <TabsTrigger value="all">All</TabsTrigger>
-        </TabsList>
-        
-        {["pending", "verified", "rejected", "all"].map((tabValue) => (
-          <TabsContent key={tabValue} value={tabValue}>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle>
-                  {tabValue === "pending" && "Pending Verifications"}
-                  {tabValue === "verified" && "Verified Users"}
-                  {tabValue === "rejected" && "Rejected Applications"}
-                  {tabValue === "all" && "All KYC Requests"}
-                </CardTitle>
-                <CardDescription>
-                  {tabValue === "pending" && "Users waiting for verification approval"}
-                  {tabValue === "verified" && "Users who have passed KYC verification"}
-                  {tabValue === "rejected" && "Users whose verification was rejected"}
-                  {tabValue === "all" && "All user verification requests"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Document Type</TableHead>
-                      <TableHead>Submission Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRequests
-                      .filter((req) => tabValue === "all" || req.status === tabValue) 
-                      .map((request) => (
-                        <TableRow key={request.id}>
-                          <TableCell className="font-medium">
-                            <div>
-                              <div>{request.user?.username || request.userId}</div>
-                              <div className="text-muted-foreground text-sm">{request.user?.email || 'N/A'}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{request.documentType.replace("_", " ")}</TableCell>
-                          <TableCell>
-                            {new Date(request.submittedAt || Date.now()).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {request.status === 'pending' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                <Clock className="w-3 h-3 mr-1" />
-                                Pending
-                              </span>
-                            )}
-                            {request.status === 'verified' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                <Check className="w-3 h-3 mr-1" />
-                                Verified
-                              </span>
-                            )}
-                            {request.status === 'rejected' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                <X className="w-3 h-3 mr-1" />
-                                Rejected
-                              </span>
-                            )}
-                             {request.status === 'submitted' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                Submitted
-                              </span>
-                            )}
-                             {request.status === 'resubmit_required' && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                                Resubmit Required
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => viewDetails(request)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              
-                              {request.status === 'pending' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="bg-green-100 hover:bg-green-200 text-green-700 dark:bg-green-900 dark:hover:bg-green-800 dark:text-green-300"
-                                    onClick={() => handleApprove(request)}
-                                  >
-                                    <Check className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-300"
-                                    onClick={() => openRejectDialog(request)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
-      
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject KYC Request</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this KYC request.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Input
-                placeholder="Enter rejection reason"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleReject}
-                disabled={!rejectionReason.trim()}
-              >
-                Reject Request
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+    </ResponsiveContainer>
   );
 };
 

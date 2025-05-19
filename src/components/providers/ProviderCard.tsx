@@ -1,38 +1,59 @@
 
 import React from 'react';
-import { GameProvider } from '@/types';
+import { GameProvider } from '@/types'; // Using the new GameProvider type
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link } from 'react-router-dom'; // If providers link to a details page
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { useNavigate } from 'react-router-dom';
 
 interface ProviderCardProps {
   provider: GameProvider;
+  className?: string;
 }
 
-const ProviderCard: React.FC<ProviderCardProps> = ({ provider }) => {
+const ProviderCard: React.FC<ProviderCardProps> = ({ provider, className }) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    // Navigate to a page displaying games by this provider, e.g., /casino/providers/provider-slug
+    if (provider.slug) {
+      navigate(`/casino/providers/${provider.slug}`);
+    } else {
+      // Fallback or error if slug is not available
+      console.warn(`Provider ${provider.name} does not have a slug.`);
+    }
+  };
+
   return (
-    <Link to={`/casino/provider/${provider.slug}`} className="block hover:shadow-lg transition-shadow rounded-lg">
-      <Card className="overflow-hidden h-full flex flex-col">
-        <CardHeader className="p-0 relative aspect-video">
+    <Card 
+      className={`overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 cursor-pointer group ${className}`}
+      onClick={handleClick}
+    >
+      <CardHeader className="p-0">
+        <AspectRatio ratio={16 / 9} className="bg-muted">
           {provider.logo ? (
-            <img 
-              src={provider.logo} 
-              alt={provider.name} 
-              className="w-full h-full object-contain p-4 bg-muted" // object-contain to show full logo
+            <img
+              src={provider.logo}
+              alt={`${provider.name} logo`}
+              className="object-contain w-full h-full p-4 transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <span className="text-muted-foreground text-sm">No Logo</span>
+            <div className="flex items-center justify-center h-full">
+              <span className="text-muted-foreground text-sm">{provider.name}</span>
             </div>
           )}
-        </CardHeader>
-        <CardContent className="p-4 flex-grow">
-          <CardTitle className="text-lg mb-1 truncate">{provider.name}</CardTitle>
-          {/* <p className="text-xs text-muted-foreground capitalize">{provider.status}</p> */}
-          {/* You can add more info like game count if available */}
-        </CardContent>
-      </Card>
-    </Link>
+        </AspectRatio>
+      </CardHeader>
+      <CardContent className="p-4 text-center">
+        <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
+          {provider.name}
+        </CardTitle>
+        {provider.game_count !== undefined && (
+          <p className="text-sm text-muted-foreground">{provider.game_count} games</p>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
 export default ProviderCard;
+

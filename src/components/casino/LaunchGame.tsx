@@ -1,16 +1,17 @@
+
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Game, GameLaunchOptions, Wallet } from '@/types'; // Changed DbWallet to Wallet
-import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService'; // Example provider service
+// import { useQuery } from '@tanstack/react-query'; // Not used in this version
+import { Game, GameLaunchOptions, Wallet } from '@/types'; 
+import { pragmaticPlayService } from '@/services/providers/pragmaticPlayService'; 
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import ResponsiveEmbed from '@/components/ResponsiveEmbed'; // Assuming this component exists
+import ResponsiveEmbed from '@/components/ResponsiveEmbed'; 
 
 interface LaunchGameProps {
   game: Game;
   options: GameLaunchOptions;
-  wallet?: Wallet | null; // Changed DbWallet to Wallet
+  wallet?: Wallet | null; 
 }
 
 const LaunchGame: React.FC<LaunchGameProps> = ({ game, options, wallet }) => {
@@ -23,9 +24,17 @@ const LaunchGame: React.FC<LaunchGameProps> = ({ game, options, wallet }) => {
       setIsLoading(true);
       setError(null);
       try {
-        // Assuming pragmaticPlayService.getGameLaunchUrl returns a promise that resolves to a URL string
-        // and that options are correctly passed to this service.
-        const url = await pragmaticPlayService.getGameLaunchUrl(game.game_id || game.id.toString(), game, options);
+        // Use getLaunchUrl as suggested by previous error analysis
+        const url = await pragmaticPlayService.getLaunchUrl( // Changed from getGameLaunchUrl
+            {}, // Config object - ensure this is correct for pragmaticPlayService
+            game.game_id || game.id.toString(), 
+            options.user_id || 'demoUser', // playerId
+            options.mode, 
+            options.language || 'en', 
+            options.currency || 'USD',
+            options.platform || 'WEB',
+            options.returnUrl
+        );
         setLaunchUrl(url);
       } catch (err: any) {
         setError(err.message || 'Failed to launch game');
@@ -35,29 +44,40 @@ const LaunchGame: React.FC<LaunchGameProps> = ({ game, options, wallet }) => {
       }
     };
 
-    loadGame();
-  }, [game, options]);
+    if (game && options) { // Ensure game and options are provided
+        loadGame();
+    } else {
+        setError("Game data or launch options are missing.");
+        setIsLoading(false);
+    }
+
+  }, [game, options]); // Rerun if game or options change
 
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="ml-2">Loading game...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-full items-center justify-center text-red-500">
-        Error: {error}
+      <div className="flex flex-col h-full items-center justify-center text-red-500 p-4">
+        <p className="font-semibold">Error launching game:</p>
+        <p className="text-sm text-center">{error}</p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={() => window.history.back()}>
+            Go Back
+        </Button>
       </div>
     );
   }
 
   if (!launchUrl) {
-    return (
+    return ( // This state should ideally be brief or covered by loading/error
       <div className="flex h-full items-center justify-center">
-        Unable to generate game URL.
+        <p>Preparing game launch...</p>
       </div>
     );
   }

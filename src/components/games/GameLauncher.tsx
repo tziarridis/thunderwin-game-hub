@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import ResponsiveEmbed from '@/components/ResponsiveEmbed';
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; 
+import { gameService } from '@/services/gameService'; // Import gameService
+
 // import GameProperties from './GameProperties'; 
 // import GameReviews from './GameReviews'; 
 
@@ -32,7 +34,7 @@ const GameLauncher = () => {
     }
     setIsLoading(true);
     setError(null);
-    setLaunchUrl(null); // Reset launch URL when loading new game details
+    setLaunchUrl(null); 
     try {
       let fetchedGame = await getGameBySlug(gameId);
       if (!fetchedGame) {
@@ -41,7 +43,6 @@ const GameLauncher = () => {
       
       if (fetchedGame) {
         setGame(fetchedGame);
-        // Filter related games more robustly
         const currentCategory = fetchedGame.categoryName || (Array.isArray(fetchedGame.category_slugs) ? fetchedGame.category_slugs[0] : fetchedGame.category_slugs) || fetchedGame.category;
         const currentProvider = fetchedGame.providerName || fetchedGame.provider_slug || fetchedGame.provider;
 
@@ -68,7 +69,7 @@ const GameLauncher = () => {
 
   useEffect(() => {
     loadGameDetails();
-  }, [loadGameDetails]); // gameId is a dep of loadGameDetails
+  }, [loadGameDetails]);
 
 
   const handleLaunchGame = useCallback(async (mode: 'real' | 'demo' = 'real') => {
@@ -88,6 +89,7 @@ const GameLauncher = () => {
     const launchOptions: GameLaunchOptions = {
       mode,
       user_id: user?.id, 
+      username: user?.username || user?.email?.split('@')[0],
       currency: user?.user_metadata?.currency || 'USD', 
       platform: 'web', 
       language: user?.user_metadata?.language || 'en',
@@ -110,21 +112,36 @@ const GameLauncher = () => {
       setIsLoading(false); 
     }
   }, [game, isAuthenticated, user, launchGame, navigate, location.pathname]);
+  
+  const isDemoModeAvailable = (gameToCheck: Game | null): boolean => {
+    if (!gameToCheck) return false;
+    // Check tags for demo availability
+    if (gameToCheck.tags && (gameToCheck.tags.includes('demo_playable') || gameToCheck.tags.includes('demo'))) {
+        return true;
+    }
+    // Fallback: some providers might not allow demo for all games.
+    // Example: Pragmatic Play often has demo mode. Others might not.
+    // This logic can be expanded based on specific provider rules if gameService doesn't abstract it.
+    // For now, assume if not explicitly tagged, it might not be available or depends on provider.
+    // If gameService is available and has a specific method, use it:
+    // return gameService.isDemoAvailable(gameToCheck); // If gameService has this method
+    return false; // Default to false if no clear indicator
+  };
+
 
   useEffect(() => {
     if (game && !launchUrl && !isLoading && !error) {
       const gameTags = game.tags || [];
       const canPlayReal = isAuthenticated && !gameTags.includes('demo_only');
-      const preferDemo = !isAuthenticated || gameTags.includes('demo_only') || gameTags.includes('demo_playable');
+      const preferDemo = !isAuthenticated || gameTags.includes('demo_only');
       
-      if (preferDemo && gameService.isDemoAvailable(game)) { // Assuming gameService has such a helper
+      if (preferDemo && isDemoModeAvailable(game)) {
          handleLaunchGame('demo');
       }
       // If authenticated and real play is possible, wait for user interaction (buttons below)
     }
   }, [game, launchUrl, isLoading, error, handleLaunchGame, isAuthenticated]);
 
-  // ... keep existing code (JSX for loading, error, game display, related games)
   if (isLoading && !game && !launchUrl) { 
     return (
       <div className="container mx-auto p-4 min-h-[calc(100vh-200px)] flex flex-col items-center justify-center text-center">
@@ -187,13 +204,13 @@ const GameLauncher = () => {
                             Play Real Money
                         </Button>
                     )}
-                    {((game.tags || []).includes('demo_playable') || !isAuthenticated || (game.tags || []).includes('demo_only')) && gameService.isDemoAvailable(game) && (
+                    {isDemoModeAvailable(game) && (
                         <Button onClick={() => handleLaunchGame('demo')} size="lg" variant="outline" className="border-primary text-primary hover:bg-primary/10">
                             Play Demo
                         </Button>
                     )}
                 </div>
-                {!(gameService.isDemoAvailable(game)) && !(isAuthenticated && !(game.tags || []).includes('demo_only')) && (
+                {!isDemoModeAvailable(game) && !(isAuthenticated && !(game.tags || []).includes('demo_only')) && (
                      <p className="text-sm text-muted-foreground mt-4">This game may not have a demo version or requires login for real play.</p>
                 )}
             </AspectRatio>

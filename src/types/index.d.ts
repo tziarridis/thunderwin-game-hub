@@ -5,53 +5,79 @@ export interface Affiliate {
   total_commission_earned?: number;
   referral_code?: string;
   status?: string;
-  commission_rate?: number; // Instead of commission_rate_cpa
+  commission_rate?: number; 
   commission_rate_cpa?: number;
   commission_rate_revenue_share?: number;
   // other fields
 }
 
 export interface User {
-  // ... other fields
-  email?: string;
-  role?: 'user' | 'admin' | 'editor'; // Example roles
-  stats?: {
+  id: string; // From Supabase auth
+  aud?: string; // From Supabase auth
+  email?: string; // From Supabase auth
+  app_metadata?: { provider?: string; providers?: string[]; [key: string]: any }; // From Supabase auth
+  user_metadata?: {
+    // Standard Supabase user_metadata fields
+    avatar_url?: string;
+    email?: string; // Can be duplicated here
+    email_verified?: boolean;
+    full_name?: string;
+    iss?: string;
+    name?: string; // Often same as full_name or username
+    picture?: string; // Often same as avatar_url
+    provider_id?: string;
+    sub?: string; // Usually the user ID
+
+    // Custom fields from your users table or for profile
+    first_name?: string;
+    last_name?: string;
+    username?: string; // Can also be a top-level field
+    currency?: string;
+    language?: string;
+    country?: string; // Custom
+    city?: string; // Custom
+    address?: string; // Custom
+    birthdate?: string; // Custom (ISO string date YYYY-MM-DD)
+    kyc_status?: 'pending' | 'approved' | 'rejected' | 'none'; // Custom
+    two_factor_enabled?: boolean; // Custom
+    [key: string]: any; // Allow other custom fields
+  };
+  created_at?: string; // From Supabase auth
+  updated_at?: string; // From Supabase auth & users table
+
+  // Fields from your custom 'users' table if merged or separate profile
+  username?: string; // This can be from users table, ensure consistency
+  role?: 'user' | 'admin' | 'editor'; // Example roles, from users table
+  vip_level?: number; // From users table
+  banned?: boolean; // From users table
+  status?: string; // e.g. 'active', 'pending', from users table
+  phone?: string; // From users table
+
+  stats?: { // User activity stats
     totalBets?: number;
     totalWagered?: number;
     totalWins?: number;
   };
-  // ... other existing User fields
-  id: string;
-  aud?: string;
-  app_metadata?: { [key: string]: any };
-  user_metadata?: { [key: string]: any; first_name?: string; last_name?: string; avatar_url?: string; name?: string; currency?: string; language?: string; };
-  created_at?: string;
-  updated_at?: string;
-  // Fields from your custom users table if merged
-  username?: string;
-  vip_level?: number;
-  banned?: boolean;
-  status?: string; // e.g. 'active', 'pending'
 }
 
 export interface Game {
   // ... other fields
-  id: string | number;
+  id: string | number; // Can be DB id or external game_id
   title: string;
-  providerName?: string; // For display
-  provider_slug?: string; // For API calls / keys
-  provider?: string; // Fallback or alternative
-  categoryName?: string; // For display
-  category_slugs?: string[] | string; // For API calls / keys or as a string
-  category?: string; // Fallback
-  image?: string;
-  image_url?: string;
-  cover?: string;
+  providerName?: string; 
+  provider_slug?: string; 
+  provider?: string; 
+  categoryName?: string; 
+  category_slugs?: string[] | string; 
+  category?: string; 
+  image?: string; // URL for the game image/thumbnail
+  image_url?: string; // Alternative if image is not used
+  cover?: string; // Larger image or banner
   banner?: string;
   rtp?: number | string;
   volatility?: string;
-  slug?: string;
-  tags?: string[];
+  slug?: string; // URL-friendly identifier
+  tags?: string[]; // e.g., "new", "popular", "jackpot", "bonus-buy", "demo_playable"
   isNew?: boolean;
   isPopular?: boolean;
   is_featured?: boolean;
@@ -60,21 +86,20 @@ export interface Game {
   minBet?: number | string;
   maxBet?: number | string;
   lines?: number | string;
-  features?: string[];
-  themes?: string[];
-  status?: string;
-  game_id?: string; // External game ID
-  game_code?: string; // External game code
-  release_date?: string;
-  // From DbGame potentially
-  provider_id?: string;
+  features?: string[]; // Game features like "free spins", "multipliers"
+  themes?: string[]; // Game themes like "egypt", "fantasy"
+  status?: string; // e.g., "active", "disabled"
+  game_id?: string; // External game ID from provider
+  game_code?: string; // External game code from provider, often same as game_id
+  release_date?: string; // ISO string date
+  provider_id?: string; // Internal DB link to a provider table
 }
 
-export interface DbGame { // Assuming this is a more raw DB representation
+export interface DbGame { // Raw DB representation
   id: string | number;
   title: string;
   provider_slug?: string;
-  category_slugs?: string[] | string; // Stored as array or comma-separated string
+  category_slugs?: string[] | string; 
   image_url?: string;
   cover?: string;
   banner?: string;
@@ -84,22 +109,21 @@ export interface DbGame { // Assuming this is a more raw DB representation
   min_bet?: number | string;
   max_bet?: number | string;
   lines?: number | string;
-  features?: string[]; // Stored as JSON array or comma-separated string
+  features?: string[]; 
   themes?: string[];
   tags?: string[];
   status?: string;
   slug?: string;
-  game_id?: string;
-  game_code?: string;
-  provider_id?: string; // Internal provider link
+  game_id?: string; 
+  game_code?: string; 
+  provider_id?: string; 
   is_new?: boolean;
   is_popular?: boolean;
   is_featured?: boolean;
   show_home?: boolean;
   release_date?: string;
-  // Potentially raw names from DB if different
-  provider_name?: string; // if directly stored
-  category_names?: string[]; // if directly stored
+  provider_name?: string; 
+  category_names?: string[]; 
 }
 
 
@@ -109,7 +133,32 @@ export interface Wallet {
   balance: number;
   currency: string;
   symbol?: string;
-  // ... other wallet fields
+  vip_level?: number; // Added from Supabase table schema
+  vip_points?: number; // Added from Supabase table schema
+  // ... other wallet fields from your Supabase 'wallets' table
+  balance_bonus_rollover?: number;
+  balance_deposit_rollover?: number;
+  balance_withdrawal?: number;
+  balance_bonus?: number;
+  balance_cryptocurrency?: number;
+  balance_demo?: number;
+  refer_rewards?: number;
+  hide_balance?: boolean;
+  active?: boolean;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+  last_won?: number;
+  last_lose?: number;
+  deposit_limit_daily?: number;
+  deposit_limit_weekly?: number;
+  deposit_limit_monthly?: number;
+  exclusion_until?: string; // timestamp
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_period?: string;
+  created_at?: string; // timestamp
+  updated_at?: string; // timestamp
 }
 
 export interface GameLaunchOptions {
@@ -117,24 +166,65 @@ export interface GameLaunchOptions {
   user_id?: string;
   username?: string;
   currency?: string;
-  platform?: string;
-  language?: string;
-  returnUrl?: string;
+  platform?: string; // e.g., 'web', 'mobile'
+  language?: string; // e.g., 'en', 'es'
+  returnUrl?: string; // URL to redirect after game session
+  // Provider specific options can be added here
+  [key: string]: any;
 }
 
 export interface Transaction {
   id: string | number;
-  user_id: string;
+  user_id: string; // This should reference your app's user ID (e.g., from users table or auth.users)
   amount: number | string;
   currency?: string;
-  type?: string;
-  status?: string;
-  created_at?: string;
-  updated_at?: string;
-  provider?: string;
-  game_id?: string;
-  gameName?: string;
-  round_id?: string;
-  details?: string;
-  balance_after?: number;
+  type?: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund' | 'rollback' | string; // String for flexibility
+  status?: 'pending' | 'completed' | 'failed' | 'cancelled' | string;
+  created_at?: string; // ISO timestamp
+  updated_at?: string; // ISO timestamp
+  provider?: string; // e.g., 'PragmaticPlay', 'PaymentGatewayName', 'ManualAdjustment'
+  game_id?: string; // External game ID if transaction is game-related
+  gameName?: string; // Display name of the game
+  round_id?: string; // Game round identifier
+  details?: string | object; // Can be JSON string or object for additional info
+  balance_after?: number; // User's balance after this transaction
+  // Fields from your Supabase 'transactions' table
+  player_id?: string; // This might be redundant if user_id is already your internal user ID
+  session_id?: string; // Game session ID
+  balance_before?: number;
+}
+
+// New Type Definitions
+export interface GameCategory {
+  id: string | number;
+  name: string;
+  slug: string;
+  icon?: string; // URL or Lucide icon name
+  image?: string; // URL for a background or illustrative image
+  game_count?: number; // Optional: number of games in this category
+}
+
+export interface GameProvider {
+  id: string | number; // Can be DB id or slug
+  name: string;
+  slug?: string; // URL-friendly identifier
+  logo?: string; // URL to the provider's logo
+  game_count?: number; // Optional: number of games from this provider
+  description?: string;
+  status?: 'active' | 'inactive';
+}
+
+export interface Promotion {
+  id: string | number;
+  title: string;
+  description: string;
+  image_url?: string; // URL for the promotion banner/image
+  cta_link?: string; // Call to action link (e.g., /deposit, /games/somegame)
+  cta_text?: string; // Text for the call to action button (e.g., "Claim Now", "Play Game")
+  start_date?: string; // ISO timestamp
+  end_date?: string; // ISO timestamp
+  terms_conditions_link?: string; // Link to detailed terms
+  type?: 'deposit-bonus' | 'free-spins' | 'cashback' | 'tournament' | string;
+  status?: 'active' | 'expired' | 'upcoming';
+  tags?: string[]; // e.g., "welcome-offer", "slots-only"
 }

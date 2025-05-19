@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Promotion } from '@/types';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Promotion } from '@/types'; // Using the new Promotion type
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { ExternalLink, Info } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface PromotionCardProps {
   promotion: Promotion;
@@ -13,61 +13,61 @@ interface PromotionCardProps {
 }
 
 const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, className }) => {
-  const getStatusBadgeVariant = (status?: 'active' | 'expired' | 'upcoming') => {
-    switch (status) {
-      case 'active': return 'default'; // Greenish or primary
-      case 'upcoming': return 'secondary'; // Bluish or yellowish
-      case 'expired': return 'outline'; // Greyish
-      default: return 'outline';
+  const navigate = useNavigate();
+
+  const handleCTAClick = () => {
+    if (promotion.cta_link) {
+      if (promotion.cta_link.startsWith('http')) {
+        window.open(promotion.cta_link, '_blank');
+      } else {
+        navigate(promotion.cta_link);
+      }
     }
   };
 
-  // Example: Consider a promotion "new" if it's active and started recently (e.g., last 7 days)
-  // This logic would require start_date to be a Date object or parsed.
-  // For now, we'll just use the status from the promotion object.
-  const isActive = promotion.status === 'active';
-
   return (
-    <Card className={cn("flex flex-col overflow-hidden h-full shadow-lg hover:shadow-xl transition-shadow duration-300", className)}>
-      {promotion.imageUrl && (
-        <div className="aspect-video overflow-hidden">
-          <img 
-            src={promotion.imageUrl} 
-            alt={promotion.title} 
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
-          />
-        </div>
+    <Card className={`overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group ${className}`}>
+      {promotion.image_url && (
+        <CardHeader className="p-0">
+          <AspectRatio ratio={16 / 9}>
+            <img
+              src={promotion.image_url}
+              alt={promotion.title}
+              className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            />
+          </AspectRatio>
+        </CardHeader>
       )}
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-xl font-semibold leading-tight">{promotion.title}</CardTitle>
-          {promotion.status && (
-            <Badge variant={getStatusBadgeVariant(promotion.status)} className="ml-2 shrink-0">
-              {promotion.status.charAt(0).toUpperCase() + promotion.status.slice(1)}
-            </Badge>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground line-clamp-3">{promotion.description}</p>
+      <CardContent className="p-4">
+        <CardTitle className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+          {promotion.title}
+        </CardTitle>
+        <CardDescription className="text-sm text-muted-foreground line-clamp-3 mb-3">
+          {promotion.description}
+        </CardDescription>
+        {(promotion.start_date || promotion.end_date) && (
+            <p className="text-xs text-muted-foreground">
+                {promotion.start_date && `Starts: ${new Date(promotion.start_date).toLocaleDateString()}`}
+                {promotion.start_date && promotion.end_date && " - "}
+                {promotion.end_date && `Ends: ${new Date(promotion.end_date).toLocaleDateString()}`}
+            </p>
+        )}
       </CardContent>
-      <CardFooter className="pt-2">
-        {promotion.link && isActive && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="w-full group"
-            onClick={() => window.open(promotion.link, '_blank')}
-          >
-            Learn More 
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+      <CardFooter className="p-4 pt-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        {promotion.cta_text && promotion.cta_link && (
+          <Button onClick={handleCTAClick} className="w-full sm:w-auto">
+            {promotion.cta_text}
+            {promotion.cta_link.startsWith('http') && <ExternalLink className="ml-2 h-4 w-4" />}
           </Button>
         )}
-        {!isActive && promotion.status === 'expired' && (
-            <p className="text-sm text-destructive/80 w-full text-center">This promotion has expired.</p>
-        )}
-         {!isActive && promotion.status === 'upcoming' && (
-            <p className="text-sm text-blue-500/80 w-full text-center">Coming soon!</p>
+        {promotion.terms_conditions_link && (
+          <Button
+            variant="link"
+            onClick={() => window.open(promotion.terms_conditions_link, '_blank')}
+            className="text-xs p-0 h-auto text-muted-foreground hover:text-primary"
+          >
+            <Info className="mr-1 h-3 w-3" /> Terms & Conditions
+          </Button>
         )}
       </CardFooter>
     </Card>

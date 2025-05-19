@@ -1,80 +1,90 @@
 
 import React from 'react';
-import { User, Wallet } from '@/types'; // Import Wallet
 import { Progress } from '@/components/ui/progress';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Gem, Star } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Trophy, Star } from 'lucide-react';
+import { Wallet, User } from '@/types';
 
 interface VipProgressProps {
-  // User prop might not be needed if wallet and vip_level are from AuthContext
+  user: User | null;
+  wallet: Wallet | null; // Wallet contains vip_level and vip_points
+  className?: string;
 }
 
-const VipProgress: React.FC<VipProgressProps> = () => {
-  const { user, wallet } = useAuth(); // Get user and wallet from AuthContext
+// Example VIP levels configuration
+const vipLevelsConfig = [
+  { level: 0, name: 'Bronze', pointsRequired: 0, nextLevelPoints: 1000, color: 'text-orange-400' },
+  { level: 1, name: 'Silver', pointsRequired: 1000, nextLevelPoints: 5000, color: 'text-gray-400' },
+  { level: 2, name: 'Gold', pointsRequired: 5000, nextLevelPoints: 20000, color: 'text-yellow-400' },
+  { level: 3, name: 'Platinum', pointsRequired: 20000, nextLevelPoints: 100000, color: 'text-blue-300' },
+  { level: 4, name: 'Diamond', pointsRequired: 100000, nextLevelPoints: Infinity, color: 'text-purple-400' },
+];
 
-  if (!user) {
-    return <p>Loading VIP status...</p>;
+
+const VipProgress: React.FC<VipProgressProps> = ({ user, wallet, className }) => {
+  if (!user || !wallet) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle>VIP Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">Loading VIP information...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
-  const vipLevel = user.vip_level || 0;
-  // Assuming wallet might contain points or progress towards next level
-  // For now, let's make a simple progress based on current level
-  // This logic needs to be defined based on your VIP system
-  const progressToNextLevel = (vipLevel % 5) * 20 + 10; // Example placeholder
-  const currentLevelName = `VIP Level ${vipLevel}`;
-  const nextLevelName = `VIP Level ${vipLevel + 1}`;
+  const currentLevel = wallet.vip_level ?? 0;
+  const currentPoints = wallet.vip_points ?? 0;
 
+  const levelInfo = vipLevelsConfig.find(l => l.level === currentLevel) || vipLevelsConfig[0];
+  const nextLevelInfo = vipLevelsConfig.find(l => l.level === currentLevel + 1);
 
-  // Placeholder for actual VIP level names and progress logic
-  const vipTiers = [
-    { name: "Bronze", pointsRequired: 0, icon: <Star className="text-yellow-600" /> },
-    { name: "Silver", pointsRequired: 1000, icon: <Star className="text-gray-400" /> },
-    { name: "Gold", pointsRequired: 5000, icon: <Star className="text-yellow-400" /> },
-    { name: "Platinum", pointsRequired: 20000, icon: <Gem className="text-blue-400" /> },
-    { name: "Diamond", pointsRequired: 100000, icon: <Gem className="text-purple-400" /> },
-  ];
+  let progressPercent = 0;
+  let pointsToNextLevel = 0;
 
-  const currentTier = vipTiers.slice().reverse().find(tier => (wallet?.vip_points || 0) >= tier.pointsRequired) || vipTiers[0];
-  const currentTierIndex = vipTiers.indexOf(currentTier);
-  const nextTier = vipTiers[currentTierIndex + 1];
-  
-  let tierProgress = 0;
-  if (nextTier && currentTier) {
-    const pointsInCurrentTier = (wallet?.vip_points || 0) - currentTier.pointsRequired;
-    const pointsForNextTier = nextTier.pointsRequired - currentTier.pointsRequired;
-    tierProgress = pointsForNextTier > 0 ? (pointsInCurrentTier / pointsForNextTier) * 100 : 0;
-  } else if (currentTierIndex === vipTiers.length -1 ) { // Max tier
-    tierProgress = 100;
+  if (nextLevelInfo) {
+    const pointsInCurrentLevel = currentPoints - levelInfo.pointsRequired;
+    const pointsForNextLevelRange = nextLevelInfo.pointsRequired - levelInfo.pointsRequired;
+    progressPercent = pointsForNextLevelRange > 0 ? (pointsInCurrentLevel / pointsForNextLevelRange) * 100 : 0;
+    pointsToNextLevel = nextLevelInfo.pointsRequired - currentPoints;
+  } else {
+    // Max level
+    progressPercent = 100;
   }
+  progressPercent = Math.min(Math.max(progressPercent,0),100);
 
 
   return (
-    <Card>
+    <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          {currentTier.icon}
-          <span className="ml-2">VIP Status: {currentTier.name} (Level {vipLevel})</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+            <CardTitle className="text-xl">VIP Status</CardTitle>
+            <Trophy className={`h-6 w-6 ${levelInfo.color}`} />
+        </div>
+        <CardDescription>Your current VIP level and progress.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <Progress value={tierProgress} className="w-full mb-2" />
-        {nextTier ? (
-          <p className="text-sm text-muted-foreground">
-            {(wallet?.vip_points || 0).toLocaleString()} / {nextTier.pointsRequired.toLocaleString()} points to {nextTier.name}
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <span className={`text-lg font-semibold ${levelInfo.color}`}>{levelInfo.name} Tier</span>
+          <span className="text-sm text-muted-foreground">
+            {currentPoints.toLocaleString()} Points
+          </span>
+        </div>
+        <Progress value={progressPercent} aria-label={`${levelInfo.name} tier progress`} className="h-3" />
+        {nextLevelInfo ? (
+          <p className="text-xs text-muted-foreground text-center">
+            {pointsToNextLevel > 0 ? `${pointsToNextLevel.toLocaleString()} points to ${nextLevelInfo.name}` : `Welcome to ${nextLevelInfo.name}!`}
           </p>
         ) : (
-           <p className="text-sm text-muted-foreground">Max VIP Tier Reached!</p>
+          <p className="text-xs text-muted-foreground text-center">You've reached the highest VIP level!</p>
         )}
-        {/* Example of showing current balance from wallet */}
-        {wallet && (
-          <p className="text-xs text-muted-foreground mt-2">
-            Current Balance: {wallet.balance.toFixed(2)} {wallet.currency}
-          </p>
-        )}
+        {/* Consider adding benefits display here */}
       </CardContent>
     </Card>
   );
 };
 
 export default VipProgress;
+

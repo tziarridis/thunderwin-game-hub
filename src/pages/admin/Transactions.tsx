@@ -1,261 +1,260 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable, ColumnFiltersState, getFilteredRowModel } from '@tanstack/react-table';
+import { Transaction } from '@/types'; // Ensure this matches your actual type definition
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
+import { transactionService } from '@/services/transactionService'; // Main service for transactions
+import { Eye, RefreshCw, Search, Download, Filter } from 'lucide-react';
+import ResponsiveContainer from '@/components/ui/responsive-container';
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import { DateRangePicker } from '@/components/ui/date-range-picker'; // Assuming you have this
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import { useState, useEffect } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { transactionService } from "@/services/transactionService";
-import { Transaction, TransactionFilter } from "@/types/transaction";
-
-const Transactions = () => {
+const AdminTransactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Fetch transactions on component mount
+  const [isLoading, setIsLoading] = useState(true);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  // const [dateRange, setDateRange] = useState<DateRange | undefined>(); // For DateRangePicker
+
+  const fetchTransactions = async (filters?: any) => {
+    setIsLoading(true);
+    try {
+      const data = await transactionService.getTransactions(filters); // Pass filters if service supports it
+      setTransactions(data);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+      toast.error('Failed to load transactions.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const result = await transactionService.getUserTransactions('all');
-        setTransactions(result.data);
-      } catch (err) {
-        console.error("Failed to fetch transactions:", err);
-        setError("Failed to load transactions. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchTransactions();
   }, []);
+
+  // const handleFilter = () => {
+  //   const filters = {
+  //     // ...(dateRange && { startDate: dateRange.from, endDate: dateRange.to }),
+  //     // ...(columnFilters.find(f => f.id === 'status')?.value && { status: columnFilters.find(f => f.id === 'status')?.value }),
+  //     // ...(columnFilters.find(f => f.id === 'type')?.value && { type: columnFilters.find(f => f.id === 'type')?.value }),
+  //   };
+  //   fetchTransactions(filters);
+  // };
   
+  const columns = useMemo<ColumnDef<Transaction>[]>(() => [
+    {
+        accessorKey: "id",
+        header: "Transaction ID",
+        cell: ({ row }) => <span className="font-mono text-xs">{String(row.original.id).substring(0, 8)}...</span>,
+    },
+    {
+        accessorKey: "user_id", // Or a more user-friendly field like user_email if available
+        header: "User",
+        cell: ({ row }) => row.original.player_id || row.original.user_id, // player_id from Supabase table
+    },
+    {
+        accessorKey: "amount",
+        header: "Amount",
+        cell: ({ row }) => `${Number(row.original.amount).toFixed(2)} ${row.original.currency}`,
+    },
+    {
+        accessorKey: "type",
+        header: "Type",
+    },
+    {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+            const status = row.original.status;
+            let colorClass = "";
+            if (status === 'completed' || status === 'approved') colorClass = "text-green-600 bg-green-100";
+            else if (status === 'failed' || status === 'rejected') colorClass = "text-red-600 bg-red-100";
+            else if (status === 'pending') colorClass = "text-yellow-600 bg-yellow-100";
+            else if (status === 'cancelled') colorClass = "text-gray-600 bg-gray-100";
+            return <span className={`px-2 py-1 text-xs rounded-full ${colorClass}`}>{status}</span>;
+        }
+    },
+    {
+        accessorKey: "provider",
+        header: "Provider/Game",
+        cell: ({ row }) => row.original.provider || row.original.gameName || 'N/A',
+    },
+    {
+        accessorKey: "created_at",
+        header: "Date",
+        cell: ({ row }) => new Date(row.original.created_at || Date.now()).toLocaleString(),
+    },
+    {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+            <Button variant="outline" size="sm" onClick={() => alert(`Viewing details for TXN ID: ${row.original.id}`)} title="View Details">
+                <Eye className="h-4 w-4" />
+            </Button>
+        ),
+    },
+  ], []);
+
+
+  const table = useReactTable({
+    data: transactions,
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
   return (
-    // ... keep existing JSX
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground">View and manage all transactions on the platform.</p>
+    <ResponsiveContainer>
+      <CMSPageHeader title="Financial Transactions" description="Monitor all financial activities on the platform.">
+        <div className="flex gap-2">
+            <Button onClick={() => fetchTransactions()} variant="outline" disabled={isLoading}>
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} mr-2`} />
+                Refresh Transactions
+            </Button>
+            <Button variant="outline" disabled>
+                <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
         </div>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Search..." 
-              className="max-w-xs bg-slate-800 text-white"
-            />
-            <Button variant="default">Search</Button>
-          </div>
+      </CMSPageHeader>
+
+      <div className="mb-4 p-4 border rounded-lg bg-card">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <Label htmlFor="globalSearch" className="sr-only">Search All</Label>
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="globalSearch"
+                        placeholder="Search all transactions..."
+                        value={globalFilter ?? ''}
+                        onChange={(event) => setGlobalFilter(event.target.value)}
+                        className="pl-8 w-full"
+                    />
+                </div>
+            </div>
+            {/* <div>
+                <Label htmlFor="dateRange" className="text-sm font-medium">Date Range</Label>
+                <DateRangePicker onUpdate={({range}) => setDateRange(range)} />
+            </div> */}
+            <div>
+                <Label htmlFor="statusFilter" className="text-sm font-medium">Status</Label>
+                <Select 
+                    value={columnFilters.find(f => f.id === 'status')?.value as string || ''}
+                    onValueChange={(value) => table.getColumn('status')?.setFilterValue(value || undefined)}
+                >
+                    <SelectTrigger id="statusFilter"><SelectValue placeholder="Filter by status" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Statuses</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div>
+                <Label htmlFor="typeFilter" className="text-sm font-medium">Type</Label>
+                 <Select
+                    value={columnFilters.find(f => f.id === 'type')?.value as string || ''}
+                    onValueChange={(value) => table.getColumn('type')?.setFilterValue(value || undefined)}
+                 >
+                    <SelectTrigger id="typeFilter"><SelectValue placeholder="Filter by type" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">All Types</SelectItem>
+                        <SelectItem value="deposit">Deposit</SelectItem>
+                        <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                        <SelectItem value="bet">Bet</SelectItem>
+                        <SelectItem value="win">Win</SelectItem>
+                        <SelectItem value="bonus">Bonus</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            {/* <Button onClick={handleFilter} className="self-end">
+                <Filter className="h-4 w-4 mr-2" /> Apply Filters
+            </Button> */}
         </div>
       </div>
-      
-      <Tabs defaultValue="all">
-        <TabsList className="bg-slate-800">
-          <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
-          <TabsTrigger value="bets">Bets</TabsTrigger>
-          <TabsTrigger value="wins">Wins</TabsTrigger>
-          <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
-        </TabsList>
-        
-        <div className="flex flex-wrap gap-4 my-4">
-          <Select>
-            <SelectTrigger className="w-[180px] bg-slate-800 text-white">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select>
-            <SelectTrigger className="w-[180px] bg-slate-800 text-white">
-              <SelectValue placeholder="Date Range" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="yesterday">Yesterday</SelectItem>
-              <SelectItem value="last7">Last 7 days</SelectItem>
-              <SelectItem value="last30">Last 30 days</SelectItem>
-              <SelectItem value="custom">Custom Range</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Select>
-            <SelectTrigger className="w-[180px] bg-slate-800 text-white">
-              <SelectValue placeholder="Amount" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="0-50">$0 - $50</SelectItem>
-              <SelectItem value="51-100">$51 - $100</SelectItem>
-              <SelectItem value="101-500">$101 - $500</SelectItem>
-              <SelectItem value="501-1000">$501 - $1000</SelectItem>
-              <SelectItem value="1000+">$1000+</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button variant="outline" className="bg-slate-800 text-white">Clear Filters</Button>
+
+
+      {isLoading && <p className="text-center py-4">Loading transactions...</p>}
+      {!isLoading && (
+        <div className="rounded-md border overflow-hidden">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <TableHead key={header.id} onClick={header.column.getToggleSortingHandler()}>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {{
+                        asc: ' ▲',
+                        desc: ' ▼',
+                      }[header.column.getIsSorted() as string] ?? null}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map(row => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell key={cell.id}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    No transactions found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
-        
-        <TabsContent value="all" className="mt-4">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>All Transactions</CardTitle>
-              <CardDescription>Showing all transactions from the platform</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading && (
-                <div className="flex justify-center my-8">
-                  <div className="w-12 h-12 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
-                </div>
-              )}
-              
-              {error && (
-                <div className="bg-red-900/20 border border-red-900 p-4 rounded-md text-red-400">
-                  {error}
-                </div>
-              )}
-              
-              {!loading && !error && (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="text-left py-3 px-4">ID</th>
-                        <th className="text-left py-3 px-4">User</th>
-                        <th className="text-left py-3 px-4">Date</th>
-                        <th className="text-left py-3 px-4">Type</th>
-                        <th className="text-right py-3 px-4">Amount</th>
-                        <th className="text-left py-3 px-4">Status</th>
-                        <th className="text-left py-3 px-4">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactions.map((transaction) => (
-                        <tr key={transaction.id} className="border-b border-slate-800 hover:bg-slate-800/50">
-                          <td className="py-3 px-4 font-mono text-xs">{transaction.id.substring(0, 8)}...</td>
-                          <td className="py-3 px-4">{transaction.userId.substring(0, 8)}...</td>
-                          <td className="py-3 px-4">{new Date(transaction.date).toLocaleString()}</td>
-                          <td className="py-3 px-4 capitalize">{transaction.type}</td>
-                          <td className={`py-3 px-4 text-right ${transaction.type === 'deposit' || transaction.type === 'win' || transaction.type === 'bonus' ? 'text-green-500' : 'text-red-500'}`}>
-                            {transaction.amount.toFixed(2)} {transaction.currency}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              transaction.status === 'completed' ? 'bg-green-500/20 text-green-400' : 
-                              transaction.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 
-                              'bg-red-500/20 text-red-400'
-                            }`}>
-                              {transaction.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <Button variant="ghost" size="sm">View</Button>
-                          </td>
-                        </tr>
-                      ))}
-                      
-                      {transactions.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="text-center py-8 text-gray-500">
-                            No transactions found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              
-              <div className="flex justify-between items-center mt-6">
-                <div className="text-sm text-gray-500">
-                  Showing <span className="font-medium">{transactions.length}</span> transactions
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" disabled={true}>Previous</Button>
-                  <Button variant="outline">Next</Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        {/* Add similar TabsContent for other tabs */}
-        <TabsContent value="deposits">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>Deposits</CardTitle>
-              <CardDescription>Showing all deposit transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Content for deposits tab - similar to All tab but filtered</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="withdrawals">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>Withdrawals</CardTitle>
-              <CardDescription>Showing all withdrawal transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Content for withdrawals tab - similar to All tab but filtered</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="bets">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>Bets</CardTitle>
-              <CardDescription>Showing all bet transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Content for bets tab - similar to All tab but filtered</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="wins">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>Wins</CardTitle>
-              <CardDescription>Showing all win transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Content for wins tab - similar to All tab but filtered</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="bonuses">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle>Bonuses</CardTitle>
-              <CardDescription>Showing all bonus transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Content for bonuses tab - similar to All tab but filtered</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+      )}
+      <div className="flex items-center justify-between space-x-2 py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+        >
+          Previous
+        </Button>
+         <span className="text-sm text-muted-foreground">
+            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+        >
+          Next
+        </Button>
+      </div>
+    </ResponsiveContainer>
   );
 };
 
-export default Transactions;
+export default AdminTransactions;
