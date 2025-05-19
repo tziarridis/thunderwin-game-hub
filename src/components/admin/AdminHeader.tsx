@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { User } from '@/types'; // Assuming User type is available
+import { User } from '@/types'; 
 
 interface AdminHeaderProps {
   user: User | null;
@@ -12,7 +12,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ user }) => {
       <h1 className="text-xl font-semibold">Admin Dashboard</h1>
       <div>
         {user ? (
-          <span>Welcome, {user.email || 'Admin'}</span>
+          <span>Welcome, {user.email || user.username || 'Admin'}</span>
         ) : (
           <span>Loading user...</span>
         )}

@@ -1,136 +1,242 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { Game, GameLaunchOptions } from '@/types';
+import { gameService } from '@/services/gameService'; // Main game service
+import { supabase } from '@/integrations/supabase/client'; // For favorites
 import { toast } from 'sonner';
-import { Game, GameLaunchOptions, User } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { gameAggregatorService } from '@/services/gameAggregatorService'; // If used for launching
+import { useAuth } from '@/contexts/AuthContext'; // To get user_id for favorites and launch
 
-interface FavoriteGame {
-  game_id: string;
-  user_id: string;
-  created_at: string;
+// Helper to get game ID as string
+const getGameIdString = (gameId: string | number | undefined): string => {
+  if (gameId === undefined) return '';
+  return String(gameId);
+};
+
+interface GamesContextType {
+  games: Game[];
+  isLoading: boolean;
+  error: Error | null;
+  categories: string[];
+  providers: string[];
+  fetchGames: (filter?: any) => Promise<void>;
+  getGameById: (id: string) => Promise<Game | null>;
+  getGameBySlug: (slug: string) => Promise<Game | null>;
+  favoriteGameIds: Set<string>;
+  toggleFavoriteGame: (gameId: string) => Promise<void>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
+  fetchGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
 }
 
-export const useGames = () => {
-  const { user, isAuthenticated } = useAuth();
-  const queryClient = useQueryClient();
-  const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
+const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
-  const { data: favoriteGames, isLoading: isFavoriteGamesLoading } = useQuery<FavoriteGame[], Error>({
-    queryKey: ['favoriteGames', user?.id],
-    queryFn: async () => {
-      if (!user || !isAuthenticated) {
-        return [];
-      }
-      const { data, error } = await supabase
+export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [games, setGames] = useState<Game[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [providers, setProviders] = useState<string[]>([]);
+  const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
+  const { user, isAuthenticated } = useAuth();
+
+  const fetchGames = useCallback(async (filter?: any) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetchedGames = await gameService.getGames(filter);
+      setGames(fetchedGames);
+      // Extract categories and providers
+      const uniqueCategories = new Set<string>();
+      const uniqueProviders = new Set<string>();
+      fetchedGames.forEach(game => {
+        if (game.categoryName) uniqueCategories.add(game.categoryName);
+        else if (typeof game.category_slugs === 'string') uniqueCategories.add(game.category_slugs);
+        else if (Array.isArray(game.category_slugs)) game.category_slugs.forEach(c => uniqueCategories.add(c));
+        
+        if (game.providerName) uniqueProviders.add(game.providerName);
+        else if (game.provider_slug) uniqueProviders.add(game.provider_slug);
+        else if (game.provider) uniqueProviders.add(game.provider);
+
+      });
+      setCategories(Array.from(uniqueCategories));
+      setProviders(Array.from(uniqueProviders));
+    } catch (err: any) {
+      setError(err);
+      toast.error("Failed to load games: " + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const fetchFavorites = useCallback(async () => {
+    if (!user?.id) {
+      setFavoriteGameIds(new Set()); // Clear favorites if no user
+      return;
+    }
+    try {
+      const { data, error: favError } = await supabase
         .from('favorite_games')
-        .select('*')
+        .select('game_id')
         .eq('user_id', user.id);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user && isAuthenticated, // Only run when user is logged in
-  });
+
+      if (favError) throw favError;
+      setFavoriteGameIds(new Set(data.map(fav => getGameIdString(fav.game_id))));
+    } catch (err: any) {
+      console.error("Error fetching favorites:", err);
+      // Do not toast here as it might be too noisy
+    }
+  }, [user?.id]);
+
 
   useEffect(() => {
-    if (favoriteGames) {
-      setFavoriteGameIds(new Set(favoriteGames.map(fav => fav.game_id)));
+    fetchGames(); // Initial fetch
+    if (isAuthenticated) {
+      fetchFavorites();
     } else {
-      setFavoriteGameIds(new Set());
+      setFavoriteGameIds(new Set()); // Clear favorites if user logs out
     }
-  }, [favoriteGames]);
+  }, [fetchGames, isAuthenticated, fetchFavorites]);
+  
+  // Refetch favorites when user changes
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchFavorites();
+    }
+  }, [user?.id, isAuthenticated, fetchFavorites]);
 
-  const toggleFavoriteGameMutation = useMutation<any, Error, string>({
-    mutationFn: async (gameId: string) => {
-      if (!user || !isAuthenticated) {
-        toast.error("Please log in to favorite games.");
-        throw new Error("User not authenticated");
-      }
 
-      const isFavorite = favoriteGameIds.has(gameId);
+  const getGameById = async (id: string): Promise<Game | null> => {
+    // First, try to find in local state
+    const localGame = games.find(g => getGameIdString(g.id) === id || getGameIdString(g.game_id) === id || getGameIdString(g.game_code) === id);
+    if (localGame) return localGame;
+    // If not found, fetch from service
+    try {
+      setIsLoading(true);
+      const game = await gameService.getGameById(id);
+      setIsLoading(false);
+      return game;
+    } catch (err) {
+      setIsLoading(false);
+      console.error(`Error fetching game by ID ${id}:`, err);
+      return null;
+    }
+  };
 
-      if (isFavorite) {
-        // Corrected delete call
-        const { error } = await supabase
+  const getGameBySlug = async (slug: string): Promise<Game | null> => {
+     const localGame = games.find(g => g.slug === slug);
+    if (localGame) return localGame;
+    try {
+      setIsLoading(true);
+      // Assuming gameService might have getGameBySlug or adapt getGames
+      const allGames = await gameService.getGames({ slug }); // Example filter
+      const game = allGames.find(g => g.slug === slug) || null;
+      setIsLoading(false);
+      return game;
+    } catch (err) {
+      setIsLoading(false);
+      console.error(`Error fetching game by slug ${slug}:`, err);
+      return null;
+    }
+  };
+
+  const toggleFavoriteGame = async (gameId: string) => {
+    if (!user?.id) {
+      toast.error("Please log in to add favorites.");
+      return;
+    }
+    const gameIdStr = getGameIdString(gameId);
+    if (!gameIdStr) {
+        toast.error("Invalid game identifier for favorite toggle.");
+        return;
+    }
+
+    const isCurrentlyFavorite = favoriteGameIds.has(gameIdStr);
+    
+    try {
+      if (isCurrentlyFavorite) {
+        // Remove from favorites
+        const { error: deleteError } = await supabase
           .from('favorite_games')
           .delete()
-          .match({ game_id: gameId, user_id: user.id });
-        if (error) throw error;
+          .match({ user_id: user.id, game_id: gameIdStr });
+        if (deleteError) throw deleteError;
+        setFavoriteGameIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(gameIdStr);
+          return newSet;
+        });
+        toast.success("Removed from favorites");
       } else {
-        const { error } = await supabase
+        // Add to favorites
+        const { error: insertError } = await supabase
           .from('favorite_games')
-          .insert([{ game_id: gameId, user_id: user.id }]);
-        if (error) throw error;
+          .insert({ user_id: user.id, game_id: gameIdStr });
+        if (insertError) throw insertError;
+        setFavoriteGameIds(prev => new Set(prev).add(gameIdStr));
+        toast.success("Added to favorites");
       }
-    },
-    onSuccess: () => {
-      // Optimistically update the cache
-      queryClient.invalidateQueries(['favoriteGames', user?.id]);
-      toast.success("Favorites updated!");
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to update favorites: ${error.message}`);
-    },
-  });
+    } catch (err: any) {
+      toast.error(`Failed to update favorites: ${err.message}`);
+    }
+  };
   
-  const launchGame = async (gameToLaunch: Game, options: Partial<GameLaunchOptions> = {}): Promise<string | null> => {
-    if (gameToLaunch.status === 'maintenance') {
-        toast.error("This game is currently under maintenance.");
-        return null;
-    }
-
-    if (!isAuthenticated && gameToLaunch.status !== 'demo_only') {
-        toast.error("Please log in to play games.");
-        return null;
-    }
-
-    const defaultOptions: GameLaunchOptions = {
-        mode: options.mode || 'real', // Default to real play
-        user_id: user?.id,
-        currency: 'USD', // TODO: Get from user's wallet or settings
-        language: 'en', // TODO: Get from user's settings or browser
-        platform: 'web',
-        // token: user?.session?.access_token, // If provider needs Supabase token
-        returnUrl: `${window.location.origin}/casino`, // Example return URL
-        // ... any other default options
-    };
-
-    const launchOptions: GameLaunchOptions = { ...defaultOptions, ...options };
-
+  const fetchGameLaunchUrl = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     try {
-        // Prefer game_id for direct launching if available and provider supports it
-        const gameIdentifier = gameToLaunch.game_id || gameToLaunch.slug || String(gameToLaunch.id);
-        
-        if (!gameToLaunch.provider_slug) {
-            toast.error("Game provider information is missing.");
-            return null;
-        }
-
-        // Use the gameAggregatorService or a specific provider service
-        const launchUrl = await gameAggregatorService.getGameLaunchUrl(
-            gameToLaunch.provider_slug, 
-            gameIdentifier, 
-            launchOptions
-        );
-
-        if (launchUrl) {
-            toast.success(`Launching ${gameToLaunch.title}...`);
-            return launchUrl;
-        } else {
-            toast.error(`Could not launch ${gameToLaunch.title}.`);
-            return null;
-        }
-    } catch (error: any) {
-        toast.error(`Error launching game: ${error.message || 'Unknown error'}`);
-        console.error("Launch game error:", error);
-        return null;
+      const launchUrl = await gameService.getGameLaunchUrl(game, options);
+      return launchUrl;
+    } catch (err: any) {
+      console.error("Error fetching game launch URL:", err);
+      toast.error(`Could not launch ${game.title}: ${err.message}`);
+      return null;
     }
   };
-  return { 
-    favoriteGameIds, 
-    toggleFavoriteGame: toggleFavoriteGameMutation.mutate,
-    isFavoriting: toggleFavoriteGameMutation.isPending,
-    launchGame,
+
+  // This is the launchGame function that pages/components will call
+  const launchGame = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
+    if (options.mode === 'real' && !isAuthenticated) {
+      toast.error("Please log in to play for real money.");
+      // Consider redirecting to login page: navigate('/login');
+      return null;
+    }
+    // Enrich options with user details if available and mode is real
+    if (options.mode === 'real' && user) {
+      options.user_id = user.id;
+      options.username = user.username || user.email?.split('@')[0];
+      options.currency = user.user_metadata?.currency || 'USD';
+      options.language = user.user_metadata?.language || 'en';
+    } else if (options.mode === 'demo') {
+        // Demo mode might not need user specific details, or might use defaults
+        options.language = options.language || 'en';
+        options.currency = options.currency || 'USD'; // Provider might require a currency even for demo
+    }
+
+
+    return fetchGameLaunchUrl(game, options);
   };
+
+
+  return (
+    <GamesContext.Provider value={{ 
+        games, 
+        isLoading, 
+        error, 
+        categories, 
+        providers, 
+        fetchGames, 
+        getGameById, 
+        getGameBySlug,
+        favoriteGameIds,
+        toggleFavoriteGame,
+        launchGame, // Expose the simplified launchGame
+        fetchGameLaunchUrl // Also expose the raw fetch if needed elsewhere
+    }}>
+      {children}
+    </GamesContext.Provider>
+  );
+};
+
+export const useGames = () => {
+  const context = useContext(GamesContext);
+  if (context === undefined) {
+    throw new Error('useGames must be used within a GamesProvider');
+  }
+  return context;
 };

@@ -22,7 +22,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, className = '' }) => 
 );
 
 const AffiliateStats: React.FC<AffiliateStatsProps> = ({ affiliate }) => {
-  // ... keep existing code (chart data and options setup)
+  
 
   if (!affiliate) {
     return (
@@ -62,26 +62,38 @@ const AffiliateStats: React.FC<AffiliateStatsProps> = ({ affiliate }) => {
     ],
   };
 
+  // Safely access affiliate properties
+  const username = affiliate.username || affiliate.id || 'N/A';
+  const totalReferredUsers = affiliate.total_referred_users?.toString() ?? 'N/A';
+  const totalCommissionEarned = `$${affiliate.total_commission_earned?.toFixed(2) ?? 'N/A'}`;
+  const referralCode = affiliate.referral_code ?? 'N/A';
+  const status = affiliate.status ?? 'N/A';
+  // Using commission_rate as a general field if specific ones don't exist, or make them optional
+  const commissionRateCpa = affiliate.commission_rate_cpa ?? affiliate.commission_rate;
+  const commissionRateRevenueShare = affiliate.commission_rate_revenue_share;
+
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Affiliate Stats: {affiliate.username || affiliate.id}</CardTitle>
+        <CardTitle>Affiliate Stats: {typeof username === 'string' || typeof username === 'number' ? username : 'N/A'}</CardTitle>
         <CardDescription>Overview of affiliate performance.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <StatCard title="Total Referred Users" value={affiliate.total_referred_users?.toString() ?? 'N/A'} />
-          <StatCard title="Total Commission Earned" value={`$${affiliate.total_commission_earned?.toFixed(2) ?? 'N/A'}`} />
-          <StatCard title="Referral Code" value={affiliate.referral_code ?? 'N/A'} />
-          <StatCard title="Status" value={affiliate.status ?? 'N/A'} className="capitalize" />
-           {affiliate.commission_rate_cpa !== undefined && (
-            <StatCard title="CPA Rate" value={`$${affiliate.commission_rate_cpa.toFixed(2)}`} />
+          <StatCard title="Total Referred Users" value={totalReferredUsers} />
+          <StatCard title="Total Commission Earned" value={totalCommissionEarned} />
+          <StatCard title="Referral Code" value={referralCode} />
+          <StatCard title="Status" value={status} className="capitalize" />
+           {commissionRateCpa !== undefined && (
+            <StatCard title="CPA Rate" value={`$${Number(commissionRateCpa).toFixed(2)}`} />
           )}
-          {affiliate.commission_rate_revenue_share !== undefined && (
-            <StatCard title="Revenue Share" value={`${affiliate.commission_rate_revenue_share}%`} />
+          {commissionRateRevenueShare !== undefined && (
+            <StatCard title="Revenue Share" value={`${commissionRateRevenueShare}%`} />
           )}
         </div>
 
+        
         <div className="space-y-6">
           <div>
             <h3 className="text-lg font-medium mb-2">Monthly Commissions</h3>

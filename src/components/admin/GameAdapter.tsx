@@ -1,63 +1,62 @@
-import { Game } from '@/types';
 
-// Example function (replace with your actual implementation)
-export const adaptApiGameToInternalFormat = (apiGame: any): Game => {
-  // Basic transformation, expand as needed
-  return {
-    id: String(apiGame.id || apiGame.game_id || apiGame.game_code), // Ensure ID is a string
-    title: apiGame.name || apiGame.title,
-    providerName: apiGame.provider_name || apiGame.provider,
-    provider_slug: apiGame.provider, // Assuming apiGame.provider is the slug
-    categoryName: apiGame.category_name || apiGame.category,
-    // category_slugs: apiGame.categories, // Adapt based on API structure
-    image: apiGame.thumbnail || apiGame.icon_2 || apiGame.icon_1 || apiGame.logo,
-    cover: apiGame.banner_url || apiGame.image_background,
-    rtp: parseRtp(apiGame.rtp), // Use helper for robust parsing
-    // volatility: apiGame.volatility,
-    // minBet: apiGame.min_bet,
-    // maxBet: apiGame.max_bet,
-    // lines: apiGame.lines,
-    features: apiGame.features || [], // Ensure it's an array
-    tags: apiGame.tags || [], // Ensure it's an array
-    status: apiGame.status || 'active',
-    game_id: apiGame.game_id || apiGame.id, // External game ID
-    game_code: apiGame.game_code, // External game code
-    release_date: apiGame.release_date || apiGame.launch_date, // Corrected property name
-  };
-};
+import { Game, DbGame } from '@/types'; // Assuming DbGame is also defined in types
 
 // Helper function to parse RTP values which might come in different formats
 const parseRtp = (rtp: any): number | undefined => {
-  if (rtp === undefined || rtp === null) return undefined;
-  
-  // If it's already a number, return it
+  if (rtp === undefined || rtp === null || rtp === '') return undefined;
   if (typeof rtp === 'number') return rtp;
-  
-  // If it's a string, try to parse it
   if (typeof rtp === 'string') {
-    // Remove any % sign and trim
     const cleanRtp = rtp.replace('%', '').trim();
-    
-    // Try to parse as float
     const parsedRtp = parseFloat(cleanRtp);
-    
-    // Return the parsed value if valid, otherwise undefined
     return isNaN(parsedRtp) ? undefined : parsedRtp;
   }
-  
   return undefined;
 };
 
-// Function to adapt internal Game format to API format if needed
-export const adaptInternalGameToApiFormat = (game: Game): any => {
-  // Transform your internal Game type to whatever format your API expects
+// Adapt API game (any structure) to our internal Game format
+export const adaptApiGameToInternalFormat = (apiGame: any): Game => {
   return {
-    id: game.id,
+    id: String(apiGame.id || apiGame.game_id || apiGame.game_code || apiGame.slug || Date.now() + Math.random()), // Ensure ID is a string and unique
+    title: apiGame.name || apiGame.title || 'Untitled Game',
+    providerName: apiGame.provider_name || apiGame.provider, // Prefer provider_name for display
+    provider_slug: apiGame.provider_slug || apiGame.provider, // Keep slug if available
+    categoryName: apiGame.category_name || apiGame.category, // Prefer category_name
+    category_slugs: apiGame.category_slugs || apiGame.categories || (apiGame.category ? [apiGame.category] : []), // Ensure array or convert
+    image: apiGame.image || apiGame.thumbnail || apiGame.icon_2 || apiGame.icon_1 || apiGame.logo,
+    cover: apiGame.cover || apiGame.banner_url || apiGame.image_background,
+    banner: apiGame.banner,
+    rtp: parseRtp(apiGame.rtp),
+    volatility: apiGame.volatility,
+    minBet: apiGame.min_bet !== undefined ? Number(apiGame.min_bet) : undefined,
+    maxBet: apiGame.max_bet !== undefined ? Number(apiGame.max_bet) : undefined,
+    lines: apiGame.lines !== undefined ? Number(apiGame.lines) : undefined,
+    features: apiGame.features || [],
+    tags: apiGame.tags || [],
+    themes: apiGame.themes || [],
+    status: apiGame.status || 'active',
+    slug: apiGame.slug,
+    game_id: apiGame.game_id || apiGame.id,
+    game_code: apiGame.game_code,
+    release_date: apiGame.release_date || apiGame.launch_date,
+    description: apiGame.description,
+    isNew: !!apiGame.is_new,
+    isPopular: !!apiGame.is_popular,
+    is_featured: !!apiGame.is_featured,
+    show_home: !!apiGame.show_home,
+  };
+};
+
+
+// Adapt internal Game format to API format if needed (e.g., for saving back)
+export const adaptInternalGameToApiFormat = (game: Game): any => {
+  return {
+    // id: game.id, // Usually not sent back if API assigns ID
     title: game.title,
-    provider: game.provider_slug || game.providerName,
-    category: game.category_slugs || game.categoryName,
-    thumbnail: game.image,
-    banner_url: game.cover,
+    provider_slug: game.provider_slug || game.providerName, // API might expect 'provider' or 'provider_slug'
+    category_slugs: game.category_slugs || (game.categoryName ? [game.categoryName] : []), // API structure for categories
+    image_url: game.image || game.image_url, // API might expect 'thumbnail' or 'image_url'
+    cover: game.cover,
+    banner: game.banner,
     rtp: game.rtp,
     volatility: game.volatility,
     min_bet: game.minBet,
@@ -65,46 +64,66 @@ export const adaptInternalGameToApiFormat = (game: Game): any => {
     lines: game.lines,
     features: game.features,
     tags: game.tags,
+    themes: game.themes,
     status: game.status,
+    slug: game.slug,
     game_id: game.game_id,
     game_code: game.game_code,
     release_date: game.release_date,
-    // Add any other fields needed by your API
+    description: game.description,
+    is_new: game.isNew,
+    is_popular: game.isPopular,
+    is_featured: game.is_featured,
+    show_home: game.show_home,
+    // Map other fields as required by your specific API
   };
 };
 
-// Function to adapt database game format to internal format
-export const adaptDbGameToInternalFormat = (dbGame: any): Game => {
+// Adapt database game (DbGame) format to internal Game format
+export const adaptDbGameToInternalFormat = (dbGame: DbGame): Game => {
+  // Ensure category_slugs and categoryName are correctly derived
+  let categoryName: string | undefined = undefined;
+  let categorySlugs: string[] | string | undefined = dbGame.category_slugs;
+
+  if (Array.isArray(dbGame.category_names) && dbGame.category_names.length > 0) {
+    categoryName = dbGame.category_names.join(', ');
+  } else if (typeof dbGame.category_name === 'string') {
+    categoryName = dbGame.category_name;
+  }
+  
+  if (!categorySlugs && categoryName) { // If slugs are missing but name exists, try to use name as slug(s)
+    categorySlugs = categoryName.toLowerCase().split(',').map(s => s.trim().replace(/\s+/g, '-'));
+  }
+
+
   return {
     id: String(dbGame.id),
-    title: dbGame.title,
-    providerName: dbGame.provider_name,
+    title: dbGame.title || 'Untitled Game',
+    providerName: dbGame.provider_name, // Assuming DbGame has provider_name
     provider_slug: dbGame.provider_slug,
-    categoryName: Array.isArray(dbGame.category_names) 
-      ? dbGame.category_names.join(', ') 
-      : dbGame.category_name,
-    category_slugs: dbGame.category_slugs,
+    categoryName: categoryName,
+    category_slugs: categorySlugs,
     image: dbGame.image_url,
     cover: dbGame.cover,
     banner: dbGame.banner,
     description: dbGame.description,
-    rtp: dbGame.rtp,
+    rtp: parseRtp(dbGame.rtp),
     volatility: dbGame.volatility,
-    minBet: dbGame.min_bet,
-    maxBet: dbGame.max_bet,
-    lines: dbGame.lines,
+    minBet: dbGame.min_bet !== undefined ? Number(dbGame.min_bet) : undefined,
+    maxBet: dbGame.max_bet !== undefined ? Number(dbGame.max_bet) : undefined,
+    lines: dbGame.lines !== undefined ? Number(dbGame.lines) : undefined,
     features: dbGame.features || [],
     tags: dbGame.tags || [],
     themes: dbGame.themes || [],
-    isNew: dbGame.is_new,
-    isPopular: dbGame.is_popular,
-    is_featured: dbGame.is_featured,
-    show_home: dbGame.show_home,
+    isNew: !!dbGame.is_new,
+    isPopular: !!dbGame.is_popular,
+    is_featured: !!dbGame.is_featured,
+    show_home: !!dbGame.show_home,
     status: dbGame.status || 'active',
     slug: dbGame.slug,
     game_id: dbGame.game_id,
     game_code: dbGame.game_code,
     release_date: dbGame.release_date,
-    // Add any other fields from your database schema
+    provider_id: dbGame.provider_id,
   };
 };

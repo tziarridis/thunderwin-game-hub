@@ -1,10 +1,11 @@
+
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// import { Label } from '@/components/ui/label'; // Label is part of FormLabel
 import { Switch } from '@/components/ui/switch';
 import {
   Form,
@@ -21,45 +22,44 @@ import { Game, DbGame } from '@/types'; // Ensure correct types are imported
 
 interface GameFormProps {
   game?: Game | DbGame | null; // Allow for new or existing game
-  onSubmit: (data: Game | DbGame) => void;
+  onSubmit: (data: Partial<Game> | Partial<DbGame>) => void; // Use Partial for broader compatibility
   onCancel: () => void;
   isLoading?: boolean;
 }
 
-const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading }) => {
-  const formSchema = z.object({
-    title: z.string().min(2, {
-      message: "Title must be at least 2 characters.",
-    }),
-    provider_slug: z.string().min(2, {
-      message: "Provider must be at least 2 characters.",
-    }),
-    category_slugs: z.string().optional(),
-    image_url: z.string().url({ message: "Invalid URL." }).optional(),
-    cover: z.string().url({ message: "Invalid URL." }).optional(),
-    banner: z.string().url({ message: "Invalid URL." }).optional(),
-    description: z.string().optional(),
-    rtp: z.string().regex(/^(\d+(\.\d*)?)$/, { message: "Invalid RTP. Must be a number." }).optional(),
-    volatility: z.string().optional(),
-    min_bet: z.string().regex(/^(\d+(\.\d*)?)$/, { message: "Invalid Min Bet. Must be a number." }).optional(),
-    max_bet: z.string().regex(/^(\d+(\.\d*)?)$/, { message: "Invalid Max Bet. Must be a number." }).optional(),
-    lines: z.string().regex(/^(\d+)$/, { message: "Invalid Lines. Must be an integer." }).optional(),
-    features: z.string().optional(),
-    themes: z.string().optional(),
-    tags: z.string().optional(),
-    status: z.string().optional(),
-    slug: z.string().optional(),
-    game_id: z.string().optional(),
-    game_code: z.string().optional(),
-    provider_id: z.string().optional(),
-    is_new: z.boolean().optional(),
-    is_popular: z.boolean().optional(),
-    is_featured: z.boolean().optional(),
-    show_home: z.boolean().optional(),
-    release_date: z.string().optional(),
-  });
+// Define a schema that can accommodate both Game and DbGame, making fields optional
+const formSchema = z.object({
+  title: z.string().min(2, { message: "Title must be at least 2 characters." }),
+  provider_slug: z.string().min(1, { message: "Provider slug is required." }), // Assuming provider_slug is preferred
+  category_slugs: z.string().optional(), // Comma-separated string
+  image_url: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
+  cover: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
+  banner: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
+  description: z.string().optional(),
+  rtp: z.string().regex(/^(\d*(\.\d*)?)$/, { message: "Invalid RTP. Must be a number." }).optional().or(z.literal('')),
+  volatility: z.string().optional(),
+  min_bet: z.string().regex(/^(\d*(\.\d*)?)$/, { message: "Invalid Min Bet. Must be a number." }).optional().or(z.literal('')),
+  max_bet: z.string().regex(/^(\d*(\.\d*)?)$/, { message: "Invalid Max Bet. Must be a number." }).optional().or(z.literal('')),
+  lines: z.string().regex(/^(\d*)$/, { message: "Invalid Lines. Must be an integer." }).optional().or(z.literal('')),
+  features: z.string().optional(), // Comma-separated string
+  themes: z.string().optional(), // Comma-separated string
+  tags: z.string().optional(), // Comma-separated string
+  status: z.string().optional(),
+  slug: z.string().optional(),
+  game_id: z.string().optional(), // External game ID
+  game_code: z.string().optional(), // External game code
+  provider_id: z.string().optional(), // Internal provider ID (UUID)
+  is_new: z.boolean().optional(),
+  is_popular: z.boolean().optional(),
+  is_featured: z.boolean().optional(),
+  show_home: z.boolean().optional(),
+  release_date: z.string().optional(), // Consider date validation if needed
+});
 
-  const form = useForm<z.infer<typeof formSchema>>({
+type GameFormData = z.infer<typeof formSchema>;
+
+const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading }) => {
+  const form = useForm<GameFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -90,49 +90,57 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
     },
   });
 
+  const { reset, setValue, watch } = form; // Destructure methods from form
+
   useEffect(() => {
     if (game) {
-      reset(); // Reset form with defaultValues before setting specific values
-      setValue('title', game.title || '');
-      setValue('provider_slug', game.provider_slug || game.providerName || ''); // providerName is on Game, provider_slug on DbGame
-      setValue('category_slugs', game.category_slugs || (game as Game).categoryName || '');
-      setValue('image_url', game.image || game.image_url || '');
-      setValue('cover', game.cover || '');
-      setValue('banner', game.banner || '');
-      setValue('description', game.description || '');
-      setValue('rtp', String(game.rtp || ''));
-      setValue('volatility', game.volatility || '');
-      setValue('min_bet', game.minBet || (game as DbGame).min_bet || 0);
-      setValue('max_bet', game.maxBet || (game as DbGame).max_bet || 0);
-      setValue('lines', game.lines || 0);
+      // Helper to safely get values, preferring Game type properties
+      const getGameValue = (key: keyof Game, dbKey?: keyof DbGame, defaultValue: any = '') => {
+        if (key in game) return (game as any)[key] ?? defaultValue;
+        if (dbKey && dbKey in game) return (game as any)[dbKey] ?? defaultValue;
+        return defaultValue;
+      };
       
-      // Ensure features, themes, tags are arrays before join
-      const featuresArray = game.features || [];
-      const themesArray = (game as Game).themes || []; // Assuming themes is on Game type for now
-      const tagsArray = game.tags || [];
+      const categorySlugs = getGameValue('category_slugs', 'category_slugs', []);
+      const features = getGameValue('features', 'features', []);
+      const themes = getGameValue('themes', 'themes', []); // themes might only be on Game
+      const tags = getGameValue('tags', 'tags', []);
 
-      setValue('features', Array.isArray(featuresArray) ? featuresArray.join(', ') : '');
-      setValue('themes', Array.isArray(themesArray) ? themesArray.join(', ') : '');
-      setValue('tags', Array.isArray(tagsArray) ? tagsArray.join(', ') : '');
-      
-      setValue('status', game.status || 'active');
-      setValue('slug', game.slug || '');
-      setValue('game_id', game.game_id || '');
-      setValue('game_code', game.game_code || '');
-      setValue('provider_id', (game as DbGame).provider_id || ''); // provider_id is on DbGame
-      
-      setValue('is_new', !!game.isNew);
-      setValue('is_popular', !!game.isPopular);
-      setValue('is_featured', !!game.is_featured);
-      setValue('show_home', !!game.show_home);
-      setValue('release_date', game.release_date || '');
+      reset({
+        title: getGameValue('title', 'title'),
+        provider_slug: getGameValue('provider_slug', 'provider_slug') || getGameValue('providerName', undefined) || getGameValue('provider', 'provider_slug'),
+        category_slugs: Array.isArray(categorySlugs) ? categorySlugs.join(', ') : categorySlugs || getGameValue('categoryName', undefined) || '',
+        image_url: getGameValue('image', 'image_url') || getGameValue('image_url', 'image_url'),
+        cover: getGameValue('cover', 'cover'),
+        banner: getGameValue('banner', 'banner'),
+        description: getGameValue('description', 'description'),
+        rtp: String(getGameValue('rtp', 'rtp', '')),
+        volatility: getGameValue('volatility', 'volatility'),
+        min_bet: String(getGameValue('minBet', 'min_bet', '')),
+        max_bet: String(getGameValue('maxBet', 'max_bet', '')),
+        lines: String(getGameValue('lines', 'lines', '')),
+        features: Array.isArray(features) ? features.join(', ') : features,
+        themes: Array.isArray(themes) ? themes.join(', ') : themes,
+        tags: Array.isArray(tags) ? tags.join(', ') : tags,
+        status: getGameValue('status', 'status', 'active'),
+        slug: getGameValue('slug', 'slug'),
+        game_id: getGameValue('game_id', 'game_id'),
+        game_code: getGameValue('game_code', 'game_code'),
+        provider_id: getGameValue('provider_id', 'provider_id'),
+        is_new: !!getGameValue('isNew', 'is_new', false),
+        is_popular: !!getGameValue('isPopular', 'is_popular', false),
+        is_featured: !!getGameValue('is_featured', 'is_featured', false),
+        show_home: !!getGameValue('show_home', 'show_home', false),
+        release_date: getGameValue('release_date', 'release_date', '')?.split('T')[0] || '', // Format for date input
+      });
     } else {
       reset(); // Reset to default values if no game is provided
     }
-  }, [game, setValue, reset]);
+  }, [game, reset]);
 
-  const handleFormSubmit = (data: any) => {
-    const processedData = {
+
+  const handleFormSubmit = (data: GameFormData) => {
+    const processedData: Partial<Game> | Partial<DbGame> = {
       ...data,
       rtp: data.rtp ? parseFloat(data.rtp) : undefined,
       min_bet: data.min_bet ? parseFloat(data.min_bet) : undefined,
@@ -143,7 +151,13 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
       tags: data.tags ? data.tags.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
       category_slugs: data.category_slugs ? data.category_slugs.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
     };
-    onSubmit(processedData as Game | DbGame);
+    // Remove empty strings which might cause issues with type conversion for numbers/urls
+    Object.keys(processedData).forEach(key => {
+        if ((processedData as any)[key] === '') {
+            (processedData as any)[key] = undefined;
+        }
+    });
+    onSubmit(processedData);
   };
 
   return (
@@ -164,13 +178,13 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               </FormItem>
             )}
           />
-          {/* Provider Slug / Name */}
+          {/* Provider Slug */}
            <FormField
             control={form.control}
             name="provider_slug"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Provider Slug/Name</FormLabel>
+                <FormLabel>Provider Slug</FormLabel>
                 <FormControl>
                   <Input placeholder="e.g., pragmatic-play" {...field} />
                 </FormControl>
@@ -178,7 +192,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               </FormItem>
             )}
           />
-          {/* Category Slugs / Name */}
+          {/* Category Slugs */}
           <FormField
             control={form.control}
             name="category_slugs"
@@ -186,7 +200,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Category Slugs (comma-separated)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., slots,new" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''} />
+                  <Input placeholder="e.g., slots,new" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -239,7 +253,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
             control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="md:col-span-2">
                 <FormLabel>Description</FormLabel>
                 <FormControl>
                   <Textarea placeholder="Game description..." {...field} value={field.value || ''} />
@@ -256,7 +270,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>RTP (%)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" placeholder="e.g., 96.5" {...field} value={String(field.value || '')} />
+                  <Input type="text" placeholder="e.g., 96.5" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -270,11 +284,12 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Volatility</FormLabel>
                 <FormControl>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ''}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select volatility" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">Not Set</SelectItem>
                       <SelectItem value="low">Low</SelectItem>
                       <SelectItem value="low-medium">Low-Medium</SelectItem>
                       <SelectItem value="medium">Medium</SelectItem>
@@ -295,7 +310,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Min Bet</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" placeholder="e.g., 0.10" {...field} />
+                  <Input type="text" placeholder="e.g., 0.10" {...field} value={field.value || ''}/>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -309,7 +324,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Max Bet</FormLabel>
                 <FormControl>
-                  <Input type="number" step="1" placeholder="e.g., 100" {...field} />
+                  <Input type="text" placeholder="e.g., 100" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -323,7 +338,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Lines</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="e.g., 20" {...field} />
+                  <Input type="text" placeholder="e.g., 20" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -337,7 +352,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Features (comma-separated)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., free_spins,bonus_game" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''} />
+                  <Input placeholder="e.g., free_spins,bonus_game" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -351,7 +366,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Themes (comma-separated)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., egypt,fantasy" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''} />
+                  <Input placeholder="e.g., egypt,fantasy" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -365,7 +380,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Tags (comma-separated)</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g., popular,new_release" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value || ''} />
+                  <Input placeholder="e.g., popular,new_release" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -379,7 +394,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Status</FormLabel>
                 <FormControl>
-                   <Select onValueChange={field.onChange} defaultValue={field.value}>
+                   <Select onValueChange={field.onChange} value={field.value || 'active'}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -459,7 +474,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
               <FormItem>
                 <FormLabel>Release Date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input type="date" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -531,7 +546,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmit, onCancel, isLoading
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading}>
+          <Button type="submit" disabled={isLoading || !form.formState.isValid}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {game ? 'Update Game' : 'Create Game'}
           </Button>
