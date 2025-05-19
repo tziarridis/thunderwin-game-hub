@@ -1,284 +1,276 @@
-// @ts-nocheck TODO: Remove ts-nocheck and fix all type errors
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User as SupabaseUser, Session, AuthError } from '@supabase/supabase-js';
-import userService from '@/services/userService'; // Corrected import
-import { walletService } from '@/services/walletService';
-import { AuthUser, Profile, AuthContextType, User as AppUser, DbWallet } from '@/types'; // Ensure User is AppUser
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { User, Wallet, AuthContextType, DbWallet } from '@/types'; // Ensure Wallet and DbWallet are imported
+import { walletService } from '@/services/walletService'; // Assuming you have a walletService
 import { toast } from 'sonner';
+import { userService } from '@/services/userService'; // For fetching full user profile
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<AuthError | null>(null); // Use AuthError for Supabase errors
+  const [wallet, setWallet] = useState<Wallet | null>(null);
 
-  const fetchUserProfile = useCallback(async (userId: string): Promise<Partial<AppUser> | null> => {
-    const { data, error: profileError } = await userService.getUserById(userId);
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-      // toast.error(`Failed to fetch profile: ${profileError.message}`);
-      return null;
+
+  const fetchUserProfileAndWallet = useCallback(async (supabaseUser: SupabaseUser | null) => {
+    if (!supabaseUser) {
+      setUser(null);
+      setWallet(null);
+      return;
     }
-    return data as Partial<AppUser> | null; // Cast to AppUser
+
+    try {
+      // 1. Fetch full user profile from your 'users' table
+      const { data: userProfile, error: profileError } = await userService.getUserById(supabaseUser.id);
+      
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // Fallback to Supabase user data if profile fetch fails for some reason
+        setUser(supabaseUser as User); // This might lack custom fields
+      } else if (userProfile) {
+         // Merge Supabase auth data with your custom profile data
+        const fullUser: User = {
+          ...supabaseUser, // Supabase auth data (id, email, etc.)
+          ...userProfile,  // Custom fields from your 'users' table
+          // Ensure Supabase id overrides any id from userProfile if they conflict
+          id: supabaseUser.id, 
+        };
+        setUser(fullUser);
+      } else {
+         // If no profile found, still set the Supabase user
+         console.warn("No custom user profile found for user:", supabaseUser.id);
+         setUser(supabaseUser as User);
+      }
+
+      // 2. Fetch wallet data
+      const { data: walletData, error: walletError } = await walletService.getWalletByUserId(supabaseUser.id);
+      if (walletError) {
+        console.error("Error fetching wallet:", walletError);
+        toast.error("Could not load wallet information.");
+        setWallet(null);
+      } else if (walletData) {
+         // If walletData is an array, take the first one or find the active one
+        const activeWallet = Array.isArray(walletData) 
+          ? walletData.find(w => w.active) || walletData[0] 
+          : walletData; // Assuming single wallet object
+        
+        if (activeWallet) {
+          setWallet(activeWallet as Wallet); // Cast DbWallet to Wallet
+        } else {
+          console.warn("No active wallet found for user:", supabaseUser.id);
+          setWallet(null);
+        }
+      } else {
+        setWallet(null);
+      }
+    } catch (error) {
+      console.error("Error in fetchUserProfileAndWallet:", error);
+      setUser(supabaseUser as User); // Fallback
+      setWallet(null); // Fallback
+    }
   }, []);
 
-  const mapSupabaseUserToAuthUser = async (supabaseUser: SupabaseUser | null): Promise<AuthUser | null> => {
-    if (!supabaseUser) return null;
-
-    const profileData = await fetchUserProfile(supabaseUser.id);
-    const walletData = await walletService.getWalletByUserId(supabaseUser.id);
-    
-    const primaryWallet = walletData.success && walletData.data ? walletData.data as DbWallet : null;
-
-
-    return {
-      id: supabaseUser.id,
-      email: supabaseUser.email!,
-      username: profileData?.username || supabaseUser.email?.split('@')[0],
-      displayName: profileData?.displayName || profileData?.username || supabaseUser.email?.split('@')[0],
-      avatar: profileData?.avatar || undefined,
-      role: profileData?.role || 'user', // Default to 'user'
-      kycStatus: profileData?.kycStatus || 'not_submitted',
-      balance: primaryWallet?.balance,
-      currency: primaryWallet?.currency,
-      // Add other fields from AppUser if they are part of AuthUser
-      firstName: profileData?.firstName,
-      lastName: profileData?.lastName,
-    };
-  };
-  
   useEffect(() => {
-    const getInitialSession = async () => {
-      setLoading(true);
-      try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        setSession(initialSession);
-        if (initialSession?.user) {
-          const authUser = await mapSupabaseUserToAuthUser(initialSession.user);
-          setUser(authUser);
-        }
-      } catch (e: any) {
-        console.error("Error getting initial session:", e);
-        setError(e);
-      } finally {
+    setLoading(true);
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      fetchUserProfileAndWallet(currentSession?.user ?? null).finally(() => {
         setLoading(false);
-      }
-    };
-
-    getInitialSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      setLoading(true);
-      setError(null); // Clear previous errors on auth change
-      setSession(newSession);
-      if (newSession?.user) {
-        const authUser = await mapSupabaseUserToAuthUser(newSession.user);
-        setUser(authUser);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      });
     });
 
-    return () => {
-      if (authListener && authListener.subscription) { // Check if subscription exists
-        authListener.subscription.unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        setLoading(true);
+        setSession(newSession);
+        await fetchUserProfileAndWallet(newSession?.user ?? null);
+        setLoading(false);
       }
-    };
-  }, [fetchUserProfile]);
+    );
 
-  const login = async (email, password) => {
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfileAndWallet]);
+
+  const login = async (credentials: { email?: string; password?: string; provider?: 'google' | 'discord' | 'github' }) => {
     setLoading(true);
-    setError(null);
+    let errorResult: Error | null = null;
     try {
-      const { data, error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-      if (loginError) throw loginError;
-      if (data.user) {
-        const authUser = await mapSupabaseUserToAuthUser(data.user);
-        setUser(authUser);
-        setSession(data.session);
-        toast.success("Logged in successfully!");
-        return authUser;
+      if (credentials.provider) {
+        const { error } = await supabase.auth.signInWithOAuth({ provider: credentials.provider });
+        if (error) throw error;
+      } else if (credentials.email && credentials.password) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
+        if (error) throw error;
+      } else {
+        throw new Error("Email/password or provider is required for login.");
       }
-      return null;
-    } catch (e) {
+    } catch (e: any) {
       console.error("Login error:", e);
-      setError(e);
-      toast.error(e.message || "Failed to log in.");
-      return null;
+      toast.error(e.message || "Login failed. Please check your credentials.");
+      errorResult = e;
     } finally {
       setLoading(false);
     }
+    return { error: errorResult };
   };
 
-  const register = async (email, password, username) => {
+  const register = async (credentials: { email?: string; password?: string; username?: string; [key: string]: any }) => {
     setLoading(true);
-    setError(null);
+    let errorResult: Error | null = null;
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { username: username || email.split('@')[0] } },
-      });
-      if (signUpError) throw signUpError;
-      
-      // Supabase typically sends a confirmation email.
-      // For now, we'll assume auto-confirmation or handle it client-side if user exists.
-      if (data.user) {
-         // Create user profile in your 'users' table
-        const newUserProfile = {
-          id: data.user.id, // This should be auth.uid from supabase user
-          auth_user_id: data.user.id, // if you have a separate column for auth user id
-          email: data.user.email,
-          username: username || data.user.email.split('@')[0],
-          role: 'user',
-          // other default fields
-        };
-        // await userService.createUser(newUserProfile); // Adapt to your userService.createUser
-
-        const authUser = await mapSupabaseUserToAuthUser(data.user);
-        setUser(authUser);
-        setSession(data.session);
-        toast.success("Registered successfully! Please check your email to confirm.");
-        return authUser;
+      if (!credentials.email || !credentials.password) {
+        throw new Error("Email and password are required for registration.");
       }
-      return null;
-    } catch (e) {
+      const { data, error } = await supabase.auth.signUp({
+        email: credentials.email,
+        password: credentials.password,
+        options: {
+          data: {
+            username: credentials.username,
+            full_name: credentials.full_name || credentials.username, 
+            // Add any other metadata you want to store on Supabase auth user
+            // This will also be available to the handle_new_user trigger
+          }
+        }
+      });
+      if (error) throw error;
+      if (!data.session && data.user) {
+        // This can happen if email confirmation is required
+        toast.info("Registration successful! Please check your email to confirm your account.");
+      } else if (data.session) {
+         toast.success("Registration successful! You are now logged in.");
+      }
+    } catch (e: any) {
       console.error("Registration error:", e);
-      setError(e);
-      toast.error(e.message || "Failed to register.");
-      return null;
+      toast.error(e.message || "Registration failed. Please try again.");
+      errorResult = e;
     } finally {
       setLoading(false);
     }
+    return { error: errorResult };
   };
 
   const logout = async () => {
     setLoading(true);
-    setError(null);
-    try {
-      const { error: signOutError } = await supabase.auth.signOut();
-      if (signOutError) throw signOutError;
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Logout error:", error);
+      toast.error(error.message || "Logout failed.");
+    } else {
       setUser(null);
       setSession(null);
+      setWallet(null);
       toast.success("Logged out successfully.");
-    } catch (e) {
-      console.error("Logout error:", e);
-      setError(e);
-      toast.error(e.message || "Failed to log out.");
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
+    return { error };
   };
   
-  const resetPassword = async (email) => {
-    // ... (implementation)
-    return false; // Placeholder
-  };
-
-
-  const updateProfile = async (profileData: Partial<Profile>): Promise<Profile | null> => {
-    if (!user) {
-      toast.error("You must be logged in to update your profile.");
-      return null;
+  const refreshUser = useCallback(async () => {
+    const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      console.error("Error refreshing session:", sessionError);
+      return;
     }
-    setLoading(true);
-    setError(null);
-    try {
-      // Assuming profileData contains fields for 'profiles' table
-      // And user.id is the foreign key 'user_id' in 'profiles'
-      // Or if user.id is the primary key 'id' in 'profiles' table linked to auth.users
-      const { data: updatedProfileData, error: updateError } = await supabase
-        .from('profiles') // Or your actual profiles table name
-        .update(profileData) // profileData should match columns in 'profiles'
-        .eq('user_id', user.id) // Ensure this condition matches your schema
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-
-      if (updatedProfileData) {
-        // Re-fetch or merge updated user data
-        const updatedAuthUser = await mapSupabaseUserToAuthUser(session?.user || null); // Re-map with fresh profile data
-        setUser(updatedAuthUser);
-        toast.success("Profile updated successfully!");
-        // The 'Profile' type is for the data structure being passed and returned.
-        // We are returning the data that was successfully updated.
-        return updatedProfileData as Profile; // Cast to Profile, ensure it matches
-      }
-      return null;
-    } catch (e: any) {
-      console.error("Update profile error:", e);
-      setError(e);
-      toast.error(e.message || "Failed to update profile.");
-      return null;
-    } finally {
-      setLoading(false);
+    setSession(currentSession);
+    if (currentSession?.user) {
+      await fetchUserProfileAndWallet(currentSession.user);
+    } else {
+      setUser(null);
+      setWallet(null);
     }
-  };
+  }, [fetchUserProfileAndWallet]);
 
   const refreshWalletBalance = useCallback(async () => {
-    if (!user) return null;
-    try {
-      const response = await walletService.getWalletByUserId(user.id);
-      if (response.success && response.data) {
-        const dbWallet = response.data as DbWallet;
-        setUser(prevUser => prevUser ? ({ 
-          ...prevUser, 
-          balance: dbWallet.balance, 
-          currency: dbWallet.currency 
-        }) : null);
-        return dbWallet.balance;
+    if (user && user.id) {
+      try {
+        const { data: walletData, error: walletError } = await walletService.getWalletByUserId(user.id);
+        if (walletError) {
+          toast.error("Failed to refresh wallet balance.");
+          console.error("Wallet refresh error:", walletError);
+        } else if (walletData) {
+          const activeWallet = Array.isArray(walletData) 
+            ? walletData.find(w => w.active) || walletData[0] 
+            : walletData;
+          setWallet(activeWallet as Wallet);
+          // toast.success("Wallet balance updated!"); // Optional: can be too noisy
+        }
+      } catch (e) {
+        toast.error("Error refreshing wallet.");
+        console.error("Wallet refresh exception:", e);
       }
-      return null;
-    } catch (e: any) {
-      console.error("Error refreshing wallet balance:", e);
-      // toast.error("Could not refresh wallet balance."); // Optional: can be noisy
-      return null;
     }
   }, [user]);
   
-  // Placeholder for deposit function if needed by CardDeposit
-  const deposit = async (amount: number, currency: string, paymentMethod: string): Promise<boolean> => {
-    console.log("Deposit function called in AuthContext (placeholder)", { amount, currency, paymentMethod });
-    if (!user) {
-      toast.error("Please log in to make a deposit.");
-      return false;
+  const updateUserMetadata = async (metadata: Partial<User['user_metadata']>) => {
+    setLoading(true);
+    const { data, error } = await supabase.auth.updateUser({ data: metadata });
+    if (error) {
+      toast.error(error.message || "Failed to update user metadata.");
+    } else if (data.user) {
+      // Re-fetch full profile to merge changes
+      await fetchUserProfileAndWallet(data.user);
+      toast.success("Profile updated successfully!");
     }
-    // Implement actual deposit logic here, possibly calling a service
-    // For now, simulate success and refresh balance
-    // await walletService.handleDeposit({ userId: user.id, amount, currency, paymentMethodId: paymentMethod /* ... */ });
-    await refreshWalletBalance();
-    toast.success("Deposit successful (simulated).");
-    return true;
+    setLoading(false);
+    return { data, error };
+  };
+  
+  const sendPasswordResetEmail = async (email: string) => {
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/update-password`, // Ensure this route exists for password update
+    });
+    if (error) {
+      toast.error(error.message || "Failed to send password reset email.");
+    } else {
+      toast.success("Password reset email sent. Please check your inbox.");
+    }
+    setLoading(false);
+    return { error };
+  };
+
+  const updatePassword = async (password: string) => {
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      toast.error(error.message || "Failed to update password.");
+    } else {
+      toast.success("Password updated successfully.");
+    }
+    setLoading(false);
+    return { error };
   };
 
 
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session,
-      loading, 
-      error, 
-      login, 
-      register, 
-      logout, 
-      resetPassword, 
-      updateProfile, 
-      refreshWalletBalance, 
-      isAuthenticated: !!user,
-      fetchUserProfile,
-      deposit // Provide the deposit function
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    isAuthenticated: !!session && !!user,
+    user,
+    session,
+    loading,
+    wallet,
+    login,
+    register,
+    logout,
+    refreshUser,
+    updateUserMetadata,
+    sendPasswordResetEmail,
+    updatePassword,
+    refreshWalletBalance,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');

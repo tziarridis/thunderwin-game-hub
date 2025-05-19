@@ -1,157 +1,88 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { User, Edit, Award, Calendar, CreditCard, LogOut, ChevronRight } from "lucide-react";
-import { Link } from "react-router-dom";
-import { walletService } from "@/services/walletService";
-import { Wallet } from "@/types/wallet";
-import { toast } from "sonner";
+
+import React from 'react';
+import { User } from '@/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { LogOut, Settings, UserCircle, Shield, DollarSign, Gift, History, LifeBuoy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import WalletBalance from '@/components/user/WalletBalance';
 
 const MobileProfile = () => {
-  const { user, logout } = useAuth();
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [loading, setLoading] = useState(false);
-  
-  useEffect(() => {
-    if (user?.id) {
-      fetchWallet();
-    }
-  }, [user?.id]);
-  
-  const fetchWallet = async () => {
-    if (!user?.id) return;
-    
-    try {
-      setLoading(true);
-      const walletResponse = await walletService.getWalletByUserId(user.id);
-      
-      if (walletResponse.data) {
-        setWallet(walletResponse.data);
-      }
-    } catch (error) {
-      console.error("Error fetching wallet:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  const { user, logout, wallet } = useAuth();
+  const navigate = useNavigate();
+
   const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success("Logged out successfully");
-    } catch (error) {
-      console.error("Error logging out:", error);
-      toast.error("Failed to log out");
-    }
+    await logout();
+    navigate('/'); 
   };
 
-  return (
-    <div className="min-h-screen bg-casino-thunder-darker pt-16 pb-20">
-      <div className="px-4 py-6">
-        <div className="flex flex-col items-center mb-6">
-          <div className="relative">
-            <div className="h-20 w-20 rounded-full bg-white/10 flex items-center justify-center overflow-hidden mb-3">
-              {user?.avatar || user?.avatarUrl ? (
-                <img 
-                  src={user.avatar || user.avatarUrl} 
-                  alt={user.username || 'Profile'} 
-                  className="h-full w-full object-cover" 
-                />
-              ) : (
-                <User className="h-10 w-10 text-white/50" />
-              )}
-            </div>
-            <button className="absolute bottom-0 right-0 bg-casino-thunder-green text-black p-1 rounded-full">
-              <Edit className="h-3 w-3" />
-            </button>
-          </div>
-          
-          <h2 className="text-lg font-semibold text-white">{user?.username}</h2>
-          <p className="text-sm text-white/60">{user?.email}</p>
-        </div>
-        
-        <div className="bg-white/5 rounded-lg p-4 mb-4">
-          <div className="flex justify-between items-center mb-3">
-            <div>
-              <p className="text-sm text-white/60">Balance</p>
-              <p className="text-xl font-bold text-white">
-                ${user?.balance?.toFixed(2) || wallet?.balance?.toFixed(2) || '0.00'}
-              </p>
-            </div>
-            <Button className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black">
-              Deposit
-            </Button>
-          </div>
-          
-          <div className="flex items-center">
-            <Award className="h-4 w-4 text-casino-thunder-green mr-1" />
-            <span className="text-sm text-white/80">VIP Level: {user?.vipLevel || 0}</span>
-          </div>
-        </div>
-        
-        <div className="space-y-3">
-          <Link to="/profile/edit">
-            <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
-                  <User className="h-4 w-4 text-white/70" />
-                </div>
-                <span className="text-white">Edit Profile</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-white/50" />
-            </div>
-          </Link>
-          
-          <Link to="/transactions">
-            <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
-                  <Calendar className="h-4 w-4 text-white/70" />
-                </div>
-                <span className="text-white">Transaction History</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-white/50" />
-            </div>
-          </Link>
-          
-          <Link to="/payment-methods">
-            <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
-                  <CreditCard className="h-4 w-4 text-white/70" />
-                </div>
-                <span className="text-white">Payment Methods</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-white/50" />
-            </div>
-          </Link>
-          
-          <Link to="/vip">
-            <div className="bg-white/5 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
-                  <Award className="h-4 w-4 text-white/70" />
-                </div>
-                <span className="text-white">VIP Program</span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-white/50" />
-            </div>
-          </Link>
-          
-          <button 
-            onClick={handleLogout}
-            className="w-full bg-white/5 rounded-lg p-4 flex items-center justify-between"
-          >
-            <div className="flex items-center">
-              <div className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center mr-3">
-                <LogOut className="h-4 w-4 text-white/70" />
-              </div>
-              <span className="text-white">Log Out</span>
-            </div>
-            <ChevronRight className="h-4 w-4 text-white/50" />
-          </button>
-        </div>
+  if (!user) {
+    return (
+      <div className="p-4 flex flex-col items-center space-y-4">
+        <p>You are not logged in.</p>
+        <Button onClick={() => navigate('/auth/login')}>Login</Button>
       </div>
+    );
+  }
+  
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+      return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const menuItems = [
+    { label: 'Account Details', icon: UserCircle, path: '/user/profile/details' },
+    { label: 'Settings', icon: Settings, path: '/user/settings' },
+    { label: 'Security', icon: Shield, path: '/user/security' },
+    { label: 'Transactions', icon: History, path: '/user/transactions' },
+    { label: 'Bonuses', icon: Gift, path: '/user/bonuses' },
+    { label: 'Support', icon: LifeBuoy, path: '/support/contact' },
+  ];
+
+  return (
+    <div className="p-4 bg-card text-card-foreground min-h-screen">
+      <div className="flex flex-col items-center space-y-3 mb-6 pb-6 border-b">
+        <Avatar className="w-24 h-24 border-2 border-primary">
+          <AvatarImage src={user.user_metadata?.avatar_url || user.avatar_url} alt={user.user_metadata?.full_name || user.email} />
+          <AvatarFallback>{getInitials(user.user_metadata?.full_name || user.email)}</AvatarFallback>
+        </Avatar>
+        <h2 className="text-xl font-semibold">{user.user_metadata?.full_name || user.username || user.email}</h2>
+        <p className="text-sm text-muted-foreground">{user.email}</p>
+        <div className="mt-2">
+            <WalletBalance user={user} className="text-lg justify-center" />
+        </div>
+        <Button onClick={() => navigate('/payment/deposit')} className="w-full mt-2 bg-primary hover:bg-primary/90">
+            <DollarSign className="mr-2 h-4 w-4" /> Deposit Funds
+        </Button>
+      </div>
+
+      <nav className="space-y-2">
+        {menuItems.map(item => (
+          <Button
+            key={item.label}
+            variant="ghost"
+            className="w-full justify-start text-base py-3 px-3"
+            onClick={() => navigate(item.path)}
+          >
+            <item.icon className="mr-3 h-5 w-5 text-muted-foreground" />
+            {item.label}
+          </Button>
+        ))}
+      </nav>
+
+      <Button
+        variant="destructive"
+        className="w-full mt-8 text-base py-3"
+        onClick={handleLogout}
+      >
+        <LogOut className="mr-3 h-5 w-5" />
+        Logout
+      </Button>
     </div>
   );
 };

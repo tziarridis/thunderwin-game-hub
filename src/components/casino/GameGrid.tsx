@@ -4,6 +4,7 @@ import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Loader2, FilterX } from 'lucide-react';
+import { useGames } from '@/hooks/useGames'; // Import useGames
 
 interface GameGridProps {
   games: Game[];
@@ -24,7 +25,9 @@ const GameGrid = ({
   hasMore = false,
   loadingMore = false
 }: GameGridProps) => {
-  if (loading) {
+  const { favoriteGameIds, toggleFavoriteGame } = useGames(); // Get favorites from context
+
+  if (loading && (!games || games.length === 0)) { // Show loader if loading and no games yet
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
@@ -47,17 +50,10 @@ const GameGrid = ({
         {games.map((game) => (
           <GameCard 
             key={game.id}
-            id={game.id}
-            title={game.title}
-            image={game.image}
-            provider={game.provider}
-            isPopular={game.isPopular}
-            isNew={game.isNew}
-            rtp={game.rtp}
-            isFavorite={game.isFavorite}
-            minBet={game.minBet}
-            maxBet={game.maxBet}
-            onClick={() => onGameClick ? onGameClick(game) : null}
+            game={game} // Pass the whole game object
+            isFavorite={favoriteGameIds.has(game.id as string)} // Use favoriteGameIds from context
+            onToggleFavorite={() => toggleFavoriteGame(game.id as string)}
+            onPlay={onGameClick ? () => onGameClick(game) : undefined}
           />
         ))}
       </div>

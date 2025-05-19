@@ -1,425 +1,440 @@
-import { Session } from "@supabase/supabase-js";
-
-export interface UserStatsType {
-  gamesPlayed?: number;
-  totalWagered?: number;
-  winRate?: number;
-  // Add other stat fields as needed
-}
-
 export interface User {
-  id: string; 
-  email: string; 
-  firstName?: string; 
-  lastName?: string; 
-  username?: string; 
-  avatar_url?: string; 
+  id: string;
+  aud?: string;
+  role?: string;
+  email?: string;
+  email_confirmed_at?: string;
   phone?: string;
-  country?: string;
-  city?: string;
-  address?: string;
-  zipCode?: string;
-  birthdate?: string; 
-  gender?: string;
-  language?: string;
-  currency?: string; 
+  confirmed_at?: string;
+  last_sign_in_at?: string;
+  app_metadata?: {
+    provider?: string;
+    providers?: string[];
+    [key: string]: any; 
+  };
+  user_metadata?: {
+    avatar_url?: string;
+    email?: string;
+    email_verified?: boolean;
+    full_name?: string;
+    iss?: string;
+    name?: string;
+    phone_verified?: boolean;
+    picture?: string;
+    provider_id?: string;
+    sub?: string;
+    username?: string; // Added username
+    first_name?: string;
+    last_name?: string;
+    // Custom fields
+    kyc_status?: KycStatus; // Use the KycStatus type
+    kyc_rejection_reason?: string;
+    date_of_birth?: string;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state_province_region?: string;
+    postal_code?: string;
+    country?: string;
+    [key: string]: any; 
+  };
+  identities?: Array<{
+    identity_id: string;
+    id: string;
+    user_id: string;
+    identity_data?: {
+      [key: string]: any;
+    };
+    provider: string;
+    last_sign_in_at: string;
+    created_at: string;
+    updated_at: string;
+    email?: string; // if identity provider is email
+  }>;
   created_at?: string;
   updated_at?: string;
-  role?: string; 
-
-  displayName?: string; 
-  avatar?: string; 
-  isActive?: boolean; 
-  balance?: number; // This seems to be a direct balance, distinct from wallet. Review usage.
-  vipLevel?: number; 
-  kycStatus?: KycStatusType | string; 
-  twoFactorEnabled?: boolean; 
-  emailVerified?: boolean; 
-  lastLogin?: string; 
-  registrationDate?: string; 
-  status?: string; 
-  name?: string; 
-  stats?: UserStatsType; // Added stats property
+  // Custom fields from your users table
+  banned?: boolean;
+  inviter_id?: string | null;
+  affiliate_revenue_share?: number;
+  inviter_code?: string | null;
+  status?: string; // 'active', 'pending_verification', etc.
+  language?: string; // e.g., 'en', 'es'
+  currency?: string; // e.g., 'USD', 'EUR'
+  // VIP fields
+  vip_level?: number;
+  vip_points?: number;
+  // Responsible Gambling fields
+  deposit_limit_daily?: number | null;
+  deposit_limit_weekly?: number | null;
+  deposit_limit_monthly?: number | null;
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_until?: string | null; // ISO date string
+  // Wallet related fields (consider if these should be in a separate Wallet type)
+  balance?: number; 
+  // Optional profile fields
+  username?: string;
+  avatar_url?: string; // This one is common
+  first_name?: string;
+  last_name?: string;
+  cpf?: string; // Example for specific regions
+  // Computed or related fields (optional, might be populated on client)
+  isAdmin?: boolean; 
+  isAffiliate?: boolean;
+  stats?: UserStats; // User game statistics
+  // Other fields as defined in your public.users table
+  role_id?: number;
+  is_demo_agent?: boolean;
+  affiliate_cpa?: number;
+  affiliate_baseline?: number;
+  oauth_id?: string | null;
+  oauth_type?: string | null;
 }
 
+export type KycStatus = 'not_started' | 'pending' | 'approved' | 'rejected' | 'resubmit_required';
+
+
+export interface UserStats {
+  gamesPlayed: number;
+  totalWagered: number;
+  totalWon: number;
+  winRate: number; // Percentage
+  favoriteGame?: string; // Name or ID
+  lastPlayed?: string; // Date string
+  // Add more stats as needed
+}
+
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  balance_bonus?: number;
+  currency: string; // e.g. 'USD', 'EUR', 'BTC'
+  symbol: string; // e.g. '$', '€', '฿'
+  active?: boolean;
+  is_bonus_wallet?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  // Responsible gambling limits tied to wallet
+  deposit_limit_daily?: number | null;
+  deposit_limit_weekly?: number | null;
+  deposit_limit_monthly?: number | null;
+  // Other wallet specific fields from your wallets table
+  balance_bonus_rollover?: number;
+  balance_deposit_rollover?: number;
+  balance_withdrawal?: number;
+  balance_cryptocurrency?: number;
+  balance_demo?: number;
+  refer_rewards?: number;
+  hide_balance?: boolean;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+  last_won?: number;
+  last_lose?: number;
+  vip_level?: number;
+  vip_points?: number;
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_until?: string | null;
+  exclusion_period?: string;
+}
+
+
 export interface AuthContextType {
+  isAuthenticated: boolean;
   user: User | null;
   session: Session | null;
   loading: boolean;
-  error: any;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  wallet: Wallet | null; // Added wallet property
-  login: (email: string, password?: string) => Promise<any>; 
-  register: (username: string, email: string, password?: string, metadata?: any) => Promise<any>; 
-  signOut: () => Promise<void>;
-  adminLogin: (email: string, password?: string) => Promise<any>;
-  updateUserProfile: (data: any) => Promise<{ data: any; error: any }>;
-  refreshWalletBalance: () => Promise<Wallet | null>;
-  deposit: (amount: number, currency: string, paymentMethodId?: string) => Promise<any>; 
-  updateUserSettings?: (settings: Partial<User>) => Promise<{ error?: any }>; 
+  login: (credentials: { email?: string; password?: string; provider?: 'google' | 'discord' | 'github' }) => Promise<{ error: Error | null }>;
+  register: (credentials: { email?: string; password?: string; username?: string; [key: string]: any }) => Promise<{ error: Error | null }>;
+  logout: () => Promise<{ error: Error | null }>; // Added logout
+  refreshUser: () => Promise<void>;
+  updateUserMetadata: (metadata: Partial<User['user_metadata']>) => Promise<{ data: any; error: Error | null }>;
+  sendPasswordResetEmail: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  wallet: Wallet | null;
+  refreshWalletBalance: () => Promise<void>;
 }
 
-export interface ApiResponse<T> {
-    success: boolean;
-    data?: T;
-    error?: string;
-    errorMessage?: string;
-    gameUrl?: string;
+export interface GameProvider {
+  id: string | number; // Can be UUID (string) from DB or number from some APIs
+  name: string;
+  slug: string; // Add slug for routing/filtering
+  logo?: string;
+  description?: string;
+  status: 'active' | 'inactive' | 'maintenance';
+  games_count?: number; // Optional: number of games from this provider
+  api_endpoint?: string; // For backend use primarily
+  // Any other relevant fields
+  type?: 'aggregator' | 'direct'; // Example
+  region_restrictions?: string[];
 }
 
-export interface QueryOptions {
-  page?: number;
-  limit?: number;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  filters?: { [key: string]: any };
+export interface GameCategory {
+  id: string | number; // Can be UUID (string) from DB or number from some APIs
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string; // e.g., Lucide icon name or URL
+  image?: string; // URL for a representative image
+  status: 'active' | 'inactive';
+  game_count?: number;
+  parent_category_id?: string | number | null; // For subcategories
+  order?: number; // For sorting
 }
 
 export interface Game {
-  id: string;
-  game_id?: string; // External ID from provider
+  id: string | number; // Game's unique ID (can be string UUID or number from provider)
+  slug: string;        // URL-friendly identifier
   title: string;
-  name?: string; // Alternative for title
-  provider: string; // Provider slug or ID
-  providerName?: string; // Display name for provider
-  category: string; // Category slug or ID
-  categoryName?: string; // Display name for category
-  category_slugs?: string[] | string; // Allow string or array to match DbGame
-  image: string;
+  provider: string;    // Provider's slug or ID
+  providerName?: string; // Display name of the provider
+  category: string;    // Category slug or ID (can be an array if multi-category)
+  categoryName?: string; // Display name of the category
+  category_slugs?: string[] | string; // Can be an array of slugs or single slug
+  image?: string;       // URL for the game's thumbnail/cover
+  banner?: string;      // URL for a larger banner image (optional)
   description?: string;
-  rtp?: number;
-  volatility?: 'low' | 'medium' | 'high' | string;
-  minBet?: number;
-  maxBet?: number;
-  isFavorite?: boolean;
+  rtp?: number;         // Return to Player percentage
+  volatility?: 'low' | 'medium' | 'high' | ''; // Game volatility
+  tags?: string[];      // e.g., ["popular", "new", "jackpot"]
+  features?: string[];  // e.g., ["free_spins", "bonus_game", "multipliers"]
+  themes?: string[];    // e.g., ["adventure", "fruits", "mythology"]
+  releaseDate?: string; // ISO date string
+  isFavorite?: boolean; // Whether the current user has favorited this game
   isNew?: boolean;
   isPopular?: boolean;
   is_featured?: boolean;
   show_home?: boolean;
-  tags?: string[];
-  launchUrl?: string; // This should be the final, usable launch URL
-  jackpot?: number; // For jackpot games
-  releaseDate?: string; // For sorting new games
-  release_date?: string; // Alternative for releaseDate
+  status?: 'active' | 'inactive' | 'maintenance';
   views?: number;
+  
+  // Technical details (often from provider or DB)
+  game_id?: string;       // Provider's specific game ID/code
+  game_code?: string;     // Internal game code, if different from slug/id
+  provider_id?: string | number; // ID of the provider in your system
+  
+  // Gameplay details
+  minBet?: number;
+  maxBet?: number;
+  lines?: number;         // Paylines for slots
+  jackpot_current_amount?: number; // If it's a progressive jackpot game
+  jackpot?: boolean; // Simplified jackpot flag
+  
+  // For launching
+  launch_url?: string; // If pre-fetched or available
+  
+  // From DbGame if different
+  name?: string; // Alias for title if source uses 'name'
+  cover?: string; // Alias for image if source uses 'cover'
+  image_url?: string; // Another alias for image
   created_at?: string;
   updated_at?: string;
-  provider_id?: string;
-  provider_slug?: string;
-  features?: string[];
-  themes?: string[];
-  lines?: number;
-  cover?: string;
-  banner?: string;
-  image_url?: string;
-  status?: string;
-  slug?: string; // game slug
-  game_code?: string; // From games table
+  provider_slug?: string; // Ensure this is present
+
+  // For admin/backend
+  meta_data?: Record<string, any>; // For any other provider-specific data
 }
+
 
 export interface DbGame {
-  id: string; // Primary key, should be unique game identifier
-  game_id?: string; // External or provider-specific game ID. From games table.
-  slug?: string;
-  title: string; // Game's display name. From games.game_name.
-  provider_id?: string; // Foreign key to providers table
-  provider_slug?: string; // Denormalized provider slug
-  category_ids?: string[]; // Array of foreign keys to categories table
-  category_slugs?: string[] | string; // Denormalized category slugs (can be string from some sources)
-  description?: string;  // From games table
-  tags?: string[]; // e.g., ["megaways", "bonus-buy"]
-  features?: string[]; // e.g., ["free-spins", "multipliers"]
-  themes?: string[]; // e.g., ["egyptian", "adventure"]
-  rtp?: number; // Return to Player percentage. From games table.
-  volatility?: 'low' | 'medium' | 'high' | string;
-  lines?: number; // Paylines
-  cover?: string; // URL to game cover image. From games table.
-  banner?: string; // URL to game banner image
-  image_url?: string; // Generic image URL if others aren't specific
-  launch_url_template?: string; // If game launch needs a template. May be constructed if not direct.
-  status?: 'active' | 'inactive' | 'maintenance' | string; // Game status. From games table.
-  is_popular?: boolean;
+  id: string; // Assuming UUID
+  provider_id?: string | null; // UUID, FK to providers table
+  provider_slug?: string | null; // Denormalized for easier querying
+  provider_name?: string | null; // Denormalized
+  category_ids?: string[] | null; // Array of UUIDs, FK to categories table
+  category_slugs?: string[] | string | null; // Denormalized
+  category_names?: string[] | string | null; // Denormalized
+  
+  title: string;
+  slug: string; // Unique slug for URL
+  game_id?: string | null; // External game ID from provider
+  game_code?: string | null; // Internal game code/identifier
+
+  description?: string | null;
+  image_url?: string | null; // Main display image
+  cover?: string | null; // Often used for card display
+  banner?: string | null; // For game detail pages or promotions
+
+  rtp?: number | null;
+  volatility?: 'low' | 'medium' | 'high' | '' | null;
+  status: 'active' | 'inactive' | 'maintenance'; // Ensure this matches DB enum/check constraint
+  
+  tags?: string[] | null; // Stored as array in Postgres
+  features?: string[] | null; // Stored as array
+  themes?: string[] | null; // Stored as array
+
+  is_featured?: boolean;
   is_new?: boolean;
-  is_featured?: boolean; // For "featured" sections. From games table.
-  show_home?: boolean; // If game should be shown on homepage special sections. From games table.
-  views?: number; // View count for popularity metrics. From games table.
-  order?: number; // For manual sorting
-  min_bet?: number;
-  max_bet?: number;
-  has_jackpot?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  release_date?: string;
-  game_code?: string; // Added, from games table
-  launch_url?: string; // Added for GameForm consistency, potentially constructed
+  is_popular?: boolean;
+  show_home?: boolean; // To show on homepage grid
+
+  views?: number;
+  release_date?: string | null; // ISO date string
+  
+  min_bet?: number | null;
+  max_bet?: number | null;
+  lines?: number | null;
+  jackpot_amount?: number | null;
+
+
+  // Technical details from provider
+  // game_server_url?: string | null;
+  // technology?: string | null; // e.g., HTML5, Flash (legacy)
+  // has_lobby?: boolean;
+  // is_mobile?: boolean;
+  // has_freespins?: boolean;
+  // has_tables?: boolean; // For table games
+  // only_demo?: boolean;
+  // distribution?: string | null; // e.g., 'direct', 'aggregator'
+  
+  meta_data?: Record<string, any> | null; // JSONB for extra fields
+
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
 }
 
-export interface GameProvider {
-  id: string;
-  name: string;
-  slug: string;
-  logo?: string;
-  description?: string;
-  isActive: boolean; 
-  order?: number;
-  games_count?: number; // Corrected from gamesCount for consistency if DB uses this
-}
 
-export interface GameCategory {
-  id: string;
-  name: string;
-  slug: string;
-  icon?: string;
-  image?: string;
-  order?: number;
-  show_home?: boolean;
-  status?: 'active' | 'inactive';
-  isActive: boolean; 
-  description?: string;
-}
-
-export interface Wallet {
-  id: string;
-  userId: string;
+export interface GameLaunchOptions {
+  mode: 'real' | 'demo';
+  playerId: string;
   currency: string;
-  symbol: string;
-  balance: number;
-  bonusBalance?: number; // Added for WalletBalance/MobileWalletSummary
-  createdAt: string;
-  updatedAt: string;
-  vipLevel?: number; 
+  language?: string; // e.g., 'en', 'es'
+  platform?: 'web' | 'mobile'; // Or 'desktop', 'tablet'
+  returnUrl?: string; // URL to return to after game session
+  token?: string; // Session token if required by provider
+  [key: string]: any; // Allow other provider-specific options
 }
 
 export interface Transaction {
-  id: string;
-  userId: string;
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus';
-  amount: number;
+  id: string; // Transaction UUID
+  user_id: string; // User UUID
+  wallet_id?: string; // Wallet UUID if applicable
+  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus_credit' | 'bonus_debit' | 'adjustment_credit' | 'adjustment_debit' | 'jackpot_win' | 'affiliate_commission';
+  amount: number; // Can be positive or negative
   currency: string;
-  status: 'pending' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-  description?: string; // Added field
-}
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'processing';
+  description?: string; // e.g., "Bet on Starburst slot", "Withdrawal to Visa **** 1234"
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
 
-export interface Bonus {
-  id: string;
-  userId: string; // Added
-  name?: string; // Kept optional as BonusHub derives it or it might be supplemental
-  description: string;
-  type: BonusType; // Use BonusType string union
-  amount: number; // Assuming amount is always number (e.g. count for free spins)
-  status: 'active' | 'used' | 'expired' | string; // Added
-  expiryDate: string; // Added
-  createdAt: string; // Added
-  wageringRequirement?: number;
-  progress?: number; // Added
-  code?: string; // Added
-  isActive?: boolean; // This might be redundant if 'status' is used, review usage
-  // Fields from PromotionCard usage (review if still needed or if BonusHub is primary consumer)
-  title?: string; 
-  endDate?: string; // Potentially redundant with expiryDate
-  ctaText?: string; 
-  imageUrl?: string; 
-  termsLink?: string; 
+  // Optional fields depending on transaction type
+  provider?: string; // Payment provider or game provider
+  game_id?: string; // If 'bet' or 'win'
+  round_id?: string; // Game round ID
+  payment_method?: string;
+  external_transaction_id?: string; // ID from payment gateway or game provider
+  balance_before?: number;
+  balance_after?: number;
+  bonus_id?: string; // If related to a bonus
+  notes?: string; // Admin notes
 }
 
 export interface Promotion {
   id: string;
   title: string;
   description: string;
-  imageUrl?: string;
-  ctaText?: string; 
-  ctaLink?: string; 
-  startDate?: string;
-  endDate?: string;
-  promotionType: 'deposit_bonus' | 'free_spins' | 'tournament' | 'cashback' | string; 
-  termsLink?: string; 
-  isActive: boolean;
-  bonusPercentage?: number; 
-  maxBonusAmount?: number; 
-  wageringRequirement?: number; 
-  games?: string[]; 
-  promoCode?: string; 
-  usageLimitPerUser?: number; // For Promotions.tsx
-  status?: 'active' | 'inactive' | 'expired' | string; // For Promotions.tsx
-  category?: string; // For Promotions.tsx
-  terms?: string; // For Promotions.tsx
-  freeSpinsCount?: number; // For Promotions.tsx
-  minDeposit?: number; // For Promotions.tsx
+  type: 'deposit_match' | 'free_spins' | 'cashback' | 'tournament' | 'reload_bonus' | 'no_deposit_bonus' | 'other';
+  image_url?: string;
+  start_date: string; // ISO date string
+  end_date: string | null; // ISO date string, or null for ongoing
+  terms_and_conditions: string;
+  status: 'active' | 'expired' | 'upcoming' | 'draft';
+  eligibility?: {
+    type: 'all_users' | 'new_users' | 'existing_users' | 'vip_level';
+    min_deposit?: number;
+    min_vip_level?: string; // e.g., 'gold', 'platinum'
+    excluded_countries?: string[];
+  };
+  bonus_details?: {
+    // Deposit Match
+    percentage?: number;
+    max_amount?: number;
+    currency?: string;
+    // Free Spins
+    free_spins_count?: number;
+    game_id?: string; // Game ID for free spins
+    game_slug?: string; // Game slug for free spins
+    spin_value?: number;
+    // Cashback
+    // percentage?: number; // (already there)
+    calculation_period?: 'daily' | 'weekly' | 'monthly';
+    // Tournament
+    prize_pool?: number;
+    // currency?: string; // (already there)
+    // No Deposit
+    // amount?: number; // (already there)
+    // currency?: string; // (already there)
+  };
+  wagering_requirement?: number; // e.g., 35 for 35x
+  max_bet_while_active?: number;
+  validity_days?: number; // How long the bonus/spins are valid after claiming
+  cta_text?: string; // Call to action button text, e.g., "Claim Now"
+  claimed_by_user?: boolean; // UI state, not usually DB
+  usage_limit_per_user?: number; // Default 1
+  total_usage_limit?: number; // Total times promo can be claimed overall
 }
-
-export interface BonusTemplate {
-  id: string;
-  name: string;
-  description?: string;
-  type: BonusType;
-  amount?: number; 
-  percentage?: number; 
-  maxAmount?: number; 
-  freeSpinsCount?: number; 
-  wageringRequirement: number; 
-  gameRestrictions?: string[] | string; 
-  durationDays?: number; 
-  minDeposit?: number; 
-  promoCode?: string; 
-  targetVipLevel?: string; 
-  targetVipLevelId?: string; 
-  isActive: boolean;
-  createdAt: string; // Should be string if coming from DB typically
-  updatedAt: string; // Should be string
-}
-
-export interface BonusTemplateFormData {
-  name: string;
-  description?: string;
-  type: BonusType;
-  amount?: number;
-  percentage?: number;
-  maxAmount?: number;
-  freeSpinsCount?: number;
-  wageringRequirement: number;
-  gameRestrictions?: string; // Comma-separated string in form, converted to array on save
-  durationDays?: number;
-  minDeposit?: number;
-  promoCode?: string;
-  targetVipLevel?: string; // Changed from targetVipLevelId to targetVipLevel
-  isActive: boolean;
-}
-
-export type BonusType = 'deposit_match' | 'no_deposit' | 'free_spins' | 'cashback' | 'reload' | 'loyalty_points' | string;
-
 
 export interface VipLevel {
   id: string;
-  level: number;
   name: string;
-  pointsRequired: number;
-  benefits: string[]; 
-  cashbackPercentage?: number;
-  monthlyBonusId?: string; 
-  monthlyBonus?: BonusTemplate; // For VipBonusManagement
-  dedicatedManager?: boolean;
-  customWithdrawalLimits?: boolean;
-  isActive: boolean; 
-  createdAt: Date;
-  updatedAt: Date;
+  required_points: number;
+  description?: string;
+  icon?: string; // Lucide icon name or URL
+  benefits?: string[]; // Array of benefit descriptions
+  monthly_cashback_percentage?: number;
+  dedicated_support?: boolean;
+  // other fields
 }
 
-export interface GameLaunchOptions {
-    mode: 'real' | 'demo';
-    playerId: string;
-    currency: string;
-    platform: 'web' | 'mobile';
-    language?: string;
-    returnUrl?: string; // Added for GameLauncher
-}
-
-export interface GamesContextType {
-  games: Game[];
-  filteredGames: Game[];
-  providers: GameProvider[];
-  categories: GameCategory[];
-  isLoading: boolean;
-  error: string | null;
-  fetchGamesAndProviders: () => Promise<void>;
-  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string) => void;
-  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>; // For GameDetails
-  getGameById: (id: string) => Promise<Game | null>;
-  getFavoriteGames: () => Promise<Game[]>;
-  loading: boolean;
-  favoriteGameIds: Set<string>;
-  toggleFavoriteGame: (gameId: string) => Promise<void>;
-  incrementGameView: (gameId: string) => Promise<void>;
-  addGame: (gameData: Partial<DbGame>) => Promise<DbGame | null>;
-  updateGame: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>;
-  deleteGame: (gameId: string) => Promise<boolean>;
-}
-
-export interface Affiliate {
-    id: string;
-    name: string;
-    code: string;
-    commission: number;
-    commission_paid?: number;
-    clicks?: number;
-    registrations?: number;
-    depositingUsers?: number;
-    totalCommissions?: number; // For Affiliates.tsx
-    status?: 'active' | 'pending' | 'inactive' | string; // For Affiliates.tsx
-    email?: string; // For Affiliates.tsx
-}
-
-export type DbWallet = Wallet;
-
-// Added for KycManagement.tsx and UserProfile.tsx
-export interface KycRequest {
+export interface Bonus {
   id: string;
-  userId: string;
-  user?: { // Nested user details
-    id?: string;
-    username?: string;
-    email?: string;
-  };
-  documentType: string;
-  documentNumber: string;
-  status: KycStatusType;
-  submittedAt: string; // Standardized submission timestamp
-  reviewedAt?: string;
-  reviewerId?: string;
-  rejectionReason?: string;
-  documentImage?: string; // For displaying document image if available
-  documentUrls?: string[]; // For multiple document files/images
-  documentFiles?: string[]; // Alternative or additional if needed
-  verificationDate?: string; // Timestamp for when verification occurred
+  name:string;
+  description?: string;
+  type: 'deposit' | 'free_spins' | 'cashback' | 'loyalty_points'; // Example types
+  amount?: number; // For cash bonuses or percentage
+  currency?: string;
+  free_spins_count?: number;
+  game_id?: string; // For spins on a specific game
+  wagering_requirement?: number; // e.g., 30 for 30x
+  validity_days?: number;
+  vip_level_id?: string | null; // Link to VIP level
+  is_active: boolean;
+  code?: string | null; // Optional bonus code
+  start_date?: string | null; // ISO date string
+  end_date?: string | null; // ISO date string
+  // Any other fields relevant to bonuses
+  max_bonus_amount?: number;
+  min_deposit_for_bonus?: number;
 }
 
-// Renamed KycStatus to KycStatusType to avoid conflict if KycStatus component exists
-export type KycStatusType = 'pending' | 'approved' | 'rejected' | 'submitted' | 'resubmit_required' | 'verified'; // Added 'verified' from usage
-
-// Added for Admin Settings page
-export interface SiteSettings {
-  siteName?: string;
-  logoUrl?: string;
-  contactEmail?: string;
-  defaultCurrency?: string;
-  maintenanceMode?: boolean;
-  // Add any other site-wide settings
+// For Dashboard
+export interface DashboardStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  totalWagered: number;
+  totalGGR: number; // Gross Gaming Revenue
+  gamesPlayed: number;
+  newSignupsToday: number;
+  averageSessionTime: string; // e.g., "25 min"
+  mostPopularGame: { name: string; plays: number };
+  recentTransactions: Transaction[]; // Limited list
+  // Add more as needed
 }
 
-// For TransactionService
-export interface TransactionServiceType {
-  getUserTransactions: (userId: string, options?: QueryOptions) => Promise<ApiResponse<Transaction[]>>;
-  getTransactionById: (transactionId: string) => Promise<ApiResponse<Transaction | null>>;
-  createTransaction: (transactionData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ApiResponse<Transaction>>;
-  updateTransactionStatus: (transactionId: string, status: Transaction['status']) => Promise<ApiResponse<Transaction>>;
-  fetchUserTransactions?: (userId: string, page: number, limit: number) => Promise<{ data: Transaction[]; total: number }>; 
-}
-
-export interface UserProfileData {
-  user: User;
-  wallet?: Wallet;
-  recentTransactions?: Transaction[]; 
-  stats?: UserStatsType; // Changed to UserStatsType
-  kycStatus?: KycStatusType;
-  lastLogin?: string;
-  registrationDate?: string;
-}
-
-export interface WalletTransaction extends Transaction {
-  description?: string; 
-}
-
-// Added for VipBonusManagement page (bonusService)
-export interface BonusServiceType {
-  getAllBonusTemplates: () => Promise<ApiResponse<BonusTemplate[]>>;
-  createBonusTemplate: (data: Partial<BonusTemplate>) => Promise<ApiResponse<BonusTemplate>>;
-  updateBonusTemplate: (id: string, data: Partial<BonusTemplate>) => Promise<ApiResponse<BonusTemplate>>;
-  deleteBonusTemplate: (id: string) => Promise<ApiResponse<{ success: boolean }>>; // Adjusted return type
-  // Keep other existing methods from the actual bonusService file
-  fetchBonusTypes?: () => Promise<any[]>; // Example, adjust as per actual service
-  fetchUserBonuses?: (userId: string) => Promise<any[]>; // Example
-  fetchVipLevels?: () => Promise<any[]>; // Example
-  claimBonus?: (userId: string, bonusTypeId: string) => Promise<any>; // Example
+export interface DbWallet {
+  id: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  // ... any other fields from your wallets table
 }

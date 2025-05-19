@@ -1,24 +1,23 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame, User } from '@/types';
-import { gameService } from '@/services/gameService'; // Corrected path if service exists here
+import { gameService } from '@/services/gameService'; 
 import { toast } from 'sonner';
 import { Session } from '@supabase/supabase-js';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Helper to map DbGame to Game, can be more sophisticated
 const mapDbGameToGame = (dbGame: DbGame): Game => {
-  // Basic mapping, ensure all required Game fields are populated
-  // This might need to be more comprehensive based on actual data needs
   return {
     id: dbGame.id,
+    slug: dbGame.slug,
     title: dbGame.title || 'Unknown Title',
-    provider: dbGame.provider_slug || dbGame.provider_id || 'unknown-provider',
+    provider: dbGame.provider_slug || dbGame.provider_id?.toString() || 'unknown-provider',
     category: Array.isArray(dbGame.category_slugs) ? (dbGame.category_slugs[0] || 'unknown-category') : (dbGame.category_slugs || 'unknown-category'),
-    image: dbGame.cover || dbGame.image_url || '/placeholder.svg', // Ensure a fallback image
+    image: dbGame.cover || dbGame.image_url || '/placeholder.svg', 
     game_id: dbGame.game_id,
-    name: dbGame.title, // or dbGame.name
-    providerName: dbGame.provider_slug, // This should ideally come from a providers map/list
-    categoryName: Array.isArray(dbGame.category_slugs) ? dbGame.category_slugs.join(', ') : dbGame.category_slugs, // Same, from categories map/list
+    name: dbGame.title, 
+    providerName: dbGame.provider_name, 
+    categoryName: dbGame.category_names ? (Array.isArray(dbGame.category_names) ? dbGame.category_names.join(', ') : dbGame.category_names) : undefined,
     category_slugs: dbGame.category_slugs,
     description: dbGame.description,
     rtp: dbGame.rtp,
@@ -30,7 +29,7 @@ const mapDbGameToGame = (dbGame: DbGame): Game => {
     is_featured: dbGame.is_featured,
     show_home: dbGame.show_home,
     tags: dbGame.tags,
-    jackpot: undefined, // Assuming DbGame might not have this directly
+    jackpot: dbGame.jackpot_amount ? true : undefined, // Example logic for jackpot
     releaseDate: dbGame.release_date,
     release_date: dbGame.release_date,
     views: dbGame.views,
@@ -45,11 +44,11 @@ const mapDbGameToGame = (dbGame: DbGame): Game => {
     banner: dbGame.banner,
     image_url: dbGame.image_url,
     status: dbGame.status,
-    slug: dbGame.slug,
     game_code: dbGame.game_code,
-    // Ensure all other 'Game' specific fields are mapped or have defaults
+    isFavorite: false, // Default, will be updated by favorite logic
   };
 };
+
 
 interface GamesContextType {
   games: Game[];
@@ -59,9 +58,11 @@ interface GamesContextType {
   isLoading: boolean;
   error: string | null;
   fetchGamesAndProviders: () => Promise<void>;
-  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string) => void;
-  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>; // For GameDetails
+  filterGames: (searchTerm: string, categorySlug?: string, providerSlug?: string, tags?: string[]) => void; // Added tags
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   getGameById: (id: string) => Promise<Game | null>;
+  getGameBySlug: (slug: string) => Promise<Game | null>; // Added
+  getRelatedGames: (categorySlug: string | undefined, currentGameId: string | number | undefined, limit?: number) => Promise<Game[]>; // Added
   getFavoriteGames: () => Promise<Game[]>;
   loading: boolean;
   favoriteGameIds: Set<string>;
@@ -83,6 +84,8 @@ const GamesContext = createContext<GamesContextType>({
   filterGames: () => {},
   launchGame: () => Promise.resolve(null),
   getGameById: () => Promise.resolve(null),
+  getGameBySlug: () => Promise.resolve(null), // Added
+  getRelatedGames: () => Promise.resolve([]), // Added
   getFavoriteGames: () => Promise.resolve([]),
   loading: false,
   favoriteGameIds: new Set(),
@@ -107,15 +110,16 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Assuming gameService.getAllGames, etc. are correctly implemented
-      const gamesResponse = await gameService.getAllGames();
-      const providersResponse = await gameService.getAllProviders();
-      const categoriesResponse = await gameService.getAllCategories();
+      const [gamesResponse, providersResponse, categoriesResponse] = await Promise.all([
+        gameService.getAllGames(),
+        gameService.getAllProviders(),
+        gameService.getAllCategories(),
+      ]);
 
       if (gamesResponse.success && providersResponse.success && categoriesResponse.success) {
         const fetchedGames = gamesResponse.data.map(mapDbGameToGame);
         setGames(fetchedGames);
-        setFilteredGames(fetchedGames);
+        setFilteredGames(fetchedGames); // Initialize filteredGames with all games
         setProviders(providersResponse.data);
         setCategories(categoriesResponse.data);
       } else {
@@ -137,47 +141,64 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     fetchGamesAndProviders();
   }, [fetchGamesAndProviders]);
 
-  const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string) => {
-    setIsLoading(true);
-    try {
-      let filtered = games.filter(game =>
-        game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        game.provider.toLowerCase().includes(searchTerm.toLowerCase())
+  const filterGames = useCallback((searchTerm: string, categorySlug?: string, providerSlug?: string, tags?: string[]) => {
+    // setIsLoading(true); // Maybe remove this setIsLoading if filtering is fast
+    let tempFiltered = [...games];
+
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      tempFiltered = tempFiltered.filter(game =>
+        game.title?.toLowerCase().includes(lowerSearchTerm) ||
+        game.providerName?.toLowerCase().includes(lowerSearchTerm) ||
+        game.provider?.toLowerCase().includes(lowerSearchTerm)
       );
-
-      if (categorySlug) {
-        filtered = filtered.filter(game => game.category === categorySlug);
-      }
-
-      if (providerSlug) {
-        filtered = filtered.filter(game => game.provider === providerSlug);
-      }
-      setFilteredGames(filtered);
-    } catch (err: any) {
-      console.error("Error filtering games:", err);
-      setError(err.message || 'An unexpected error occurred');
-      toast.error(err.message || 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
     }
-  }, [games]);
 
+    if (categorySlug) {
+      tempFiltered = tempFiltered.filter(game => 
+        (Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug)) ||
+        game.category === categorySlug
+      );
+    }
+
+    if (providerSlug) {
+      tempFiltered = tempFiltered.filter(game => game.provider_slug === providerSlug || game.provider === providerSlug);
+    }
+
+    if (tags && tags.length > 0) {
+      tempFiltered = tempFiltered.filter(game => 
+        tags.every(tag => game.tags?.includes(tag))
+      );
+    }
+    setFilteredGames(tempFiltered);
+    // setIsLoading(false);
+  }, [games]);
+  
   const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await gameService.createSession(game, options);
-      if (response.success && response.gameUrl) {
-        return response.gameUrl;
+      // Ensure game_id and provider_slug are present for gameService.createSession
+      if (!game.game_id || !game.provider_slug) {
+        const errorMsg = "Game ID or provider slug is missing for launching the game.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return null;
+      }
+      const response = await gameService.createSession(game.game_id, game.provider_slug, options); // Use game_id and provider_slug
+      if (response.success && response.data?.launch_url) {
+        return response.data.launch_url;
       } else {
-        setError(response.error || 'Failed to launch game');
-        toast.error(response.error || 'Failed to launch game');
+        const errorMsg = response.error || 'Failed to launch game';
+        setError(errorMsg);
+        toast.error(errorMsg);
         return null;
       }
     } catch (err: any) {
       console.error("Error launching game:", err);
-      setError(err.message || 'An unexpected error occurred');
-      toast.error(err.message || 'An unexpected error occurred');
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
@@ -193,18 +214,66 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         return mapDbGameToGame(response.data);
       } else {
         setError(response.error || 'Game not found');
-        toast.error(response.error || 'Game not found');
+        // toast.error(response.error || 'Game not found'); // Avoid toast if game not found is a common case
         return null;
       }
     } catch (err: any) {
       console.error("Error getting game by ID:", err);
-      setError(err.message || 'An unexpected error occurred');
-      toast.error(err.message || 'An unexpected error occurred');
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
     }
   }, []);
+  
+  const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      console.log(`Fetching game by slug: ${slug}`);
+      // Assuming gameService has a method getGameBySlug
+      const response = await gameService.getGameBySlug(slug);
+      if (response.success && response.data) {
+        return mapDbGameToGame(response.data);
+      } else {
+        console.warn(`Game with slug "${slug}" not found or error: ${response.error}`);
+        // setError(response.error || 'Game not found'); // Avoid toast for not found
+        return null;
+      }
+    } catch (err: any) {
+      console.error(`Error getting game by slug ${slug}:`, err);
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const getRelatedGames = useCallback(async (categorySlug: string | undefined, currentGameId: string | number | undefined, limit: number = 5): Promise<Game[]> => {
+    // setIsLoading(true); // Potentially skip loading state for related games for smoother UX
+    try {
+      if (!categorySlug) return [];
+      // This is a simplified client-side filter.
+      // For production, this should ideally be an API call: gameService.getRelatedGames(categorySlug, currentGameId, limit)
+      const related = games
+        .filter(game => 
+          ((Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug)) || game.category === categorySlug) &&
+          game.id !== currentGameId
+        )
+        .slice(0, limit);
+      return related;
+    } catch (err: any) {
+      console.error("Error getting related games:", err);
+      toast.error(err.message || 'Failed to load related games.');
+      return [];
+    } finally {
+      // setIsLoading(false);
+    }
+  }, [games]);
 
   const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
     setIsLoading(true);
@@ -213,10 +282,8 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       if (!user || !session) {
         return [];
       }
-      // Assuming there's a method in gameService to fetch favorite games by user ID
       const response = await gameService.getFavoriteGames(user.id);
       if (response.success && response.data) {
-        // Map DbGame to Game if necessary
         return response.data.map(mapDbGameToGame);
       } else {
         setError(response.error || 'Failed to fetch favorite games');
@@ -225,8 +292,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (err: any) {
       console.error("Error fetching favorite games:", err);
-      setError(err.message || 'An unexpected error occurred');
-      toast.error(err.message || 'An unexpected error occurred');
+      const errorMessage = err.message || 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
       return [];
     } finally {
       setIsLoading(false);
@@ -235,11 +303,18 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (user && session) {
-      getFavoriteGames().then(favoriteGames => {
-        setFavoriteGameIds(new Set(favoriteGames.map(game => game.id)));
+      getFavoriteGames().then(favoriteGamesFromDb => {
+        const favIds = new Set(favoriteGamesFromDb.map(game => game.id as string));
+        setFavoriteGameIds(favIds);
+        // Update the 'isFavorite' status in the main games list
+        setGames(prevGames => prevGames.map(g => ({ ...g, isFavorite: favIds.has(g.id as string) })));
+        setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => ({ ...g, isFavorite: favIds.has(g.id as string) })));
+
       });
     } else {
       setFavoriteGameIds(new Set());
+       setGames(prevGames => prevGames.map(g => ({ ...g, isFavorite: false })));
+       setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => ({ ...g, isFavorite: false })));
     }
   }, [user, session, getFavoriteGames]);
 
@@ -250,29 +325,57 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const isCurrentlyFavorite = favoriteGameIds.has(gameId);
-    setIsLoading(true);
+    // Optimistic update
+    const newFavoriteGameIds = new Set(favoriteGameIds);
+    if (isCurrentlyFavorite) {
+      newFavoriteGameIds.delete(gameId);
+    } else {
+      newFavoriteGameIds.add(gameId);
+    }
+    setFavoriteGameIds(newFavoriteGameIds);
+    
+    // Update game lists optimistically
+    const updateFavStatus = (g: Game) => g.id === gameId ? { ...g, isFavorite: !isCurrentlyFavorite } : g;
+    setGames(prevGames => prevGames.map(updateFavStatus));
+    setFilteredGames(prevFilteredGames => prevFilteredGames.map(updateFavStatus));
+
+
     try {
       const response = await gameService.toggleFavoriteGame(user.id, gameId, !isCurrentlyFavorite);
       if (response.success) {
-        const newFavoriteGameIds = new Set(favoriteGameIds);
-        if (isCurrentlyFavorite) {
-          newFavoriteGameIds.delete(gameId);
-          toast.success("Removed from favorites!");
-        } else {
-          newFavoriteGameIds.add(gameId);
-          toast.success("Added to favorites!");
-        }
-        setFavoriteGameIds(newFavoriteGameIds);
+        toast.success(!isCurrentlyFavorite ? "Added to favorites!" : "Removed from favorites!");
+        // State already updated optimistically
       } else {
+        // Revert optimistic update on failure
+        const revertedFavoriteGameIds = new Set(favoriteGameIds);
+        if (isCurrentlyFavorite) {
+          revertedFavoriteGameIds.add(gameId);
+        } else {
+          revertedFavoriteGameIds.delete(gameId);
+        }
+        setFavoriteGameIds(revertedFavoriteGameIds);
+        const revertFavStatus = (g: Game) => g.id === gameId ? { ...g, isFavorite: isCurrentlyFavorite } : g;
+        setGames(prevGames => prevGames.map(revertFavStatus));
+        setFilteredGames(prevFilteredGames => prevFilteredGames.map(revertFavStatus));
         toast.error(response.error || "Failed to update favorite status.");
       }
     } catch (error: any) {
+      // Revert optimistic update on error
+      const revertedFavoriteGameIds = new Set(favoriteGameIds);
+      if (isCurrentlyFavorite) {
+        revertedFavoriteGameIds.add(gameId);
+      } else {
+        revertedFavoriteGameIds.delete(gameId);
+      }
+      setFavoriteGameIds(revertedFavoriteGameIds);
+      const revertFavStatusOnError = (g: Game) => g.id === gameId ? { ...g, isFavorite: isCurrentlyFavorite } : g;
+      setGames(prevGames => prevGames.map(revertFavStatusOnError));
+      setFilteredGames(prevFilteredGames => prevFilteredGames.map(revertFavStatusOnError));
+
       console.error("Error toggling favorite game:", error);
       toast.error(error.message || "An unexpected error occurred.");
-    } finally {
-      setIsLoading(false);
     }
-  }, [favoriteGameIds, user, session]);
+  }, [favoriteGameIds, user, session, games, filteredGames]);
 
   const incrementGameView = useCallback(async (gameId: string): Promise<void> => {
     try {
@@ -300,17 +403,19 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const newDbGame = await gameService.addGame(gameData);
       if (newDbGame) {
-        const newGame = mapDbGameToGame(newDbGame); // Map DbGame to Game
+        const newGame = mapDbGameToGame(newDbGame); 
         setGames(prevGames => [...prevGames, newGame]);
-        setFilteredGames(prevFilteredGames => [...prevFilteredGames, newGame]); // Also update filtered games
+        setFilteredGames(prevFilteredGames => [...prevFilteredGames, newGame]); 
         toast.success(`Game "${newGame.title}" added successfully.`);
         return newDbGame;
       }
       return null;
-    } catch (err: any) {
+    } catch (err: any)
+    {
       console.error("Error adding game:", err);
-      toast.error(err.message || "Failed to add game.");
-      setError(err.message || "Failed to add game.");
+      const errorMessage = err.message || "Failed to add game.";
+      toast.error(errorMessage);
+      setError(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
@@ -322,7 +427,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const updatedDbGame = await gameService.updateGame(gameId, gameData);
       if (updatedDbGame) {
-        const updatedGame = mapDbGameToGame(updatedDbGame); // Map DbGame to Game
+        const updatedGame = mapDbGameToGame(updatedDbGame); 
         setGames(prevGames => prevGames.map(g => g.id === gameId ? updatedGame : g));
         setFilteredGames(prevFilteredGames => prevFilteredGames.map(g => g.id === gameId ? updatedGame : g));
         toast.success(`Game "${updatedGame.title}" updated successfully.`);
@@ -331,8 +436,9 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       return null;
     } catch (err: any) {
       console.error("Error updating game:", err);
-      toast.error(err.message || "Failed to update game.");
-      setError(err.message || "Failed to update game.");
+      const errorMessage = err.message || "Failed to update game.";
+      toast.error(errorMessage);
+      setError(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
@@ -354,12 +460,14 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (err: any) {
       console.error("Error deleting game:", err);
-      toast.error(err.message || "An unexpected error occurred.");
+      const errorMessage = err.message || "An unexpected error occurred.";
+      toast.error(errorMessage);
       return false;
     } finally {
       setIsLoading(false);
     }
   }, []);
+
 
   return (
     <GamesContext.Provider value={{ 
@@ -367,12 +475,14 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       filteredGames, 
       providers, 
       categories, 
-      isLoading, // Ensure 'isLoading' is used, not 'loading' if that's the state variable
+      isLoading, 
       error, 
       fetchGamesAndProviders, 
       filterGames,
       launchGame,
       getGameById,
+      getGameBySlug, // Added
+      getRelatedGames, // Added
       favoriteGameIds,
       toggleFavoriteGame,
       getFavoriteGames,
@@ -380,7 +490,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
       addGame,
       updateGame,
       deleteGame,
-      loading: isLoading, // Keep 'loading' if it's also part of the context type, maps to isLoading
+      loading: isLoading, 
     }}>
       {children}
     </GamesContext.Provider>

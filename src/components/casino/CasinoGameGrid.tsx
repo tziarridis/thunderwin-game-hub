@@ -4,6 +4,7 @@ import { Game } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useGames } from '@/hooks/useGames'; // Import useGames
 
 interface CasinoGameGridProps {
   games: Game[];
@@ -13,10 +14,13 @@ interface CasinoGameGridProps {
 
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { user, isAuthenticated } = useAuth();
+  const { favoriteGameIds, toggleFavoriteGame: toggleFavoriteContext } = useGames(); // Get favorites from context
   
-  const toggleFavorite = async (e: React.MouseEvent, gameId: string | undefined, isFavorite: boolean) => {
-    e.stopPropagation(); 
-    
+  // Keep the local toggleFavorite if it has specific Supabase logic not in the hook,
+  // otherwise prefer using toggleFavoriteGame from useGames directly.
+  // For now, assuming the hook's toggleFavoriteGame handles Supabase updates.
+  // If not, this local function can be kept.
+  const handleToggleFavorite = async (gameId: string) => {
     if (!isAuthenticated) {
       toast.error("Please log in to add favorites");
       return;
@@ -25,29 +29,8 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         toast.error("Game ID is missing.");
         return;
     }
-    
-    try {
-      if (isFavorite) {
-        const { error } = await supabase
-          .from('favorite_games')
-          .delete()
-          .match({ user_id: user?.id, game_id: gameId });
-          
-        if (error) throw error;
-        toast.success("Removed from favorites");
-      } else {
-        const { error } = await supabase
-          .from('favorite_games')
-          .insert({ user_id: user?.id, game_id: gameId });
-          
-        if (error) throw error;
-        toast.success("Added to favorites");
-      }
-      // TODO: Update local state of favorites in useGames hook or similar
-    } catch (error: any) {
-      console.error("Error toggling favorite:", error);
-      toast.error(error.message || "Error updating favorites");
-    }
+    // Use the context's toggleFavoriteGame
+    await toggleFavoriteContext(gameId);
   };
   
   if (!games || games.length === 0) {
@@ -63,20 +46,10 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
       {games.map((game) => (
         <GameCard 
           key={game.id}
-          id={game.id}
-          title={game.title || ''} // Use game.title
-          image={game.image || ''}
-          provider={game.provider} // This should be provider name/slug from Game type
-          isPopular={game.isPopular || false}
-          isNew={game.isNew || false}
-          rtp={game.rtp}
-          isFavorite={game.isFavorite || false} // This needs to be updated from a central state (e.g. useGames hook)
-          minBet={game.minBet} // Add if present in Game type
-          maxBet={game.maxBet} // Add if present in Game type
-          onClick={onGameClick ? () => onGameClick(game) : undefined}
-          onFavoriteToggle={(e: React.MouseEvent) => {
-            toggleFavorite(e, game.id, game.isFavorite || false);
-          }}
+          game={game} // Pass the whole game object
+          isFavorite={favoriteGameIds.has(game.id as string)} // Use favoriteGameIds from context
+          onToggleFavorite={() => handleToggleFavorite(game.id as string)}
+          onPlay={onGameClick ? () => onGameClick(game) : undefined}
         />
       ))}
     </div>
