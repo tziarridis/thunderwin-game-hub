@@ -1,15 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import SiteLogo from '@/components/SiteLogo';
 import { useAuth } from '@/contexts/AuthContext';
-// MobileNavMenuProps removed as it's not exported/used
 import MobileNavMenu from './MobileNavMenu';
 import UserMenu from '@/components/user/UserMenu';
 import { Wallet, LogIn, UserPlus, Menu, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
-import { WalletType } from '@/types'; // Ensure WalletType is correctly defined and imported
+import { WalletType } from '@/types';
 
 
 const AppHeader = () => {
@@ -31,28 +31,34 @@ const AppHeader = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       const fetchWallet = async () => {
-        // Assuming 'wallets' table and user_id mapping
-        // And that user.id from AuthContext is the auth.users.id (UUID)
-        // but your 'wallets' table might be linked to a 'public.users.id'
-        // This needs to align with your DB schema.
-        // For now, assuming direct link or that user.id can be used.
-        // This will likely need adjustment based on how public.users and auth.users are linked.
-        // If user.id is from auth.users, and wallets.user_id is foreign key to public.users.id,
-        // you need to fetch the public.users.id first using auth.users.id.
-        
-        // Placeholder: This logic needs to correctly fetch wallet based on your user ID setup.
-        // Supabase client will use RLS, so if wallets.user_id matches auth.uid(), it should work.
-        // Ensure your 'wallets' table RLS allows authenticated users to read their own wallet.
         const { data, error } = await supabase
           .from('wallets')
-          .select('balance, currency, vipLevel') // Added vipLevel
-          .eq('user_id', user.id) // This must match the column in your wallets table that refs the user
+          .select('balance, currency, vip_level, vip_points') // Fetched vip_level and vip_points
+          .eq('user_id', user.id)
           .maybeSingle();
 
         if (error) {
           console.error("Error fetching wallet:", error);
+          // Check if it's a "column does not exist" error specifically for vip_level or vip_points
+          if (error.message.includes("column \"vip_level\" does not exist") || error.message.includes("column \"vip_points\" does not exist")) {
+            // Try fetching without them if they don't exist, or log a more specific warning
+            console.warn("Attempting to fetch wallet without vip_level/vip_points due to schema mismatch.");
+            const { data: basicData, error: basicError } = await supabase
+              .from('wallets')
+              .select('balance, currency')
+              .eq('user_id', user.id)
+              .maybeSingle();
+            if(basicError) console.error("Error fetching basic wallet info:", basicError);
+            else if (basicData) setWallet(basicData as WalletType); // vipLevel and vipPoints will be undefined
+          }
         } else if (data) {
-          setWallet(data as WalletType);
+          // Map vip_level to vipLevel and vip_points to vipPoints
+          setWallet({
+            balance: data.balance,
+            currency: data.currency,
+            vipLevel: data.vip_level,
+            vipPoints: data.vip_points,
+          } as WalletType);
         }
       };
       fetchWallet();
@@ -64,6 +70,11 @@ const AppHeader = () => {
 
   const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/'); // Redirect to home after logout
+  }
+
 
   return (
     <header 
@@ -73,15 +84,12 @@ const AppHeader = () => {
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
         <SiteLogo className="h-8 md:h-10" />
 
-        {/* Desktop Navigation */}
         {!isMobile && (
           <nav className="hidden md:flex items-center space-x-3 lg:space-x-4">
             <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/">Home</Link></Button>
             <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/casino">Casino</Link></Button>
             <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/live-casino">Live Casino</Link></Button>
             <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/promotions">Promotions</Link></Button>
-            {/* <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/tournaments">Tournaments</Link></Button> */}
-            {/* <Button variant="link" className="text-white hover:text-primary" asChild><Link to="/vip">VIP</Link></Button> */}
           </nav>
         )}
 
@@ -91,13 +99,13 @@ const AppHeader = () => {
           ) : isAuthenticated && user ? (
             <>
               {wallet && !isMobile && (
-                 <Button variant="ghost" onClick={() => navigate('/user/wallet')} className="text-sm hidden sm:flex">
+                 <Button variant="ghost" onClick={() => navigate('/profile')} className="text-sm hidden sm:flex"> {/* Updated to navigate to /profile (user dashboard) */}
                     <Wallet className="mr-2 h-4 w-4 text-primary" /> 
                     {new Intl.NumberFormat(user.user_metadata.language || 'en-US', { style: 'currency', currency: wallet.currency || 'USD' }).format(wallet.balance || 0)}
-                    {wallet.vipLevel && <span className="ml-2 text-xs text-amber-400">(VIP {wallet.vipLevel})</span>}
+                    {wallet.vipLevel !== undefined && <span className="ml-2 text-xs text-amber-400">(VIP {wallet.vipLevel})</span>}
                  </Button>
               )}
-              <UserMenu user={user} onLogout={logout} />
+              <UserMenu user={user} onLogout={handleLogout} />
             </>
           ) : (
             <>
@@ -117,12 +125,11 @@ const AppHeader = () => {
         </div>
       </div>
 
-      {/* Mobile Navigation Menu */}
       {isMobile && (
         <MobileNavMenu 
           isOpen={isMobileMenuOpen} 
-          setIsOpen={setIsMobileMenuOpen} 
-          // Removed props that were causing issues
+          setIsOpen={setIsMobileMenuOpen}
+          wallet={wallet} // Pass wallet to MobileNavMenu
         />
       )}
     </header>

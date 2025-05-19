@@ -3,26 +3,28 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { User } from '@/types'; // App's User type
-import { Home, UserCircle, LogOut, LogIn, UserPlus, Gift, Wallet } from 'lucide-react'; // Added more icons
+// User type import not directly used, App's User type is from useAuth
+import { Home, UserCircle, LogOut, LogIn, UserPlus, Gift, Wallet as WalletIcon } from 'lucide-react'; // Renamed Wallet to WalletIcon
+import { WalletType } from '@/types'; // Import WalletType
 
 interface MobileNavBarProps {
-  onClose: () => void; // To close the menu
+  onClose: () => void;
+  wallet: WalletType | null; // Accept wallet as a prop
 }
 
-const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose }) => {
-  const { user, isAuthenticated, signOut, wallet } = useAuth(); // signOut is now available, added wallet
+const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose, wallet }) => {
+  const { user, isAuthenticated, logout } = useAuth(); // Changed signOut to logout, removed wallet from context
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
-    await signOut();
-    onClose(); // Close menu after action
+    await logout(); // Use logout
+    onClose();
     navigate('/');
   };
 
   const handleNavigate = (path: string) => {
     navigate(path);
-    onClose(); // Close menu after navigation
+    onClose();
   };
 
   return (
@@ -33,17 +35,19 @@ const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose }) => {
                 <span className="text-xs">Home</span>
             </Button>
             <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/casino')}>
-                <Gift className="h-5 w-5 mb-0.5" /> {/* Placeholder for Casino icon */}
+                <Gift className="h-5 w-5 mb-0.5" />
                 <span className="text-xs">Casino</span>
             </Button>
 
             {isAuthenticated && user ? (
                 <>
-                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/wallet')}>
-                        <Wallet className="h-5 w-5 mb-0.5" />
-                        <span className="text-xs">Wallet</span>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/profile')}> {/* Changed from /wallet to /profile */}
+                        <WalletIcon className="h-5 w-5 mb-0.5" />
+                        <span className="text-xs">
+                          {wallet ? `${new Intl.NumberFormat(user.user_metadata.language || 'en-US', { style: 'currency', currency: wallet.currency || 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(wallet.balance || 0)}` : 'Wallet'}
+                        </span>
                     </Button>
-                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/user/profile')}>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/profile')}>
                         <UserCircle className="h-5 w-5 mb-0.5" />
                         <span className="text-xs">Profile</span>
                     </Button>
@@ -54,11 +58,11 @@ const MobileNavBar: React.FC<MobileNavBarProps> = ({ onClose }) => {
                 </>
             ) : (
                 <>
-                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/auth/login')}>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/login')}>
                         <LogIn className="h-5 w-5 mb-0.5" />
                         <span className="text-xs">Log In</span>
                     </Button>
-                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/auth/signup')}>
+                    <Button variant="ghost" className="flex flex-col items-center h-auto p-1" onClick={() => handleNavigate('/register')}>
                         <UserPlus className="h-5 w-5 mb-0.5" />
                         <span className="text-xs">Sign Up</span>
                     </Button>

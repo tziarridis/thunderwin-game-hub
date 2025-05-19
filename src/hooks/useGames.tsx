@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { Game, GameLaunchOptions, GameCategory, GameProvider } from '@/types'; // Ensure all types are imported
 import { gameService } from '@/services/gameService'; 
@@ -55,11 +54,9 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch games
-      const { games: fetchedGames, count } = await gameService.getAllGames({ ...filter, limit: 200 }); // Fetch more games initially or implement pagination
+      const { games: fetchedGames, count } = await gameService.getAllGames({ ...filter, limit: 200 });
       setAllGames(fetchedGames);
 
-      // Derive categories and providers from fetched games and gameProviderService
       const uniqueCategoriesMap = new Map<string, GameCategory>();
       fetchedGames.forEach(game => {
         const slugs = Array.isArray(game.category_slugs) ? game.category_slugs : (typeof game.category_slugs === 'string' ? [game.category_slugs] : []);
@@ -68,51 +65,41 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             uniqueCategoriesMap.set(slug, { 
               id: slug, 
               slug: slug, 
-              name: game.categoryName || slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), // Basic name generation
-              // game_count: 1 // Initialize, can be aggregated later
+              name: game.categoryName || slug.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+              // game_count: 0, // Initialize, can be aggregated later if needed
+              // order: 0, // Added default order
             });
           }
-          // else if (slug) {
-          //   const cat = uniqueCategoriesMap.get(slug)!;
-          //   cat.game_count = (cat.game_count || 0) + 1;
-          // }
         });
       });
-      setCategories(Array.from(uniqueCategoriesMap.values()));
-
-      // Fetch providers from gameProviderService (or map from games if service doesn't list them)
-      // This part needs to align with how providers are managed. If `gameService` fetches providers, use that.
-      // For now, deriving from games:
-      const uniqueProvidersMap = new Map<string, GameProvider>();
-      fetchedGames.forEach(game => {
-        if (game.provider_slug && !uniqueProvidersMap.has(game.provider_slug)) {
-          uniqueProvidersMap.set(game.provider_slug, {
-            id: game.provider_id || game.provider_slug,
-            slug: game.provider_slug,
-            name: game.providerName || game.provider_slug,
-            logoUrl: undefined, // Fetch separately or add to Game type if available
-            // game_count: 1
-          });
-        }
-        // else if (game.provider_slug) {
-        //    const prov = uniqueProvidersMap.get(game.provider_slug)!;
-        //    prov.game_count = (prov.game_count || 0) + 1;
-        // }
-      });
-       // TODO: Better provider fetching, e.g., from a dedicated providerService or gameProviderService list
-      const dbProviders = await supabase.from('providers').select('id, name, slug, logo_url, status').eq('status', 'active'); // Assuming logo_url field
-        if (dbProviders.data) {
-            setProviders(dbProviders.data.map(p => ({
-                id: p.id,
-                name: p.name,
-                slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
-                logoUrl: p.logo_url || undefined, // map logo_url
-                status: p.status as GameProvider['status']
-            })));
-        } else {
-             setProviders(Array.from(uniqueProvidersMap.values())); // Fallback
-        }
-
+      // Sort categories if order is available, or by name
+      const sortedCategories = Array.from(uniqueCategoriesMap.values()).sort((a, b) => (a.order ?? 999) - (b.order ?? 999) || a.name.localeCompare(b.name));
+      setCategories(sortedCategories);
+      
+      const dbProvidersData = await supabase.from('providers').select('id, name, slug, logo_url, status').eq('status', 'active');
+      if (dbProvidersData.data) {
+          setProviders(dbProvidersData.data.map(p => ({
+              id: p.id,
+              name: p.name,
+              slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'),
+              logoUrl: p.logo_url || undefined,
+              status: p.status as GameProvider['status'],
+              // game_count: 0 // Initialize
+          })).sort((a,b) => a.name.localeCompare(b.name)));
+      } else {
+        // Fallback if fetching from DB fails (less ideal)
+        const uniqueProvidersMap = new Map<string, GameProvider>();
+        fetchedGames.forEach(game => {
+          if (game.provider_slug && !uniqueProvidersMap.has(game.provider_slug)) {
+            uniqueProvidersMap.set(game.provider_slug, {
+              id: game.provider_id || game.provider_slug,
+              slug: game.provider_slug,
+              name: game.providerName || game.provider_slug,
+            });
+          }
+        });
+        setProviders(Array.from(uniqueProvidersMap.values()).sort((a,b) => a.name.localeCompare(b.name)));
+      }
 
     } catch (err: any) {
       setError(err);
@@ -127,7 +114,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setFavoriteGameIds(new Set()); 
       return;
     }
-    // setIsLoading(true); // Potentially set sub-loading for favorites
     try {
       const { data, error: favError } = await supabase
         .from('favorite_games')
@@ -138,9 +124,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setFavoriteGameIds(new Set(data.map(fav => getGameIdString(fav.game_id))));
     } catch (err: any) {
       console.error("Error fetching favorites:", err);
-      // toast.error("Could not load your favorite games.");
-    } finally {
-      // setIsLoading(false);
     }
   }, [user?.id]);
 
@@ -152,9 +135,8 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     } else {
       setFavoriteGameIds(new Set()); 
     }
-  }, [fetchGamesAndProviders, isAuthenticated, fetchFavorites]); // fetchGamesAndProviders is the correct dependency
+  }, [fetchGamesAndProviders, isAuthenticated, fetchFavorites]); 
   
-  // Re-fetch favorites if user changes
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       fetchFavorites();
@@ -167,13 +149,10 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const getGameById = async (id: string): Promise<Game | null> => {
     const localGame = allGames.find(g => getGameIdString(g.id) === id || getGameIdString(g.game_id) === id || getGameIdString(g.game_code) === id);
     if (localGame) return localGame;
-    // setIsLoading(true); // Potentially set sub-loading
     try {
       const game = await gameService.getGameById(id);
-      // setIsLoading(false);
       return game;
     } catch (err) {
-      // setIsLoading(false);
       console.error(`Error fetching game by ID ${id}:`, err);
       return null;
     }
@@ -182,13 +161,10 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const getGameBySlug = async (slug: string): Promise<Game | null> => {
     const localGame = allGames.find(g => g.slug === slug);
     if (localGame) return localGame;
-    // setIsLoading(true);
     try {
       const game = await gameService.getGameBySlug(slug); 
-      // setIsLoading(false);
       return game;
     } catch (err) {
-      // setIsLoading(false);
       console.error(`Error fetching game by slug ${slug}:`, err);
       return null;
     }
@@ -257,14 +233,11 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
 
     try {
-      // Use gameProviderService for launching games
-      // The providerId for getLaunchUrl should match the key used in gameProviderService (e.g., 'ppeur', 'gitslotpark')
-      // This needs to be mapped from game.provider_slug or game.provider_id
-      const providerIdentifier = game.provider_slug || String(game.provider_id); // This needs to be the ID gameProviderService expects
+      const providerIdentifier = game.provider_slug || String(game.provider_id);
 
       const url = await gameProviderService.getLaunchUrl({
-        gameId: game.game_id, // game_id is the external ID
-        providerId: providerIdentifier, // Pass the provider's identifier
+        gameId: game.game_id,
+        providerId: providerIdentifier,
         ...fullOptions,
       });
       return url;
@@ -274,6 +247,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return null;
     }
   };
+
 
   const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
     setCurrentSearchTerm(searchTerm);
@@ -290,7 +264,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       gamesToFilter = gamesToFilter.filter(game => 
         (Array.isArray(game.category_slugs) && game.category_slugs.includes(currentCategorySlug)) ||
         (typeof game.category_slugs === 'string' && game.category_slugs === currentCategorySlug) ||
-        game.categoryName === currentCategorySlug // Fallback if slug isn't primary key
+        game.categoryName === currentCategorySlug
       );
     }
     if (currentProviderSlug) {
@@ -302,7 +276,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <GamesContext.Provider value={{ 
-        games: allGames, // Provide all games as 'games'
+        games: allGames,
         isLoading, 
         error, 
         categories, 
@@ -313,7 +287,6 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         favoriteGameIds,
         toggleFavoriteGame,
         launchGame,
-        // fetchGameLaunchUrl: launchGame, // Can alias launchGame for this if desired, or remove fetchGameLaunchUrl if gameProviderService is sole launcher
         filteredGames,
         filterGames,
     }}>
@@ -329,4 +302,3 @@ export const useGames = () => {
   }
   return context;
 };
-

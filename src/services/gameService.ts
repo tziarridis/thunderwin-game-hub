@@ -1,229 +1,182 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Game, DbGame } from '@/types'; // Game is from game.ts, DbGame from types/index.d.ts
-import { PostgrestSingleResponse } from '@supabase/supabase-js';
+import { Game, DbGame, GameProvider, GameCategory } from '@/types'; // Ensure correct types are imported
+import { PostgrestResponse } from '@supabase/supabase-js';
 
-// Helper to map DbGame from Supabase to frontend Game type
-const mapDbGameToGame = (dbGame: DbGame): Game => {
+// Function to map DbGame to Game (frontend model)
+const mapDbGameToGame = (dbGame: DbGame & { providers?: { name: string; slug: string; }; game_categories?: { name: string; slug: string; }[] }): Game => {
+  
+  let categorySlugs: string[] = [];
+  if (Array.isArray(dbGame.category_slugs)) {
+    categorySlugs = dbGame.category_slugs;
+  } else if (typeof dbGame.category_slugs === 'string') {
+    categorySlugs = dbGame.category_slugs.split(',').map(s => s.trim());
+  }
+
+  let features: string[] = [];
+  if (Array.isArray(dbGame.features)) {
+    features = dbGame.features;
+  } else if (typeof dbGame.features === 'string') {
+    // Assuming features might also be a comma-separated string in some cases
+     try {
+      features = JSON.parse(dbGame.features as any); // If it's a JSON string array
+    } catch (e) {
+      features = (dbGame.features as unknown as string).split(',').map(s => s.trim()); // Fallback
+    }
+  }
+
+
   return {
-    id: String(dbGame.id),
-    title: dbGame.game_name || dbGame.title || 'Unknown Title', // Prioritize game_name
-    slug: dbGame.slug || (dbGame.game_name || dbGame.title || '').toLowerCase().replace(/\s+/g, '-'),
+    id: String(dbGame.id), // Ensure id is string
+    title: dbGame.game_name,
+    slug: dbGame.slug,
     
-    providerName: dbGame.providers?.name || dbGame.provider_slug,
-    provider_slug: dbGame.provider_slug || dbGame.providers?.slug,
+    providerName: dbGame.providers?.name || dbGame.provider_slug, // Use joined provider name
+    provider_slug: dbGame.providers?.slug || dbGame.provider_slug, // Use joined provider slug
     
-    categoryName: dbGame.game_type,
-    category_slugs: Array.isArray(dbGame.category_slugs) ? dbGame.category_slugs : (dbGame.category_slugs ? [dbGame.category_slugs] : []),
+    // Use game_type for categoryName, and ensure category_slugs is an array
+    categoryName: dbGame.game_type, 
+    category_slugs: categorySlugs,
 
-    image: dbGame.cover || dbGame.image_url || '/placeholder.svg',
+    image: dbGame.cover || dbGame.image_url, // Use cover, fallback to image_url
     banner: dbGame.banner,
     
     description: dbGame.description,
     rtp: typeof dbGame.rtp === 'string' ? parseFloat(dbGame.rtp) : dbGame.rtp,
     
-    isPopular: dbGame.is_popular ?? dbGame.show_home ?? false,
-    isNew: dbGame.is_new ?? (dbGame.created_at ? new Date(dbGame.created_at).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000 : false),
-    is_featured: dbGame.is_featured ?? false,
-    show_home: dbGame.show_home ?? false,
+    isPopular: dbGame.is_popular || dbGame.show_home,
+    isNew: dbGame.is_new, // How is_new derived? from release_date or a flag?
+    is_featured: dbGame.is_featured,
+    show_home: dbGame.show_home,
     
     volatility: dbGame.volatility,
     lines: dbGame.lines,
     minBet: dbGame.min_bet,
     maxBet: dbGame.max_bet,
     
-    features: dbGame.features || [],
-    tags: dbGame.tags || [],
-    themes: dbGame.themes || [],
+    features: features,
+    tags: Array.isArray(dbGame.tags) ? dbGame.tags : (typeof dbGame.tags === 'string' ? dbGame.tags.split(',').map(s => s.trim()) : []),
+    themes: Array.isArray(dbGame.themes) ? dbGame.themes : (typeof dbGame.themes === 'string' ? dbGame.themes.split(',').map(s => s.trim()) : []),
     
     releaseDate: dbGame.release_date,
     
-    game_id: dbGame.game_id,
-    game_code: dbGame.game_code,
+    game_id: dbGame.game_id, // External game ID
+    game_code: dbGame.game_code, // External game code
     
     status: dbGame.status,
     
-    // Fallback compatibility fields
+    // Fallbacks for compatibility
     provider: dbGame.providers?.name || dbGame.provider_slug,
     category: dbGame.game_type,
-    cover: dbGame.cover, // Keep for direct access if needed
-    image_url: dbGame.image_url, // Keep for direct access
+    cover: dbGame.cover || dbGame.image_url,
+    image_url: dbGame.cover || dbGame.image_url,
 
-    // Fields from DbGame that might be useful on Game type
+    // Client-side state (not from DB directly here)
+    isFavorite: false, // This would be set based on user's favorites list
+
+    // Less common frontend fields
     technology: dbGame.technology,
     has_lobby: dbGame.has_lobby,
     is_mobile: dbGame.is_mobile,
     has_freespins: dbGame.has_freespins,
     has_tables: dbGame.has_tables,
     only_demo: dbGame.only_demo,
-    distribution: dbGame.distribution,
-    views: dbGame.views,
-    created_at: dbGame.created_at,
-    updated_at: dbGame.updated_at,
-    provider_id: dbGame.provider_id,
-    game_server_url: dbGame.game_server_url,
+    provider_id: dbGame.provider_id, // Keep for reference if needed elsewhere
   };
-};
-
-// Helper to map frontend Game type (or partial) to DbGame for Supabase
-const mapGameToDbGame = (gameData: Partial<Game>): Partial<DbGame> => {
-  const dbGamePayload: Partial<DbGame> = {};
-  
-  // Ensure ID is string if provided, but typically not set on create/update directly for Supabase
-  // if (gameData.id) dbGamePayload.id = String(gameData.id); 
-  
-  if (gameData.title) dbGamePayload.game_name = gameData.title;
-  if (gameData.slug) dbGamePayload.slug = gameData.slug;
-  
-  // provider_slug is the source of truth for relation or denormalized storage
-  if (gameData.provider_slug) dbGamePayload.provider_slug = gameData.provider_slug;
-  // provider_id might be set if known, e.g. from a dropdown of providers
-  if (gameData.provider_id) dbGamePayload.provider_id = gameData.provider_id;
-
-
-  if (gameData.categoryName) dbGamePayload.game_type = gameData.categoryName;
-  if (Array.isArray(gameData.category_slugs)) {
-    dbGamePayload.category_slugs = gameData.category_slugs;
-  } else if (typeof gameData.category_slugs === 'string' && gameData.category_slugs.length > 0) {
-    dbGamePayload.category_slugs = gameData.category_slugs.split(',').map(s => s.trim()).filter(s => s);
-  }
-
-
-  if (gameData.image) dbGamePayload.cover = gameData.image;
-  else if (gameData.cover) dbGamePayload.cover = gameData.cover;
-  else if (gameData.image_url) dbGamePayload.cover = gameData.image_url;
-
-  if (gameData.banner) dbGamePayload.banner = gameData.banner;
-  
-  if (gameData.description) dbGamePayload.description = gameData.description;
-  if (gameData.rtp !== undefined) dbGamePayload.rtp = Number(gameData.rtp);
-  
-  if (gameData.isPopular !== undefined) dbGamePayload.is_popular = gameData.isPopular;
-  if (gameData.isNew !== undefined) dbGamePayload.is_new = gameData.isNew;
-  if (gameData.is_featured !== undefined) dbGamePayload.is_featured = gameData.is_featured;
-  if (gameData.show_home !== undefined) dbGamePayload.show_home = gameData.show_home;
-  
-  if (gameData.volatility) dbGamePayload.volatility = gameData.volatility;
-  if (gameData.lines !== undefined) dbGamePayload.lines = Number(gameData.lines);
-  if (gameData.minBet !== undefined) dbGamePayload.min_bet = Number(gameData.minBet);
-  if (gameData.maxBet !== undefined) dbGamePayload.max_bet = Number(gameData.maxBet);
-  
-  if (gameData.features) dbGamePayload.features = gameData.features;
-  if (gameData.tags) dbGamePayload.tags = gameData.tags;
-  if (gameData.themes) dbGamePayload.themes = gameData.themes;
-  
-  if (gameData.releaseDate) dbGamePayload.release_date = gameData.releaseDate;
-  
-  if (gameData.game_id) dbGamePayload.game_id = String(gameData.game_id);
-  if (gameData.game_code) dbGamePayload.game_code = String(gameData.game_code);
-  
-  if (gameData.status) dbGamePayload.status = gameData.status;
-
-  if (gameData.technology) dbGamePayload.technology = gameData.technology;
-  if (gameData.distribution) dbGamePayload.distribution = gameData.distribution;
-  if (gameData.game_server_url) dbGamePayload.game_server_url = gameData.game_server_url;
-  if (gameData.has_lobby !== undefined) dbGamePayload.has_lobby = gameData.has_lobby;
-  if (gameData.is_mobile !== undefined) dbGamePayload.is_mobile = gameData.is_mobile;
-  if (gameData.has_freespins !== undefined) dbGamePayload.has_freespins = gameData.has_freespins;
-  if (gameData.has_tables !== undefined) dbGamePayload.has_tables = gameData.has_tables;
-  if (gameData.only_demo !== undefined) dbGamePayload.only_demo = gameData.only_demo;
-
-  // For forms that might use 'title' directly on DbGame model before mapping
-  if (gameData.title) dbGamePayload.title = gameData.title; 
-
-  // Remove undefined fields to prevent Supabase errors
-  Object.keys(dbGamePayload).forEach(key => (dbGamePayload as any)[key] === undefined && delete (dbGamePayload as any)[key]);
-  
-  return dbGamePayload;
 };
 
 
 export const gameService = {
-  async getAllGames(options: { 
-    limit?: number; 
-    offset?: number; 
-    category?: string; // category slug
-    provider?: string; // provider slug
-    search?: string;
-    featured?: boolean;
-    popular?: boolean;
-    latest?: boolean; // to sort by created_at desc
-  } = {}): Promise<{ games: Game[]; count: number | null }> {
+  // Fetch all games with optional filtering, pagination
+  async getAllGames(
+    options: {
+      limit?: number;
+      offset?: number;
+      category?: string; // category slug
+      provider?: string; // provider slug
+      search?: string;
+      featured?: boolean;
+      popular?: boolean;
+      latest?: boolean; // Sort by created_at desc
+      tag?: string; // filter by tag
+    } = {}
+  ): Promise<{ games: Game[]; count: number | null }> {
+    const { limit = 20, offset = 0, category, provider, search, featured, popular, latest, tag } = options;
+    
     let query = supabase
       .from('games')
-      .select('*, providers!left(name, slug)', { count: 'exact' }); // Ensure provider slug is selected if available
+      .select('*, providers!inner(name, slug)', { count: 'exact' }) // Ensure providers is an inner join if games must have a provider
+      // The join on game_categories needs to be verified based on schema.
+      // If games.category_slugs is an array or games.game_type is used, direct join might not be needed or possible this way.
+      // For now, removing direct join on game_categories and will rely on game.category_slugs or game.game_type.
+      // .select('*, providers(name, slug), game_categories!left(name, slug)') // Left join for categories if game might not have one or relation is complex
 
-    if (options.category && options.category !== 'all') {
-      query = query.eq('game_type', options.category); // Assuming game_type is the category slug
+    if (provider) {
+      // Assumes providers.slug exists and is filterable.
+      // If filtering on provider_slug which is on the games table directly:
+      // query = query.eq('provider_slug', provider); 
+      // If filtering on the joined providers table's slug:
+      query = query.eq('providers.slug', provider);
     }
-    if (options.provider) {
-      // If providers table has a 'slug' column and it's joined correctly
-      query = query.eq('providers.slug', options.provider);
-      // Or if games table has provider_slug directly:
-      // query = query.eq('provider_slug', options.provider);
-    }
-    if (options.search) {
-      query = query.or(`game_name.ilike.%${options.search}%,description.ilike.%${options.search}%,tags.cs.{${options.search}}`);
-    }
-    if (options.featured) {
-      query = query.eq('is_featured', true);
-    }
-    if (options.popular) {
-      // Assuming show_home or is_popular indicates popular
-      query = query.or('is_popular.eq.true,show_home.eq.true');
+
+    if (category) {
+      // If category_slugs is an array column in 'games' table
+      // query = query.contains('category_slugs', [category]);
+      // If game_type is a simple string column for category slug
+      query = query.eq('game_type', category);
     }
     
-    if (options.latest) {
+    if (search) {
+      query = query.ilike('game_name', `%${search}%`);
+    }
+    if (featured) {
+      query = query.is('is_featured', true);
+    }
+    if (popular) {
+      query = query.is('is_popular', true); // or 'show_home'
+    }
+    if (tag) {
+        query = query.contains('tags', [tag]);
+    }
+
+    if (latest) {
       query = query.order('created_at', { ascending: false });
     } else {
-      // Default sort or other sort criteria
-      query = query.order('game_name', { ascending: true });
+      query = query.order('game_name', { ascending: true }); // Default sort
     }
 
-    const offset = options.offset || 0;
-    const limit = options.limit || 12; // Default limit
     query = query.range(offset, offset + limit - 1);
     
+    const { data, error, count }: PostgrestResponse<DbGame & { providers: { name: string; slug: string; } }> = await query;
 
-    const { data, error, count } = await query;
     if (error) {
       console.error('Error fetching games:', error);
       throw error;
     }
-    return {
-        games: data ? data.map(item => mapDbGameToGame(item as DbGame)) : [],
-        count: count
-    };
+
+    const games = data ? data.map(dbGame => mapDbGameToGame(dbGame)) : [];
+    return { games, count };
   },
 
+  // Fetch a single game by its ID (UUID)
   async getGameById(id: string): Promise<Game | null> {
-    // Check if id is likely a slug or UUID
-    const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
-    
-    let query = supabase
+    const { data, error } = await supabase
       .from('games')
-      .select('*, providers!left(name, slug)');
-
-    if (isUUID) {
-      query = query.eq('id', id);
-    } else {
-      // Assume it's a slug if not a UUID
-      query = query.eq('slug', id);
-    }
-    
-    const { data, error }: PostgrestSingleResponse<DbGame> = await query.maybeSingle();
+      .select('*, providers(name, slug)')
+      .eq('id', id)
+      .maybeSingle();
 
     if (error) {
-      console.error(`Error fetching game by ${isUUID ? 'ID' : 'slug'} ${id}:`, error);
+      console.error(`Error fetching game by id ${id}:`, error);
       throw error;
     }
     return data ? mapDbGameToGame(data) : null;
   },
-  
+
+  // Fetch a single game by its slug
   async getGameBySlug(slug: string): Promise<Game | null> {
-    const { data, error }: PostgrestSingleResponse<DbGame> = await supabase
+    const { data, error } = await supabase
       .from('games')
-      .select('*, providers!left(name, slug)')
+      .select('*, providers(name, slug)')
       .eq('slug', slug)
       .maybeSingle();
 
@@ -233,61 +186,48 @@ export const gameService = {
     }
     return data ? mapDbGameToGame(data) : null;
   },
-
-  async createGame(gameData: Partial<Game>): Promise<Game> {
-    const dbPayload = mapGameToDbGame(gameData);
-    
-    if (!dbPayload.game_name && !dbPayload.title) throw new Error("Game name (title) is required.");
-    if (!dbPayload.slug && dbPayload.game_name) dbPayload.slug = dbPayload.game_name.toLowerCase().replace(/\s+/g, '-');
-    if (!dbPayload.game_id && dbPayload.slug) dbPayload.game_id = dbPayload.slug;
-    if (!dbPayload.game_code && dbPayload.game_id) dbPayload.game_code = dbPayload.game_id;
-    
-    // Ensure required fields or provide defaults
-    dbPayload.rtp = dbPayload.rtp ?? 0;
-    dbPayload.status = dbPayload.status ?? 'draft';
-
+  
+  // Fetch game providers
+  async getGameProviders(): Promise<GameProvider[]> {
     const { data, error } = await supabase
-      .from('games')
-      .insert(dbPayload as DbGame) 
-      .select('*, providers!left(name, slug)')
-      .single();
+      .from('providers') // Assuming 'providers' is your table name
+      .select('id, name, slug, logo_url, status') // Use logo_url
+      .eq('status', 'active'); // Optionally filter by active status
 
     if (error) {
-        console.error('Error creating game:', error, 'Payload:', dbPayload);
-        throw error;
+      console.error('Error fetching game providers:', error);
+      throw error;
     }
-    return mapDbGameToGame(data as DbGame);
+    return data ? data.map(p => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug || p.name.toLowerCase().replace(/\s+/g, '-'), // Ensure slug exists
+        logoUrl: p.logo_url || undefined, // Map logo_url
+        status: p.status as GameProvider['status']
+    })) : [];
   },
 
-  async updateGame(id: string, gameData: Partial<Game>): Promise<Game> {
-    const dbPayload = mapGameToDbGame(gameData);
-    // id should not be in the payload for an update operation
-    if ('id' in dbPayload) delete (dbPayload as any).id;
-
-
+  // Fetch game categories
+  async getGameCategories(): Promise<GameCategory[]> {
     const { data, error } = await supabase
-      .from('games')
-      .update(dbPayload)
-      .eq('id', id)
-      .select('*, providers!left(name, slug)')
-      .single();
+      .from('game_categories') // Assuming 'game_categories' is your table name
+      .select('id, name, slug, icon, image, order') // Ensure correct fields
+      .eq('status', 'active') // Optionally filter
+      .order('order', { ascending: true });
+
 
     if (error) {
-        console.error('Error updating game:', error, 'Payload:', dbPayload);
-        throw error;
+      console.error('Error fetching game categories:', error);
+      throw error;
     }
-    return mapDbGameToGame(data as DbGame);
+    return data ? data.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        icon: c.icon || undefined,
+        image: c.image || undefined,
+        order: c.order || 0,
+        // game_count can be derived or fetched if needed
+    })) : [];
   },
-
-  async deleteGame(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('games')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-        console.error('Error deleting game:', error);
-        throw error;
-    }
-  }
 };

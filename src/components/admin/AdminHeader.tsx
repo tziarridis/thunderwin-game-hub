@@ -1,24 +1,23 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Bell, UserCircle, Settings, LogOut, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import SiteLogo from '../SiteLogo'; // Assuming SiteLogo is general enough
+import SiteLogo from '../SiteLogo';
 
 const AdminHeader = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth(); // Changed signOut to logout
+  const navigate = useNavigate(); // Initialize navigate
 
   const handleSignOut = async () => {
-    if (signOut) {
-      await signOut();
-      // Navigate to login or home page after sign out if needed
-      // navigate('/admin/login'); 
+    if (logout) { // Changed from signOut
+      await logout(); // Changed from signOut
+      navigate('/admin/login'); // Redirect to admin login after logout
     }
   };
   
-  // Access username from user_metadata
   const displayName = user?.user_metadata?.username || user?.email || 'Admin';
 
   return (
@@ -46,7 +45,7 @@ const AdminHeader = () => {
               <DropdownMenuLabel>My Account ({user?.role || 'User'})</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-slate-700" />
               <DropdownMenuItem asChild className="hover:!bg-slate-700 focus:!bg-slate-700 cursor-pointer">
-                <Link to="/admin/settings/profile"><Settings className="mr-2 h-4 w-4" /> Profile Settings</Link>
+                <Link to="/admin/settings"><Settings className="mr-2 h-4 w-4" /> Profile Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild className="hover:!bg-slate-700 focus:!bg-slate-700 cursor-pointer">
                 <Link to="/"><Settings className="mr-2 h-4 w-4" /> View Site</Link>

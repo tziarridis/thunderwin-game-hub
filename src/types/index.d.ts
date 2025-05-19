@@ -87,6 +87,7 @@ export interface DbGame {
 export interface WalletType {
   balance: number | null;
   currency: string;
-  vipLevel?: number; // Added vipLevel to WalletType for AppHeader display
+  vipLevel?: number;
+  vipPoints?: number; // Added vipPoints
   // other wallet properties
 }

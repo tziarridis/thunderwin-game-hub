@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types/user'; // Your app's User type
-import { userService } from '@/services/userService'; // Corrected named import
+import { userService } from '@/services/userService';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -14,7 +14,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, metadata?: Record<string, any>) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<void>; // Renamed from signOut in some previous mental model
   updateUserMetadata: (metadata: Record<string, any>) => Promise<void>;
 }
 
@@ -33,10 +33,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (error) throw error;
         setSession(currentSession);
         if (currentSession?.user) {
-          // Fetch full user profile from your public.users or profiles table
           const appUser = await userService.getUserById(currentSession.user.id);
           setUser(appUser);
-          setIsAdmin(appUser?.role === 'admin'); // Check role from your app's User type
+          setIsAdmin(appUser?.role === 'admin');
         } else {
           setUser(null);
           setIsAdmin(false);
@@ -77,10 +76,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       toast.error(error.message);
+      setLoading(false); // Ensure loading is set to false on error
       throw error;
     }
     // Auth listener will handle setting user and session
-    setLoading(false); // Auth listener will set loading to false after user data is fetched
+    // setLoading(false); // Auth listener will set loading to false after user data is fetched
   };
 
   const register = async (email: string, password: string, metadata?: Record<string, any>) => {
@@ -89,27 +89,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       email,
       password,
       options: {
-        data: metadata, // This metadata is stored in auth.users.raw_user_meta_data
+        data: metadata,
       },
     });
     if (error) {
       toast.error(error.message);
+      setLoading(false); // Ensure loading is set to false on error
       throw error;
     }
     if (data.user && !data.session) {
          toast.info("Registration successful! Please check your email to verify your account.");
     }
-    // Auth listener will handle setting user and session if auto-verified or after verification
-    // For manual verification, user needs to click link in email.
-    // Supabase handle_new_user trigger should create corresponding public.users entry.
-    setLoading(false);
+    setLoading(false); // Ensure loading is set to false
   };
 
-  const logout = async () => {
+  const logout = async () => { // This is the correct function name
     setLoading(true);
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error(error.message);
+      setLoading(false); // Ensure loading is set to false on error
       throw error;
     }
     setUser(null);
@@ -132,9 +131,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw error;
     }
     if (updatedSupabaseUser?.user) {
-      // Re-fetch our app user data as Supabase auth metadata update doesn't trigger our public user table sync
       const appUser = await userService.getUserById(updatedSupabaseUser.user.id);
-      setUser(appUser); // This should reflect the changes made
+      setUser(appUser);
     }
     setLoading(false);
     toast.success("Profile updated!");
@@ -149,7 +147,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAdmin,
     login,
     register,
-    logout,
+    logout, // Use logout
     updateUserMetadata,
   };
 
@@ -163,4 +161,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
