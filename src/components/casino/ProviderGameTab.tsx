@@ -1,13 +1,12 @@
 
 import React from 'react';
-import { Grid } from '@/components/ui/grid';
 import GameCard from '@/components/games/GameCard';
 
 interface ProviderGameTabProps {
   provider?: any;
   games: any[];
   onGameClick: (game: any) => void;
-  value?: string; // Added value prop
+  value?: string;
 }
 
 const ProviderGameTab: React.FC<ProviderGameTabProps> = ({
@@ -25,13 +24,14 @@ const ProviderGameTab: React.FC<ProviderGameTabProps> = ({
   }
 
   return (
-    <div className={value ? (value === value ? 'block' : 'hidden') : 'block'}>
+    <div className={value ? (value === provider?.slug ? 'block' : 'hidden') : 'block'}>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-4">
         {games.map((game) => (
           <GameCard
             key={game.id}
             game={game}
-            isFavorite={false} // This would be set dynamically based on user's favorites
+            isFavorite={false}
+            onToggleFavorite={() => {}} // Adding empty function as placeholder
             onPlay={() => onGameClick(game)}
           />
         ))}

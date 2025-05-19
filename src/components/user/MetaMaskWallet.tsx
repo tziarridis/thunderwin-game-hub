@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MetaMaskWallet = () => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const { user } = useAuth(); // Remove refreshWalletBalance since it's not defined
   
   const connectMetaMask = async () => {
     setIsConnecting(true);
