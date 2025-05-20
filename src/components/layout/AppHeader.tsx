@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -30,10 +31,10 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
-          // Corrected 'is_active' to 'active' in the select query
+          // Select only the columns that exist in the database
           const { data, error } = await supabase
             .from('wallets')
-            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, last_transaction_date') // Use 'active'
+            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -49,11 +50,11 @@ const AppHeader = () => {
               symbol: data.symbol || '$',
               vipLevel: data.vip_level ?? 0,
               vipPoints: data.vip_points ?? 0,
-              bonusBalance: (data as any).bonus_balance ?? 0, // Keep as is if not in direct select
-              cryptoBalance: (data as any).crypto_balance ?? 0, // Keep as is
-              demoBalance: (data as any).demo_balance ?? 0, // Keep as is
-              isActive: data.active ?? false, // Map data.active to isActive
-              lastTransactionDate: data.last_transaction_date,
+              bonusBalance: 0, // Default value since not in select
+              cryptoBalance: 0, // Default value since not in select
+              demoBalance: 0, // Default value since not in select
+              isActive: data.active ?? false,
+              lastTransactionDate: null, // Not available in the query
             });
           } else {
             setWallet(null);

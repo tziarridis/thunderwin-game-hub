@@ -1,44 +1,63 @@
 
-import { Promotion } from '@/types/promotion'; // Ensure this path is correct
+import { Promotion, ClaimPromotionResponse } from '@/types/promotion';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock implementation for getActivePromotions
+// Fetch active promotions from the database or API
 export const getActivePromotions = async (): Promise<Promotion[]> => {
-  console.log('promotionsService: getActivePromotions called (mock)');
-  // In a real scenario, this would fetch data from an API or Supabase
-  // Returning an empty array or mock data for now
-  await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-  return []; 
+  console.log('promotionsService: Fetching active promotions');
+  
+  try {
+    // In a real implementation, this would fetch from Supabase
+    // const { data, error } = await supabase
+    //   .from('promotions')
+    //   .select('*')
+    //   .eq('status', 'active');
+    
+    // if (error) throw error;
+    // return data || [];
+    
+    // For now, simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return []; // Return empty array for now (mock data is used in component)
+  } catch (error: any) {
+    console.error('Error fetching promotions:', error.message);
+    throw error;
+  }
 };
 
-interface ClaimPromotionResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-  // Potentially include updated user bonus/wallet info
-}
-
-// Mock implementation for claimPromotion
-export const claimPromotion = async (userId: string, promotionId: string): Promise<ClaimPromotionResult> => {
-  console.log(`promotionsService: claimPromotion called for user ${userId}, promo ${promotionId} (mock)`);
-  // In a real scenario, this would make an API call to claim the promotion
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-
-  // Simulate success or failure
-  const isSuccess = Math.random() > 0.2; // 80% chance of success for mock
-
-  if (isSuccess) {
+// Claim a promotion
+export const claimPromotion = async (
+  userId: string,
+  promotionId: string
+): Promise<ClaimPromotionResponse> => {
+  console.log(`promotionsService: User ${userId} claiming promotion ${promotionId}`);
+  
+  try {
+    // In a real implementation, this would be a Supabase RPC call or API request
+    // const { data, error } = await supabase
+    //   .rpc('claim_promotion', { user_id: userId, promotion_id: promotionId });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Simulate 80% success rate for testing
+    const success = Math.random() > 0.2;
+    
     return {
-      success: true,
-      message: `Promotion ${promotionId} claimed successfully (mock).`,
+      success,
+      message: success ? 'Promotion claimed successfully!' : undefined,
+      error: !success ? 'Unable to claim promotion. You may not be eligible or have already claimed it.' : undefined
     };
-  } else {
+  } catch (error: any) {
+    console.error('Error claiming promotion:', error.message);
     return {
       success: false,
-      error: `Failed to claim promotion ${promotionId} (mock). Insufficient funds or not eligible.`,
+      error: `Error: ${error.message}`
     };
   }
 };
 
+// Export as a service object for consistency with other services
 export const promotionsService = {
   getActivePromotions,
   claimPromotion,

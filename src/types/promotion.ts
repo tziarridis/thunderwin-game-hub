@@ -1,3 +1,4 @@
+
 // This file might have been named promotion.d.ts previously. Ensuring content matches.
 export interface Promotion {
   id: string;
@@ -34,9 +35,15 @@ export interface Promotion {
   maxRedemptions?: number; 
   tags?: string[];
 
+  // Additional fields for compatibility
   link?: string;
   startDate?: string | Date; // Corresponds to mock's start_date
   endDate?: string | Date | null; // Corresponds to mock's end_date, allow null
+  image_url?: string; // Legacy field
+  start_date?: string | Date; // Legacy field
+  end_date?: string | Date | null; // Legacy field
+  terms_and_conditions?: string; // Legacy field
+  terms?: string; // Alternative field name
 
   // Fields from mock data that were not directly in Promotion type
   cta_text?: string; // From mock
@@ -66,7 +73,8 @@ export interface PromotionFilter {
 
 export interface ClaimPromotionResponse {
   success: boolean;
-  message: string;
+  message?: string;
+  error?: string;
   claimedPromotion?: Promotion; // Or just relevant details
   newBalance?: number; // If applicable
 }

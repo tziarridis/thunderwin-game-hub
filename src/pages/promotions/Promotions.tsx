@@ -1,7 +1,7 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
-import { Promotion } from '@/types'; // Adjusted path if Promotion is in @/types/promotion
+import { Promotion } from '@/types/promotion'; 
 import { Button } from '@/components/ui/button';
-// ... keep existing code (other imports: Card, Input, Select, Dialog, icons, useAuth, useGames, toast)
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import PromotionCard from '@/components/promotions/PromotionCard';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { AlertTriangle, CalendarDays, Search, Tag, CheckCircle, Gift } from 'luc
 import { useAuth } from '@/contexts/AuthContext';
 import { useGames } from '@/hooks/useGames';
 import { toast } from 'sonner';
-import { promotionsService } from '@/services/promotionsService'; // Corrected import
+import { promotionsService } from '@/services/promotionsService'; // Using the service we just created
 
 const mockPromotions: Promotion[] = [
   {
@@ -19,14 +19,14 @@ const mockPromotions: Promotion[] = [
     title: 'Welcome Bonus',
     description: 'Get a 100% match bonus up to $200 on your first deposit!',
     type: 'deposit_match',
-    imageUrl: '/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png', // Renamed
-    startDate: new Date('2025-05-01T00:00:00Z').toISOString(), // Renamed
-    endDate: new Date('2025-12-31T23:59:59Z').toISOString(), // Renamed
-    termsAndConditions: 'Minimum deposit $20. Wagering requirement 35x. Full T&Cs apply.', // Renamed
+    imageUrl: '/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png',
+    startDate: new Date('2025-05-01T00:00:00Z').toISOString(),
+    endDate: new Date('2025-12-31T23:59:59Z').toISOString(),
+    termsAndConditions: 'Minimum deposit $20. Wagering requirement 35x. Full T&Cs apply.',
     status: 'active',
-    isActive: true, // Added based on status
-    validFrom: new Date('2025-05-01T00:00:00Z').toISOString(), // Added for consistency
-    validUntil: new Date('2025-12-31T23:59:59Z').toISOString(), // Added for consistency
+    isActive: true,
+    validFrom: new Date('2025-05-01T00:00:00Z').toISOString(),
+    validUntil: new Date('2025-12-31T23:59:59Z').toISOString(),
     eligibility: { type: 'new_users' },
     bonus_details: { percentage: 100, max_amount: 200, currency: 'USD' },
     cta_text: 'Claim Bonus',
@@ -36,10 +36,10 @@ const mockPromotions: Promotion[] = [
     title: 'Weekend Free Spins',
     description: 'Enjoy 50 free spins on "Book of Slots" every weekend with a deposit of $50 or more.',
     type: 'free_spins',
-    imageUrl: '/placeholder.svg', // Renamed
-    startDate: new Date('2025-05-01T00:00:00Z').toISOString(), // Renamed
-    endDate: new Date('2025-12-31T23:59:59Z').toISOString(), // Renamed
-    termsAndConditions: 'Minimum deposit $50. Spins valid for 7 days. Winnings subject to 20x wagering. Full T&Cs apply.', // Renamed
+    imageUrl: '/placeholder.svg',
+    startDate: new Date('2025-05-01T00:00:00Z').toISOString(),
+    endDate: new Date('2025-12-31T23:59:59Z').toISOString(),
+    termsAndConditions: 'Minimum deposit $50. Spins valid for 7 days. Winnings subject to 20x wagering. Full T&Cs apply.',
     status: 'active',
     isActive: true,
     validFrom: new Date('2025-05-01T00:00:00Z').toISOString(),
@@ -53,10 +53,10 @@ const mockPromotions: Promotion[] = [
     title: 'Loyalty Cashback',
     description: 'Get 10% cashback on your net losses every Monday. Exclusively for VIP Gold members and above.',
     type: 'cashback',
-    imageUrl: '/placeholder.svg', // Renamed
-    startDate: new Date('2025-01-01T00:00:00Z').toISOString(), // Renamed
-    endDate: null, // Renamed (type allows null)
-    termsAndConditions: 'Cashback credited by 18:00 CET every Monday. Minimum cashback $5. Maximum $500. Full T&Cs apply.', // Renamed
+    imageUrl: '/placeholder.svg',
+    startDate: new Date('2025-01-01T00:00:00Z').toISOString(),
+    endDate: null,
+    termsAndConditions: 'Cashback credited by 18:00 CET every Monday. Minimum cashback $5. Maximum $500. Full T&Cs apply.',
     status: 'active',
     isActive: true,
     validFrom: new Date('2025-01-01T00:00:00Z').toISOString(),
@@ -70,10 +70,10 @@ const mockPromotions: Promotion[] = [
     title: 'Expired Offer',
     description: 'This offer has ended.',
     type: 'tournament',
-    imageUrl: '/placeholder.svg', // Renamed
-    startDate: new Date('2024-01-01T00:00:00Z').toISOString(), // Renamed
-    endDate: new Date('2024-01-31T23:59:59Z').toISOString(), // Renamed
-    termsAndConditions: 'This tournament has concluded.', // Renamed
+    imageUrl: '/placeholder.svg',
+    startDate: new Date('2024-01-01T00:00:00Z').toISOString(),
+    endDate: new Date('2024-01-31T23:59:59Z').toISOString(),
+    termsAndConditions: 'This tournament has concluded.',
     status: 'expired',
     isActive: false,
     validFrom: new Date('2024-01-01T00:00:00Z').toISOString(),
@@ -85,9 +85,8 @@ const mockPromotions: Promotion[] = [
 
 
 const PromotionsPage: React.FC = () => {
-  // ... keep existing code (hooks: useAuth, useGames, state: promotions, searchTerm, filterType, etc.)
   const { user, isAuthenticated } = useAuth();
-  const { games, launchGame } = useGames();
+  const { games } = useGames();
   const [promotions, setPromotions] = useState<Promotion[]>(mockPromotions);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | Promotion['type']>('all');
@@ -112,7 +111,7 @@ const PromotionsPage: React.FC = () => {
   }, []);
 
   const filteredPromotions = useMemo(() => {
-    return promotions // promotions state should now primarily hold active ones from useEffect
+    return promotions
       .filter(promo => 
         promo.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (promo.description && promo.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -134,7 +133,6 @@ const PromotionsPage: React.FC = () => {
 
     try {
       setIsLoading(true);
-      // Ensure user.id is correctly passed if that's the expected ID type
       const result = await promotionsService.claimPromotion(user.id, promo.id);
       if (result.success) {
         toast.success(result.message || `Successfully claimed ${promo.title}!`);
@@ -151,10 +149,8 @@ const PromotionsPage: React.FC = () => {
 
   const promotionTypes: Promotion['type'][] = ['deposit_match', 'free_spins', 'cashback', 'tournament', 'reload_bonus', 'no_deposit_bonus', 'deposit_bonus', 'welcome_bonus', 'loyalty_reward', 'tournament_prize'];
 
-
   return (
     <div className="container mx-auto py-8 px-4">
-      {/* ... keep existing code (header, filters section) ... */}
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight flex items-center justify-center">
           <Gift className="mr-3 h-10 w-10 text-primary" /> Casino Promotions
@@ -207,12 +203,6 @@ const PromotionsPage: React.FC = () => {
           <PromotionCard
             key={promo.id}
             promotion={promo}
-            // The original PromotionCard.tsx doesn't have onViewDetails or onClaim props.
-            // These were likely intended for this PromotionsPage to handle.
-            // If PromotionCard should handle these, it needs to be updated.
-            // For now, assuming this page handles click via modal.
-            // onViewDetails={() => handleViewDetails(promo)}
-            // onClaim={() => handleClaimPromotion(promo)}
             className="h-full flex flex-col"
           />
         ))}
@@ -232,24 +222,22 @@ const PromotionsPage: React.FC = () => {
           </DialogHeader>
           {selectedPromotion && (
             <div className="py-4 space-y-4">
-              {selectedPromotion.imageUrl && ( // Renamed
+              {selectedPromotion.imageUrl && (
                 <img src={selectedPromotion.imageUrl} alt={selectedPromotion.title} className="w-full h-48 object-cover rounded-md mb-4" />
               )}
               <div>
                 <h4 className="font-semibold text-sm mb-1">Availability:</h4>
                 <p className="text-sm text-muted-foreground flex items-center">
                   <CalendarDays className="mr-2 h-4 w-4" /> 
-                  {/* Use endDate or validUntil consistently */}
                   Ends {selectedPromotion.endDate ? new Date(selectedPromotion.endDate).toLocaleDateString() : (selectedPromotion.validUntil ? new Date(selectedPromotion.validUntil).toLocaleDateString() : 'Ongoing')}
                 </p>
               </div>
               <div>
                 <h4 className="font-semibold text-sm mb-1">Terms & Conditions:</h4>
                 <p className="text-xs text-muted-foreground whitespace-pre-line">
-                  {selectedPromotion.termsAndConditions} {/* Renamed */}
+                  {selectedPromotion.termsAndConditions || selectedPromotion.terms_and_conditions}
                 </p>
               </div>
-              {/* Add more details like bonus type specifics */}
             </div>
           )}
           <DialogFooter className="sm:justify-start">
