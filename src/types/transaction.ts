@@ -1,31 +1,67 @@
 
-export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
-export type TransactionType = 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund';
+export type TransactionType = 
+  | 'deposit' 
+  | 'withdrawal' 
+  | 'bet' 
+  | 'win' 
+  | 'bonus_credit' 
+  | 'bonus_debit'
+  | 'commission'
+  | 'refund'
+  | 'adjustment_credit'
+  | 'adjustment_debit'
+  | 'tournament_buy_in'
+  | 'tournament_payout';
 
-// This type should align with your `transactions` table in Supabase
+export const TRANSACTION_TYPES_ARRAY: TransactionType[] = [
+  'deposit', 'withdrawal', 'bet', 'win', 'bonus_credit', 'bonus_debit', 
+  'commission', 'refund', 'adjustment_credit', 'adjustment_debit',
+  'tournament_buy_in', 'tournament_payout'
+];
+
+export type TransactionStatus = 
+  | 'pending' 
+  | 'completed' 
+  | 'failed' 
+  | 'cancelled' 
+  | 'requires_action'
+  | 'processing'
+  | 'refunded';
+
+export const TRANSACTION_STATUS_ARRAY: TransactionStatus[] = [
+  'pending', 'completed', 'failed', 'cancelled', 'requires_action', 'processing', 'refunded'
+];
+
 export interface Transaction {
-  id: string; // UUID
-  user_id: string; // Foreign key to your public 'users' table (or 'profiles')
-  player_id?: string; // Alternative if you use 'player_id' from a game provider context
+  id: string;
+  user_id: string; // Standardize to user_id
   amount: number;
-  currency: string; // e.g., 'USD', 'EUR', 'ETH'
+  currency: string;
   type: TransactionType;
   status: TransactionStatus;
-  provider?: string; // e.g., 'Stripe', 'MetaMask', 'GameProviderName'
-  game_id?: string; // If transaction is related to a specific game
-  gameName?: string; // Denormalized game name for easier display
-  round_id?: string; // For game transactions
-  balance_before?: number;
-  balance_after?: number;
-  payment_method_details?: any; // JSONB for payment provider specifics
-  notes?: string; // Admin notes or transaction details
-  created_at: string | Date; // ISO string or Date object
-  updated_at: string | Date; // ISO string or Date object
-  metadata?: Record<string, any>; // For any other custom data
+  provider?: string; // e.g., 'stripe', 'metamask', 'game_provider_x'
+  provider_transaction_id?: string; // ID from the external provider
+  game_id?: string; // If related to a game
+  round_id?: string; // If related to a game round
+  session_id?: string; // If related to a game session
+  description?: string; // Optional details
+  balance_before?: number; // User balance before this transaction
+  balance_after?: number; // User balance after this transaction
+  created_at: string; // ISO 8601 timestamp
+  updated_at: string; // ISO 8601 timestamp
+  metadata?: Record<string, any>; // For any additional provider-specific data
 }
 
-// For creating a new transaction, some fields are optional or auto-generated
-export type NewTransactionData = Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'balance_before' | 'balance_after'> & {
-  balance_before?: number;
-  balance_after?: number;
-};
+export interface TransactionFilters {
+  user_id?: string;
+  type?: TransactionType;
+  status?: TransactionStatus;
+  dateFrom?: string | Date;
+  dateTo?: string | Date;
+  minAmount?: number;
+  maxAmount?: number;
+  provider?: string;
+  game_id?: string;
+  page?: number;
+  limit?: number;
+}

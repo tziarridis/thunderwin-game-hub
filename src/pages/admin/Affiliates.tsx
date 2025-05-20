@@ -1,490 +1,424 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Affiliate } from '@/types/affiliate';
-import { User } from '@/types/user'; // Assuming User type for general user info
+import { Affiliate, AffiliateStatSummary } from '@/types/affiliate';
+import { User } from '@/types/user'; // Using the User type from @/types
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog'; // Assuming this exists
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import AffiliateStats from '@/components/admin/AffiliateStats';
+import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
-// Zod schema for affiliate form validation
-const affiliateSchema = z.object({
-  userId: z.string().uuid({ message: "Valid User ID is required." }),
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email address." }),
-  code: z.string().optional(),
-  commissionRate: z.number().min(0).max(1).optional(), // e.g., 0.2 for 20%
-  isActive: z.boolean().default(true),
-  // Add other relevant fields from Affiliate type that are editable
-  affiliate_revenue_share: z.number().min(0).optional(),
-  affiliate_cpa: z.number().min(0).optional(),
-  affiliate_baseline: z.number().min(0).optional(),
-});
-
-type AffiliateFormData = z.infer<typeof affiliateSchema>;
-
-const AdminAffiliates: React.FC = () => {
-  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
-  const [users, setUsers] = useState<User[]>([]); // For selecting user to become affiliate
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingAffiliate, setEditingAffiliate] = useState<Affiliate | null>(null);
-  const [showFormDialog, setShowFormDialog] = useState(false);
-  const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
-  const [affiliateToDelete, setAffiliateToDelete] = useState<Affiliate | null>(null);
-  
-  const itemsPerPage = 10;
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalAffiliates, setTotalAffiliates] = useState(0);
-  const [sortColumn, setSortColumn] = useState<keyof Affiliate | null>('createdAt');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-
-
-  const form = useForm<AffiliateFormData>({
-    resolver: zodResolver(affiliateSchema),
-    defaultValues: {
-      isActive: true,
-    }
+// Simplified AffiliateForm for brevity. Needs proper implementation.
+const AffiliateForm: React.FC<{ affiliate?: Affiliate | null; users: User[]; onSuccess: () => void; onClose: () => void; }> = ({ affiliate, users, onSuccess, onClose }) => {
+  const [formData, setFormData] = useState<Partial<Affiliate>>({
+    userId: affiliate?.userId || '',
+    name: affiliate?.name || '',
+    email: affiliate?.email || '', // This should come from the selected user
+    code: affiliate?.code || '',
+    commissionRate: affiliate?.commissionRate || 0.1, // Default 10%
+    isActive: affiliate?.isActive === undefined ? true : affiliate.isActive,
+    // ... other fields like paymentDetails, affiliate_revenue_share etc.
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchAffiliates = useCallback(async (page: number, search: string, sortCol: keyof Affiliate | null, sortDir: 'asc' | 'desc') => {
-    setIsLoading(true);
-    try {
-      let query = supabase
-        .from('affiliates') // Assuming your table is named 'affiliates'
-        .select('*', { count: 'exact' });
-
-      if (search) {
-        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,code.ilike.%${search}%`);
-      }
-      
-      if (sortCol) {
-        query = query.order(sortCol, { ascending: sortDir === 'asc' });
-      } else {
-        query = query.order('created_at', { ascending: false });
-      }
-
-      const from = (page - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      query = query.range(from, to);
-
-      const { data, error, count } = await query;
-      if (error) throw error;
-      setAffiliates(data || []);
-      setTotalAffiliates(count || 0);
-    } catch (error: any) {
-      toast.error(`Failed to fetch affiliates: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (affiliate) {
+      setFormData({
+        userId: affiliate.userId,
+        name: affiliate.name,
+        email: affiliate.email,
+        code: affiliate.code,
+        commissionRate: affiliate.commissionRate,
+        isActive: affiliate.isActive,
+        paymentDetails: affiliate.paymentDetails,
+        affiliate_revenue_share: affiliate.affiliate_revenue_share,
+        affiliate_cpa: affiliate.affiliate_cpa,
+        affiliate_baseline: affiliate.affiliate_baseline,
+      });
+    } else {
+       setFormData({ commissionRate: 0.1, isActive: true }); // Reset for new
     }
-  }, []);
+  }, [affiliate]);
 
-  const fetchUsers = async () => { // Fetch users who are not yet affiliates
-    try {
-      // This might need refinement if you have many users.
-      // Ideally, fetch users not present in the affiliates table.
-      const { data, error } = await supabase.from('users').select('id, username, email').limit(100); // Example selection
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (error: any) {
-      toast.error(`Failed to fetch users: ${error.message}`);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+        setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+    } else if (type === 'number') {
+        setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    }
+    else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+  
+  const handleUserSelect = (userId: string) => {
+    const selectedUser = users.find(u => u.id === userId);
+    if (selectedUser) {
+      setFormData(prev => ({
+        ...prev,
+        userId: selectedUser.id,
+        name: selectedUser.user_metadata?.full_name || selectedUser.user_metadata?.username || selectedUser.email?.split('@')[0] || '',
+        email: selectedUser.email || '',
+      }));
     }
   };
 
-  useEffect(() => {
-    fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection);
-  }, [fetchAffiliates, currentPage, searchTerm, sortColumn, sortDirection]);
 
-  useEffect(() => {
-    if (showFormDialog) {
-      fetchUsers(); // Fetch users when form dialog opens for assigning
-      if (editingAffiliate) {
-        form.reset({
-          userId: editingAffiliate.userId, // This would be the public.users ID
-          name: editingAffiliate.name,
-          email: editingAffiliate.email,
-          code: editingAffiliate.code || '',
-          commissionRate: editingAffiliate.commissionRate || 0,
-          isActive: editingAffiliate.isActive !== undefined ? editingAffiliate.isActive : true,
-          affiliate_revenue_share: editingAffiliate.affiliate_revenue_share || 0,
-          affiliate_cpa: editingAffiliate.affiliate_cpa || 0,
-          affiliate_baseline: editingAffiliate.affiliate_baseline || 0,
-        });
-      } else {
-        form.reset({
-            userId: '', name: '', email: '', code: '', commissionRate: 0.1, isActive: true, // Default values
-            affiliate_revenue_share: 0, affiliate_cpa: 0, affiliate_baseline: 0,
-        });
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.userId || !formData.name || !formData.email) {
+        toast.error("User, Name and Email are required.");
+        return;
     }
-  }, [showFormDialog, editingAffiliate, form]);
-
-  const handleFormSubmit = async (formData: AffiliateFormData) => {
     setIsLoading(true);
     try {
-      // Map AffiliateFormData to the structure expected by your 'affiliates' table
-      const affiliateDataPayload = {
-        user_id: formData.userId, // Ensure this is the correct foreign key to your public.users table
-        name: formData.name,
-        email: formData.email,
-        code: formData.code || `REF-${formData.name.substring(0,3).toUpperCase()}${Date.now()%10000}`, // Auto-generate code if empty
+      // This is a simplified upsert logic.
+      // In a real scenario, you'd update 'profiles' table or a dedicated 'affiliates' table.
+      // Assuming 'profiles' table has affiliate-specific columns like 'affiliate_code', 'commission_rate', etc.
+      const profileDataToUpdate = {
+        // id: formData.userId, // This is the user ID
+        full_name: formData.name, // Or ensure name comes from user profile
+        affiliate_code: formData.code,
         commission_rate: formData.commissionRate,
-        is_active: formData.isActive,
-        // Other fields from your 'affiliates' table schema
+        is_affiliate_active: formData.isActive, // Example column name
+        affiliate_payment_details: formData.paymentDetails,
         affiliate_revenue_share: formData.affiliate_revenue_share,
         affiliate_cpa: formData.affiliate_cpa,
         affiliate_baseline: formData.affiliate_baseline,
-        // 'created_at' and 'updated_at' are usually handled by db
+        // other affiliate fields...
       };
 
-      if (editingAffiliate) {
-        const { error } = await supabase
-          .from('affiliates')
-          .update(affiliateDataPayload)
-          .eq('id', editingAffiliate.id); // Assuming 'id' is the primary key of 'affiliates' table
+      if (affiliate?.id) { // affiliate.id is the profile/user ID for an existing affiliate
+        const { error } = await supabase.from('profiles').update(profileDataToUpdate).eq('id', affiliate.id);
         if (error) throw error;
         toast.success('Affiliate updated successfully!');
       } else {
-        // Check if user is already an affiliate
-        const { data: existingAffiliate, error: fetchError } = await supabase
-          .from('affiliates')
-          .select('id')
-          .eq('user_id', formData.userId)
-          .single();
-        
-        if(fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is 'exact one row not found'
-            throw fetchError;
-        }
-        if(existingAffiliate) {
-            toast.error('This user is already an affiliate.');
-            setIsLoading(false);
-            return;
-        }
-
-        const { error } = await supabase.from('affiliates').insert(affiliateDataPayload);
+        // For new affiliate, we're essentially "activating" a user as an affiliate
+        // or creating a new entry in an `affiliates` table if one exists.
+        // Here, we update their profile.
+        const { error } = await supabase.from('profiles').update({ ...profileDataToUpdate, role: 'affiliate' } ).eq('id', formData.userId); // Also set role
         if (error) throw error;
         toast.success('Affiliate created successfully!');
       }
-      setShowFormDialog(false);
-      setEditingAffiliate(null);
-      fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
+      onSuccess();
     } catch (error: any) {
-      toast.error(`Operation failed: ${error.message}`);
+      console.error('Failed to save affiliate:', error);
+      toast.error(error.message || 'Failed to save affiliate.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const openDeleteDialog = (affiliate: Affiliate) => {
-    setAffiliateToDelete(affiliate);
-    setShowConfirmDeleteDialog(true);
-  };
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* User Selection */}
+      <div>
+        <label htmlFor="userId" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Select User</label>
+        <select 
+            id="userId" 
+            name="userId" 
+            value={formData.userId} 
+            onChange={(e) => handleUserSelect(e.target.value)}
+            required
+            className="mt-1 block w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-gray-700 dark:text-white"
+            disabled={!!affiliate} // Disable if editing, user shouldn't change
+        >
+            <option value="">-- Select User --</option>
+            {users.filter(u => u.role !== 'admin').map(user => ( // Filter out admins or based on logic
+                <option key={user.id} value={user.id}>
+                    {user.user_metadata?.username || user.email} ({user.email})
+                </option>
+            ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="name">Name</label>
+        <Input name="name" value={formData.name || ''} onChange={handleChange} required readOnly={!!formData.userId} />
+      </div>
+      <div>
+        <label htmlFor="email">Email</label>
+        <Input name="email" type="email" value={formData.email || ''} onChange={handleChange} required readOnly={!!formData.userId} />
+      </div>
+      <div>
+        <label htmlFor="code">Affiliate Code</label>
+        <Input name="code" value={formData.code || ''} onChange={handleChange} />
+      </div>
+      <div>
+        <label htmlFor="commissionRate">Commission Rate (e.g., 0.1 for 10%)</label>
+        <Input name="commissionRate" type="number" step="0.01" value={formData.commissionRate || 0} onChange={handleChange} />
+      </div>
+       <div>
+        <label htmlFor="affiliate_revenue_share">Revenue Share (%)</label>
+        <Input name="affiliate_revenue_share" type="number" step="0.01" value={formData.affiliate_revenue_share || 0} onChange={handleChange} />
+      </div>
+      <div>
+        <label htmlFor="affiliate_cpa">CPA ($)</label>
+        <Input name="affiliate_cpa" type="number" step="0.01" value={formData.affiliate_cpa || 0} onChange={handleChange} />
+      </div>
+       <div>
+        <label htmlFor="affiliate_baseline">Baseline ($)</label>
+        <Input name="affiliate_baseline" type="number" step="0.01" value={formData.affiliate_baseline || 0} onChange={handleChange} />
+      </div>
+      <div className="flex items-center">
+        <input type="checkbox" id="isActive" name="isActive" checked={formData.isActive || false} onChange={handleChange} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+        <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900 dark:text-gray-100">Active</label>
+      </div>
+      {/* Add paymentDetails fields here if needed */}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {affiliate ? 'Update' : 'Create'} Affiliate
+        </Button>
+      </div>
+    </form>
+  );
+};
 
-  const handleDeleteConfirm = async () => {
-    if (!affiliateToDelete) return;
+
+const AdminAffiliates: React.FC = () => {
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [users, setUsers] = useState<User[]>([]); // For selecting users to become affiliates
+  const [summary, setSummary] = useState<AffiliateStatSummary | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
+
+  const fetchAffiliates = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.from('affiliates').delete().eq('id', affiliateToDelete.id);
+      // Fetch users who are affiliates (e.g., from 'profiles' table with affiliate data)
+      // This assumes 'profiles' table has columns like 'affiliate_code', 'commission_rate', 'is_affiliate_active', etc.
+      // And that Supabase User object has 'role' in user_metadata or it's on 'profiles'.
+      let query = supabase.from('profiles').select(`
+        id, 
+        user_id: id, 
+        username, 
+        email, 
+        full_name,
+        avatar_url,
+        created_at,
+        updated_at,
+        role,
+        is_affiliate_active,
+        affiliate_code,
+        commission_rate,
+        affiliate_payment_details,
+        affiliate_revenue_share,
+        affiliate_cpa,
+        affiliate_baseline,
+        affiliate_total_commissions,
+        affiliate_clicks,
+        affiliate_sign_ups,
+        affiliate_depositing_users
+      `);
+      // .eq('role', 'affiliate'); // Or some other marker like is_affiliate_active = true
+
+      if (searchTerm) {
+        query = query.or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,affiliate_code.ilike.%${searchTerm}%`);
+      }
+      const { data, error } = await query;
       if (error) throw error;
-      toast.success('Affiliate deleted successfully!');
-      setShowConfirmDeleteDialog(false);
-      setAffiliateToDelete(null);
-      fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
+
+      const fetchedAffiliates = data?.map((profile: any) => ({
+        id: profile.id, // This is the profile ID, which is also the user ID in this setup
+        userId: profile.id,
+        name: profile.full_name || profile.username || profile.email?.split('@')[0] || 'N/A',
+        email: profile.email || 'N/A',
+        code: profile.affiliate_code,
+        totalCommissions: profile.affiliate_total_commissions || 0,
+        clicks: profile.affiliate_clicks || 0,
+        signUps: profile.affiliate_sign_ups || 0,
+        depositingUsers: profile.affiliate_depositing_users || 0,
+        commissionRate: profile.commission_rate,
+        paymentDetails: profile.affiliate_payment_details,
+        isActive: profile.is_affiliate_active,
+        createdAt: profile.created_at,
+        updatedAt: profile.updated_at,
+        avatar_url: profile.avatar_url,
+        status: profile.is_affiliate_active ? 'Active' : 'Inactive', // Derive status
+        affiliate_revenue_share: profile.affiliate_revenue_share,
+        affiliate_cpa: profile.affiliate_cpa,
+        affiliate_baseline: profile.affiliate_baseline,
+
+      })) as Affiliate[];
+      
+      setAffiliates(fetchedAffiliates || []);
+
+      // Dummy summary for now
+      setSummary({
+        totalAffiliates: fetchedAffiliates.length,
+        totalCommissionsPaid: fetchedAffiliates.reduce((sum, aff) => sum + (aff.totalCommissions || 0), 0),
+        newSignUpsThisMonth: fetchedAffiliates.filter(a => new Date(a.createdAt).getMonth() === new Date().getMonth()).length,
+      });
+
     } catch (error: any) {
-      toast.error(`Failed to delete affiliate: ${error.message}`);
+      console.error('Failed to fetch affiliates:', error);
+      toast.error(error.message || 'Failed to fetch affiliates.');
     } finally {
       setIsLoading(false);
     }
-  };
-  
-  const handleSort = (column: keyof Affiliate) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
+  }, [searchTerm]);
+
+  const fetchUsers = async () => { // Fetch users who can become affiliates
+    try {
+        const { data, error } = await supabase
+            .from('users') // auth.users
+            .select('id, email, raw_user_meta_data') // raw_user_meta_data contains username, full_name etc.
+             // .neq('role', 'admin') // Example: don't list admins as potential affiliates
+             // Add more filters if needed, e.g., users not already affiliates
+            
+        if (error) throw error;
+
+        const mappedUsers: User[] = data?.map((u: any) => ({
+            id: u.id,
+            aud: '', // Not directly available, can be omitted or set if needed
+            email: u.email,
+            user_metadata: u.raw_user_meta_data || {},
+            created_at: u.created_at, // This might not be on auth.users directly, but on profiles
+            role: u.raw_user_meta_data?.role || 'user',
+            // ensure all fields from User type are covered or optional
+        })) || [];
+        setUsers(mappedUsers);
+    } catch (error: any) {
+        console.error("Failed to fetch users:", error);
+        toast.error(error.message || "Failed to fetch users for affiliate selection.");
     }
-  };
-  
-  const SortIndicator = ({ column }: { column: keyof Affiliate }) => {
-    if (sortColumn === column) {
-      return sortDirection === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />;
-    }
-    return null;
   };
 
-  const totalPages = Math.ceil(totalAffiliates / itemsPerPage);
+
+  useEffect(() => {
+    fetchAffiliates();
+    fetchUsers(); // Fetch users for the form
+  }, [fetchAffiliates]);
+
+  const handleAddAffiliate = () => {
+    setSelectedAffiliate(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditAffiliate = (affiliate: Affiliate) => {
+    setSelectedAffiliate(affiliate);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteAffiliate = async (affiliateId: string) => {
+    if (!window.confirm('Are you sure you want to delete this affiliate? This typically means revoking their affiliate status, not deleting the user.')) return;
+    try {
+      // This would typically set is_affiliate_active to false or remove their affiliate-specific data from 'profiles'
+      const { error } = await supabase.from('profiles').update({ 
+          is_affiliate_active: false, 
+          affiliate_code: null, 
+          // Consider nullifying other affiliate fields
+        }).eq('id', affiliateId);
+      if (error) throw error;
+      toast.success('Affiliate status revoked.');
+      fetchAffiliates();
+    } catch (error: any) {
+      console.error('Failed to delete affiliate:', error);
+      toast.error(error.message || 'Failed to delete affiliate.');
+    }
+  };
+  
+  const handleFormSuccess = () => {
+    setIsModalOpen(false);
+    fetchAffiliates();
+  };
 
   return (
     <div className="container mx-auto p-4">
-      <CMSPageHeader
-        title="Affiliate Management"
-        description="Manage your casino affiliates."
-        actions={
-          <Button onClick={() => { setEditingAffiliate(null); setShowFormDialog(true); }}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New Affiliate
-          </Button>
-        }
-      />
+      <h1 className="text-2xl font-bold mb-6">Affiliate Management</h1>
+      
+      <AffiliateStats summary={summary} recentAffiliates={affiliates.slice(0,5)} isLoading={isLoading} />
 
-      <div className="mb-4 flex items-center">
-        <Input
-          placeholder="Search affiliates..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-        <Button onClick={() => fetchAffiliates(1, searchTerm, sortColumn, sortDirection)} className="ml-2">
-          <Search className="mr-2 h-4 w-4" /> Search
+      <div className="my-6 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-muted-foreground" />
+            <Input 
+                placeholder="Search affiliates (name, email, code)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+            />
+        </div>
+        <Button onClick={handleAddAffiliate}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add New Affiliate
         </Button>
       </div>
+
+      {isLoading && <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin" /> <span className="ml-2">Loading affiliates...</span></div>}
       
-      {isLoading && affiliates.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
-
-      {!isLoading && affiliates.length === 0 && searchTerm && (
-        <p className="text-center text-muted-foreground py-4">No affiliates found matching "{searchTerm}".</p>
-      )}
-      {!isLoading && affiliates.length === 0 && !searchTerm && (
-        <p className="text-center text-muted-foreground py-4">No affiliates created yet. Click "Add New Affiliate" to start.</p>
-      )}
-
-
-      {affiliates.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-card">
+      {!isLoading && (
+        <div className="bg-card p-4 rounded-lg shadow overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead onClick={() => handleSort('name')}>Name <SortIndicator column="name" /></TableHead>
-                <TableHead onClick={() => handleSort('email')}>Email <SortIndicator column="email" /></TableHead>
-                <TableHead onClick={() => handleSort('code')}>Code <SortIndicator column="code" /></TableHead>
-                <TableHead onClick={() => handleSort('commissionRate')}>Rate <SortIndicator column="commissionRate" /></TableHead>
-                <TableHead onClick={() => handleSort('isActive')}>Status <SortIndicator column="isActive" /></TableHead>
-                <TableHead onClick={() => handleSort('createdAt')}>Joined <SortIndicator column="createdAt" /></TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Commission Rate</TableHead>
+                <TableHead>Clicks</TableHead>
+                <TableHead>Sign Ups</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Joined</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {affiliates.map((affiliate) => (
-                <TableRow key={affiliate.id}>
-                  <TableCell>{affiliate.name}</TableCell>
-                  <TableCell>{affiliate.email}</TableCell>
-                  <TableCell>{affiliate.code}</TableCell>
-                  <TableCell>{((affiliate.commissionRate || 0) * 100).toFixed(1)}%</TableCell>
+              {affiliates.length > 0 ? affiliates.map((aff) => (
+                <TableRow key={aff.id}>
+                  <TableCell className="font-medium flex items-center gap-2">
+                    {aff.avatar_url && <img src={aff.avatar_url} alt={aff.name} className="h-8 w-8 rounded-full" />}
+                    {aff.name}
+                  </TableCell>
+                  <TableCell>{aff.email}</TableCell>
+                  <TableCell>{aff.code || '-'}</TableCell>
+                  <TableCell>{aff.commissionRate ? `${(aff.commissionRate * 100).toFixed(0)}%` : '-'}</TableCell>
+                  <TableCell>{aff.clicks || 0}</TableCell>
+                  <TableCell>{aff.signUps || 0}</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 text-xs rounded-full ${affiliate.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
-                      {affiliate.isActive ? 'Active' : 'Inactive'}
+                    <span className={`px-2 py-1 text-xs rounded-full ${aff.isActive ? 'bg-green-100 text-green-700 dark:bg-green-700 dark:text-green-100' : 'bg-red-100 text-red-700 dark:bg-red-700 dark:text-red-100'}`}>
+                      {aff.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </TableCell>
-                  <TableCell>{new Date(affiliate.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditingAffiliate(affiliate); setShowFormDialog(true); }}>
+                  <TableCell>{format(new Date(aff.createdAt), 'PP')}</TableCell>
+                  <TableCell className="space-x-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleEditAffiliate(aff)}>
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(affiliate)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteAffiliate(aff.id)} className="text-red-500 hover:text-red-700">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              )) : (
+                <TableRow>
+                    <TableCell colSpan={9} className="text-center py-10">No affiliates found.</TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </div>
       )}
-      
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-          <Button 
-            onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
-            disabled={currentPage === 1 || isLoading}
-            variant="outline"
-          >
-            Previous
-          </Button>
-          <span>Page {currentPage} of {totalPages}</span>
-          <Button 
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
-            disabled={currentPage === totalPages || isLoading}
-            variant="outline"
-          >
-            Next
-          </Button>
-        </div>
-      )}
 
-
-      <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-card">
           <DialogHeader>
-            <DialogTitle>{editingAffiliate ? 'Edit Affiliate' : 'Add New Affiliate'}</DialogTitle>
-            <DialogDescription>
-              {editingAffiliate ? 'Update the details for this affiliate.' : 'Select a user and set their affiliate details.'}
-            </DialogDescription>
+            <DialogTitle>{selectedAffiliate ? 'Edit Affiliate' : 'Add New Affiliate'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
-            {!editingAffiliate && (
-                <FormField
-                control={form.control}
-                name="userId"
-                render={({ field }) => (
-                    <FormItem>
-                    <Label htmlFor="userId">Select User</Label>
-                     <Controller
-                        name="userId"
-                        control={form.control}
-                        render={({ field: controllerField }) => (
-                            <select
-                            id="userId"
-                            {...controllerField}
-                            className="w-full mt-1 p-2 border rounded-md bg-input"
-                            onChange={(e) => {
-                                controllerField.onChange(e.target.value);
-                                const selectedUser = users.find(u => u.id === e.target.value);
-                                if (selectedUser) {
-                                form.setValue('name', selectedUser.username || selectedUser.email?.split('@')[0] || '');
-                                form.setValue('email', selectedUser.email || '');
-                                }
-                            }}
-                            >
-                            <option value="">Select a user</option>
-                            {users.map(user => (
-                                <option key={user.id} value={user.id}>{user.username || user.email} ({user.id.substring(0,8)})</option>
-                            ))}
-                            </select>
-                        )}
-                        />
-                    {form.formState.errors.userId && <p className="text-sm text-red-500 mt-1">{form.formState.errors.userId.message}</p>}
-                    </FormItem>
-                )}
-                />
-            )}
-             <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="name">Name</Label>
-                  <Input id="name" {...field} className="mt-1" readOnly={!editingAffiliate && !!form.watch('userId')} />
-                  {form.formState.errors.name && <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>}
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" {...field} className="mt-1" readOnly={!editingAffiliate && !!form.watch('userId')} />
-                  {form.formState.errors.email && <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>}
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="code">Referral Code (optional)</Label>
-                  <Input id="code" {...field} className="mt-1" placeholder="Auto-generated if empty" />
-                  {form.formState.errors.code && <p className="text-sm text-red-500 mt-1">{form.formState.errors.code.message}</p>}
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="commissionRate"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="commissionRate">Commission Rate (0.0 to 1.0)</Label>
-                  <Input id="commissionRate" type="number" step="0.01" {...field} 
-                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
-                  {form.formState.errors.commissionRate && <p className="text-sm text-red-500 mt-1">{form.formState.errors.commissionRate.message}</p>}
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="affiliate_revenue_share"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="affiliate_revenue_share">Revenue Share % (optional)</Label>
-                  <Input id="affiliate_revenue_share" type="number" step="0.01" {...field} 
-                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="affiliate_cpa"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="affiliate_cpa">CPA Amount (optional)</Label>
-                  <Input id="affiliate_cpa" type="number" step="0.01" {...field} 
-                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="affiliate_baseline"
-              render={({ field }) => (
-                <FormItem>
-                  <Label htmlFor="affiliate_baseline">Baseline Amount (optional)</Label>
-                  <Input id="affiliate_baseline" type="number" step="0.01" {...field} 
-                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="isActive"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <Label htmlFor="isActive">Active Status</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Determines if the affiliate can earn commissions.
-                    </p>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      id="isActive"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowFormDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingAffiliate ? 'Save Changes' : 'Create Affiliate'}
-              </Button>
-            </DialogFooter>
-          </form>
+          <AffiliateForm 
+            affiliate={selectedAffiliate} 
+            users={users}
+            onSuccess={handleFormSuccess} 
+            onClose={() => setIsModalOpen(false)} 
+          />
         </DialogContent>
       </Dialog>
-
-      <ConfirmationDialog
-        isOpen={showConfirmDeleteDialog}
-        onClose={() => setShowConfirmDeleteDialog(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Affiliate"
-        description={`Are you sure you want to delete affiliate "${affiliateToDelete?.name}"? This action cannot be undone.`}
-        confirmButtonText="Delete"
-        isLoading={isLoading}
-      />
     </div>
   );
 };

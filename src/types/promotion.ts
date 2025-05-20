@@ -1,68 +1,70 @@
-// This file might have been named promotion.d.ts previously. Ensuring content matches.
+export type PromotionType = 
+  | 'deposit_bonus' 
+  | 'free_spins' 
+  | 'cashback' 
+  | 'tournament_prize' 
+  | 'welcome_bonus' 
+  | 'reload_bonus' 
+  | 'loyalty_reward' 
+  | 'no_deposit_bonus'
+  | 'sports_bet_bonus'
+  | 'other';
+
+export const PROMOTION_TYPE_ARRAY: PromotionType[] = [
+  'deposit_bonus', 'free_spins', 'cashback', 'tournament_prize', 'welcome_bonus',
+  'reload_bonus', 'loyalty_reward', 'no_deposit_bonus', 'sports_bet_bonus', 'other'
+];
+
+export type PromotionStatus = 'active' | 'inactive' | 'expired' | 'upcoming' | 'draft' | 'archived';
+export const PROMOTION_STATUS_ARRAY: PromotionStatus[] = ['active', 'inactive', 'expired', 'upcoming', 'draft', 'archived'];
+
+export type PromotionTargetAudience = 'new_users' | 'existing_users' | 'vip_only' | 'all' | string;
+
 export interface Promotion {
   id: string;
   title: string;
-  description: string; // Made non-optional as per usage, or handle optionality in components
-  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament_prize' | 'welcome_bonus' | 'reload_bonus' | 'loyalty_reward' | 'deposit_match' | 'tournament' | 'no_deposit_bonus' | string;
-  promotionType?: Promotion['type']; // For consistency if used in forms, maps to 'type'
-
-  value?: number; // General value, e.g. cashback amount, prize pool
-  bonusPercentage?: number; // For deposit match/bonus
-  freeSpinsCount?: number; // For free spins
-
-  currency?: string; // e.g., 'USD', 'EUR'
+  description: string;
+  type: PromotionType; // Use the defined type
+  
+  value?: number; 
+  bonusPercentage?: number; 
+  freeSpinsCount?: number; 
   wageringRequirement?: number;
   minDeposit?: number;
   maxBonusAmount?: number;
+  currency?: string; 
   
   validFrom: string | Date; 
   validUntil: string | Date | null; 
   
-  games?: string[]; // Slugs or IDs of eligible games (ensure it's string[])
-  code?: string; // Promo code to claim
+  games?: string[]; 
+  code?: string; 
   
-  isActive?: boolean; // Should be derived or set based on 'status' and dates
-  status: 'active' | 'inactive' | 'expired' | 'upcoming' | 'draft' | string; // More comprehensive status
+  status: PromotionStatus; // Use the defined type
   
   usageLimitPerUser?: number; 
   category: string; 
   
   termsAndConditions?: string;
   imageUrl?: string;
-  targetAudience?: 'new_users' | 'existing_users' | 'vip_only' | 'all' | string;
+  targetAudience?: PromotionTargetAudience;
   claimInstructions?: string;
   maxRedemptions?: number; 
   tags?: string[];
 
-  // Fields from mock data that were mapped/clarified
-  ctaText?: string; // Call to action text for buttons (camelCase)
-  
-  // Eligibility and bonus_details should ideally be flattened or consistently accessed
-  // For simplicity in components, often these are flattened or directly part of the Promotion type
-  // If they must remain nested, components need to access them as e.g. promotion.eligibility.min_deposit
-  // Adding them as optional top-level fields for now if direct access is common:
-  eligibilityType?: string; // Corresponds to targetAudience or eligibility.type
-  eligibilityMinDeposit?: number; // Corresponds to eligibility.min_deposit
-  eligibilityMinVipLevel?: string | number; // Corresponds to eligibility.min_vip_level
-  
-  bonusDetailsPercentage?: number; // Corresponds to bonus_details.percentage (use bonusPercentage)
-  bonusDetailsMaxAmount?: number; // Corresponds to bonus_details.max_amount (use maxBonusAmount)
-  bonusDetailsCurrency?: string; // Corresponds to bonus_details.currency (use currency)
-  bonusDetailsFreeSpinsCount?: number; // Corresponds to bonus_details.free_spins_count (use freeSpinsCount)
-  bonusDetailsGameSlug?: string; // Corresponds to bonus_details.game_slug
-  bonusDetailsPrizePool?: number; // Corresponds to bonus_details.prize_pool (use value for tournaments)
+  ctaText?: string;
+  link?: string;
 
-  // Keep link for PromotionCard if it's a valid field, otherwise remove its usage
-  link?: string; // If promotions can have direct navigation links
+  // Denormalized or simplified fields for easier use
+  eligibilityMinVipLevel?: string | number;
 
-  // Legacy or alternative names (should be mapped during data fetching/normalization)
-  // startDate?: string | Date; // Use validFrom
-  // endDate?: string | Date | null; // Use validUntil
-  // image_url?: string; // Use imageUrl
-  // start_date?: string | Date; // Use validFrom
-  // end_date?: string | Date | null; // Use validUntil
-  // terms_and_conditions?: string; // Use termsAndConditions
-  // terms?: string; // Use termsAndConditions
+  // For admin forms, if type is selected, these become more specific
+  // These are optional and should be handled based on the `type`
+  bonusDetailsGameSlug?: string; 
+  bonusDetailsPrizePool?: number; 
+
+  created_at?: string | Date;
+  updated_at?: string | Date;
 }
 
 export interface PromotionFilter {

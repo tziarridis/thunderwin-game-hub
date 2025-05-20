@@ -1,173 +1,183 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Wallet } from '@/types'; // Ensure Wallet type is correctly defined
-import { userService } from '@/services/userService'; // Assuming userService exists
-import { walletService } from '@/services/walletService'; // Assuming walletService exists
-import { toast } from 'sonner';
+import { Wallet } from '@/types/wallet'; // Assuming this is the correct Wallet type
+import { walletService } from '@/services/walletService'; // Assuming this service exists
+import { User, Profile } from '@/types/user'; // Using combined User type
 
 interface AuthContextType {
-  session: Session | null;
-  user: SupabaseUser | null; // Supabase auth user
-  appUser: User | null; // Your custom application user from 'users' table
-  wallet: Wallet | null;
   isAuthenticated: boolean;
+  user: User | null; // Combined User type
+  session: Session | null;
+  profile: Profile | null; 
+  wallet: Wallet | null;
   isLoading: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, metadata?: Record<string, any>) => Promise<void>;
+  register: (email: string, password: string, username?: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (userData: { email?: string; password?: string; data?: Record<string, any> }) => Promise<void>;
-  refreshAuthData: () => Promise<void>; // To manually refresh user/wallet
+  refreshAuthData: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [appUser, setAppUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchAndSetUserData = async (supabaseUser: SupabaseUser | null) => {
-    if (supabaseUser) {
+  const fetchAndSetUserData = async (supabaseUser: SupabaseUser | null, currentSession: Session | null) => {
+    if (supabaseUser && currentSession) {
       try {
-        // Fetch from your public 'users' table
-        const fetchedAppUser = await userService.getUserById(supabaseUser.id); // Use supabaseUser.id as it links to profiles.id
-        setAppUser(fetchedAppUser || null);
+        // Fetch profile
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', supabaseUser.id)
+          .single();
 
-        if (fetchedAppUser) { // Ensure appUser exists before fetching wallet
-            const fetchedWallet = await walletService.getWalletByUserId(fetchedAppUser.id); // Use appUser.id
-            setWallet(fetchedWallet || null);
-        } else {
-            setWallet(null); // No app user, no wallet
-            console.warn("No application user found for Supabase user:", supabaseUser.id);
+        if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 0 rows
+          console.error('Error fetching profile:', profileError);
         }
+        
+        const combinedUser: User = {
+          ...supabaseUser,
+          profile: userProfile || undefined,
+          // Supabase User already has role if JWT is set up, otherwise check profile
+          role: supabaseUser.user_metadata?.role || userProfile?.role || 'user', 
+        };
 
-      } catch (error) {
-        console.error("Error fetching user data or wallet:", error);
-        toast.error("Failed to load user profile or wallet.");
-        setAppUser(null);
+        setUser(combinedUser);
+        setProfile(userProfile || null);
+        setIsAdmin(combinedUser.role === 'admin');
+
+        // Fetch wallet
+        const userWallet = await walletService.getWalletByUserId(supabaseUser.id);
+        setWallet(userWallet); // This should be Wallet | null
+        
+      } catch (err) {
+        console.error("Error fetching additional user data:", err);
+        setUser({ ...supabaseUser, role: supabaseUser.user_metadata?.role || 'user' } as User); // Fallback with Supabase user
+        setProfile(null);
         setWallet(null);
+        setIsAdmin(supabaseUser.user_metadata?.role === 'admin');
       }
     } else {
-      setAppUser(null);
+      setUser(null);
+      setProfile(null);
       setWallet(null);
+      setIsAdmin(false);
     }
   };
-  
+
+
   useEffect(() => {
     const setAuthData = async (currentSession: Session | null) => {
-        setSession(currentSession);
-        const supabaseAuthUser = currentSession?.user ?? null;
-        setUser(supabaseAuthUser);
-        await fetchAndSetUserData(supabaseAuthUser);
-        setIsLoading(false);
+      setSession(currentSession);
+      const supabaseUser = currentSession?.user ?? null;
+      await fetchAndSetUserData(supabaseUser, currentSession);
+      setIsLoading(false);
     };
 
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-        setAuthData(currentSession);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      setAuthData(initialSession);
     });
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
-        setAuthData(currentSession);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      // Potentially defer heavy operations if needed as per Supabase deadlock prevention
+      // For now, direct call to keep logic simpler, monitor for issues
+      setIsLoading(true); 
+      await setAuthData(newSession);
     });
 
     return () => {
-      // Check if subscription exists before trying to unsubscribe
-      if (authListener && authListener.subscription) {
-        authListener.subscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
   }, []);
 
-
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      // User data will be set by onAuthStateChange
-    } catch (error: any) {
-      toast.error(error.message || "Login failed.");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setIsLoading(false);
       throw error;
-    } finally {
-      // setIsLoading(false); // onAuthStateChange will handle loading state
     }
+    // Auth state change will handle setting user, profile, wallet
   };
 
-  const register = async (email: string, password: string, metadata?: Record<string, any>) => {
+  const register = async (email: string, password: string, username?: string) => {
     setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({ 
-        email, 
-        password,
-        options: {
-          data: metadata, // This is where user_metadata is set on sign up
-        }
-      });
-      if (error) throw error;
-      toast.success("Registration successful! Please check your email to verify your account.");
-      // User data will be set by onAuthStateChange after verification for some setups
-    } catch (error: any) {
-      toast.error(error.message || "Registration failed.");
+    const { data: signUpData, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username: username || email.split('@')[0], // Default username
+          role: 'user', // Default role
+        },
+      },
+    });
+    if (error) {
+      setIsLoading(false);
       throw error;
-    } finally {
-      // setIsLoading(false); // onAuthStateChange might handle this
     }
+    // If sign up is successful and a user is returned, create profile and wallet
+    if (signUpData.user) {
+        try {
+            if (username) { // Only create profile if username is provided, or handle default
+                 await supabase.from('profiles').insert({
+                    id: signUpData.user.id,
+                    username: username || email.split('@')[0],
+                    email: email, // Store email in profiles for easier access if needed
+                    role: 'user'
+                 });
+            }
+            await walletService.createWallet(signUpData.user.id, 'USD'); // Default currency
+        } catch(profileWalletError) {
+            console.error("Error creating profile/wallet post-signup:", profileWalletError);
+            // User is signed up, but profile/wallet creation failed. Might need manual fix or retry.
+        }
+    }
+    // Auth state change will handle setting user, profile, wallet for the new session
   };
 
   const logout = async () => {
     setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setSession(null);
-      setUser(null);
-      setAppUser(null);
-      setWallet(null);
-      toast.success("Logged out successfully.");
-    } catch (error: any) {
-      toast.error(error.message || "Logout failed.");
-    } finally {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       setIsLoading(false);
-    }
-  };
-
-  const updateUser = async (userData: { email?: string; password?: string; data?: Record<string, any> }) => {
-    // setIsLoading(true); // Consider if loading state is needed here
-    try {
-      const { data: { user: updatedUser }, error } = await supabase.auth.updateUser(userData);
-      if (error) throw error;
-      if (updatedUser) {
-        setUser(updatedUser); // Update Supabase auth user state
-        await fetchAndSetUserData(updatedUser); // Refresh appUser and wallet
-      }
-      toast.success("User updated successfully!");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update user.");
       throw error;
-    } finally {
-      // setIsLoading(false);
     }
+    // Auth state change will clear user, profile, wallet
   };
 
   const refreshAuthData = async () => {
     setIsLoading(true);
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    setSession(currentSession);
-    const supabaseAuthUser = currentSession?.user ?? null;
-    setUser(supabaseAuthUser);
-    await fetchAndSetUserData(supabaseAuthUser);
+    const { data: { session: currentSession }, error } = await supabase.auth.refreshSession();
+    if (error) console.error("Error refreshing session:", error);
+    await fetchAndSetUserData(currentSession?.user ?? null, currentSession);
     setIsLoading(false);
-  }
+  };
 
-  return (
-    <AuthContext.Provider value={{ session, user, appUser, wallet, isAuthenticated: !!user, isLoading, login, register, logout, updateUser, refreshAuthData }}>
-      {children}
-    </AuthContext.Provider>
-  );
+
+  const value = {
+    isAuthenticated: !!user && !!session,
+    user,
+    session,
+    profile,
+    wallet,
+    isLoading,
+    isAdmin,
+    login,
+    register,
+    logout,
+    refreshAuthData,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
