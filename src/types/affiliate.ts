@@ -1,31 +1,25 @@
 
-import { User } from './user';
-
 export interface Affiliate {
-  id: string;
-  userId: string;
-  user?: User;
+  id: string; // Typically the Supabase auth user ID or your public.users ID
+  userId: string; // Your application's user ID from public.users table
+  name: string;
+  email: string;
   code?: string; // Referral code
-  totalCommissions?: number; // Corresponds to total_commission_earned
+  totalCommissions?: number;
   clicks?: number;
-  signUps?: number; // Corresponds to total_referred_users (conceptually)
-  depositingUsers?: number;
-  createdAt: string;
-  updatedAt: string;
-  name?: string; // From associated User
-  email?: string; // From associated User
-
-  // Fields for AffiliateStats.tsx
-  status?: 'active' | 'pending' | 'rejected'; // Added status
-  total_referred_users?: number; // Number of users referred
-  // total_commission_earned is mapped to totalCommissions
-  commission_rate_cpa?: number; // Cost Per Acquisition rate
-  commission_rate_revenue_share?: number; // Revenue share percentage
-  // 'referral_code' can be mapped from 'code'
+  signUps?: number; // Referred users who signed up
+  depositingUsers?: number; // Referred users who made a deposit
+  commissionRate?: number; // e.g., 0.2 for 20%
+  paymentDetails?: any; // Placeholder for payment info like PayPal, bank account
+  isActive?: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  // raw_user_meta_data?: any; // Avoid using this directly if possible
 }
 
 export interface AffiliateStatSummary {
   totalAffiliates: number;
   totalCommissionsPaid: number;
-  newSignUpsThisMonth: number;
+  newSignUpsThisMonth: number; // Or any relevant period
+  // Add more aggregated stats as needed
 }

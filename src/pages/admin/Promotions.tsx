@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -14,406 +16,470 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { PlusCircle, Loader2, BarChart, Users, Search, Filter } from "lucide-react";
-import PromotionCard from "@/components/promotions/PromotionCard";
+import { PlusCircle, Loader2, BarChart, Users, Search, Filter, Edit2, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import AdminPromotionCard from "@/components/admin/promotions/AdminPromotionCard"; // Specific card for admin
 import { Promotion } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CMSPageHeader from "@/components/admin/cms/CMSPageHeader";
+import { promotionsService } from "@/services/promotionsService"; // Using the actual service
+import { Skeleton } from "@/components/ui/skeleton";
 
-const uiCategories = [
+const uiCategories = [ // For filtering/grouping in UI
+  { value: "all", label: "All Promotions" },
   { value: "deposit_bonus", label: "Deposit Bonus" },
   { value: "cashback", label: "Cashback" },
   { value: "tournament", label: "Tournament" },
   { value: "free_spins", label: "Free Spins" },
-  { value: "recurring", label: "Recurring" },
-  { value: "special", label: "Special" }
+  { value: "welcome_bonus", label: "Welcome Bonus"},
+  { value: "reload_bonus", label: "Reload Bonus"},
+  { value: "loyalty_reward", label: "Loyalty Reward"},
+  { value: "other", label: "Other" }
 ];
 
+// Matches Promotion type more closely for form data
 interface PromotionFormData {
   title: string;
   description: string;
+  type: Promotion['type'];
+  category: string; // UI helper, maps to promotion properties or tags
+  
   imageUrl?: string;
-  endDate: string;
-  category: string;
-  promotionType: Promotion['promotionType'];
-  terms?: string;
+  validFrom: string; // ISO string
+  validUntil: string | null; // ISO string or null for ongoing
+  
+  termsAndConditions?: string;
+  cta_text?: string;
+
+  status?: Promotion['status'];
+  isActive?: boolean;
+
+  // Bonus specific details
   bonusPercentage?: number;
   maxBonusAmount?: number;
   freeSpinsCount?: number;
   wageringRequirement?: number;
   minDeposit?: number;
+  currency?: string;
+  games?: string[]; // Game slugs/IDs for free spins or restricted play
+  code?: string; // Promo code
 }
 
-const Promotions = () => {
+const initialFormData: PromotionFormData = {
+  title: "",
+  description: "",
+  type: "deposit_bonus", // Default type
+  category: "deposit_bonus", // Default category
+  validFrom: new Date().toISOString().split("T")[0], // Default to today
+  validUntil: null,
+  imageUrl: "",
+  termsAndConditions: "",
+  cta_text: "Claim Now",
+  status: "draft",
+  isActive: false,
+  currency: "USD",
+};
+
+const PromotionsAdminPage = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
-    claimed: 0
+    claimed: 0 // This would need actual tracking from backend
   });
   
-  const initialFormData: PromotionFormData = {
-    title: "",
-    description: "",
-    imageUrl: "",
-    endDate: "",
-    category: "deposit_bonus",
-    promotionType: "deposit_bonus",
-    terms: "",
-  };
   const [formData, setFormData] = useState<PromotionFormData>(initialFormData);
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // For loading list
+  const [isSubmitting, setIsSubmitting] = useState(false); // For form submission
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [activeFilterTab, setActiveFilterTab] = useState<string>("all"); // For UI category filter
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  useEffect(() => {
-    const storedPromotions = localStorage.getItem('promotions');
-    if (storedPromotions) {
-      const parsedPromotions: Promotion[] = JSON.parse(storedPromotions);
-      setPromotions(parsedPromotions);
-      
-      setStats({
-        total: parsedPromotions.length,
-        active: parsedPromotions.filter((p: Promotion) => p.isActive).length,
-        claimed: parsedPromotions.reduce((acc, p) => acc + (p.usageLimitPerUser || 0), 0)
-      });
-    } else {
-      const defaultPromotions: Promotion[] = [
-        {
-          id: "1",
-          title: "Welcome Bonus",
-          description: "Get a 100% match up to $1,000 + 50 free spins on your first deposit.",
-          imageUrl: "https://images.unsplash.com/photo-1596731490442-1533cf2a1f18?auto=format&fit=crop&q=80&w=400",
-          startDate: "2023-01-01",
-          endDate: "Ongoing",
-          isActive: true,
-          status: "active",
-          promotionType: "deposit_bonus",
-          category: "deposit_bonus",
-          terms: "Terms and conditions apply",
-          bonusPercentage: 100, maxBonusAmount: 1000, freeSpinsCount: 50
-        },
-      ];
-      setPromotions(defaultPromotions);
-      localStorage.setItem('promotions', JSON.stringify(defaultPromotions));
-      
-      setStats({
-        total: defaultPromotions.length,
-        active: defaultPromotions.filter(p => p.isActive).length,
-        claimed: 0
-      });
+  const fetchPromotions = async () => {
+    setIsLoading(true);
+    try {
+      // TODO: Replace with a service call that gets ALL promotions for admin
+      // promotionsService.getAllPromotions() or similar
+      const data = await promotionsService.getActivePromotions(); // For now, using active as placeholder
+      setPromotions(data);
+      updateStats(data);
+    } catch (error) {
+      toast.error("Failed to load promotions.");
+      console.error("Fetch promotions error:", error);
+      setPromotions([]); // Clear on error or use cached
+      updateStats([]);
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  const updateStats = (currentPromotions: Promotion[]) => {
+     setStats({
+        total: currentPromotions.length,
+        active: currentPromotions.filter(p => p.isActive && p.status === 'active').length,
+        claimed: currentPromotions.reduce((acc, p) => acc + (p.usageLimitPerUser || 0), 0) // Example, needs real data
+      });
+  };
+
+  useEffect(() => {
+    fetchPromotions();
   }, []);
 
-  useEffect(() => {
-    if (promotions.length > 0 || localStorage.getItem('promotions')) {
-      localStorage.setItem('promotions', JSON.stringify(promotions));
-      setStats({
-        total: promotions.length,
-        active: promotions.filter(p => p.isActive).length,
-        claimed: stats.claimed 
-      });
-    }
-  }, [promotions, stats.claimed]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'bonusPercentage' || name === 'maxBonusAmount' || name === 'freeSpinsCount' || name === 'wageringRequirement' || name === 'minDeposit'
+                ? (value === '' ? undefined : parseFloat(value)) 
+                : val
+    }));
+  };
+
+  const handleDateChange = (name: 'validFrom' | 'validUntil', value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value === '' ? null : value }));
+  };
+  
+  const handleSelectChange = (name: keyof PromotionFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
   };
-  
-  const handleCategoryChange = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      category: value,
-      promotionType: value as Promotion['promotionType']
-    }));
-  };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     
-    setTimeout(() => {
-      const promotionDataFromForm: Omit<Promotion, 'id' | 'startDate' | 'isActive' | 'status'> & Partial<Pick<Promotion, 'startDate' | 'isActive' | 'status'>> & { status: Promotion['status'] } = {
-        title: formData.title,
-        description: formData.description,
-        imageUrl: formData.imageUrl,
-        endDate: formData.endDate,
-        category: formData.category,
-        promotionType: formData.promotionType,
-        terms: formData.terms || "Standard terms apply.",
-        bonusPercentage: formData.bonusPercentage,
-        maxBonusAmount: formData.maxBonusAmount,
-        freeSpinsCount: formData.freeSpinsCount,
-        minDeposit: formData.minDeposit,
-        wageringRequirement: formData.wageringRequirement,
-        status: 'active',
-      };
+    const promotionPayload: Partial<Promotion> = {
+        ...formData,
+        // Ensure dates are in correct format if needed by backend (e.g. ISO string)
+        validFrom: new Date(formData.validFrom).toISOString(),
+        validUntil: formData.validUntil ? new Date(formData.validUntil).toISOString() : null,
+        // Ensure isActive is set based on status if status is 'active'
+        isActive: formData.status === 'active' ? true : (formData.isActive ?? false),
+    };
 
+    // Remove undefined fields that might cause issues with Supabase partial updates
+    Object.keys(promotionPayload).forEach(key => 
+        promotionPayload[key as keyof Partial<Promotion>] === undefined && delete promotionPayload[key as keyof Partial<Promotion>]
+    );
+
+
+    try {
       if (editingId) {
-        setPromotions(prev => 
-          prev.map(promo => 
-            promo.id === editingId 
-              ? { 
-                  ...promo, 
-                  ...promotionDataFromForm,
-                  isActive: promotionDataFromForm.isActive !== undefined ? promotionDataFromForm.isActive : promo.isActive,
-                  status: promotionDataFromForm.status || promo.status,
-                }
-              : promo
-          )
-        );
-        toast.success("Promotion updated successfully");
+        // await promotionsService.updatePromotion(editingId, promotionPayload);
+        // Mock update for now
+        setPromotions(prev => prev.map(p => p.id === editingId ? { ...p, ...promotionPayload, id: editingId, validFrom: p.validFrom } as Promotion : p));
+        toast.success("Promotion updated successfully (mock)");
       } else {
-        const newPromotion: Promotion = {
-          id: `${Date.now()}`,
-          ...promotionDataFromForm,
-          startDate: new Date().toISOString().split('T')[0],
-          isActive: true, 
-          status: 'active', 
-        };
-        setPromotions(prev => [...prev, newPromotion]);
-        toast.success("Promotion added successfully");
+        // const newPromo = await promotionsService.createPromotion(promotionPayload);
+        // Mock create for now
+        const newPromo: Promotion = { 
+            ...initialFormData, // Spread initial defaults
+            ...promotionPayload, // Spread payload over defaults
+            id: `${Date.now()}`, 
+            validFrom: promotionPayload.validFrom || new Date().toISOString(), // Ensure validFrom is set
+            type: promotionPayload.type || 'deposit_bonus', // Ensure type is set
+            category: promotionPayload.category || 'other', // Ensure category is set
+            isActive: promotionPayload.isActive || false, // Ensure isActive is set
+         } as Promotion;
+        setPromotions(prev => [...prev, newPromo]);
+        toast.success("Promotion added successfully (mock)");
       }
-      
+      updateStats(promotions); // Update stats after modification
       setFormData(initialFormData); 
       setEditingId(null);
-      setIsSubmitting(false);
       setIsDialogOpen(false);
-    }, 500);
+    } catch (error: any) {
+        toast.error(`Operation failed: ${error.message}`);
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
-  const handleEditPromotion = (id: string) => {
-    const promoToEdit = promotions.find(p => p.id === id);
-    if (promoToEdit) {
-      setFormData({
-        title: promoToEdit.title,
-        description: promoToEdit.description,
-        imageUrl: promoToEdit.imageUrl || "",
-        endDate: promoToEdit.endDate,
-        category: promoToEdit.category,
-        promotionType: promoToEdit.promotionType,
-        terms: promoToEdit.terms || "",
-        bonusPercentage: promoToEdit.bonusPercentage,
-        maxBonusAmount: promoToEdit.maxBonusAmount,
-        freeSpinsCount: promoToEdit.freeSpinsCount,
-        minDeposit: promoToEdit.minDeposit,
-        wageringRequirement: promoToEdit.wageringRequirement,
-      });
-      setEditingId(id);
-      setIsDialogOpen(true);
+  const handleEditPromotion = (promo: Promotion) => {
+    setFormData({
+      title: promo.title,
+      description: promo.description,
+      type: promo.type,
+      category: promo.category || 'other',
+      imageUrl: promo.imageUrl || "",
+      validFrom: typeof promo.validFrom === 'string' ? promo.validFrom.split('T')[0] : new Date(promo.validFrom).toISOString().split('T')[0],
+      validUntil: promo.validUntil ? (typeof promo.validUntil === 'string' ? promo.validUntil.split('T')[0] : new Date(promo.validUntil).toISOString().split('T')[0]) : null,
+      termsAndConditions: promo.termsAndConditions || "",
+      cta_text: promo.cta_text || "Claim Now",
+      status: promo.status || 'draft',
+      isActive: promo.isActive,
+      bonusPercentage: promo.bonusPercentage,
+      maxBonusAmount: promo.maxBonusAmount,
+      freeSpinsCount: promo.freeSpinsCount,
+      wageringRequirement: promo.wageringRequirement,
+      minDeposit: promo.minDeposit,
+      currency: promo.currency || "USD",
+      games: promo.games,
+      code: promo.code
+    });
+    setEditingId(promo.id);
+    setIsDialogOpen(true);
+  };
+  
+  const handleDeletePromotion = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this promotion?")) {
+        try {
+            // await promotionsService.deletePromotion(id);
+             // Mock delete for now
+            setPromotions(prev => prev.filter(promo => promo.id !== id));
+            updateStats(promotions.filter(promo => promo.id !== id));
+            toast.success("Promotion deleted successfully (mock)");
+        } catch (error: any) {
+            toast.error(`Deletion failed: ${error.message}`);
+        }
     }
   };
   
-  const handleDeletePromotion = (id: string) => {
-    setPromotions(prev => prev.filter(promo => promo.id !== id));
-    toast.success("Promotion deleted successfully");
-  };
-  
-  const handleToggleActive = (id: string) => {
-    setPromotions(prev => 
-      prev.map(promo => 
-        promo.id === id 
-          ? { ...promo, isActive: !promo.isActive, status: !promo.isActive ? 'active' : 'inactive' }
-          : promo
-      )
-    );
+  const handleToggleActive = async (id: string) => {
+    const promo = promotions.find(p => p.id === id);
+    if (!promo) return;
+
+    const newIsActive = !promo.isActive;
+    const newStatus = newIsActive ? 'active' : 'inactive';
     
-    const promotion = promotions.find(p => p.id === id);
-    const action = promotion?.isActive ? "deactivated" : "activated";
-    toast.success(`Promotion ${action} successfully`);
+    try {
+        // await promotionsService.updatePromotion(id, { isActive: newIsActive, status: newStatus });
+        // Mock toggle for now
+        setPromotions(prev => 
+          prev.map(p => 
+            p.id === id 
+              ? { ...p, isActive: newIsActive, status: newStatus }
+              : p
+          )
+        );
+        updateStats(promotions.map(p => p.id === id ? { ...p, isActive: newIsActive, status: newStatus } : p));
+        toast.success(`Promotion ${newIsActive ? "activated" : "deactivated"} (mock)`);
+    } catch (error: any) {
+        toast.error(`Toggle failed: ${error.message}`);
+    }
   };
 
-  const filteredPromotions = promotions.filter(promo => {
-    if (activeTab !== "all" && promo.category !== activeTab) {
-      return false;
-    }
+  const filteredPromotions = useMemo(() => promotions.filter(promo => {
+    const tabMatch = activeFilterTab === "all" || promo.category === activeFilterTab || (activeFilterTab === 'other' && !uiCategories.slice(1).find(c => c.value === promo.category));
+    if (!tabMatch) return false;
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return (
         promo.title.toLowerCase().includes(query) ||
-        promo.description.toLowerCase().includes(query)
+        (promo.description && promo.description.toLowerCase().includes(query)) ||
+        (promo.type && promo.type.toLowerCase().includes(query))
       );
     }
     return true;
-  });
+  }), [promotions, activeFilterTab, searchQuery]);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">Promotions Management</h1>
-        <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
-          setIsDialogOpen(isOpen);
-          if (!isOpen) {
-            setFormData(initialFormData);
-            setEditingId(null);
-          }
-        }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { /* Dialog open will trigger reset if not editing */ }}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add Promotion
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] bg-casino-thunder-dark text-white border-casino-thunder-green/50">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Edit Promotion" : "Add New Promotion"}</DialogTitle>
-              <DialogDescription className="text-white/70">
-                Fill in the details below to {editingId ? "update" : "create"} a promotion.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {/* Title */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="title" className="text-right">Title</Label>
-                <Input id="title" name="title" value={formData.title} onChange={handleInputChange} className="col-span-3 bg-casino-thunder-gray/30 border-white/10" />
-              </div>
-              {/* Description */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">Description</Label>
-                <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} className="col-span-3 bg-casino-thunder-gray/30 border-white/10" rows={3} />
-              </div>
-              {/* Image URL */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="imageUrl" className="text-right">Image URL</Label>
-                <Input id="imageUrl" name="imageUrl" value={formData.imageUrl || ''} onChange={handleInputChange} className="col-span-3 bg-casino-thunder-gray/30 border-white/10" />
-              </div>
-              {/* End Date */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="endDate" className="text-right">End Date</Label>
-                <Input id="endDate" name="endDate" value={formData.endDate} onChange={handleInputChange} placeholder="Ongoing, YYYY-MM-DD, etc." className="col-span-3 bg-casino-thunder-gray/30 border-white/10" />
-              </div>
-              {/* Category (for UI grouping and form selection) */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="category" className="text-right">Category</Label>
-                <Select value={formData.category} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className="col-span-3 bg-casino-thunder-gray/30 border-white/10">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uiCategories.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Terms */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="terms" className="text-right">Terms</Label>
-                <Textarea id="terms" name="terms" value={formData.terms || ''} onChange={handleInputChange} className="col-span-3 bg-casino-thunder-gray/30 border-white/10" rows={2} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={handleSubmit} disabled={isSubmitting} className="bg-casino-thunder-green text-black">
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingId ? "Update" : "Save"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="p-4 md:p-6">
+      <CMSPageHeader
+        title="Promotions Management"
+        description="Create, edit, and manage all casino promotions."
+        actions={
+            <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+                setIsDialogOpen(isOpen);
+                if (!isOpen) {
+                    setFormData(initialFormData);
+                    setEditingId(null);
+                }
+                }}>
+            <DialogTrigger asChild>
+                <Button>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Add Promotion
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                <DialogTitle>{editingId ? "Edit Promotion" : "Add New Promotion"}</DialogTitle>
+                <DialogDescription>
+                    Fill in the details below to {editingId ? "update" : "create"} a promotion.
+                </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                  {/* Column 1 */}
+                  <div className="space-y-3">
+                    <div>
+                        <Label htmlFor="title">Title</Label>
+                        <Input id="title" name="title" value={formData.title} onChange={handleInputChange} required />
+                    </div>
+                    <div>
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea id="description" name="description" value={formData.description} onChange={handleInputChange} rows={3} />
+                    </div>
+                    <div>
+                        <Label htmlFor="type">Promotion Type</Label>
+                        <Select name="type" value={formData.type} onValueChange={(value) => handleSelectChange('type', value)}>
+                            <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                            <SelectContent>
+                                {uiCategories.slice(1).map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                                 <SelectItem value="tournament_prize">Tournament Prize</SelectItem>
+                                 <SelectItem value="no_deposit_bonus">No Deposit Bonus</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div>
+                        <Label htmlFor="category">UI Category</Label>
+                        <Select name="category" value={formData.category} onValueChange={(value) => handleSelectChange('category', value)}>
+                            <SelectTrigger><SelectValue placeholder="Select UI category" /></SelectTrigger>
+                            <SelectContent>
+                                {uiCategories.slice(1).map(cat => <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="imageUrl">Image URL</Label>
+                        <Input id="imageUrl" name="imageUrl" value={formData.imageUrl || ''} onChange={handleInputChange} placeholder="https://example.com/image.png" />
+                    </div>
+                     <div>
+                        <Label htmlFor="cta_text">CTA Button Text</Label>
+                        <Input id="cta_text" name="cta_text" value={formData.cta_text || ''} onChange={handleInputChange} placeholder="e.g., Claim Now, Get Bonus" />
+                    </div>
+                  </div>
+
+                  {/* Column 2 */}
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="validFrom">Valid From</Label>
+                            <Input id="validFrom" name="validFrom" type="date" value={formData.validFrom} onChange={(e) => handleDateChange('validFrom', e.target.value)} required />
+                        </div>
+                        <div>
+                            <Label htmlFor="validUntil">Valid Until (Optional)</Label>
+                            <Input id="validUntil" name="validUntil" type="date" value={formData.validUntil || ''} onChange={(e) => handleDateChange('validUntil', e.target.value)} />
+                        </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="termsAndConditions">Terms & Conditions</Label>
+                        <Textarea id="termsAndConditions" name="termsAndConditions" value={formData.termsAndConditions || ''} onChange={handleInputChange} rows={3} />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="minDeposit">Min Deposit</Label>
+                            <Input id="minDeposit" name="minDeposit" type="number" value={formData.minDeposit || ''} onChange={handleInputChange} placeholder="e.g., 20" />
+                        </div>
+                        <div>
+                            <Label htmlFor="wageringRequirement">Wagering (x)</Label>
+                            <Input id="wageringRequirement" name="wageringRequirement" type="number" value={formData.wageringRequirement || ''} onChange={handleInputChange} placeholder="e.g., 35" />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="bonusPercentage">Bonus % (if applicable)</Label>
+                            <Input id="bonusPercentage" name="bonusPercentage" type="number" value={formData.bonusPercentage || ''} onChange={handleInputChange} placeholder="e.g., 100 for 100%" />
+                        </div>
+                        <div>
+                            <Label htmlFor="maxBonusAmount">Max Bonus (if applicable)</Label>
+                            <Input id="maxBonusAmount" name="maxBonusAmount" type="number" value={formData.maxBonusAmount || ''} onChange={handleInputChange} />
+                        </div>
+                    </div>
+                    <div>
+                        <Label htmlFor="freeSpinsCount">Free Spins (if applicable)</Label>
+                        <Input id="freeSpinsCount" name="freeSpinsCount" type="number" value={formData.freeSpinsCount || ''} onChange={handleInputChange} />
+                    </div>
+                     <div>
+                        <Label htmlFor="status">Status</Label>
+                        <Select name="status" value={formData.status} onValueChange={(value) => handleSelectChange('status', value as Promotion['status'])}>
+                            <SelectTrigger><SelectValue placeholder="Set status" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="inactive">Inactive</SelectItem>
+                                <SelectItem value="upcoming">Upcoming</SelectItem>
+                                <SelectItem value="expired">Expired</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                     <div className="flex items-center space-x-2 pt-2">
+                        <Switch id="isActive" name="isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData(prev => ({...prev, isActive: checked}))} />
+                        <Label htmlFor="isActive">Is Active (Overrides status for display)</Label>
+                    </div>
+                  </div>
+                </form>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                  <Button onClick={handleSubmit} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {editingId ? "Save Changes" : "Create Promotion"}
+                  </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+        }
+      />
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Promotions</CardTitle><BarChart className="h-4 w-4 text-muted-foreground" /></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.total}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Active Now</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.active}</div></CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Claims (Example)</CardTitle><BarChart className="h-4 w-4 text-muted-foreground" /></CardHeader>
+          <CardContent><div className="text-2xl font-bold">{isLoading ? <Skeleton className="h-8 w-16" /> : stats.claimed}</div></CardContent>
+        </Card>
       </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        <Card className="thunder-card">
-          <CardHeader><CardTitle className="flex items-center"><BarChart className="h-5 w-5 mr-2 text-casino-thunder-green" />Total Promotions</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{stats.total}</div></CardContent>
-        </Card>
-        <Card className="thunder-card">
-          <CardHeader><CardTitle className="flex items-center"><BarChart className="h-5 w-5 mr-2 text-casino-thunder-green" />Active Promotions</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{stats.active}</div></CardContent>
-        </Card>
-        <Card className="thunder-card">
-          <CardHeader><CardTitle className="flex items-center"><Users className="h-5 w-5 mr-2 text-casino-thunder-green" />Claimed Promotions</CardTitle></CardHeader>
-          <CardContent><div className="text-3xl font-bold">{stats.claimed}</div></CardContent>
-        </Card>
-      </div>
-
-
-      <Card className="thunder-card mb-6">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center space-y-2 md:space-y-0">
-            <CardTitle>Manage Promotions</CardTitle>
-            <div className="flex space-x-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white/40" />
-                <Input
-                  placeholder="Search promotions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 w-60 bg-casino-thunder-gray/30 border-white/10"
-                />
-              </div>
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">All</TabsTrigger>
-              {uiCategories.map((cat) => (
-                <TabsTrigger key={cat.value} value={cat.value}>
-                  {cat.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            <TabsContent value="all" className="mt-0">
-              {filteredPromotions.length === 0 && !searchQuery && (
-                 <div className="text-center py-12 text-white/60">No promotions found. Create your first promotion!</div>
-              )}
-              {filteredPromotions.length === 0 && searchQuery && (
-                 <div className="text-center py-12 text-white/60">No promotions found for "{searchQuery}".</div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredPromotions.map((promotion) => (
-                  <PromotionCard
-                    key={promotion.id}
-                    promotion={promotion}
-                    onEdit={handleEditPromotion}
-                    onDelete={handleDeletePromotion}
-                    onToggleActive={handleToggleActive}
-                    isAdmin
-                  />
-                ))}
-              </div>
-            </TabsContent>
-
-            {uiCategories.map((cat) => (
-              <TabsContent key={cat.value} value={cat.value} className="mt-0">
-                {filteredPromotions.filter(p => p.category === cat.value).length === 0 && (
-                   <div className="text-center py-12 text-white/60">No {cat.label.toLowerCase()} promotions found.</div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredPromotions
-                    .filter(p => p.category === cat.value) 
-                    .map((promotion) => (
-                      <PromotionCard
-                        key={promotion.id}
-                        promotion={promotion}
-                        onEdit={handleEditPromotion}
-                        onDelete={handleDeletePromotion}
-                        onToggleActive={handleToggleActive}
-                        isAdmin
-                      />
-                  ))}
-                </div>
-              </TabsContent>
+      {/* Filters and Search */}
+      <div className="mb-6 p-4 bg-card rounded-lg shadow flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-grow w-full md:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+                type="search"
+                placeholder="Search by title, description, type..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10"
+            />
+        </div>
+        <Tabs value={activeFilterTab} onValueChange={setActiveFilterTab} className="w-full md:w-auto">
+          <TabsList className="grid w-full grid-cols-3 md:grid-cols-none md:flex">
+            {uiCategories.map(cat => (
+              <TabsTrigger key={cat.value} value={cat.value}>{cat.label}</TabsTrigger>
             ))}
-          </Tabs>
-        </CardContent>
-      </Card>
+          </TabsList>
+        </Tabs>
+      </div>
+      
+      {/* Promotions Grid */}
+      {isLoading && promotions.length === 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => <Card key={i} className="h-[300px]"><CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader><CardContent><Skeleton className="h-20 w-full" /><Skeleton className="h-8 w-1/2 mt-4" /></CardContent></Card>)}
+        </div>
+      )}
+      {!isLoading && filteredPromotions.length === 0 && (
+        <div className="text-center py-16 bg-card rounded-lg shadow">
+            <Filter className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
+            <p className="text-xl text-muted-foreground">No promotions match your current filters.</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredPromotions.map((promo) => (
+          <AdminPromotionCard
+            key={promo.id}
+            promotion={promo}
+            onEdit={() => handleEditPromotion(promo)}
+            onDelete={() => handleDeletePromotion(promo.id)}
+            onToggleActive={() => handleToggleActive(promo.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };
 
-export default Promotions;
+export default PromotionsAdminPage;

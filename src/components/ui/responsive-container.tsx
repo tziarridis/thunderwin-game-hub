@@ -1,26 +1,18 @@
 
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { cn } from '@/lib/utils';
 
-interface ResponsiveContainerProps {
+interface ResponsiveContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  className?: string;
-  fullHeight?: boolean;
 }
 
-export function ResponsiveContainer({
-  children,
-  className,
-  fullHeight = false,
-}: ResponsiveContainerProps) {
+export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({ children, className, ...props }) => {
   return (
-    <div
-      className={cn(
-        "w-full px-4 sm:px-6 md:px-8 mx-auto max-w-7xl",
-        fullHeight && "min-h-[calc(100vh-80px)]",
-        className
-      )}
-    >
+    <div className={cn("container mx-auto px-4 sm:px-6 lg:px-8", className)} {...props}>
       {children}
     </div>
   );
-}
+};
+
+// No default export, only named export.
+// export default ResponsiveContainer; 

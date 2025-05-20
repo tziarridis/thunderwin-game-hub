@@ -15,11 +15,11 @@ interface MetaMaskDepositProps {
 
 const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMaskDepositProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const { user, refreshWalletBalance } = useAuth();
+  const { user, refreshWalletBalance } = useAuth(); // refreshWalletBalance should now be available
 
   const handleDeposit = async () => {
-    if (!user?.id) {
-      toast.error("User ID not found");
+    if (!user?.id) { // Assuming user object has an id property from your app's User type
+      toast.error("User ID not found. Please log in.");
       return;
     }
     
@@ -40,15 +40,16 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       
       // Request account access
       const accounts = await metamaskService.connectToMetaMask();
-      if (!accounts) {
-        throw new Error("Please connect to MetaMask.");
+      if (!accounts || accounts.length === 0) { // Check if accounts array is empty
+        throw new Error("Please connect to MetaMask and select an account.");
       }
       
       // Switch to Ethereum Mainnet if needed
-      await metamaskService.switchToEthereumMainnet();
+      // Consider making this configurable or checking current network
+      await metamaskService.switchToEthereumMainnet(); 
       
       // Current ETH price in USD (in production, this should come from an API)
-      const ethPriceInUsd = 2500; 
+      const ethPriceInUsd = 3000; // Updated mock price
       
       // Convert USD to ETH
       const ethAmount = depositAmount / ethPriceInUsd;
@@ -63,18 +64,28 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
         return;
       }
       
-      const toAddress = '0xRecipientAddress'; // Should be your platform's wallet address
-      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount.toString(), { from: accounts });
+      // IMPORTANT: Replace with your actual platform's recipient wallet address
+      const toAddress = '0xYOUR_PLATFORM_RECIPIENT_ADDRESS'; 
+      if (toAddress === '0xYOUR_PLATFORM_RECIPIENT_ADDRESS') {
+        toast.error("Recipient address is not configured. Please contact support.");
+        setIsProcessing(false);
+        if (onProcessing) onProcessing(false);
+        return;
+      }
+
+      const txHash = await metamaskService.sendTransaction(toAddress, ethAmount.toString(), { from: accounts[0] }); // Use accounts[0]
       
       if (txHash) {
-        // Refresh user's wallet balance after successful transaction
-        await refreshWalletBalance();
+        // TODO: In a real app, you would likely call a backend endpoint here
+        // to record the transaction and update the user's balance after blockchain confirmation.
+        // For now, we optimistically refresh.
+        await refreshWalletBalance(); 
         
         if (onSuccess) {
           onSuccess();
         }
         
-        toast.success(`Successfully deposited ${ethAmount.toFixed(6)} ETH`);
+        toast.success(`Successfully initiated deposit of ${ethAmount.toFixed(6)} ETH. Transaction hash: ${txHash.substring(0,10)}...`);
       }
     } catch (error: any) {
       console.error("MetaMask deposit error:", error);
@@ -94,20 +105,20 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             type="number"
-            min="10"
+            min="10" // This should ideally come from config or payment provider limits
             step="5"
-            placeholder="Enter amount"
+            placeholder="Enter amount in USD"
             className="pl-8 bg-casino-thunder-gray/30 border-white/10 focus:border-casino-thunder-green"
           />
         </div>
         <p className="text-xs text-white/50">
-          Minimum deposit: $10
+          Minimum deposit: $10 (Approx. {(10 / 3000).toFixed(6)} ETH)
         </p>
       </div>
       
       <Button 
         onClick={handleDeposit}
-        disabled={isProcessing}
+        disabled={isProcessing || !metamaskService.isMetaMaskAvailable()} // Disable if MetaMask not available
         className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
       >
         {isProcessing ? (
@@ -125,7 +136,7 @@ const MetaMaskDeposit = ({ amount, setAmount, onSuccess, onProcessing }: MetaMas
       
       <p className="text-xs text-white/60 text-center">
         {metamaskService.isMetaMaskAvailable() ? 
-          "Connect to your MetaMask wallet to deposit ETH" : 
+          "Connect to your MetaMask wallet to deposit ETH. Ensure you are on the Ethereum Mainnet." : 
           "MetaMask extension is not installed. Please install MetaMask to continue."
         }
       </p>

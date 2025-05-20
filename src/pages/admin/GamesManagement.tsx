@@ -1,17 +1,50 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable, ColumnFiltersState, getFilteredRowModel } from '@tanstack/react-table';
-import { Game } from '@/types'; // DbGame removed as Game type should be sufficient, adapt if needed
+import { Game } from '@/types'; // Game type should be sufficient
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import GameForm from '@/components/admin/GameForm';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'; // DialogFooter, DialogClose removed as not used
+import GameForm, { GameFormProps, GameFormData } from '@/components/admin/GameForm'; // GameFormProps imported
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { gameService } from '@/services/gameService';
-// adaptDbGameToGame, adaptGameToDbGame removed as GameForm should handle Game type
 import { PlusCircle, Edit, Trash2, RefreshCw, Search } from 'lucide-react';
 import { ResponsiveContainer } from '@/components/ui/responsive-container'; // Corrected import
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+
+// Helper to map GameFormData (from form) to Partial<Game> (for service)
+const mapFormDataToGameServiceData = (formData: GameFormData): Partial<Game> => {
+    return {
+        title: formData.title,
+        slug: formData.slug,
+        provider_slug: formData.provider_slug, // Assuming gameService expects provider_slug
+        // providerName: needs mapping if service expects name
+        category_slugs: formData.category_slugs, // Assuming gameService expects category_slugs
+        // categoryName: needs mapping if service expects name
+        rtp: formData.rtp ?? undefined, // Ensure number or undefined
+        description: formData.description ?? undefined,
+        image: formData.image ?? undefined,
+        banner: formData.banner ?? undefined,
+        status: formData.status,
+        isPopular: formData.isPopular,
+        isNew: formData.isNew,
+        is_featured: formData.is_featured,
+        show_home: formData.show_home,
+        game_id: formData.game_id ?? undefined,
+        game_code: formData.game_code ?? undefined,
+        minBet: formData.minBet ?? undefined,
+        maxBet: formData.maxBet ?? undefined,
+        volatility: formData.volatility ?? undefined,
+        lines: formData.lines ?? undefined,
+        features: formData.features,
+        tags: formData.tags,
+        themes: formData.themes,
+        releaseDate: formData.releaseDate ?? undefined,
+    };
+};
+
 
 const GamesManagement = () => {
   const [games, setGames] = useState<Game[]>([]);
@@ -21,12 +54,16 @@ const GamesManagement = () => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [gameToDeleteId, setGameToDeleteId] = useState<string | number | null>(null);
+
 
   const fetchGames = async () => {
     setIsLoading(true);
     try {
-      const fetchedGames = await gameService.getAllGames(); // Corrected: use getAllGames
-      setGames(fetchedGames); 
+      // Pass pagination/filter params to getAllGames if supported by service
+      const fetchedGamesResult = await gameService.getAllGames({ search: globalFilter, limit: 1000, offset: 0 }); // Example
+      setGames(fetchedGamesResult.games || []); // Adjust if service returns { games: [], count: X }
     } catch (error) {
       console.error('Failed to fetch games:', error);
       toast.error('Failed to load games.');
@@ -37,17 +74,20 @@ const GamesManagement = () => {
 
   useEffect(() => {
     fetchGames();
-  }, []);
+  }, [globalFilter]); // Re-fetch on globalFilter change, add other dependencies if needed (sorting, pagination)
 
-  const handleFormSubmit = async (data: Partial<Game>, id?: string | number) => {
+  const handleFormSubmit = async (data: GameFormData, id?: string | number) => {
+    // data is GameFormData, map it to Partial<Game> for the service
+    const gameServiceData = mapFormDataToGameServiceData(data);
+    
     try {
-      const gameId = id || editingGame?.id;
-      if (gameId) {
-        // Ensure data is at least Partial<Game>. GameForm should provide this.
-        await gameService.updateGame(String(gameId), data as Game); 
+      setIsLoading(true); // For form submission
+      const gameIdToUpdate = id || editingGame?.id;
+      if (gameIdToUpdate) {
+        await gameService.updateGame(String(gameIdToUpdate), gameServiceData as Game); 
         toast.success('Game updated successfully!');
       } else {
-        await gameService.createGame(data as Game); 
+        await gameService.createGame(gameServiceData as Game); 
         toast.success('Game created successfully!');
       }
       setIsFormOpen(false);
@@ -56,6 +96,8 @@ const GamesManagement = () => {
     } catch (error: any) {
       console.error('Failed to save game:', error);
       toast.error(`Error: ${error.message || 'Failed to save game.'}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,15 +106,25 @@ const GamesManagement = () => {
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (gameId: string | number) => {
-    if (window.confirm('Are you sure you want to delete this game?')) {
+  const openDeleteConfirmation = (gameId: string | number) => {
+    setGameToDeleteId(gameId);
+    setIsConfirmDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (gameToDeleteId) {
       try {
-        await gameService.deleteGame(String(gameId));
+        setIsLoading(true); // For delete operation
+        await gameService.deleteGame(String(gameToDeleteId));
         toast.success('Game deleted successfully!');
         fetchGames(); 
       } catch (error: any) {
         console.error('Failed to delete game:', error);
         toast.error(`Error: ${error.message || 'Failed to delete game.'}`);
+      } finally {
+        setIsLoading(false);
+        setIsConfirmDeleteDialogOpen(false);
+        setGameToDeleteId(null);
       }
     }
   };
@@ -84,19 +136,19 @@ const GamesManagement = () => {
       cell: ({ row }) => <span className="font-medium">{row.original.title}</span>,
     },
     {
-      accessorKey: "providerName", // Or provider_slug, provider
+      accessorKey: "providerName", 
       header: "Provider",
-      cell: ({ row }) => row.original.providerName || row.original.provider_slug || row.original.provider || 'N/A',
+      cell: ({ row }) => row.original.providerName || row.original.provider_slug || 'N/A',
     },
     {
-      accessorKey: "categoryName", // Or category_slugs, category
+      accessorKey: "categoryName", 
       header: "Category",
-      cell: ({ row }) => row.original.categoryName || (Array.isArray(row.original.category_slugs) ? row.original.category_slugs.join(', ') : row.original.category_slugs) || row.original.category || 'N/A',
+      cell: ({ row }) => row.original.categoryName || (Array.isArray(row.original.category_slugs) ? row.original.category_slugs.join(', ') : row.original.category_slugs) || 'N/A',
     },
     {
       accessorKey: "rtp",
       header: "RTP (%)",
-      cell: ({ row }) => (row.original.rtp ? (typeof row.original.rtp === 'number' ? `${row.original.rtp.toFixed(2)}%` : `${row.original.rtp}%`) : 'N/A'),
+      cell: ({ row }) => (row.original.rtp ? `${Number(row.original.rtp).toFixed(2)}%` : 'N/A'),
     },
     {
       accessorKey: "status",
@@ -108,11 +160,11 @@ const GamesManagement = () => {
       header: "Actions",
       cell: ({ row }) => (
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={() => handleEdit(row.original)}>
-            <Edit className="h-4 w-4 mr-1" /> Edit
+          <Button variant="outline" size="icon" onClick={() => handleEdit(row.original)} title="Edit Game">
+            <Edit className="h-4 w-4" />
           </Button>
-          <Button variant="destructive" size="sm" onClick={() => handleDelete(row.original.id)}>
-            <Trash2 className="h-4 w-4 mr-1" /> Delete
+          <Button variant="destructive" size="icon" onClick={() => openDeleteConfirmation(row.original.id)} title="Delete Game">
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       ),
@@ -135,52 +187,57 @@ const GamesManagement = () => {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } }, // Default page size
+    initialState: { pagination: { pageSize: 10 } }, 
   });
 
   return (
-    <ResponsiveContainer>
-      <CMSPageHeader title="Games Management" description="Manage all casino games available on the platform.">
-        <div className="flex gap-2">
-            <Button onClick={fetchGames} variant="outline" disabled={isLoading}>
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''} mr-2`} />
-                Refresh Games
-            </Button>
-            <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
-                setIsFormOpen(isOpen);
-                if (!isOpen) setEditingGame(null);
-            }}>
-                <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingGame(null); setIsFormOpen(true); }}>
-                        <PlusCircle className="h-4 w-4 mr-2" /> Add New Game
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{editingGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
-                        <DialogDescription>
-                            {editingGame ? `Update details for ${editingGame.title}.` : 'Fill in the details for the new game.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <GameForm
-                        game={editingGame} // Pass the Game object or null
-                        onSubmit={handleFormSubmit}
-                        onCancel={() => { setIsFormOpen(false); setEditingGame(null); }}
-                        isEditing={!!editingGame}
-                    />
-                </DialogContent>
-            </Dialog>
-        </div>
-      </CMSPageHeader>
+    <ResponsiveContainer className="p-4 md:p-6">
+      <CMSPageHeader 
+        title="Games Management" 
+        description="Manage all casino games available on the platform."
+        actions={
+            <div className="flex gap-2">
+                <Button onClick={fetchGames} variant="outline" disabled={isLoading && table.options.state.globalFilter === globalFilter}>
+                    <RefreshCw className={`h-4 w-4 ${isLoading && table.options.state.globalFilter === globalFilter ? 'animate-spin' : ''} mr-2`} />
+                    Refresh Games
+                </Button>
+                <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
+                    setIsFormOpen(isOpen);
+                    if (!isOpen) setEditingGame(null);
+                }}>
+                    <DialogTrigger asChild>
+                        <Button onClick={() => { setEditingGame(null); setIsFormOpen(true); }}>
+                            <PlusCircle className="h-4 w-4 mr-2" /> Add New Game
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>{editingGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
+                            <DialogDescription>
+                                {editingGame ? `Update details for ${editingGame.title}.` : 'Fill in the details for the new game.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <GameForm
+                            game={editingGame}
+                            onSubmit={handleFormSubmit}
+                            onCancel={() => { setIsFormOpen(false); setEditingGame(null); }}
+                            isEditing={!!editingGame}
+                            isLoading={isLoading && (isFormOpen || !!editingGame)} // More specific loading for form
+                        />
+                    </DialogContent>
+                </Dialog>
+            </div>
+        }
+      />
 
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 w-full max-w-sm">
-            <Search className="h-5 w-5 text-muted-foreground" />
+      <div className="mb-4 mt-6 flex items-center justify-between gap-4">
+        <div className="relative flex items-center gap-2 w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
             placeholder="Search all columns..."
             value={globalFilter ?? ''}
             onChange={(event) => setGlobalFilter(event.target.value)}
-            className="w-full"
+            className="w-full pl-10" // Padding for the icon
             />
         </div>
       </div>
@@ -252,6 +309,15 @@ const GamesManagement = () => {
           Next
         </Button>
       </div>
+      <ConfirmationDialog
+        isOpen={isConfirmDeleteDialogOpen}
+        onClose={() => setIsConfirmDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Confirm Deletion"
+        description="Are you sure you want to delete this game? This action cannot be undone."
+        confirmText="Delete"
+        isLoading={isLoading && !!gameToDeleteId} // Loading state for delete confirmation
+      />
     </ResponsiveContainer>
   );
 };

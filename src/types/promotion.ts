@@ -4,70 +4,69 @@ export interface Promotion {
   id: string;
   title: string;
   description: string;
-  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament_prize' | 'welcome_bonus' | 'reload_bonus' | 'loyalty_reward' | 'deposit_match' | 'tournament' | 'no_deposit_bonus' | string; // Allow string for flexibility
-  promotionType?: string; 
-  
-  value?: number; 
-  bonusPercentage?: number; 
-  freeSpinsCount?: number;
+  type: 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament_prize' | 'welcome_bonus' | 'reload_bonus' | 'loyalty_reward' | 'deposit_match' | 'tournament' | 'no_deposit_bonus' | string; // Matched to mock data & form
+  promotionType?: Promotion['type']; // For consistency if used in forms, maps to 'type'
 
-  currency?: string; 
+  value?: number; // General value, e.g. cashback amount
+  bonusPercentage?: number; // For deposit match/bonus
+  freeSpinsCount?: number; // For free spins
+
+  currency?: string; // e.g., 'USD', 'EUR'
   wageringRequirement?: number;
   minDeposit?: number;
   maxBonusAmount?: number;
   
-  validFrom: string | Date; // Matched to mock data (start_date) via startDate
-  validUntil: string | Date | null; // Matched to mock data (end_date) via endDate, allow null
+  validFrom: string | Date; // Should be consistently string (ISO) or Date
+  validUntil: string | Date | null; // Should be consistently string (ISO) or Date, or null for ongoing
   
-  games?: string[]; 
-  code?: string; 
+  games?: string[]; // Slugs or IDs of eligible games
+  code?: string; // Promo code to claim
   
-  isActive: boolean; // This should be derived or set based on 'status' or fetched data
-  status?: 'active' | 'inactive' | 'expired' | 'upcoming' | string; 
+  isActive: boolean; // Derived or set based on 'status' and dates
+  status?: 'active' | 'inactive' | 'expired' | 'upcoming' | 'draft' | string; // More comprehensive status
   
   usageLimitPerUser?: number; 
-  category?: string; 
+  category: string; // UI category e.g., 'slots', 'live', 'sports', or 'deposit_bonus', 'recurring' (as per admin form)
   
-  termsAndConditions?: string; // Matched to mock data (terms_and_conditions)
-  imageUrl?: string; // Matched to mock data (image_url)
-  targetAudience?: 'new_users' | 'existing_users' | 'vip_only' | 'all' | string; // 'eligibility.type'
+  termsAndConditions?: string;
+  imageUrl?: string;
+  targetAudience?: 'new_users' | 'existing_users' | 'vip_only' | 'all' | string;
   claimInstructions?: string;
-  maxRedemptions?: number; 
+  maxRedemptions?: number; // Total times the promotion can be redeemed across all users
   tags?: string[];
 
-  // Additional fields for compatibility
-  link?: string;
-  startDate?: string | Date; // Corresponds to mock's start_date
-  endDate?: string | Date | null; // Corresponds to mock's end_date, allow null
-  image_url?: string; // Legacy field
-  start_date?: string | Date; // Legacy field
-  end_date?: string | Date | null; // Legacy field
-  terms_and_conditions?: string; // Legacy field
-  terms?: string; // Alternative field name
-
-  // Fields from mock data that were not directly in Promotion type
-  cta_text?: string; // From mock
+  // Fields from mock data that were mapped/clarified
+  cta_text?: string; // Call to action text for buttons
   eligibility?: { 
-    type: string;
+    type: string; // Corresponds to targetAudience or more specific rules
     min_deposit?: number;
-    min_vip_level?: string;
+    min_vip_level?: string; // Or number
     [key: string]: any; 
-  }; // From mock
+  };
   bonus_details?: { 
-    percentage?: number;
-    max_amount?: number;
-    currency?: string;
-    free_spins_count?: number;
-    game_slug?: string;
-    prize_pool?: number;
+    percentage?: number; // Corresponds to bonusPercentage
+    max_amount?: number; // Corresponds to maxBonusAmount
+    currency?: string; // Corresponds to currency
+    free_spins_count?: number; // Corresponds to freeSpinsCount
+    game_slug?: string; // If spins are for a specific game
+    prize_pool?: number; // For tournaments
     [key: string]: any; 
-  }; // From mock
+  };
+
+  // Legacy or alternative names (try to consolidate to the main fields above)
+  startDate?: string | Date; // Use validFrom
+  endDate?: string | Date | null; // Use validUntil
+  image_url?: string; // Use imageUrl
+  start_date?: string | Date; // Use validFrom
+  end_date?: string | Date | null; // Use validUntil
+  terms_and_conditions?: string; // Use termsAndConditions
+  terms?: string; // Use termsAndConditions
 }
 
 export interface PromotionFilter {
   isActive?: boolean;
-  type?: string;
-  category?: string;
+  type?: Promotion['type'];
+  category?: string; // Promotion['category']
   date?: Date; // To find promotions active on a specific date
 }
 
