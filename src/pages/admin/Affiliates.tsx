@@ -1,436 +1,490 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, Users, DollarSign, BarChart3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Affiliate, AffiliateStatSummary } from '@/types/affiliate';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { Affiliate } from '@/types/affiliate';
+import { User } from '@/types/user'; // Assuming User type for general user info
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader'; // Assuming this component exists
+import { toast } from 'sonner';
+import { PlusCircle, Edit, Trash2, Search, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog'; // Assuming this exists
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
-// Mock service, replace with actual service calls that interact with your Supabase tables
-// For example, you might have an 'affiliates' table or store affiliate data in 'users' table with a role/flag.
-const affiliateService = {
-  getAffiliates: async (searchTerm?: string): Promise<Affiliate[]> => {
-    // This query assumes affiliate-specific data is stored in `raw_user_meta_data` of the `auth.users` table
-    // or you have joined with a `profiles` or `users` table that contains this info.
-    // It's generally better to have a dedicated 'affiliates' table or clear fields in 'users' table.
-    
-    // Let's assume you have a 'users' table that mirrors 'auth.users' via a trigger
-    // and has affiliate-specific columns or a JSONB column for metadata.
-    let query = supabase
-      .from('users') // Querying your public 'users' table
-      .select(`
-        id, 
-        email, 
-        username, 
-        created_at,
-        updated_at,
-        status, 
-        affiliate_code:raw_user_meta_data->>'affiliate_code', 
-        affiliate_total_commissions:raw_user_meta_data->>'total_commissions',
-        affiliate_clicks:raw_user_meta_data->>'clicks',
-        affiliate_sign_ups:raw_user_meta_data->>'sign_ups',
-        affiliate_depositing_users:raw_user_meta_data->>'depositing_users',
-        is_affiliate:raw_user_meta_data->>'is_affiliate'
-      `)
-      .eq('raw_user_meta_data->>is_affiliate', 'true'); // Filter for users marked as affiliates
+// Zod schema for affiliate form validation
+const affiliateSchema = z.object({
+  userId: z.string().uuid({ message: "Valid User ID is required." }),
+  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().email({ message: "Invalid email address." }),
+  code: z.string().optional(),
+  commissionRate: z.number().min(0).max(1).optional(), // e.g., 0.2 for 20%
+  isActive: z.boolean().default(true),
+  // Add other relevant fields from Affiliate type that are editable
+  affiliate_revenue_share: z.number().min(0).optional(),
+  affiliate_cpa: z.number().min(0).optional(),
+  affiliate_baseline: z.number().min(0).optional(),
+});
 
-    if (searchTerm) {
-      query = query.or(`email.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%,raw_user_meta_data->>'affiliate_code'.ilike.%${searchTerm}%`);
-    }
-    const { data, error } = await query;
+type AffiliateFormData = z.infer<typeof affiliateSchema>;
 
-    if (error) {
-      console.error("Error fetching affiliates:", error);
-      throw error;
-    }
-
-    return (data || []).map((item: any) => ({ // Use 'any' carefully, prefer specific type from Supabase schema
-      id: item.id, // This is the public.users.id
-      userId: item.id, // Assuming public.users.id is the key reference
-      name: item.username || item.email?.split('@')[0] || 'N/A',
-      email: item.email || 'N/A',
-      code: item.affiliate_code || 'N/A',
-      totalCommissions: parseFloat(item.affiliate_total_commissions) || 0,
-      clicks: parseInt(item.affiliate_clicks) || 0,
-      signUps: parseInt(item.affiliate_sign_ups) || 0,
-      depositingUsers: parseInt(item.affiliate_depositing_users) || 0,
-      isActive: item.status === 'active', // Assuming 'status' field indicates activity
-      createdAt: item.created_at || new Date().toISOString(),
-      updatedAt: item.updated_at || new Date().toISOString(),
-    }));
-  },
-  getAffiliateStats: async (): Promise<AffiliateStatSummary> => {
-    // This should query your database for aggregated stats
-    const { data, error } = await supabase
-      .from('users')
-      .select('id', { count: 'exact' })
-      .eq('raw_user_meta_data->>is_affiliate', 'true');
-
-    // Mock other stats for now
-    return { 
-      totalAffiliates: error ? 0 : data?.[0]?.count || 0, // Corrected to access count
-      totalCommissionsPaid: 0, // Placeholder
-      newSignUpsThisMonth: 0  // Placeholder
-    };
-  },
-  createAffiliate: async (data: Partial<Affiliate>): Promise<Affiliate> => {
-    // This would typically involve updating a user's record to mark them as an affiliate
-    // and setting their affiliate code, etc.
-    // For example, if 'users' table has an 'is_affiliate' boolean and 'affiliate_code' text column:
-    if (!data.userId) throw new Error("User ID is required to create an affiliate.");
-    
-    const updateData: any = { 
-        'raw_user_meta_data': { // Update raw_user_meta_data
-            is_affiliate: true,
-            affiliate_code: data.code || `${data.name?.substring(0,3)}${Date.now().toString().slice(-4)}`.toUpperCase(),
-            name: data.name, // Assuming name is also stored or derived
-        }
-    };
-    // If you also want to update top-level columns in auth.users (like email, if allowed and different)
-    // you'd do that separately or ensure your public.users table reflects these.
-
-    const { data: updatedUser, error } = await supabase
-      .from('users') // Assuming you update your public 'users' table
-      .update({ raw_user_meta_data: supabase.sql`(raw_user_meta_data || '${JSON.stringify(updateData.raw_user_meta_data)}')::jsonb` })
-      .eq('id', data.userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    if (!updatedUser) throw new Error("Failed to update user to affiliate.");
-
-    toast.success("User promoted to affiliate.");
-    // Return a structure matching the Affiliate type
-    return { 
-        ...data, 
-        id: updatedUser.id, 
-        userId: updatedUser.id, 
-        name: updatedUser.username || data.name || '',
-        email: updatedUser.email || data.email || '',
-        code: updatedUser.raw_user_meta_data.affiliate_code,
-        isActive: true,
-        createdAt: updatedUser.created_at, 
-        updatedAt: updatedUser.updated_at,
-    } as Affiliate;
-  },
-  updateAffiliate: async (id: string, data: Partial<Affiliate>): Promise<Affiliate> => {
-    // Similar to create, but updates an existing affiliate
-    const updatePayload: any = {};
-    if (data.code) updatePayload['raw_user_meta_data'] = { ...(updatePayload['raw_user_meta_data'] || {}), affiliate_code: data.code };
-    if (data.name) updatePayload['raw_user_meta_data'] = { ...(updatePayload['raw_user_meta_data'] || {}), name: data.name };
-    // Add other updatable fields
-
-    const { data: updatedUser, error } = await supabase
-        .from('users')
-        .update({ raw_user_meta_data: supabase.sql`(raw_user_meta_data || '${JSON.stringify(updatePayload.raw_user_meta_data)}')::jsonb` })
-        .eq('id', id)
-        .select()
-        .single();
-    
-    if (error) throw error;
-    if (!updatedUser) throw new Error("Affiliate not found for update.");
-    toast.success("Affiliate updated.");
-    return { 
-        ...updatedUser,
-        id: updatedUser.id,
-        userId: updatedUser.id,
-        name: updatedUser.username || data.name || '',
-        email: updatedUser.email || data.email || '',
-        code: updatedUser.raw_user_meta_data.affiliate_code,
-        isActive: updatedUser.status === 'active',
-     } as Affiliate;
-  },
-  deleteAffiliate: async (id: string): Promise<void> => {
-    // This might mean setting 'is_affiliate' to false or removing affiliate-specific data
-    const { error } = await supabase
-        .from('users')
-        .update({ raw_user_meta_data: supabase.sql`raw_user_meta_data - 'is_affiliate' - 'affiliate_code'` }) // Example: remove keys
-        // Alternatively, set raw_user_meta_data.is_affiliate = false
-        // .update({ raw_user_meta_data: supabase.sql`jsonb_set(raw_user_meta_data, '{is_affiliate}', 'false', false)` })
-        .eq('id', id);
-
-    if (error) throw error;
-    toast.info("Affiliate status removed.");
-  }
-};
-
-
-const AdminAffiliates = () => {
+const AdminAffiliates: React.FC = () => {
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
-  const [stats, setStats] = useState<AffiliateStatSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const affiliatesPerPage = 10;
-
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]); // For selecting user to become affiliate
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [editingAffiliate, setEditingAffiliate] = useState<Affiliate | null>(null);
+  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
+  const [affiliateToDelete, setAffiliateToDelete] = useState<Affiliate | null>(null);
   
-  const fetchAffiliatesAndStats = async () => {
+  const itemsPerPage = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalAffiliates, setTotalAffiliates] = useState(0);
+  const [sortColumn, setSortColumn] = useState<keyof Affiliate | null>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+
+  const form = useForm<AffiliateFormData>({
+    resolver: zodResolver(affiliateSchema),
+    defaultValues: {
+      isActive: true,
+    }
+  });
+
+  const fetchAffiliates = useCallback(async (page: number, search: string, sortCol: keyof Affiliate | null, sortDir: 'asc' | 'desc') => {
     setIsLoading(true);
     try {
-      const [affiliateData, statData] = await Promise.all([
-        affiliateService.getAffiliates(searchQuery),
-        affiliateService.getAffiliateStats()
-      ]);
-      setAffiliates(affiliateData);
-      setStats(statData);
+      let query = supabase
+        .from('affiliates') // Assuming your table is named 'affiliates'
+        .select('*', { count: 'exact' });
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,code.ilike.%${search}%`);
+      }
+      
+      if (sortCol) {
+        query = query.order(sortCol, { ascending: sortDir === 'asc' });
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const from = (page - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+      setAffiliates(data || []);
+      setTotalAffiliates(count || 0);
     } catch (error: any) {
-      toast.error(`Failed to load affiliate data: ${error.message}`);
-      console.error(error);
+      toast.error(`Failed to fetch affiliates: ${error.message}`);
     } finally {
       setIsLoading(false);
+    }
+  }, []);
+
+  const fetchUsers = async () => { // Fetch users who are not yet affiliates
+    try {
+      // This might need refinement if you have many users.
+      // Ideally, fetch users not present in the affiliates table.
+      const { data, error } = await supabase.from('users').select('id, username, email').limit(100); // Example selection
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error: any) {
+      toast.error(`Failed to fetch users: ${error.message}`);
     }
   };
 
   useEffect(() => {
-    fetchAffiliatesAndStats();
-  }, [searchQuery]); // Re-fetch when search query changes
+    fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection);
+  }, [fetchAffiliates, currentPage, searchTerm, sortColumn, sortDirection]);
 
-  const currentAffiliates = useMemo(() => {
-    const startIndex = (currentPage - 1) * affiliatesPerPage;
-    return affiliates.slice(startIndex, startIndex + affiliatesPerPage);
-  }, [affiliates, currentPage, affiliatesPerPage]);
-
-  const totalPages = Math.ceil(affiliates.length / affiliatesPerPage);
-
-  const handleEdit = (affiliate: Affiliate) => {
-    setEditingAffiliate(affiliate);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to remove this affiliate status? This will not delete the user account.")) {
-      try {
-        await affiliateService.deleteAffiliate(id);
-        fetchAffiliatesAndStats(); // Refresh
-      } catch (error: any) {
-        toast.error(`Failed to remove affiliate status: ${error.message}`);
+  useEffect(() => {
+    if (showFormDialog) {
+      fetchUsers(); // Fetch users when form dialog opens for assigning
+      if (editingAffiliate) {
+        form.reset({
+          userId: editingAffiliate.userId, // This would be the public.users ID
+          name: editingAffiliate.name,
+          email: editingAffiliate.email,
+          code: editingAffiliate.code || '',
+          commissionRate: editingAffiliate.commissionRate || 0,
+          isActive: editingAffiliate.isActive !== undefined ? editingAffiliate.isActive : true,
+          affiliate_revenue_share: editingAffiliate.affiliate_revenue_share || 0,
+          affiliate_cpa: editingAffiliate.affiliate_cpa || 0,
+          affiliate_baseline: editingAffiliate.affiliate_baseline || 0,
+        });
+      } else {
+        form.reset({
+            userId: '', name: '', email: '', code: '', commissionRate: 0.1, isActive: true, // Default values
+            affiliate_revenue_share: 0, affiliate_cpa: 0, affiliate_baseline: 0,
+        });
       }
     }
-  };
-  
-  const handleFormSubmit = async (formData: Partial<Affiliate>) => {
-    // If creating new, formData needs userId of an existing user to "promote"
-    // Or your createAffiliate handles finding/creating a user.
-    // For now, ensure userId is passed if editing, or handled in create.
-    if (!formData.email && !editingAffiliate) {
-        toast.error("Email is required to find or create a user for the affiliate.");
-        return;
-    }
+  }, [showFormDialog, editingAffiliate, form]);
 
+  const handleFormSubmit = async (formData: AffiliateFormData) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      if (editingAffiliate?.id) { // Check editingAffiliate.id for existing affiliate
-        await affiliateService.updateAffiliate(editingAffiliate.id, formData);
+      // Map AffiliateFormData to the structure expected by your 'affiliates' table
+      const affiliateDataPayload = {
+        user_id: formData.userId, // Ensure this is the correct foreign key to your public.users table
+        name: formData.name,
+        email: formData.email,
+        code: formData.code || `REF-${formData.name.substring(0,3).toUpperCase()}${Date.now()%10000}`, // Auto-generate code if empty
+        commission_rate: formData.commissionRate,
+        is_active: formData.isActive,
+        // Other fields from your 'affiliates' table schema
+        affiliate_revenue_share: formData.affiliate_revenue_share,
+        affiliate_cpa: formData.affiliate_cpa,
+        affiliate_baseline: formData.affiliate_baseline,
+        // 'created_at' and 'updated_at' are usually handled by db
+      };
+
+      if (editingAffiliate) {
+        const { error } = await supabase
+          .from('affiliates')
+          .update(affiliateDataPayload)
+          .eq('id', editingAffiliate.id); // Assuming 'id' is the primary key of 'affiliates' table
+        if (error) throw error;
+        toast.success('Affiliate updated successfully!');
       } else {
-        // For creation, we might need to find user by email first to get their ID
-        // This is a simplified example. Robust creation might involve more steps.
-        if (!formData.email) throw new Error("Email is required for new affiliate.");
-        const { data: users, error: findError } = await supabase.from('users').select('id').eq('email', formData.email).single();
-        if (findError || !users) {
-            toast.error(`User with email ${formData.email} not found. Cannot create affiliate.`);
+        // Check if user is already an affiliate
+        const { data: existingAffiliate, error: fetchError } = await supabase
+          .from('affiliates')
+          .select('id')
+          .eq('user_id', formData.userId)
+          .single();
+        
+        if(fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is 'exact one row not found'
+            throw fetchError;
+        }
+        if(existingAffiliate) {
+            toast.error('This user is already an affiliate.');
             setIsLoading(false);
             return;
         }
-        await affiliateService.createAffiliate({ ...formData, userId: users.id });
+
+        const { error } = await supabase.from('affiliates').insert(affiliateDataPayload);
+        if (error) throw error;
+        toast.success('Affiliate created successfully!');
       }
-      setIsFormOpen(false);
+      setShowFormDialog(false);
       setEditingAffiliate(null);
-      fetchAffiliatesAndStats(); // Refresh
+      fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
     } catch (error: any) {
-      toast.error(`Failed to save affiliate: ${error.message}`);
+      toast.error(`Operation failed: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading && affiliates.length === 0 && !stats) {
-    return (
-        <div className="p-4 md:p-6 space-y-6">
-            <CMSPageHeader title="Affiliate Management" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => <Card key={i}><CardHeader><Skeleton className="h-5 w-24"/></CardHeader><CardContent><Skeleton className="h-8 w-16"/></CardContent></Card>)}
-            </div>
-            <Skeleton className="h-10 w-full max-w-sm" />
-            <Card><Skeleton className="h-64 w-full" /></Card>
-        </div>
-    );
-  }
+  const openDeleteDialog = (affiliate: Affiliate) => {
+    setAffiliateToDelete(affiliate);
+    setShowConfirmDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!affiliateToDelete) return;
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.from('affiliates').delete().eq('id', affiliateToDelete.id);
+      if (error) throw error;
+      toast.success('Affiliate deleted successfully!');
+      setShowConfirmDeleteDialog(false);
+      setAffiliateToDelete(null);
+      fetchAffiliates(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
+    } catch (error: any) {
+      toast.error(`Failed to delete affiliate: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
+  const handleSort = (column: keyof Affiliate) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+  
+  const SortIndicator = ({ column }: { column: keyof Affiliate }) => {
+    if (sortColumn === column) {
+      return sortDirection === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />;
+    }
+    return null;
+  };
+
+  const totalPages = Math.ceil(totalAffiliates / itemsPerPage);
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <CMSPageHeader 
+    <div className="container mx-auto p-4">
+      <CMSPageHeader
         title="Affiliate Management"
+        description="Manage your casino affiliates."
         actions={
-            <Button onClick={() => { setEditingAffiliate(null); setIsFormOpen(true); }}>
-                <Plus className="mr-2 h-4 w-4" /> Add Affiliate
-            </Button>
+          <Button onClick={() => { setEditingAffiliate(null); setShowFormDialog(true); }}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add New Affiliate
+          </Button>
         }
       />
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{isLoading && !stats ? <Skeleton className="h-8 w-16 inline-block" /> : stats?.totalAffiliates ?? 0}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Commissions Paid</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${isLoading && !stats ? <Skeleton className="h-8 w-16 inline-block" /> : (stats?.totalCommissionsPaid ?? 0).toFixed(2)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Sign-ups (Example)</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{isLoading && !stats ? <Skeleton className="h-8 w-16 inline-block" /> : stats?.newSignUpsThisMonth ?? 0}</div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-        <Input 
-            placeholder="Search affiliates by name, email, or code..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 max-w-sm"
+      <div className="mb-4 flex items-center">
+        <Input
+          placeholder="Search affiliates..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
         />
+        <Button onClick={() => fetchAffiliates(1, searchTerm, sortColumn, sortDirection)} className="ml-2">
+          <Search className="mr-2 h-4 w-4" /> Search
+        </Button>
       </div>
-
-      {/* Affiliates Table */}
-      <Card className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Referral Code</TableHead>
-              <TableHead>Commissions</TableHead>
-              <TableHead>Sign-ups</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading && currentAffiliates.length === 0 ? (
-              [...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                  <TableCell className="flex space-x-1"><Skeleton className="h-8 w-8" /><Skeleton className="h-8 w-8" /></TableCell>
-                </TableRow>
-              ))
-            ) : currentAffiliates.length > 0 ? currentAffiliates.map((aff) => (
-              <TableRow key={aff.id}>
-                <TableCell className="font-medium">{aff.name || 'N/A'}</TableCell>
-                <TableCell>{aff.email || 'N/A'}</TableCell>
-                <TableCell>
-                  {aff.code ? <Badge variant="outline">{aff.code}</Badge> : 'N/A'}
-                </TableCell>
-                <TableCell>${(aff.totalCommissions ?? 0).toFixed(2)}</TableCell>
-                <TableCell>{aff.signUps ?? 0}</TableCell>
-                <TableCell>
-                    <Badge variant={aff.isActive ? "default" : "destructive"}>
-                        {aff.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                </TableCell>
-                <TableCell className="space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(aff)} title="Edit Affiliate"><Edit className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(aff.id)} className="text-destructive hover:text-destructive" title="Remove Affiliate Status"><Trash2 className="h-4 w-4" /></Button>
-                </TableCell>
-              </TableRow>
-            )) : (
-              <TableRow><TableCell colSpan={7} className="text-center h-24">No affiliates found matching your criteria.</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
       
-      {/* Pagination */}
+      {isLoading && affiliates.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
+
+      {!isLoading && affiliates.length === 0 && searchTerm && (
+        <p className="text-center text-muted-foreground py-4">No affiliates found matching "{searchTerm}".</p>
+      )}
+      {!isLoading && affiliates.length === 0 && !searchTerm && (
+        <p className="text-center text-muted-foreground py-4">No affiliates created yet. Click "Add New Affiliate" to start.</p>
+      )}
+
+
+      {affiliates.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead onClick={() => handleSort('name')}>Name <SortIndicator column="name" /></TableHead>
+                <TableHead onClick={() => handleSort('email')}>Email <SortIndicator column="email" /></TableHead>
+                <TableHead onClick={() => handleSort('code')}>Code <SortIndicator column="code" /></TableHead>
+                <TableHead onClick={() => handleSort('commissionRate')}>Rate <SortIndicator column="commissionRate" /></TableHead>
+                <TableHead onClick={() => handleSort('isActive')}>Status <SortIndicator column="isActive" /></TableHead>
+                <TableHead onClick={() => handleSort('createdAt')}>Joined <SortIndicator column="createdAt" /></TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {affiliates.map((affiliate) => (
+                <TableRow key={affiliate.id}>
+                  <TableCell>{affiliate.name}</TableCell>
+                  <TableCell>{affiliate.email}</TableCell>
+                  <TableCell>{affiliate.code}</TableCell>
+                  <TableCell>{((affiliate.commissionRate || 0) * 100).toFixed(1)}%</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 text-xs rounded-full ${affiliate.isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+                      {affiliate.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </TableCell>
+                  <TableCell>{new Date(affiliate.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell className="space-x-2">
+                    <Button variant="ghost" size="icon" onClick={() => { setEditingAffiliate(affiliate); setShowFormDialog(true); }}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(affiliate)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      
       {totalPages > 1 && (
-        <div className="flex justify-end items-center space-x-2 pt-4">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
-          <span className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+        <div className="flex justify-between items-center mt-4">
+          <Button 
+            onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
+            disabled={currentPage === 1 || isLoading}
+            variant="outline"
+          >
+            Previous
+          </Button>
+          <span>Page {currentPage} of {totalPages}</span>
+          <Button 
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
+            disabled={currentPage === totalPages || isLoading}
+            variant="outline"
+          >
+            Next
+          </Button>
         </div>
       )}
 
-      {/* Form Dialog */}
-      <Dialog open={isFormOpen} onOpenChange={(isOpen) => {
-          setIsFormOpen(isOpen);
-          if (!isOpen) setEditingAffiliate(null); // Reset editing state when dialog closes
-      }}>
-        <DialogContent>
+
+      <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingAffiliate ? 'Edit Affiliate' : 'Add New Affiliate'}</DialogTitle>
+            <DialogDescription>
+              {editingAffiliate ? 'Update the details for this affiliate.' : 'Select a user and set their affiliate details.'}
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={async (e) => {
-            e.preventDefault();
-            const formDataValues = new FormData(e.target as HTMLFormElement);
-            const data = Object.fromEntries(formDataValues.entries()) as { name: string; email: string; code: string; userId?: string };
-            
-            const payload: Partial<Affiliate> = {
-              name: data.name,
-              email: data.email, // Required to find user if new
-              code: data.code,
-            };
-            if (editingAffiliate) {
-                payload.userId = editingAffiliate.userId; // Pass existing userId for updates
-            }
-            await handleFormSubmit(payload);
-          }} className="space-y-4 py-4">
-             <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">Name</label>
-              <Input id="name" name="name" defaultValue={editingAffiliate?.name || ''} required />
-              <p className="text-xs text-muted-foreground mt-1">
-                {editingAffiliate ? "Update affiliate's display name." : "Enter user's name. If promoting an existing user, this can be their current name."}
-              </p>
-            </div>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-1">User Email</label>
-              <Input id="email" name="email" type="email" defaultValue={editingAffiliate?.email || ''} required disabled={!!editingAffiliate} />
-               <p className="text-xs text-muted-foreground mt-1">
-                {editingAffiliate ? "Email cannot be changed." : "Enter the email of the user to promote to affiliate. User must exist."}
-              </p>
-            </div>
-             <div>
-              <label htmlFor="code" className="block text-sm font-medium mb-1">Affiliate Code (Optional)</label>
-              <Input id="code" name="code" defaultValue={editingAffiliate?.code || ''} />
-              <p className="text-xs text-muted-foreground mt-1">
-                Unique code for referrals. If blank, one may be auto-generated.
-              </p>
-            </div>
-            <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : (editingAffiliate ? 'Save Changes' : 'Add Affiliate')}
-            </Button>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-4">
+            {!editingAffiliate && (
+                <FormField
+                control={form.control}
+                name="userId"
+                render={({ field }) => (
+                    <FormItem>
+                    <Label htmlFor="userId">Select User</Label>
+                     <Controller
+                        name="userId"
+                        control={form.control}
+                        render={({ field: controllerField }) => (
+                            <select
+                            id="userId"
+                            {...controllerField}
+                            className="w-full mt-1 p-2 border rounded-md bg-input"
+                            onChange={(e) => {
+                                controllerField.onChange(e.target.value);
+                                const selectedUser = users.find(u => u.id === e.target.value);
+                                if (selectedUser) {
+                                form.setValue('name', selectedUser.username || selectedUser.email?.split('@')[0] || '');
+                                form.setValue('email', selectedUser.email || '');
+                                }
+                            }}
+                            >
+                            <option value="">Select a user</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.id}>{user.username || user.email} ({user.id.substring(0,8)})</option>
+                            ))}
+                            </select>
+                        )}
+                        />
+                    {form.formState.errors.userId && <p className="text-sm text-red-500 mt-1">{form.formState.errors.userId.message}</p>}
+                    </FormItem>
+                )}
+                />
+            )}
+             <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="name">Name</Label>
+                  <Input id="name" {...field} className="mt-1" readOnly={!editingAffiliate && !!form.watch('userId')} />
+                  {form.formState.errors.name && <p className="text-sm text-red-500 mt-1">{form.formState.errors.name.message}</p>}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" {...field} className="mt-1" readOnly={!editingAffiliate && !!form.watch('userId')} />
+                  {form.formState.errors.email && <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="code">Referral Code (optional)</Label>
+                  <Input id="code" {...field} className="mt-1" placeholder="Auto-generated if empty" />
+                  {form.formState.errors.code && <p className="text-sm text-red-500 mt-1">{form.formState.errors.code.message}</p>}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="commissionRate"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="commissionRate">Commission Rate (0.0 to 1.0)</Label>
+                  <Input id="commissionRate" type="number" step="0.01" {...field} 
+                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
+                  {form.formState.errors.commissionRate && <p className="text-sm text-red-500 mt-1">{form.formState.errors.commissionRate.message}</p>}
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="affiliate_revenue_share"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="affiliate_revenue_share">Revenue Share % (optional)</Label>
+                  <Input id="affiliate_revenue_share" type="number" step="0.01" {...field} 
+                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="affiliate_cpa"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="affiliate_cpa">CPA Amount (optional)</Label>
+                  <Input id="affiliate_cpa" type="number" step="0.01" {...field} 
+                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="affiliate_baseline"
+              render={({ field }) => (
+                <FormItem>
+                  <Label htmlFor="affiliate_baseline">Baseline Amount (optional)</Label>
+                  <Input id="affiliate_baseline" type="number" step="0.01" {...field} 
+                         onChange={e => field.onChange(parseFloat(e.target.value))} className="mt-1" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="isActive">Active Status</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Determines if the affiliate can earn commissions.
+                    </p>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      id="isActive"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowFormDialog(false)}>Cancel</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingAffiliate ? 'Save Changes' : 'Create Affiliate'}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
+      <ConfirmationDialog
+        isOpen={showConfirmDeleteDialog}
+        onClose={() => setShowConfirmDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Affiliate"
+        description={`Are you sure you want to delete affiliate "${affiliateToDelete?.name}"? This action cannot be undone.`}
+        confirmButtonText="Delete"
+        isLoading={isLoading}
+      />
     </div>
   );
 };

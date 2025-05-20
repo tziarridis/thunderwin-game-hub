@@ -1,40 +1,47 @@
-
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
-import AdminHeader from '@/components/admin/AdminHeader'; // Make sure this path is correct
-import AdminSidebar from './AdminSidebar'; // Make sure this path is correct
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
+import AdminSidebar from './AdminSidebar'; // Ensure this is the correct path
+import AdminHeader from '../admin/AdminHeader'; // Ensure this is the correct path
 import { useAuth } from '@/contexts/AuthContext';
-import { Toaster } from '@/components/ui/sonner';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-const AdminLayout: React.FC = () => {
-  const { user, loading, isAdmin } = useAuth();
+const AdminLayout = () => {
+  const { isAuthenticated, user, isLoading } = useAuth(); // Use isLoading from context
+  const location = useLocation();
 
-  if (loading) {
+  const isAdminUser = user?.role === 'admin' || user?.app_metadata?.role === 'admin'; // Check user role
+
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!user || !isAdmin) {
-    // Redirect to login or home page if not authenticated or not an admin
-    return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
-  
+
+  if (!isAdminUser) {
+    // Optionally, show an "Access Denied" page or redirect to a non-admin area
+    // For now, redirecting to home.
+    toast.error("Access Denied: You do not have administrative privileges.");
+    return <Navigate to="/" replace />;
+  }
+
   return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+    <div className="flex h-screen bg-muted/40">
       <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <AdminHeader /> {/* Removed user prop */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-6">
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <AdminHeader />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>
-      <Toaster />
     </div>
   );
 };
 
 export default AdminLayout;
-

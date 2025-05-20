@@ -2,196 +2,169 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet'; // Assuming Wallet type exists
+import { User, Wallet } from '@/types'; // Ensure Wallet type is correctly defined
 import { userService } from '@/services/userService'; // Assuming userService exists
-import { User } from '@/types'; // Assuming your app's User type
+import { walletService } from '@/services/walletService'; // Assuming walletService exists
+import { toast } from 'sonner';
 
-export interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null; // Your app's User type
-  supabaseUser: SupabaseUser | null;
+interface AuthContextType {
   session: Session | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<any>;
-  register: (email: string, password: string, username: string) => Promise<any>;
-  logout: () => Promise<void>;
-  fetchCurrentUser: () => Promise<void>;
-  refreshWalletBalance: () => Promise<void>; // Added this
+  user: SupabaseUser | null; // Supabase auth user
+  appUser: User | null; // Your custom application user from 'users' table
   wallet: Wallet | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, metadata?: Record<string, any>) => Promise<void>;
+  logout: () => Promise<void>;
+  updateUser: (userData: { email?: string; password?: string; data?: Record<string, any> }) => Promise<void>;
+  refreshAuthData: () => Promise<void>; // To manually refresh user/wallet
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [appUser, setAppUser] = useState<User | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const fetchWallet = async (appUserId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, last_transaction_date')
-        .eq('user_id', appUserId)
-        .single();
-
-      if (error) {
-        console.error("Error fetching wallet in AuthContext:", error.message);
-        setWallet(null);
-      } else if (data) {
-        setWallet({
-          id: data.id,
-          userId: data.user_id,
-          balance: data.balance ?? 0,
-          currency: data.currency || 'USD',
-          symbol: data.symbol || '$',
-          vipLevel: data.vip_level ?? 0,
-          vipPoints: data.vip_points ?? 0,
-          bonusBalance: data.balance_bonus ?? 0,
-          cryptoBalance: data.balance_cryptocurrency ?? 0,
-          demoBalance: data.balance_demo ?? 0,
-          isActive: data.active ?? false,
-          lastTransactionDate: data.last_transaction_date ? new Date(data.last_transaction_date) : null,
-        });
-      } else {
-        setWallet(null);
-      }
-    } catch (err: any) {
-      console.error("Error in AuthContext wallet fetch:", err.message);
-      setWallet(null);
-    }
-  };
-  
-  const refreshWalletBalance = async () => {
-    if (user?.id) {
-      await fetchWallet(user.id);
-    }
-  };
-
-  const fetchCurrentUser = async (currentSession?: Session | null) => {
-    setIsLoading(true);
-    const sessionToUse = currentSession !== undefined ? currentSession : session;
-
-    if (sessionToUse?.user) {
-      setSupabaseUser(sessionToUse.user);
+  const fetchAndSetUserData = async (supabaseUser: SupabaseUser | null) => {
+    if (supabaseUser) {
       try {
-        // Fetch your application-specific user data
-        const appUser = await userService.getUserByAuthId(sessionToUse.user.id);
-        if (appUser) {
-          setUser(appUser);
-          await fetchWallet(appUser.id); // Fetch wallet after app user is set
+        // Fetch from your public 'users' table
+        const fetchedAppUser = await userService.getUserById(supabaseUser.id); // Use supabaseUser.id as it links to profiles.id
+        setAppUser(fetchedAppUser || null);
+
+        if (fetchedAppUser) { // Ensure appUser exists before fetching wallet
+            const fetchedWallet = await walletService.getWalletByUserId(fetchedAppUser.id); // Use appUser.id
+            setWallet(fetchedWallet || null);
         } else {
-          // This case might happen if the user exists in auth.users but not your public.users table
-          // Or if there's a delay in the handle_new_user trigger.
-          // For now, log it. Consider creating the app user profile here if appropriate.
-          console.warn("App user not found for authenticated Supabase user:", sessionToUse.user.id);
-          setUser(null);
-          setWallet(null);
+            setWallet(null); // No app user, no wallet
+            console.warn("No application user found for Supabase user:", supabaseUser.id);
         }
+
       } catch (error) {
-        console.error("Error fetching current user data:", error);
-        setUser(null);
+        console.error("Error fetching user data or wallet:", error);
+        toast.error("Failed to load user profile or wallet.");
+        setAppUser(null);
         setWallet(null);
       }
     } else {
-      setSupabaseUser(null);
-      setUser(null);
+      setAppUser(null);
       setWallet(null);
     }
-    setIsLoading(false);
   };
   
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Auth state changed:", _event, session);
-      setSession(session);
-      await fetchCurrentUser(session);
+    const setAuthData = async (currentSession: Session | null) => {
+        setSession(currentSession);
+        const supabaseAuthUser = currentSession?.user ?? null;
+        setUser(supabaseAuthUser);
+        await fetchAndSetUserData(supabaseAuthUser);
+        setIsLoading(false);
+    };
+
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+        setAuthData(currentSession);
     });
 
-    // Initial check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        setSession(session);
-        fetchCurrentUser(session);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, currentSession) => {
+        setAuthData(currentSession);
     });
-    
+
     return () => {
-      authListener?.unsubscribe();
+      // Check if subscription exists before trying to unsubscribe
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // User data will be set by onAuthStateChange
+    } catch (error: any) {
+      toast.error(error.message || "Login failed.");
       throw error;
+    } finally {
+      // setIsLoading(false); // onAuthStateChange will handle loading state
     }
-    if (data.session) {
-      setSession(data.session);
-      await fetchCurrentUser(data.session);
-    }
-    setIsLoading(false);
-    return data;
   };
 
-  const register = async (email: string, password: string, username: string) => {
+  const register = async (email: string, password: string, metadata?: Record<string, any>) => {
     setIsLoading(true);
-    // Supabase auth sign up, the trigger will handle creating the public.users record
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { // This data is passed to the handle_new_user trigger if needed or stored in auth.users.raw_user_meta_data
-          username: username,
+    try {
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: metadata, // This is where user_metadata is set on sign up
         }
-      }
-    });
-
-    if (error) {
-      setIsLoading(false);
+      });
+      if (error) throw error;
+      toast.success("Registration successful! Please check your email to verify your account.");
+      // User data will be set by onAuthStateChange after verification for some setups
+    } catch (error: any) {
+      toast.error(error.message || "Registration failed.");
       throw error;
+    } finally {
+      // setIsLoading(false); // onAuthStateChange might handle this
     }
-    // After successful Supabase auth sign-up, fetch user details.
-    // The onAuthStateChange listener should also pick this up, but an explicit call can be faster.
-    if (data.session) {
-        setSession(data.session);
-        await fetchCurrentUser(data.session);
-    } else if (data.user && !data.session) {
-        // User created but session might not be active yet (e.g. email confirmation required)
-        // For now, we will proceed as if fetchCurrentUser will handle it.
-        // Depending on your flow (e.g. auto-login after confirm), this might need adjustment.
-        await fetchCurrentUser(null); // fetch with null session if user exists but no session
-    }
-    setIsLoading(false);
-    return data;
   };
 
   const logout = async () => {
     setIsLoading(true);
-    await supabase.auth.signOut();
-    setUser(null);
-    setSupabaseUser(null);
-    setSession(null);
-    setWallet(null);
-    setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setSession(null);
+      setUser(null);
+      setAppUser(null);
+      setWallet(null);
+      toast.success("Logged out successfully.");
+    } catch (error: any) {
+      toast.error(error.message || "Logout failed.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const updateUser = async (userData: { email?: string; password?: string; data?: Record<string, any> }) => {
+    // setIsLoading(true); // Consider if loading state is needed here
+    try {
+      const { data: { user: updatedUser }, error } = await supabase.auth.updateUser(userData);
+      if (error) throw error;
+      if (updatedUser) {
+        setUser(updatedUser); // Update Supabase auth user state
+        await fetchAndSetUserData(updatedUser); // Refresh appUser and wallet
+      }
+      toast.success("User updated successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update user.");
+      throw error;
+    } finally {
+      // setIsLoading(false);
+    }
+  };
+
+  const refreshAuthData = async () => {
+    setIsLoading(true);
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    setSession(currentSession);
+    const supabaseAuthUser = currentSession?.user ?? null;
+    setUser(supabaseAuthUser);
+    await fetchAndSetUserData(supabaseAuthUser);
+    setIsLoading(false);
+  }
+
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated: !!user && !!session, 
-      user, 
-      supabaseUser,
-      session, 
-      isLoading, 
-      login, 
-      register, 
-      logout,
-      fetchCurrentUser,
-      refreshWalletBalance, // Provide the function
-      wallet
-    }}>
+    <AuthContext.Provider value={{ session, user, appUser, wallet, isAuthenticated: !!user, isLoading, login, register, logout, updateUser, refreshAuthData }}>
       {children}
     </AuthContext.Provider>
   );

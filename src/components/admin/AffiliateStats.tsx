@@ -1,91 +1,71 @@
+
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { DataTable } from '@/components/ui/data-table';
-import { Affiliate } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
+import { Affiliate, AffiliateStatSummary } from '@/types/affiliate'; // Corrected import
 
-const mockAffiliates: Affiliate[] = [
-  {
-    id: '1',
-    userId: 'user1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    code: 'JOHN10',
-    totalCommissions: 1500.75,
-    clicks: 1200,
-    signUps: 150,
-    depositingUsers: 30,
-    createdAt: '2023-01-15T10:00:00Z',
-    updatedAt: '2023-05-10T14:30:00Z',
-    status: 'active', // Corrected status
-    total_referred_users: 150,
-    commission_rate_cpa: 25,
-    commission_rate_revenue_share: 0.15,
-  },
-  {
-    id: '2',
-    userId: 'user2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    code: 'JANE20',
-    totalCommissions: 850.00,
-    clicks: 800,
-    signUps: 90,
-    depositingUsers: 15,
-    createdAt: '2023-02-20T11:00:00Z',
-    updatedAt: '2023-05-01T10:15:00Z',
-    status: 'pending', // Corrected status
-    total_referred_users: 90,
-    commission_rate_cpa: 20,
-    commission_rate_revenue_share: 0.10,
-  },
-];
+interface AffiliateStatsProps {
+  summary?: AffiliateStatSummary; // Made summary optional
+  recentAffiliates?: Affiliate[]; // Made recentAffiliates optional
+  isLoading: boolean;
+  error?: string | null; // Added error prop
+}
 
-const columns = [
-  {
-    accessorKey: 'name',
-    header: 'Name',
-  },
-  {
-    accessorKey: 'email',
-    header: 'Email',
-  },
-  {
-    accessorKey: 'code',
-    header: 'Referral Code',
-  },
-  {
-    accessorKey: 'totalCommissions',
-    header: 'Commissions',
-  },
-  {
-    accessorKey: 'clicks',
-    header: 'Clicks',
-  },
-  {
-    accessorKey: 'signUps',
-    header: 'Sign-Ups',
-  },
-  {
-    accessorKey: 'depositingUsers',
-    header: 'Depositing Users',
-  },
-  {
-    accessorKey: 'createdAt',
-    header: 'Created At',
-  },
-];
+const AffiliateStats: React.FC<AffiliateStatsProps> = ({ summary, recentAffiliates = [], isLoading, error }) => {
+  if (isLoading) {
+    return <div>Loading affiliate stats...</div>;
+  }
 
-const AffiliateStats = () => {
+  if (error) {
+    return <div className="text-red-500">Error loading stats: {error}</div>;
+  }
+  
+  if (!summary) {
+    return <div className="text-orange-500">Affiliate summary data is not available.</div>;
+  }
+
+  const activeAffiliates = recentAffiliates.filter(aff => aff.isActive).length;
+  // const pendingAffiliates = recentAffiliates.filter(aff => aff.status === 'pending').length; // Assuming status field exists if needed
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Affiliate Statistics</CardTitle>
-        <CardDescription>View and manage affiliate performance.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <DataTable columns={columns} data={mockAffiliates} />
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{summary.totalAffiliates ?? 0}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Active Affiliates</CardTitle>
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{activeAffiliates}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Commissions Paid</CardTitle>
+          <DollarSign className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">${summary.totalCommissionsPaid?.toFixed(2) ?? '0.00'}</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">New Sign-ups (Month)</CardTitle>
+          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{summary.newSignUpsThisMonth ?? 0}</div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

@@ -1,4 +1,3 @@
-
 export interface Affiliate {
   id: string; // Typically the Supabase auth user ID or your public.users ID
   userId: string; // Your application's user ID from public.users table
@@ -15,6 +14,18 @@ export interface Affiliate {
   createdAt: string | Date;
   updatedAt: string | Date;
   // raw_user_meta_data?: any; // Avoid using this directly if possible
+
+  // Added fields based on usage in Admin/Affiliates.tsx if they are indeed part of the model
+  // If these are from a joined user table, the structure fetching them should reflect that.
+  // For now, assuming they might be denormalized or part of a broader 'AdminAffiliateView'
+  avatar_url?: string; 
+  status?: string; // If 'isActive' is not sufficient and a string status is used
+  balance?: number; // Example, if affiliates have balances
+  affiliate_revenue_share?: number;
+  affiliate_cpa?: number;
+  affiliate_baseline?: number;
+  affiliate_revenue_share_fake?: number;
+
 }
 
 export interface AffiliateStatSummary {

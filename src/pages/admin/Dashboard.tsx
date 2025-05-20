@@ -1,137 +1,283 @@
-
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, DollarSign, Activity, AlertTriangle, Gamepad2, CreditCard, ShieldCheck, TrendingUp, TrendingDown } from 'lucide-react';
-import { dashboardService, DashboardStats } from '@/services/dashboardService'; // DashboardStats is now exported
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { DollarSign, Users, TrendingUp, Activity, CreditCard, AlertTriangle, Gamepad2, Gift } from 'lucide-react';
+// import { LineChart, BarChart } from '@/components/ui/dashboard-charts'; // Assuming these are custom chart components
+import { ResponsiveContainer, LineChart as ReLineChart, BarChart as ReBarChart, XAxis, YAxis, Tooltip, Legend, Line, Bar, CartesianGrid } from 'recharts';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { dashboardService } from '@/services/dashboardService';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { OverviewData, RevenueDataPoint, UserStatsDataPoint, GamePopularityDataPoint, TransactionVolumeDataPoint } from '@/types/analytics'; // Ensure these types are defined
 import { toast } from 'sonner';
-import { Skeleton } from '@/components/ui/skeleton';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  description?: string;
-  trend?: string; // e.g., "+5.2% from last month"
-  trendColor?: string; // e.g., "text-green-500" or "text-red-500"
-  isLoading?: boolean;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, description, trend, trendColor, isLoading }) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      {isLoading ? <Skeleton className="h-5 w-24" /> : <CardTitle className="text-sm font-medium">{title}</CardTitle>}
-      {isLoading ? <Skeleton className="h-5 w-5 rounded-full" /> : <Icon className="h-5 w-5 text-muted-foreground" />}
-    </CardHeader>
-    <CardContent>
-      {isLoading ? <Skeleton className="h-8 w-32 mb-1" /> : <div className="text-2xl font-bold">{value}</div>}
-      {isLoading ? <Skeleton className="h-4 w-full" /> : description && <p className="text-xs text-muted-foreground">{description}</p>}
-      {isLoading ? <Skeleton className="h-4 w-20 mt-1" /> : trend && <p className={`text-xs ${trendColor || 'text-muted-foreground'} pt-1`}>{trend}</p>}
-    </CardContent>
-  </Card>
-);
-
-
-const AdminDashboard = () => {
-  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
+const AdminDashboard: React.FC = () => {
+  const [overviewData, setOverviewData] = useState<OverviewData | null>(null);
+  const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
+  const [userStatsData, setUserStatsData] = useState<UserStatsDataPoint[]>([]);
+  const [gamePopularityData, setGamePopularityData] = useState<GamePopularityDataPoint[]>([]);
+  const [transactionVolumeData, setTransactionVolumeData] = useState<TransactionVolumeDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 30);
+    return { from: startDate, to: endDate };
+  });
+  const [timePeriod, setTimePeriod] = useState<string>('last30days');
+
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await dashboardService.getDashboardStats();
-        setDashboardData(data);
+        const from = dateRange?.from;
+        const to = dateRange?.to;
+
+        if (!from || !to) {
+            toast.error("Date range is required to fetch dashboard data.");
+            setIsLoading(false);
+            return;
+        }
+
+        const [
+          overview, 
+          revenue, 
+          userStats, 
+          gamePopularity, 
+          transactionVolume
+        ] = await Promise.all([
+          dashboardService.getOverviewData({from, to}),
+          dashboardService.getRevenueData({from, to, granularity: 'daily'}), // Adjust granularity as needed
+          dashboardService.getUserStatsData({from, to, granularity: 'daily'}),
+          dashboardService.getGamePopularityData({from, to, limit: 5}),
+          dashboardService.getTransactionVolumeData({from, to, granularity: 'daily'})
+        ]);
+        
+        setOverviewData(overview);
+        setRevenueData(revenue);
+        setUserStatsData(userStats);
+        setGamePopularityData(gamePopularity);
+        setTransactionVolumeData(transactionVolume);
+
       } catch (err: any) {
-        console.error("Failed to fetch dashboard data:", err);
-        setError(err.message || "An unknown error occurred.");
-        toast.error("Failed to load dashboard data.");
+        console.error("Failed to load dashboard data:", err);
+        setError(err.message || 'Failed to load dashboard data. Please try again.');
+        toast.error(err.message || 'Failed to load dashboard data.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDashboardData();
-  }, []);
-
-  if (isLoading && !dashboardData && !error) { // Show skeleton only on initial load
-    return (
-        <div className="p-6 space-y-6">
-            <CMSPageHeader title="Admin Dashboard" description="Overview of platform activity and key metrics." />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {['Total Users', 'Total Deposits', 'Active Sessions', 'Total Bets', 'Pending KYC', 'Active Promos', 'Withdrawals', 'Net Revenue'].map((title, i) => (
-                    <StatCard key={i} title={title} value="" icon={Activity} isLoading={true} />
-                ))}
-            </div>
-            {/* Further sections for charts could have skeletons too */}
-        </div>
-    );
+    fetchData();
+  }, [dateRange]);
+  
+  const handleTimePeriodChange = (value: string) => {
+    setTimePeriod(value);
+    const to = new Date();
+    let from = new Date();
+    switch (value) {
+      case 'last7days': from.setDate(to.getDate() - 7); break;
+      case 'last30days': from.setDate(to.getDate() - 30); break;
+      case 'last90days': from.setDate(to.getDate() - 90); break;
+      case 'thisMonth': 
+        from = new Date(to.getFullYear(), to.getMonth(), 1);
+        break;
+      case 'lastMonth':
+        from = new Date(to.getFullYear(), to.getMonth() - 1, 1);
+        to.setDate(0); // End of last month
+        break;
+      default: from.setDate(to.getDate() - 30); 
+    }
+    setDateRange({ from, to });
+  };
+  
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-[calc(100vh-theme(space.24))]"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <span className="ml-3 text-lg">Loading Dashboard Data...</span></div>;
   }
 
-  if (error) { // Removed !dashboardData from here to allow showing partial data if some queries succeed
+  if (error) {
     return (
-      <div className="p-6 text-center">
-        <CMSPageHeader title="Admin Dashboard" description="Overview of platform activity and key metrics." />
-        <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-xl font-semibold text-red-600 mb-2">Error Loading Dashboard</h2>
-        <p className="text-muted-foreground">{error || "Dashboard data could not be retrieved."}</p>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
-        >
-          Try Again
-        </button>
+      <div className="container mx-auto p-6 text-center">
+        <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+        <h2 className="text-2xl font-semibold text-destructive mb-2">Error Loading Dashboard</h2>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
       </div>
     );
   }
-  
-  // Safely access dashboardData properties with fallbacks
-  const totalUsers = dashboardData?.totalUsers ?? 0;
-  const activeSessions = dashboardData?.activeSessions ?? 0;
-  const totalDeposits = dashboardData?.totalDeposits?.amount ?? 0;
-  const totalDepositsCurrency = dashboardData?.totalDeposits?.currency ?? 'USD';
-  const totalWithdrawals = dashboardData?.totalWithdrawals?.amount ?? 0;
-  const totalWithdrawalsCurrency = dashboardData?.totalWithdrawals?.currency ?? 'USD';
-  const totalBets = dashboardData?.totalBetsPlaced ?? 0;
-  const openKycRequests = dashboardData?.pendingKycRequests ?? 0;
-  const activePromotions = dashboardData?.activePromotions ?? 0;
-  const netGamingRevenue = dashboardData?.netGamingRevenue?.amount ?? 0;
-  const netGamingRevenueCurrency = dashboardData?.netGamingRevenue?.currency ?? 'USD';
+
 
   return (
-    <div className="p-6 space-y-6">
-      <CMSPageHeader title="Admin Dashboard" description="Overview of platform activity and key metrics." />
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <StatCard title="Total Users" value={totalUsers.toLocaleString()} icon={Users} description="Registered users" isLoading={isLoading} />
-        <StatCard title="Total Deposits" value={`${totalDeposits.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ${totalDepositsCurrency}`} icon={DollarSign} description="Sum of deposits" trend="+2.5% this month" trendColor="text-green-500" isLoading={isLoading} />
-        <StatCard title="Total Withdrawals" value={`${totalWithdrawals.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ${totalWithdrawalsCurrency}`} icon={TrendingUp} description="Sum of withdrawals" isLoading={isLoading} />
-        <StatCard title="Net Gaming Revenue" value={`${netGamingRevenue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ${netGamingRevenueCurrency}`} icon={DollarSign} description="Wagered - Won" isLoading={isLoading} />
-        <StatCard title="Active Player Sessions" value={(activeSessions || 0).toLocaleString()} icon={Activity} description="Current live sessions" isLoading={isLoading} />
-        <StatCard title="Total Bets Placed" value={(totalBets || 0).toLocaleString()} icon={Gamepad2} description="Number of bets" isLoading={isLoading} />
-        <StatCard title="Pending KYC Requests" value={openKycRequests.toLocaleString()} icon={ShieldCheck} description="Awaiting review" isLoading={isLoading} />
-        <StatCard title="Active Promotions" value={activePromotions.toLocaleString()} icon={CreditCard} description="Currently running" isLoading={isLoading} />
+    <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
+        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+        <div className="flex items-center space-x-2">
+            <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="last7days">Last 7 Days</SelectItem>
+                    <SelectItem value="last30days">Last 30 Days</SelectItem>
+                    <SelectItem value="last90days">Last 90 Days</SelectItem>
+                    <SelectItem value="thisMonth">This Month</SelectItem>
+                    <SelectItem value="lastMonth">Last Month</SelectItem>
+                </SelectContent>
+            </Select>
+            <DateRangePicker 
+                initialDateFrom={dateRange?.from} 
+                initialDateTo={dateRange?.to}
+                onUpdate={values => setDateRange(values.range)} 
+                align="end"
+            />
+        </div>
       </div>
 
-      {/* Placeholder for charts and recent activity sections */}
-      {/* 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Overview Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader><CardTitle>User Growth</CardTitle></CardHeader>
-          <CardContent className="h-72">{isLoading ? <Skeleton className="w-full h-full" /> : <p className="text-center text-muted-foreground">Chart Placeholder</p>}</CardContent>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${overviewData?.totalRevenue?.toLocaleString() || '0.00'}</div>
+            <p className="text-xs text-muted-foreground">
+              {overviewData?.revenueChange !== undefined ? `${overviewData.revenueChange >= 0 ? '+' : ''}${overviewData.revenueChange.toFixed(1)}% from last period` : 'N/A'}
+            </p>
+          </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Financial Overview</CardTitle></CardHeader>
-          <CardContent className="h-72">{isLoading ? <Skeleton className="w-full h-full" /> : <p className="text-center text-muted-foreground">Chart Placeholder</p>}</CardContent>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overviewData?.activeUsers?.toLocaleString() || '0'}</div>
+             <p className="text-xs text-muted-foreground">
+              {overviewData?.activeUsersChange !== undefined ? `${overviewData.activeUsersChange >= 0 ? '+' : ''}${overviewData.activeUsersChange.toFixed(1)}% from last period` : 'N/A'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">New Signups</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overviewData?.newSignups?.toLocaleString() || '0'}</div>
+             <p className="text-xs text-muted-foreground">
+              {overviewData?.newSignupsChange !== undefined ? `${overviewData.newSignupsChange >= 0 ? '+' : ''}${overviewData.newSignupsChange.toFixed(1)}% from last period` : 'N/A'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Bets Placed</CardTitle>
+            <Gamepad2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overviewData?.totalBets?.toLocaleString() || '0'}</div>
+             <p className="text-xs text-muted-foreground">
+              {overviewData?.totalBetsChange !== undefined ? `${overviewData.totalBetsChange >= 0 ? '+' : ''}${overviewData.totalBetsChange.toFixed(1)}% from last period` : 'N/A'}
+            </p>
+          </CardContent>
         </Card>
       </div>
-      <Card>
-        <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
-        <CardContent>{isLoading ? <Skeleton className="w-full h-32" /> : <p className="text-center text-muted-foreground">Activity Feed Placeholder</p>}</CardContent>
-      </Card>
-      */}
+
+      {/* Charts Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Revenue Over Time</CardTitle>
+            <CardDescription>Daily revenue for the selected period.</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+            {revenueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <ReLineChart data={revenueData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tickFormatter={(str) => new Date(str).toLocaleDateString('en-US', {month:'short', day:'numeric'})} />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                        <Legend />
+                        <Line type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
+                    </ReLineChart>
+                </ResponsiveContainer>
+            ) : <p className="text-muted-foreground text-center py-10">No revenue data available for this period.</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>User Activity</CardTitle>
+            <CardDescription>Daily active users (DAU) and new signups.</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+             {userStatsData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <ReLineChart data={userStatsData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tickFormatter={(str) => new Date(str).toLocaleDateString('en-US', {month:'short', day:'numeric'})} />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Line type="monotone" dataKey="activeUsers" name="Active Users" stroke="#82ca9d" />
+                        <Line type="monotone" dataKey="newSignups" name="New Signups" stroke="#ffc658" />
+                    </ReLineChart>
+                </ResponsiveContainer>
+            ) : <p className="text-muted-foreground text-center py-10">No user activity data available.</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Games by Bets</CardTitle>
+            <CardDescription>Most popular games by number of bets placed.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {gamePopularityData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <ReBarChart data={gamePopularityData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="gameName" type="category" width={100} tick={{fontSize: 12}}/>
+                        <Tooltip formatter={(value:number) => value.toLocaleString()} />
+                        <Legend />
+                        <Bar dataKey="betCount" name="Number of Bets" fill="#8884d8" />
+                    </ReBarChart>
+                </ResponsiveContainer>
+            ) : <p className="text-muted-foreground text-center py-10">No game popularity data available.</p>}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* More stats if available */}
+      <Card className="col-span-1 md:col-span-2">
+          <CardHeader>
+            <CardTitle>Transaction Volume</CardTitle>
+            <CardDescription>Daily deposit and withdrawal volume.</CardDescription>
+          </CardHeader>
+          <CardContent className="pl-2">
+            {transactionVolumeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                    <ReBarChart data={transactionVolumeData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tickFormatter={(str) => new Date(str).toLocaleDateString('en-US', {month:'short', day:'numeric'})} />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                        <Legend />
+                        <Bar dataKey="depositVolume" name="Deposits" stackId="a" fill="#82ca9d" />
+                        <Bar dataKey="withdrawalVolume" name="Withdrawals" stackId="a" fill="#ff7300" />
+                    </ReBarChart>
+                </ResponsiveContainer>
+            ) : <p className="text-muted-foreground text-center py-10">No transaction volume data available for this period.</p>}
+          </CardContent>
+        </Card>
     </div>
   );
 };
