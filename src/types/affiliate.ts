@@ -18,6 +18,7 @@ export interface Affiliate {
   balance: number;
   created_at: string;
   updated_at: string;
+  isActive?: boolean; // Added missing property
   // User related info might be denormalized or joined
   firstName?: string;
   lastName?: string;
@@ -46,4 +47,14 @@ export interface AffiliateData extends Affiliate {
   // Potentially add joined data for display
   referred_users_count?: number;
   total_earnings?: number;
+}
+
+// Define AffiliateStatSummary
+export interface AffiliateStatSummary {
+  totalAffiliates: number;
+  activeAffiliates: number;
+  pendingAffiliates: number;
+  totalReferrals: number;
+  totalCommissionPaid: number;
+  // Add other relevant summary fields
 }

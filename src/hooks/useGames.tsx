@@ -1,11 +1,10 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { gameService, ProviderFilters, CategoryFilters, GameFilters } from '@/services/gameService'; // Assuming these types are defined in gameService
-import { Game, GameProvider, GameCategory } from '@/types';
+import { gameService, ProviderFilters, CategoryFilters, GameFilters } from '@/services/gameService';
+import { Game, GameProvider, GameCategory, GameLaunchOptions, GameTag } from '@/types'; // GameLaunchOptions might be needed by launchGame
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabaseClient'; // For direct Supabase calls if needed
+// import { supabase } from '@/lib/supabaseClient'; // For direct Supabase calls if needed - remove if not used here
 
 const GAMES_CACHE_KEY = 'allGames';
 const PROVIDERS_CACHE_KEY = 'gameProviders';
@@ -26,34 +25,32 @@ export const useGames = () => {
   // Fetch all providers
   const { data: providers = [], isLoading: isLoadingProviders, error: providersError } = useQuery<GameProvider[], Error>({
     queryKey: [PROVIDERS_CACHE_KEY],
-    queryFn: () => gameService.getProviders({} as ProviderFilters), // Pass empty filters or define default
+    queryFn: () => gameService.getProviders({} as ProviderFilters),
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
   // Fetch all categories
   const { data: categories = [], isLoading: isLoadingCategories, error: categoriesError } = useQuery<GameCategory[], Error>({
     queryKey: [CATEGORIES_CACHE_KEY],
-    queryFn: () => gameService.getCategories({} as CategoryFilters), // Pass empty filters or define default
+    queryFn: () => gameService.getCategories({} as CategoryFilters),
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
   
-  // Fetch favorite game IDs for the current user
   const { data: favoriteGameIds = new Set<string>(), isLoading: isLoadingFavorites } = useQuery<Set<string>, Error>({
     queryKey: [FAVORITES_CACHE_KEY, user?.id],
     queryFn: async () => {
       if (!user?.id) return new Set<string>();
       const favs = await gameService.getFavoriteGameIds(user.id);
-      return new Set(favs.map(String)); // Ensure IDs are strings
+      return new Set(favs.map(String));
     },
     enabled: !!isAuthenticated && !!user?.id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Toggle favorite game mutation
   const toggleFavoriteMutation = useMutation<
-    void, // onSuccess returns void
-    Error, // onError returns Error
-    { gameId: string; isCurrentlyFavorite: boolean } // variables
+    void,
+    Error,
+    { gameId: string; isCurrentlyFavorite: boolean }
   >({
     mutationFn: async ({ gameId, isCurrentlyFavorite }) => {
       if (!user?.id) throw new Error('User not authenticated');
@@ -64,7 +61,6 @@ export const useGames = () => {
       }
     },
     onMutate: async ({ gameId, isCurrentlyFavorite }) => {
-      // Optimistic update
       await queryClient.cancelQueries({ queryKey: [FAVORITES_CACHE_KEY, user?.id] });
       const previousFavorites = queryClient.getQueryData<Set<string>>([FAVORITES_CACHE_KEY, user?.id]) || new Set<string>();
       const newFavorites = new Set(previousFavorites);
@@ -74,7 +70,7 @@ export const useGames = () => {
         newFavorites.add(gameId);
       }
       queryClient.setQueryData([FAVORITES_CACHE_KEY, user?.id], newFavorites);
-      return { previousFavorites }; // Context for rollback
+      return { previousFavorites };
     },
     onError: (err, variables, context) => {
       if (context?.previousFavorites) {
@@ -84,7 +80,6 @@ export const useGames = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [FAVORITES_CACHE_KEY, user?.id] });
-      // Potentially invalidate queries for lists that display favorite status if not handled by local state
     },
   });
 
@@ -93,9 +88,10 @@ export const useGames = () => {
       toast.error('Please log in to manage favorites.');
       return;
     }
-    const gameIdStr = String(gameId);
+    const gameIdStr = String(gameId); // Ensure it's a string
     const isCurrentlyFavorite = favoriteGameIds.has(gameIdStr);
-    const game = games.find(g => String(g.id) === gameIdStr || g.game_id === gameIdStr);
+    // Ensure 'games' is an array before finding. It should be due to default `[]`.
+    const game = Array.isArray(games) ? games.find(g => String(g.id) === gameIdStr || g.game_id === gameIdStr) : undefined;
     
     toast.promise(
         toggleFavoriteMutation.mutateAsync({ gameId: gameIdStr, isCurrentlyFavorite }),
@@ -107,8 +103,6 @@ export const useGames = () => {
     );
   }, [isAuthenticated, user?.id, favoriteGameIds, toggleFavoriteMutation, games]);
 
-
-  // Local state for filtered games (e.g., for a specific casino page like Slots)
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [currentFilters, setCurrentFilters] = useState<GameFilters | null>(null);
 
@@ -120,13 +114,13 @@ export const useGames = () => {
   ) => {
     setCurrentFilters({ searchTerm, categorySlug, providerSlug, ...otherFilters });
 
-    let result = [...games];
+    let result: Game[] = Array.isArray(games) ? [...games] : [];
 
     if (categorySlug && categorySlug !== 'all') {
       result = result.filter(game =>
         (Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug)) ||
-        game.category === categorySlug || // fallback
-        game.categoryName === categorySlug // fallback
+        game.category === categorySlug || 
+        game.categoryName === categorySlug 
       );
     }
 
@@ -139,7 +133,12 @@ export const useGames = () => {
       result = result.filter(game =>
         game.title.toLowerCase().includes(term) ||
         (game.providerName && typeof game.providerName === 'string' && game.providerName.toLowerCase().includes(term)) ||
-        (game.tags && Array.isArray(game.tags) && game.tags.some(tag => typeof tag === 'string' && tag.toLowerCase().includes(term)))
+        (game.tags && Array.isArray(game.tags) && game.tags.some(tag => {
+          if (typeof tag === 'string') return tag.toLowerCase().includes(term);
+          // If GameTag object
+          if (typeof tag === 'object' && tag !== null && 'name' in tag) return (tag as GameTag).name.toLowerCase().includes(term);
+          return false;
+        }))
       );
     }
     
@@ -149,41 +148,39 @@ export const useGames = () => {
     if (otherFilters?.isFeatured) {
         result = result.filter(game => game.is_featured);
     }
-    // Add more specific filters from otherFilters if needed
 
     setFilteredGames(result);
   }, [games]);
 
-  // Effect to initialize filteredGames or update when main games list changes
   useEffect(() => {
-    if (games.length > 0 && !currentFilters) { // Initial load or if filters cleared
-      setFilteredGames(games);
-    } else if (games.length > 0 && currentFilters) { // Re-apply filters if games list itself changes
+    const gamesArray = Array.isArray(games) ? games : [];
+    if (gamesArray.length > 0 && !currentFilters) {
+      setFilteredGames(gamesArray);
+    } else if (gamesArray.length > 0 && currentFilters) {
       filterGamesCallback(
         currentFilters.searchTerm,
         currentFilters.categorySlug,
         currentFilters.providerSlug,
-        currentFilters // Pass all other filters
+        currentFilters
       );
+    } else if (gamesArray.length === 0) {
+      setFilteredGames([]); // Clear filtered games if source is empty
     }
   }, [games, currentFilters, filterGamesCallback]);
   
-  // Simplified launchGame logic
-  const launchGame = useCallback(async (game: Game, options: { mode: 'real' | 'demo' }): Promise<string | null> => {
-    if (!isAuthenticated && options.mode === 'real') {
+  const launchGame = useCallback(async (game: Game, launchOptions: GameLaunchOptions): Promise<string | null> => {
+    if (!isAuthenticated && launchOptions.mode === 'real') {
       toast.error('Please log in to play real money games.');
-      // Consider navigating to login page: navigate('/login', { state: { from: location.pathname } });
       throw new Error('User not authenticated for real play.');
     }
 
-    // Prevent demo play if game is real_only, or real play if demo_only
-    if (options.mode === 'demo' && game.only_real === true) {
+    if (launchOptions.mode === 'demo' && game.only_real === true) {
         toast.info('This game is available for real money play only.');
-        return null; // Or throw new Error('Demo play not allowed.');
+        return null;
     }
-    if (options.mode === 'real' && game.only_demo === true) {
+    if (launchOptions.mode === 'real' && game.only_demo === true) {
         toast.info('This game is available for demo play only.');
-        return null; // Or throw new Error('Real play not allowed.');
+        return null;
     }
 
     try {
@@ -191,8 +188,14 @@ export const useGames = () => {
       if (!gameIdToLaunch) {
           throw new Error('Game identifier is missing.');
       }
-      // The gameService.launchGame should handle backend calls to get the actual session URL
-      const launchUrl = await gameService.launchGame(gameIdToLaunch, options.mode, user?.id, user?.app_metadata?.language || 'en');
+      
+      const finalOptions = {
+          ...launchOptions,
+          language: launchOptions.language || user?.app_metadata?.language || 'en',
+          user_id: launchOptions.user_id || user?.id,
+      };
+
+      const launchUrl = await gameService.launchGame(gameIdToLaunch, finalOptions.mode, finalOptions.user_id, finalOptions.language, finalOptions);
       
       if (launchUrl) {
         return launchUrl;
@@ -203,33 +206,54 @@ export const useGames = () => {
     } catch (error: any) {
       console.error('Error launching game:', error);
       toast.error(error.message || 'Failed to launch game.');
-      return null; // Or re-throw error if preferred
+      return null;
     }
   }, [isAuthenticated, user]);
 
-  // This is where the "Type instantiation is excessively deep" error (line 221) might have been.
-  // The complexity could arise from deeply nested generics or complex conditional types in `useQuery` or `useMutation`
-  // if they were using more complex type parameters. The current structure is fairly standard.
-  // If the error persists, it might be related to how `GameFilters`, `ProviderFilters`, `CategoryFilters` are defined
-  // in `gameService.ts` or the return types of service functions.
-  // For now, the structure above aims for clarity.
+  const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
+    const gamesArray = Array.isArray(games) ? games : [];
+    const localGame = gamesArray.find(g => g.slug === slug);
+    if (localGame) return localGame;
+    try {
+        // This could also be a separate useQuery in the component needing it for better state management
+        return await gameService.getGameBySlug(slug);
+    } catch (e) {
+        console.error(`Error fetching game by slug ${slug} in useGames:`, e);
+        return null;
+    }
+  }, [games]);
+
+  const getGameById = useCallback(async (id: string): Promise<Game | null> => {
+    const gamesArray = Array.isArray(games) ? games : [];
+    const localGame = gamesArray.find(g => String(g.id) === id || g.game_id === id);
+    if (localGame) return localGame;
+     try {
+        // This could also be a separate useQuery in the component needing it
+        return await gameService.getGameById(id);
+    } catch (e) {
+        console.error(`Error fetching game by ID ${id} in useGames:`, e);
+        return null;
+    }
+  }, [games]);
 
   return {
-    games, // All games
+    games: Array.isArray(games) ? games : [], // Ensure games is always an array
     isLoadingGames,
     gamesError,
-    providers,
+    providers: Array.isArray(providers) ? providers : [],
     isLoadingProviders,
     providersError,
-    categories,
+    categories: Array.isArray(categories) ? categories : [],
     isLoadingCategories,
     categoriesError,
     favoriteGameIds,
     isLoadingFavorites,
     toggleFavoriteGame,
     launchGame,
-    filteredGames, // Games after local filtering
-    filterGames: filterGamesCallback, // Function to apply filters
-    isLoading: isLoadingGames || isLoadingProviders || isLoadingCategories || isLoadingFavorites, // Combined loading state
+    getGameBySlug, // Added
+    getGameById, // Added
+    filteredGames,
+    filterGames: filterGamesCallback,
+    isLoading: isLoadingGames || isLoadingProviders || isLoadingCategories || isLoadingFavorites,
   };
 };

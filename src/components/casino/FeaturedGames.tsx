@@ -1,6 +1,5 @@
-
 import React, { useMemo } from 'react';
-import { Game } from '@/types';
+import { Game, GameTag } from '@/types'; // GameTag might be used by Game type
 import { useGames } from '@/hooks/useGames';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,12 +9,13 @@ import { Heart, PlayCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import GameSectionLoading from './GameSectionLoading'; 
-import { toast } from 'sonner'; // Added toast import
+import { toast } from 'sonner';
 
 interface FeaturedGamesProps {
   count?: number;
   className?: string;
   title?: string;
+  tag?: string; // Added tag prop for filtering by tag
 }
 
 const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real' | 'demo') => void; isFavorite: boolean; onToggleFavorite: (gameId: string) => void; isAuthenticated: boolean; }> = ({ game, onPlay, isFavorite, onToggleFavorite, isAuthenticated }) => {
@@ -28,7 +28,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
     }
   };
   
-  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay') || game.only_demo;
+  const canPlayDemo = !game.only_real || (game.tags && game.tags.some(t => (typeof t === 'string' && t === 'demo_playable') || (typeof t === 'object' && t.slug === 'demo_playable'))) || game.only_demo;
   
   return (
     <Card 
@@ -57,7 +57,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
         </Button>
       )}
 
-      {(game.isNew || (game.tags && game.tags.includes('new'))) && (
+      {(game.isNew || (game.tags && game.tags.some(t => (typeof t === 'string' && t === 'new') || (typeof t === 'object' && t.slug === 'new')))) && (
         <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-sm z-10">
           NEW
         </div>
@@ -73,7 +73,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
           {game.title}
         </h3>
         <p className="text-xs text-gray-300 truncate">
-          {game.providerName || game.provider_slug || 'Casino Provider'} {/* Use providerName or provider_slug */}
+          {game.providerName || game.provider_slug || 'Casino Provider'}
         </p>
       </CardContent>
       
@@ -94,24 +94,34 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
   );
 };
 
-
-const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, title = "Featured Games" }) => {
-  const { games, isLoading, error: gamesError, favoriteGameIds, toggleFavoriteGame } = useGames(); // Renamed error to avoid conflict
+const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, title = "Featured Games", tag = "featured" }) => {
+  const { games, isLoadingGames, gamesError, favoriteGameIds, toggleFavoriteGame } = useGames(); // Use isLoadingGames, gamesError
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   const featuredGames = useMemo(() => {
-    return games
-      .filter(game => game.is_featured || (game.tags && game.tags.includes('featured')))
+    // Ensure games is an array before filtering
+    const gamesArray = Array.isArray(games) ? games : [];
+    return gamesArray
+      .filter(game => {
+        const hasTag = game.tags && game.tags.some(t => {
+          if (typeof t === 'string') return t.toLowerCase() === tag.toLowerCase();
+          if (typeof t === 'object' && t !== null && 'slug' in t) return (t as GameTag).slug.toLowerCase() === tag.toLowerCase();
+          return false;
+        });
+        return game.is_featured || hasTag;
+      })
       .slice(0, count);
-  }, [games, count]);
+  }, [games, count, tag]);
 
   const handlePlayGame = (game: Game, mode: 'real' | 'demo') => {
-    navigate(`/casino/game/${game.slug || String(game.id)}?mode=${mode}`); // Ensure game.id is string
+    // Consider launching directly if launchGame from useGames is more robust
+    // For now, navigating to game details page with mode
+    navigate(`/casino/game/${game.slug || String(game.id)}?mode=${mode}`);
   };
 
-  if (isLoading && featuredGames.length === 0) { 
-    return <GameSectionLoading />;
+  if (isLoadingGames && featuredGames.length === 0) { 
+    return <GameSectionLoading cardCount={count}/>;
   }
 
   if (gamesError) {
@@ -119,16 +129,16 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, tit
       <div className={cn("py-8 text-center", className)}>
         <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-2" />
         <p className="text-destructive">Could not load featured games.</p>
-        <p className="text-sm text-muted-foreground">{String(gamesError)}</p> {/* Use String(gamesError) */}
+        <p className="text-sm text-muted-foreground">{String(gamesError.message || gamesError)}</p>
       </div>
     );
   }
   
-  if (featuredGames.length === 0 && !isLoading) { 
+  if (featuredGames.length === 0 && !isLoadingGames) { 
      return (
       <div className={cn("py-8", className)}>
         <h2 className="text-2xl font-bold mb-6 text-center">{title}</h2>
-        <p className="text-center text-muted-foreground">No featured games available at the moment. Check back soon!</p>
+        <p className="text-center text-muted-foreground">No {tag} games available at the moment. Check back soon!</p>
       </div>
     );
   }
@@ -139,7 +149,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, tit
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
         {featuredGames.map(game => (
           <FeaturedGameCard
-            key={String(game.id || game.game_id)} // Ensure key is string
+            key={String(game.id || game.game_id)}
             game={game}
             onPlay={handlePlayGame}
             isFavorite={favoriteGameIds.has(String(game.id || game.game_id))}

@@ -1,138 +1,141 @@
 
-export type GameStatus = 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived';
-export type GameVolatility = 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
+// Game Enums (can be extended)
+export type GameStatus = "active" | "inactive" | "pending" | "blocked" | "maintenance" | "pending_review" | "draft" | "archived";
+export type GameVolatility = "low" | "medium" | "high" | "low-medium" | "medium-high";
 
-export interface GameProvider {
-  id: string;
-  name: string;
-  slug?: string;
-  logoUrl?: string;
-  games?: Game[];
-  status?: 'active' | 'inactive' | 'coming_soon';
-  description?: string;
-}
-
-export interface GameCategory {
+// Game Tag
+export interface GameTag {
   id: string;
   name: string;
   slug: string;
-  description?: string;
-  image_url?: string;
-  icon_svg?: string; // For SVG icons
-  icon?: string; // Added for compatibility with read-only components
-  game_ids?: string[]; // List of game IDs in this category
 }
 
+// Game Provider
+export interface GameProvider {
+  id: string | number; // Keep flexible as in index.ts
+  name: string;
+  slug: string; // Ensure this is present
+  logoUrl?: string;
+  description?: string;
+  isActive?: boolean; // As in index.ts
+  games_count?: number; // As in index.ts
+  // Fields from game.ts's GameProvider
+  games?: Game[]; // Game array from game.ts GameProvider
+  status?: 'active' | 'inactive' | 'coming_soon'; // Status from game.ts GameProvider
+}
+
+// Game Category
+export interface GameCategory {
+  id: string | number; // Keep flexible
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string; // e.g., Lucide icon name or path (from index.ts)
+  image_url?: string; // (from index.ts and game.ts)
+  parent_id?: string | number; // (from index.ts)
+  order?: number; // (from index.ts)
+  icon_svg?: string; // For SVG icons (from game.ts)
+  game_ids?: string[]; // List of game IDs in this category (from game.ts)
+}
+
+// Game Launch Options
 export interface GameLaunchOptions {
   mode: 'real' | 'demo';
   user_id?: string;
   username?: string;
   currency?: string;
-  platform?: 'mobile' | 'desktop' | 'web';
+  platform?: 'mobile' | 'desktop' | 'web'; // from game.ts
   language?: string;
-  token?: string;
+  token?: string; // from game.ts
   returnUrl?: string;
 }
 
+// Consolidated Game Interface (based on src/types/index.ts, augmented by src/types/game.ts)
 export interface Game {
-  id: string; // Usually the database UUID
-  game_id: string; // Provider's specific game ID or code
+  id: string | number;
+  game_id?: string; // Specific external game ID
   title: string;
   slug: string;
+  provider_id?: string | number;
+  providerName?: string; // Often denormalized
+  provider_slug: string; // Ensure this is present
+  category?: string; // Legacy or simple category name
+  categoryName?: string; // Often denormalized
+  category_slugs?: string[]; // Array of category slugs
+  rtp?: number;
+  cover?: string;
+  image?: string; // Alternative for cover
+  banner?: string; // Optional banner image from index.ts
+  bannerUrl?: string; // from game.ts
   description?: string;
-  
-  providerName: string; // Denormalized for convenience
-  provider_slug: string; // Denormalized for convenience
-  provider?: { id?: string; name: string; slug?: string }; // Made id optional
-
-  categoryName?: string; // Main category name
-  category_slugs: string[]; // Slugs of categories it belongs to
-  
-  image_url?: string; // Primary image, thumbnail
-  image?: string; // Fallback or alternative field for image
-  cover?: string; // Often used for game cover image
-  bannerUrl?: string; // For promotional banners
-  
-  rtp?: number; // Return to Player percentage
-  volatility?: GameVolatility;
-  lines?: number; // Paylines for slots
+  status?: GameStatus; // Use the consolidated GameStatus
+  views?: number;
+  is_featured?: boolean;
+  isNew?: boolean; // To mark new games
+  releaseDate?: string; // ISO date string
+  tags?: string[] | GameTag[]; // Can be simple strings or tag objects
+  volatility?: GameVolatility; // Use the consolidated GameVolatility
+  lines?: number;
   min_bet?: number;
   max_bet?: number;
-  
-  features?: string[]; // e.g., "bonus-buy", "free-spins", "megaways"
-  tags?: string[]; // e.g., "popular", "new", "hot", "demo_playable", "demo"
-  themes?: string[]; // e.g., "adventure", "egyptian", "space"
-  
-  isPopular?: boolean;
-  isNew?: boolean;
-  is_featured?: boolean; // if it's specifically featured
-  show_home?: boolean; // whether to show on homepage sections
-  
-  launch_url?: string; // Direct URL to launch the game (if applicable)
-  demo_url?: string; // URL for demo mode
-  
-  status: GameStatus; // Current status of the game
-  releaseDate?: string; // ISO date string
-  
-  game_code?: string; // Alternative game identifier if needed
-
-  // Fields from DbGame that might not be directly on Game but are good to have for mapping
-  provider_id?: string; // Foreign key to providers table
+  only_real?: boolean;
+  only_demo?: boolean;
+  has_freespins?: boolean;
   created_at?: string;
   updated_at?: string;
 
-  // New fields to consider based on common needs
-  views?: number;
+  // Fields from game.ts's Game definition
+  provider?: { id?: string; name: string; slug?: string };
+  image_url?: string; // (already covered by image/cover)
+  features?: string[];
+  themes?: string[];
+  isPopular?: boolean; // (is_featured might cover this)
+  show_home?: boolean;
+  launch_url?: string;
+  demo_url?: string;
+  game_code?: string; // Alternative game identifier if needed
   likes?: number;
   has_jackpot?: boolean;
   supported_currencies?: string[];
   supported_languages?: string[];
-  technology?: 'html5' | 'flash' | 'other'; // Game technology
+  technology?: 'html5' | 'flash' | 'other';
 
-  only_demo?: boolean; // Ensure this exists
-  only_real?: boolean; // Ensure this exists
+  [key: string]: any; // Allow for additional properties
 }
 
-// Represents the structure of game data as stored in the database (e.g., Supabase 'games' table)
+// Database Game Structure (from src/types/game.ts)
 export interface DbGame {
   id: string; // Primary key (UUID)
   game_id: string; // Provider's game ID
   game_name: string; // Title of the game
-  slug?: string; // Made slug optional
-  provider_id?: string | null; // Foreign key to your providers table
-  provider_slug?: string | null; // Denormalized provider slug
-  
-  game_type?: string | null; // Main category or type from DB
-  category_slugs?: string[] | null; // Array of category slugs
-  
+  slug?: string;
+  provider_id?: string | null;
+  provider_slug?: string | null;
+  game_type?: string | null;
+  category_slugs?: string[] | null;
   description?: string | null;
-  cover?: string | null; // Main image URL
-  banner_url?: string | null; // Added banner_url
-  banner?: string | null; // Added banner as potential alias
-  image_url?: string | null; // Fallback for image
-  
-  rtp?: number | string | null; // Can be string from DB, needs parsing
-  volatility?: GameVolatility | string | null; // Can be string from DB
+  cover?: string | null;
+  banner_url?: string | null;
+  banner?: string | null;
+  image_url?: string | null;
+  rtp?: number | string | null;
+  volatility?: GameVolatility | string | null;
   lines?: number | null;
   min_bet?: number | null;
   max_bet?: number | null;
-  
-  features?: string[] | null; // JSONB array
-  tags?: string[] | null; // JSONB array
-  themes?: string[] | null; // JSONB array
-  
+  features?: string[] | null;
+  tags?: string[] | null;
+  themes?: string[] | null;
   is_popular?: boolean | null;
   is_new?: boolean | null;
   is_featured?: boolean | null;
   show_home?: boolean | null;
-  
-  status?: GameStatus | string | null; // Status from DB
-  release_date?: string | null; // ISO date string
+  status?: GameStatus | string | null;
+  release_date?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
-  
-  game_code?: string | null; // Specific game code
-  distribution?: string | null; // e.g. provider name if not using provider_id
+  game_code?: string | null;
+  distribution?: string | null;
   technology?: string | null;
   game_server_url?: string | null;
   has_lobby?: boolean | null;
@@ -140,9 +143,8 @@ export interface DbGame {
   has_freespins?: boolean | null;
   has_tables?: boolean | null;
   only_demo?: boolean | null;
-  only_real?: boolean | null; // Ensure this exists
+  only_real?: boolean | null;
   views?: number | null;
-  // Relation to providers table (if you join)
-  providers?: { id?: string; name: string; slug: string } | null; // Added id, ensure it's selected
-  title?: string; // Alternative for game_name
+  providers?: { id?: string; name: string; slug: string } | null;
+  title?: string;
 }

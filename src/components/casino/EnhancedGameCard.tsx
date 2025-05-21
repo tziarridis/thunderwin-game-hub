@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Game } from '@/types';
+import { Game, GameTag } from '@/types'; // Ensure GameTag is imported if used for game.tags
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
@@ -8,6 +8,7 @@ import { Star, PlayCircle, Info, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGames } from '@/hooks/useGames'; 
 import { useAuth } from '@/contexts/AuthContext'; 
+import { toast } from 'sonner'; // Added toast
 
 interface EnhancedGameCardProps {
   game: Game;
@@ -24,24 +25,40 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation(); 
     if (!isAuthenticated) {
-        console.log("Please log in to favorite games.");
+        toast.info("Please log in to favorite games."); // Used toast
         return;
     }
     toggleFavoriteGame(String(game.id || game.game_id));
   };
   
-  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay');
-  const canPlayReal = isAuthenticated; 
+  // Updated demo check to handle both string tags and GameTag objects
+  const canPlayDemo = !game.only_real || (game.tags && game.tags.some(t => {
+    if (typeof t === 'string') return t === 'demo_playable';
+    if (typeof t === 'object' && t !== null && 'slug' in t) return (t as GameTag).slug === 'demo_playable';
+    return false;
+  })) || game.only_demo;
 
+  const canPlayReal = isAuthenticated && !game.only_demo; 
+
+  // Check for 'new' tag
+  const isNewGame = game.isNew || (game.tags && game.tags.some(t => {
+    if (typeof t === 'string') return t === 'new';
+    if (typeof t === 'object' && t !== null && 'slug' in t) return (t as GameTag).slug === 'new';
+    return false;
+  }));
 
   return (
-    <Card className={cn("overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group bg-card", className)}>
+    <Card 
+        className={cn("overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group bg-card", className)}
+        onClick={onDetailsClick ? () => onDetailsClick(game) : undefined} // Make card clickable for details if handler exists
+    >
       <CardHeader className="p-0 relative">
-        <AspectRatio ratio={4 / 3}>
+        <AspectRatio ratio={4 / 3} onClick={!onDetailsClick ? () => onPlayClick(game, canPlayReal ? 'real' : 'demo') : undefined}>
           <img
             src={game.image || game.image_url || game.cover || '/placeholder.svg'}
             alt={game.title}
             className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => (e.currentTarget.src = '/placeholder.svg')}
           />
         </AspectRatio>
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
@@ -51,14 +68,14 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
             <Button
                 variant="ghost"
                 size="icon"
-                className="absolute top-2 right-2 z-10 bg-black/30 hover:bg-primary text-white hover:text-white"
+                className="absolute top-2 right-2 z-10 bg-black/30 hover:bg-primary text-white hover:text-white rounded-full"
                 onClick={handleFavoriteToggle}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
             >
                 <Heart className={cn("h-5 w-5", isFavorite ? "fill-red-500 text-red-500" : "text-white")} />
             </Button>
         )}
-        {(game.isNew || (game.tags && game.tags.includes('new'))) && (
+        {isNewGame && (
           <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">NEW</div>
         )}
         {game.rtp && (
@@ -69,15 +86,15 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
       </CardHeader>
       
       <CardContent className="p-4">
-        <CardTitle className="text-lg font-semibold truncate mb-1 group-hover:text-primary transition-colors">
+        <CardTitle 
+            className="text-lg font-semibold truncate mb-1 group-hover:text-primary transition-colors cursor-pointer"
+            onClick={onDetailsClick ? () => onDetailsClick(game) : () => onPlayClick(game, canPlayReal ? 'real' : 'demo')}
+        >
           {game.title}
         </CardTitle>
         <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider_slug || 'Unknown Provider'} {/* Use providerName or provider_slug */}
+          {game.providerName || game.provider_slug || 'Unknown Provider'}
         </p>
-        {/* {game.volatility && (
-          <p className="text-xs text-muted-foreground mt-1">Volatility: {game.volatility}</p>
-        )} */}
       </CardContent>
       
       <CardFooter className="p-4 pt-0 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -101,17 +118,11 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
             </Button>
         )}
         {!canPlayReal && !canPlayDemo && (
-            <p className="text-xs text-muted-foreground col-span-full text-center">Game not available</p>
+            <p className="text-xs text-muted-foreground col-span-full text-center pt-2">Game not available</p>
         )}
-        {/* {onDetailsClick && (
-          <Button onClick={() => onDetailsClick(game)} variant="ghost" size="sm" className="w-full text-muted-foreground hover:text-primary">
-            <Info className="mr-2 h-4 w-4" /> Details
-          </Button>
-        )} */}
       </CardFooter>
     </Card>
   );
 };
 
 export default EnhancedGameCard;
-
