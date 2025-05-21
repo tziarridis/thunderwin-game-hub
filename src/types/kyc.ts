@@ -1,99 +1,50 @@
 
-export enum KycStatus {
-  NOT_SUBMITTED = "NOT_SUBMITTED",
-  SUBMITTED = "SUBMITTED", // Or IN_REVIEW, PENDING
-  PENDING = "PENDING",
-  VERIFIED = "VERIFIED",
-  REJECTED = "REJECTED",
-  ACTION_REQUIRED = "ACTION_REQUIRED", // e.g. resubmit document
-}
+// src/types/kyc.ts
 
-export enum KycDocumentType {
-  ID_CARD = 'id_card',
-  PASSPORT = 'passport',
-  DRIVER_LICENSE = 'driver_license',
-  UTILITY_BILL = 'utility_bill',
-  BANK_STATEMENT = 'bank_statement',
-  OTHER = 'other',
+export enum KycStatusEnum {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  RESUBMIT = "resubmit", // A status to ask the user to resubmit documents
 }
+export type KycStatus = `${KycStatusEnum}`;
 
-export interface KycDocument {
-  id?: string;
-  kyc_request_id: string;
-  document_type: KycDocumentType; // Use the enum
-  file_url: string;
-  file_name?: string;
-  uploaded_at: string;
-  status?: 'pending' | 'approved' | 'rejected'; // Status per document
-  rejection_reason?: string;
+export enum KycDocumentTypeEnum {
+  PASSPORT = "passport",
+  NATIONAL_ID = "national_id",
+  DRIVING_LICENSE = "driving_license",
+  UTILITY_BILL = "utility_bill", // For Proof of Address
+  BANK_STATEMENT = "bank_statement", // For Proof of Address
 }
+export type KycDocumentType = `${KycDocumentTypeEnum}`;
+
 
 export interface KycRequest {
-  id: string;
-  user_id: string;
+  id: string; // UUID
+  user_id: string; // Foreign key to users table
   status: KycStatus;
-  first_name?: string; 
-  last_name?: string;
-  date_of_birth?: string;
-  address_line1?: string;
-  address_line2?: string;
-  city?: string;
-  state_province?: string;
-  postal_code?: string;
-  country_code?: string; 
-  rejection_reason?: string; 
-  notes?: string; 
-  submitted_at?: string;
-  reviewed_at?: string;
-  reviewed_by?: string; 
-  created_at: string;
-  updated_at: string;
-  documents?: KycDocument[]; 
-  // Fields that were in kycService's Omit type, potentially representing form data for submission
-  // These are usually part of the KycRequest table itself, filled on submission.
-  document_type?: KycDocumentType; // This is often a primary field of the request if one main doc type is focused on
-  document_front_url?: string;    // URL of the uploaded front document
-  document_back_url?: string;     // URL of the uploaded back document
-  selfie_url?: string;            // URL of the uploaded selfie
-}
-
-// For fetching KYC requests with user details for admin panel
-export interface KycRequestWithUser extends KycRequest {
-  user: {
-    id?: string; // Add user ID for consistency, often needed.
-    email?: string;
-    username?: string;
-    first_name?: string; // Denormalized from profiles for convenience
-    last_name?: string;  // Denormalized from profiles for convenience
-    [key: string]: any;
-  };
-}
-
-// Payload for updating a KYC request
-export interface KycRequestUpdatePayload {
-  status?: KycStatus;
+  document_type: KycDocumentType | string; // Allow string for flexibility if new types added directly in DB
+  document_front_url?: string | null;
+  document_back_url?: string | null;
+  selfie_url?: string | null;
+  submitted_at: string; // ISO Date string
+  reviewed_at?: string | null; // ISO Date string
+  reviewed_by?: string | null; // User ID of admin/reviewer
   rejection_reason?: string | null;
-  notes?: string | null;
+  notes?: string | null; // Internal notes, formerly review_notes
+  created_at?: string;
+  updated_at?: string;
+  // Optional user data if joined
+  user?: {
+    id: string;
+    email?: string;
+    full_name?: string;
+  } | null;
 }
 
-// Defines the data structure expected by the kycService.submitKycRequest
-export interface KycSubmission {
-  // User-provided data (typically from a form)
-  first_name: string;
-  last_name: string;
-  date_of_birth: string; // ISO Date string
-  address_line1: string;
-  address_line2?: string;
-  city: string;
-  state_province?: string;
-  postal_code: string;
-  country_code: string; // ISO 2-letter country code
-  
-  document_type: KycDocumentType; // The type of the primary document being submitted
-
-  // Files to be uploaded
-  document_front: File;
-  document_back?: File;
-  selfie?: File;
-  // Any other specific fields needed for initial submission not directly on KycRequest but used to create it
+export interface KycFormValues {
+  document_type: KycDocumentType | '';
+  document_front?: FileList | null;
+  document_back?: FileList | null;
+  selfie?: FileList | null;
 }

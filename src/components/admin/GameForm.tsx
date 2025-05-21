@@ -1,464 +1,635 @@
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import React, { useEffect, useState } from 'react';
+import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Game, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, GameTag } from '@/types/game';
-import { GameProvider, GameCategory } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Game, DbGame, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, GameStatus, GameVolatility } from '@/types/game';
 import { toast } from 'sonner';
-import { Loader2, Trash2, PlusCircle } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+// import { gameService } from '@/services/gameService'; // Ensure gameService is correctly set up and imported
+import { XIcon, PlusCircleIcon } from 'lucide-react';
 
-// Zod schema for game form validation
+// Zod schema for form validation
 const gameFormSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  slug: z.string().min(1, 'Slug is required').regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug must be lowercase alphanumeric with hyphens'),
-  game_id: z.string().optional(), // External game ID
-  provider_slug: z.string().min(1, 'Provider slug is required'), // Or provider_id
-  category_slugs: z.array(z.string()).min(1, 'At least one category is required'),
-  rtp: z.number().min(0).max(100).optional(),
-  status: z.nativeEnum(GameStatusEnum),
-  image: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  bannerUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  description: z.string().optional(),
-  volatility: z.nativeEnum(GameVolatilityEnum).optional(),
-  tags: z.array(z.string()).optional(), // Tags are handled as an array of strings
-  features: z.array(z.string()).optional(),
-  themes: z.array(z.string()).optional(),
-  lines: z.number().int().positive().optional(),
-  min_bet: z.number().positive().optional(),
-  max_bet: z.number().positive().optional(),
-  releaseDate: z.string().optional(), // ISO date string
-  is_featured: z.boolean().optional(),
-  isNew: z.boolean().optional(), // Renamed from is_new to match Game type
-  isPopular: z.boolean().optional(),
-  show_home: z.boolean().optional(),
-  only_demo: z.boolean().optional(),
-  only_real: z.boolean().optional(),
-  game_code: z.string().optional(),
+  game_id: z.string().optional(), // External game ID from provider
+  title: z.string().min(1, "Title is required"),
+  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
+  provider_slug: z.string().min(1, "Provider slug is required"),
+  category_slugs: z.array(z.string()).min(1, "At least one category is required"),
+  rtp: z.number().min(0).max(100).optional().nullable(),
+  image: z.string().url("Must be a valid URL").optional().nullable(), // Cover image
+  bannerUrl: z.string().url("Must be a valid URL").optional().nullable(), // Banner image
+  description: z.string().optional().nullable(),
+  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.DRAFT),
+  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(),
+  lines: z.number().int().positive().optional().nullable(),
+  min_bet: z.number().positive().optional().nullable(),
+  max_bet: z.number().positive().optional().nullable(),
+  features: z.array(z.string()).optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(),
+  themes: z.array(z.string()).optional().nullable(),
+  is_popular: z.boolean().default(false).optional(),
+  is_new: z.boolean().default(false).optional(),
+  is_featured: z.boolean().default(false).optional(),
+  show_home: z.boolean().default(false).optional(),
+  release_date: z.string().optional().nullable(), // Consider using a date picker
+  has_freespins: z.boolean().default(false).optional(),
+  has_jackpot: z.boolean().default(false).optional(),
+  game_code: z.string().optional().nullable(), // Alternative game identifier
 });
 
-export type GameFormValues = z.infer<typeof gameFormSchema>;
+type GameFormData = z.infer<typeof gameFormSchema>;
 
 interface GameFormProps {
-  game?: Game; // For editing
-  providers: GameProvider[]; // For select dropdown
-  categories: GameCategory[]; // For multi-select or similar
-  onSubmit: (data: GameFormValues) => Promise<void>;
-  onDelete?: (gameId: string) => Promise<void>;
-  isSubmitting: boolean;
-  isDeleting?: boolean;
+  game?: DbGame | Game | null; // Game data for editing, can be from DB or more general Game type
+  onSubmitSuccess?: (savedGame: DbGame) => void;
+  onCancel?: () => void;
+  providers: { slug: string; name: string }[]; // List of available providers
+  categories: { slug: string; name: string }[]; // List of available categories
 }
 
+const mapStringToGameStatusEnum = (statusStr?: GameStatus | string | null): GameStatusEnum => {
+  if (statusStr && Object.values(GameStatusEnum).includes(statusStr as GameStatusEnum)) {
+    return statusStr as GameStatusEnum;
+  }
+  return GameStatusEnum.DRAFT;
+};
 
-const GameForm: React.FC<GameFormProps> = ({
-  game,
-  providers,
-  categories,
-  onSubmit,
-  onDelete,
-  isSubmitting,
-  isDeleting,
-}) => {
-  const { control, register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<GameFormValues>({
+const mapStringToGameVolatilityEnum = (volatilityStr?: GameVolatility | string | null): GameVolatilityEnum | null => {
+  if (volatilityStr && Object.values(GameVolatilityEnum).includes(volatilityStr as GameVolatilityEnum)) {
+    return volatilityStr as GameVolatilityEnum;
+  }
+  return null; // Or a default like GameVolatilityEnum.MEDIUM
+};
+
+
+const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, providers, categories }) => {
+  const queryClient = useQueryClient();
+  const [currentFeatures, setCurrentFeatures] = useState<string[]>(game?.features || []);
+  const [featureInput, setFeatureInput] = useState('');
+  const [currentTags, setCurrentTags] = useState<string[]>(game?.tags || []);
+  const [tagInput, setTagInput] = useState('');
+  const [currentThemes, setCurrentThemes] = useState<string[]>(game?.themes || []);
+  const [themeInput, setThemeInput] = useState('');
+
+
+  const form = useForm<GameFormData>({
     resolver: zodResolver(gameFormSchema),
-    defaultValues: game ? {
-      ...game,
-      status: game.status || GameStatusEnum.DRAFT,
-      volatility: game.volatility || undefined,
-      rtp: game.rtp ?? undefined,
-      lines: game.lines ?? undefined,
-      min_bet: game.min_bet ?? undefined,
-      max_bet: game.max_bet ?? undefined,
-      tags: Array.isArray(game.tags) ? game.tags.map(t => typeof t === 'string' ? t : t.slug) : [],
-      features: game.features ?? [],
-      themes: game.themes ?? [],
-      category_slugs: game.category_slugs ?? [],
-      isNew: game.isNew ?? game.is_new ?? false,
-    } : {
-      status: GameStatusEnum.DRAFT,
-      tags: [],
-      features: [],
-      themes: [],
-      category_slugs: [],
-      is_featured: false,
-      isNew: false,
-      isPopular: false,
-      show_home: false,
-      only_demo: false,
-      only_real: false,
+    defaultValues: {
+      game_id: game?.game_id || '',
+      title: game?.title || game?.game_name || '',
+      slug: game?.slug || '',
+      provider_slug: game?.provider_slug || game?.providers?.slug || '',
+      category_slugs: game?.category_slugs || [],
+      rtp: typeof game?.rtp === 'string' ? parseFloat(game.rtp) : game?.rtp || undefined,
+      image: game?.cover || game?.image_url || '',
+      bannerUrl: game?.banner || game?.banner_url || '',
+      description: game?.description || '',
+      status: game ? mapStringToGameStatusEnum(game.status) : GameStatusEnum.DRAFT,
+      volatility: game ? mapStringToGameVolatilityEnum(game.volatility) : null,
+      lines: game?.lines || undefined,
+      min_bet: game?.min_bet || undefined,
+      max_bet: game?.max_bet || undefined,
+      features: game?.features || [],
+      tags: game?.tags || [],
+      themes: game?.themes || [],
+      is_popular: game?.is_popular || false,
+      is_new: game?.is_new || false,
+      is_featured: game?.is_featured || false,
+      show_home: game?.show_home || false,
+      release_date: game?.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
+      has_freespins: game?.has_freespins || false,
+      has_jackpot: game?.has_jackpot || false,
+      game_code: game?.game_code || '',
     },
   });
 
   useEffect(() => {
     if (game) {
-      const gameData = {
-        ...game,
-        status: game.status || GameStatusEnum.DRAFT,
-        volatility: game.volatility || undefined,
-        rtp: game.rtp ?? undefined,
-        lines: game.lines ?? undefined,
-        min_bet: game.min_bet ?? undefined,
-        max_bet: game.max_bet ?? undefined,
-        tags: Array.isArray(game.tags) ? game.tags.map(t => typeof t === 'string' ? t : t.slug) : [],
-        features: game.features ?? [],
-        themes: game.themes ?? [],
-        category_slugs: game.category_slugs ?? [],
-        isNew: game.isNew ?? game.is_new ?? false,
+      form.reset({
+        game_id: game.game_id || '',
+        title: game.title || game.game_name || '',
+        slug: game.slug || '',
+        provider_slug: game.provider_slug || game.providers?.slug || '',
+        category_slugs: game.category_slugs || [],
+        rtp: typeof game.rtp === 'string' ? parseFloat(game.rtp) : game.rtp || undefined,
+        image: game.cover || game.image_url || '',
+        bannerUrl: game.banner || game.banner_url || '',
+        description: game.description || '',
+        status: mapStringToGameStatusEnum(game.status),
+        volatility: mapStringToGameVolatilityEnum(game.volatility),
+        lines: game.lines || undefined,
+        min_bet: game.min_bet || undefined,
+        max_bet: game.max_bet || undefined,
+        features: game.features || [],
+        tags: game.tags || [],
+        themes: game.themes || [],
+        is_popular: game.is_popular || false,
+        is_new: game.is_new || false,
+        is_featured: game.is_featured || false,
+        show_home: game.show_home || false,
+        release_date: game.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
+        has_freespins: game.has_freespins || false,
+        has_jackpot: game.has_jackpot || false,
+        game_code: game.game_code || '',
+      });
+      setCurrentFeatures(game.features || []);
+      setCurrentTags(game.tags || []);
+      setCurrentThemes(game.themes || []);
+    }
+  }, [game, form]);
+
+  const handleAddItem = (
+    itemInput: string,
+    setItemInput: React.Dispatch<React.SetStateAction<string>>,
+    currentItems: string[],
+    setCurrentItems: React.Dispatch<React.SetStateAction<string[]>>,
+    fieldName: keyof GameFormData
+  ) => {
+    if (itemInput.trim() && !currentItems.includes(itemInput.trim())) {
+      const updatedItems = [...currentItems, itemInput.trim()];
+      setCurrentItems(updatedItems);
+      form.setValue(fieldName as any, updatedItems); // Use "as any" if fieldName is complex for setValue
+      setItemInput('');
+    }
+  };
+
+  const handleRemoveItem = (
+    itemToRemove: string,
+    currentItems: string[],
+    setCurrentItems: React.Dispatch<React.SetStateAction<string[]>>,
+    fieldName: keyof GameFormData
+  ) => {
+    const updatedItems = currentItems.filter(item => item !== itemToRemove);
+    setCurrentItems(updatedItems);
+    form.setValue(fieldName as any, updatedItems);
+  };
+
+
+  const onSubmit: SubmitHandler<GameFormData> = async (data) => {
+    try {
+      const gameDataToSave: Partial<DbGame> = {
+        game_id: data.game_id,
+        game_name: data.title, // Use title for game_name
+        title: data.title,
+        slug: data.slug,
+        provider_slug: data.provider_slug,
+        category_slugs: data.category_slugs,
+        rtp: data.rtp,
+        cover: data.image,
+        image_url: data.image,
+        banner: data.bannerUrl,
+        banner_url: data.bannerUrl,
+        description: data.description,
+        status: data.status, // Already GameStatusEnum from form
+        volatility: data.volatility, // Already GameVolatilityEnum from form
+        lines: data.lines,
+        min_bet: data.min_bet,
+        max_bet: data.max_bet,
+        features: data.features,
+        tags: data.tags,
+        themes: data.themes,
+        is_popular: data.is_popular,
+        is_new: data.is_new,
+        is_featured: data.is_featured,
+        show_home: data.show_home,
+        release_date: data.release_date ? new Date(data.release_date).toISOString() : null,
+        has_freespins: data.has_freespins,
+        has_jackpot: data.has_jackpot,
+        game_code: data.game_code,
+        // provider_id will be set on the backend based on provider_slug if necessary
       };
-      reset(gameData);
-    } else {
-        reset({
-            status: GameStatusEnum.DRAFT,
-            volatility: undefined,
-            tags: [], features: [], themes: [], category_slugs: [],
-            is_featured: false, isNew: false, isPopular: false, show_home: false,
-            only_demo: false, only_real: false,
-        });
+
+      let savedGame: DbGame;
+      if (game?.id) {
+        // Update existing game
+        // const { data: updatedGame, error } = await gameService.updateGame(game.id as string, gameDataToSave);
+        const { data: updatedGame, error } = await supabase.from('games').update(gameDataToSave).eq('id', game.id).select().single();
+        if (error) throw error;
+        savedGame = updatedGame as DbGame;
+        toast.success('Game updated successfully!');
+      } else {
+        // Create new game
+        // const { data: newGame, error } = await gameService.createGame(gameDataToSave);
+        const { data: newGame, error } = await supabase.from('games').insert(gameDataToSave).select().single();
+        if (error) throw error;
+        savedGame = newGame as DbGame;
+        toast.success('Game created successfully!');
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['allGames'] });
+      if (onSubmitSuccess) {
+        onSubmitSuccess(savedGame);
+      }
+      form.reset(); // Reset form after successful submission
+      setCurrentFeatures([]);
+      setCurrentTags([]);
+      setCurrentThemes([]);
+
+    } catch (error: any) {
+      console.error("Error saving game:", error);
+      toast.error(`Failed to save game: ${error.message}`);
     }
-  }, [game, reset]);
-
-  const [currentTag, setCurrentTag] = useState('');
-  const [currentFeature, setCurrentFeature] = useState('');
-  const [currentTheme, setCurrentTheme] = useState('');
-
-  const watchedTags = watch('tags') || [];
-  const watchedFeatures = watch('features') || [];
-  const watchedThemes = watch('themes') || [];
-
-  const handleAddToArray = (
-    field: keyof Pick<GameFormValues, 'tags' | 'features' | 'themes'>,
-    value: string,
-    currentValueSetter: React.Dispatch<React.SetStateAction<string>>
-  ) => {
-    if (value.trim() === '') return;
-    const currentArray = watch(field) || [];
-    if (!currentArray.includes(value.trim())) {
-      setValue(field, [...currentArray, value.trim()], { shouldValidate: true });
-    }
-    currentValueSetter('');
   };
-
-  const handleRemoveFromArray = (
-    field: keyof Pick<GameFormValues, 'tags' | 'features' | 'themes'>,
-    valueToRemove: string
-  ) => {
-    const currentArray = watch(field) || [];
-    setValue(field, currentArray.filter(item => item !== valueToRemove), { shouldValidate: true });
-  };
-
-  // Use AllGameStatuses and AllGameVolatilities from src/types/game.ts
-  // const gameStatuses = Object.values(GameStatusEnum); // Now AllGameStatuses
-  // const gameVolatilities = Object.values(GameVolatilityEnum); // Now AllGameVolatilities
-
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* ... keep existing code (Basic Info Section) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Basic Info Section */}
-        <div className="space-y-4 p-4 border rounded-md">
-          <h3 className="text-lg font-semibold">Basic Information</h3>
-          <div>
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" {...register("title")} />
-            {errors.title && <p className="text-sm text-destructive mt-1">{errors.title.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="slug">Slug</Label>
-            <Input id="slug" {...register("slug")} />
-            {errors.slug && <p className="text-sm text-destructive mt-1">{errors.slug.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="game_id">External Game ID (Optional)</Label>
-            <Input id="game_id" {...register("game_id")} />
-            {errors.game_id && <p className="text-sm text-destructive mt-1">{errors.game_id.message}</p>}
-          </div>
-           <div>
-            <Label htmlFor="game_code">Game Code (e.g., for provider)</Label>
-            <Input id="game_code" {...register("game_code")} />
-            {errors.game_code && <p className="text-sm text-destructive mt-1">{errors.game_code.message}</p>}
-          </div>
-        </div>
-
-        {/* Provider and Category Section */}
-        <div className="space-y-4 p-4 border rounded-md">
-          <h3 className="text-lg font-semibold">Provider & Category</h3>
-          <div>
-            <Label htmlFor="provider_slug">Provider</Label>
-            <Controller
-              name="provider_slug"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
-                  <SelectContent>
-                    {providers.map(p => <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.provider_slug && <p className="text-sm text-destructive mt-1">{errors.provider_slug.message}</p>}
-          </div>
-          <div>
-            <Label>Categories</Label>
-            <Controller
-                name="category_slugs"
-                control={control}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Basic Info */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Basic Information</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="title"
                 render={({ field }) => (
-                    <div className="space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">
-                    {categories.map(cat => (
-                        <div key={cat.slug} className="flex items-center space-x-2">
-                        <Checkbox
-                            id={`category-${cat.slug}`}
-                            checked={field.value?.includes(cat.slug)}
-                            onCheckedChange={(checked) => {
-                            const newValue = checked
-                                ? [...(field.value || []), cat.slug]
-                                : (field.value || []).filter(s => s !== cat.slug);
-                            field.onChange(newValue);
-                            }}
-                        />
-                        <Label htmlFor={`category-${cat.slug}`}>{cat.name}</Label>
-                        </div>
-                    ))}
-                    </div>
-                )}
-            />
-            {errors.category_slugs && <p className="text-sm text-destructive mt-1">{errors.category_slugs.message}</p>}
-          </div>
-        </div>
-      </div>
-      {/* ... keep existing code (URLs Section) */}
-      <div className="space-y-4 p-4 border rounded-md">
-        <h3 className="text-lg font-semibold">Image URLs</h3>
-        <div>
-            <Label htmlFor="image">Cover Image URL</Label>
-            <Input id="image" {...register("image")} placeholder="https://example.com/cover.jpg"/>
-            {errors.image && <p className="text-sm text-destructive mt-1">{errors.image.message}</p>}
-        </div>
-        <div>
-            <Label htmlFor="bannerUrl">Banner Image URL (Optional)</Label>
-            <Input id="bannerUrl" {...register("bannerUrl")} placeholder="https://example.com/banner.jpg"/>
-            {errors.bannerUrl && <p className="text-sm text-destructive mt-1">{errors.bannerUrl.message}</p>}
-        </div>
-      </div>
-      
-      <div className="space-y-4 p-4 border rounded-md">
-        <h3 className="text-lg font-semibold">Game Details</h3>
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea id="description" {...register("description")} />
-          {errors.description && <p className="text-sm text-destructive mt-1">{errors.description.message}</p>}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <Label htmlFor="rtp">RTP (%)</Label>
-            <Input id="rtp" type="number" step="0.01" {...register("rtp", { valueAsNumber: true })} />
-            {errors.rtp && <p className="text-sm text-destructive mt-1">{errors.rtp.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="status">Status</Label>
-             <Controller
-                name="status"
-                control={control}
-                render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                    <SelectContent>
-                        {AllGameStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                )}
-            />
-            {errors.status && <p className="text-sm text-destructive mt-1">{errors.status.message}</p>}
-          </div>
-          <div>
-            <Label htmlFor="volatility">Volatility</Label>
-             <Controller
-                name="volatility"
-                control={control}
-                render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <SelectTrigger><SelectValue placeholder="Select volatility" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="">None</SelectItem>
-                        {AllGameVolatilities.map(v => <SelectItem key={v} value={v}>{v.replace(/_/g, ' ')}</SelectItem>)}
-                    </SelectContent>
-                    </Select>
-                )}
-            />
-            {errors.volatility && <p className="text-sm text-destructive mt-1">{errors.volatility.message}</p>}
-          </div>
-        </div>
-        {/* ... keep existing code (lines, min_bet, max_bet, releaseDate) ... */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <Label htmlFor="lines">Lines (Optional)</Label>
-                <Input id="lines" type="number" {...register("lines", {setValueAs: (v) => v === "" ? undefined : parseInt(v, 10)})} />
-                {errors.lines && <p className="text-sm text-destructive mt-1">{errors.lines.message}</p>}
-            </div>
-            <div>
-                <Label htmlFor="min_bet">Min Bet (Optional)</Label>
-                <Input id="min_bet" type="number" step="0.01" {...register("min_bet", {setValueAs: (v) => v === "" ? undefined : parseFloat(v)})} />
-                {errors.min_bet && <p className="text-sm text-destructive mt-1">{errors.min_bet.message}</p>}
-            </div>
-            <div>
-                <Label htmlFor="max_bet">Max Bet (Optional)</Label>
-                <Input id="max_bet" type="number" step="0.01" {...register("max_bet", {setValueAs: (v) => v === "" ? undefined : parseFloat(v)})} />
-                {errors.max_bet && <p className="text-sm text-destructive mt-1">{errors.max_bet.message}</p>}
-            </div>
-        </div>
-         <div>
-            <Label htmlFor="releaseDate">Release Date (YYYY-MM-DD)</Label>
-            <Input id="releaseDate" type="date" {...register("releaseDate")} />
-            {errors.releaseDate && <p className="text-sm text-destructive mt-1">{errors.releaseDate.message}</p>}
-        </div>
-      </div>
-
-      {/* ... keep existing code (Tags, Features, Themes Section) ... */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Tags */}
-        <div className="space-y-2 p-4 border rounded-md">
-            <Label htmlFor="tags">Tags</Label>
-            <div className="flex gap-2">
-            <Input 
-                id="currentTag" 
-                value={currentTag} 
-                onChange={(e) => setCurrentTag(e.target.value)} 
-                placeholder="Add a tag"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddToArray('tags', currentTag, setCurrentTag);}}}
-            />
-            <Button type="button" size="icon" onClick={() => handleAddToArray('tags', currentTag, setCurrentTag)}><PlusCircle className="h-4 w-4"/></Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-            {watchedTags.map(tag => (
-                <span key={tag} className="flex items-center bg-muted px-2 py-1 rounded-md text-sm">
-                {tag}
-                <Button type="button" variant="ghost" size="icon" className="ml-1 h-5 w-5" onClick={() => handleRemoveFromArray('tags', tag)}>
-                    <Trash2 className="h-3 w-3" />
-                </Button>
-                </span>
-            ))}
-            </div>
-            {errors.tags && <p className="text-sm text-destructive mt-1">{errors.tags.message}</p>}
-        </div>
-        {/* Features */}
-        <div className="space-y-2 p-4 border rounded-md">
-            <Label htmlFor="features">Features</Label>
-            <div className="flex gap-2">
-            <Input 
-                id="currentFeature" 
-                value={currentFeature} 
-                onChange={(e) => setCurrentFeature(e.target.value)} 
-                placeholder="Add a feature"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddToArray('features', currentFeature, setCurrentFeature);}}}
-            />
-            <Button type="button" size="icon" onClick={() => handleAddToArray('features', currentFeature, setCurrentFeature)}><PlusCircle className="h-4 w-4"/></Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-            {watchedFeatures.map(feature => (
-                <span key={feature} className="flex items-center bg-muted px-2 py-1 rounded-md text-sm">
-                {feature}
-                <Button type="button" variant="ghost" size="icon" className="ml-1 h-5 w-5" onClick={() => handleRemoveFromArray('features', feature)}>
-                    <Trash2 className="h-3 w-3" />
-                </Button>
-                </span>
-            ))}
-            </div>
-            {errors.features && <p className="text-sm text-destructive mt-1">{errors.features.message}</p>}
-        </div>
-        {/* Themes */}
-        <div className="space-y-2 p-4 border rounded-md">
-            <Label htmlFor="themes">Themes</Label>
-            <div className="flex gap-2">
-            <Input 
-                id="currentTheme" 
-                value={currentTheme} 
-                onChange={(e) => setCurrentTheme(e.target.value)} 
-                placeholder="Add a theme"
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddToArray('themes', currentTheme, setCurrentTheme);}}}
-            />
-            <Button type="button" size="icon" onClick={() => handleAddToArray('themes', currentTheme, setCurrentTheme)}><PlusCircle className="h-4 w-4"/></Button>
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-            {watchedThemes.map(theme => (
-                <span key={theme} className="flex items-center bg-muted px-2 py-1 rounded-md text-sm">
-                {theme}
-                <Button type="button" variant="ghost" size="icon" className="ml-1 h-5 w-5" onClick={() => handleRemoveFromArray('themes', theme)}>
-                    <Trash2 className="h-3 w-3" />
-                </Button>
-                </span>
-            ))}
-            </div>
-            {errors.themes && <p className="text-sm text-destructive mt-1">{errors.themes.message}</p>}
-        </div>
-      </div>
-      
-      {/* ... keep existing code (Boolean Flags Section and Submit/Delete buttons) ... */}
-      <div className="space-y-4 p-4 border rounded-md">
-        <h3 className="text-lg font-semibold">Flags</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {(Object.keys(gameFormSchema.shape)
-            .filter(key => gameFormSchema.shape[key as keyof typeof gameFormSchema.shape] instanceof z.ZodBoolean)
-            .map(keyStr => {
-                const key = keyStr as keyof GameFormValues;
-                // Create a label from the key: is_featured -> Featured, isNew -> New
-                let label = key.replace(/^is_/, '').replace(/([A-Z])/g, ' $1');
-                label = label.charAt(0).toUpperCase() + label.slice(1);
-                if (key === "isNew") label = "New Game"; // Specific override if needed
-                if (key === "show_home") label = "Show on Home";
-                if (key === "only_demo") label = "Demo Only";
-                if (key === "only_real") label = "Real Play Only";
-                if (key === "is_featured") label = "Featured";
-                if (key === "isPopular") label = "Popular";
-
-
-                return { name: key, label };
-            }) as {name: keyof GameFormValues, label: string}[])
-            .filter(flag => typeof flag.name === 'string' && 
-              ['is_featured', 'isNew', 'isPopular', 'show_home', 'only_demo', 'only_real'].includes(flag.name))
-            .map(flag => (
-            <div key={flag.name} className="flex items-center space-x-2">
-              <Controller
-                name={flag.name}
-                control={control}
-                render={({ field }) => (
-                    <Checkbox
-                        id={flag.name}
-                        checked={!!field.value}
-                        onCheckedChange={field.onChange}
-                    />
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl><Input placeholder="Game Title" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
-              <Label htmlFor={flag.name}>{flag.label}</Label>
-            </div>
-          ))}
-        </div>
-      </div>
+              <FormField
+                control={form.control}
+                name="slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Slug</FormLabel>
+                    <FormControl><Input placeholder="game-slug" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="game_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>External Game ID (Optional)</FormLabel>
+                    <FormControl><Input placeholder="Provider's Game ID" {...field} /></FormControl>
+                    <FormDescription>ID from the game provider, if any.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="game_code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Internal Game Code (Optional)</FormLabel>
+                    <FormControl><Input placeholder="Internal unique code" {...field} /></FormControl>
+                     <FormDescription>Alternative unique identifier if needed.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-      <div className="flex justify-end space-x-4">
-        {game && onDelete && (
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => onDelete(String(game.id))} 
-            disabled={isDeleting || isSubmitting}
-          >
-            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-            Delete Game
+          {/* Provider & Category */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Provider & Category</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="provider_slug"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Provider</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {providers.map(p => <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="category_slugs"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categories</FormLabel>
+                    <Controller
+                        control={form.control}
+                        name="category_slugs"
+                        render={({ field: controllerField }) => (
+                            <div className="space-y-2">
+                            {categories.map(cat => (
+                                <FormItem key={cat.slug} className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={controllerField.value?.includes(cat.slug)}
+                                    onCheckedChange={(checked) => {
+                                        return checked
+                                        ? controllerField.onChange([...(controllerField.value || []), cat.slug])
+                                        : controllerField.onChange(
+                                            (controllerField.value || []).filter(
+                                            (value) => value !== cat.slug
+                                            )
+                                        );
+                                    }}
+                                    />
+                                </FormControl>
+                                <FormLabel className="font-normal">{cat.name}</FormLabel>
+                                </FormItem>
+                            ))}
+                            </div>
+                        )}
+                        />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Status & Details */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Status & Details</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {AllGameStatuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="release_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Release Date (Optional)</FormLabel>
+                    <FormControl><Input type="date" {...field} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description (Optional)</FormLabel>
+                    <FormControl><Textarea placeholder="Game description..." {...field} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+          
+          {/* Visuals */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Visuals</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cover Image URL (Optional)</FormLabel>
+                    <FormControl><Input placeholder="https://example.com/image.png" {...field} value={field.value || ''} /></FormControl>
+                    {field.value && <img src={field.value} alt="Cover preview" className="mt-2 h-24 w-auto object-contain rounded"/>}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bannerUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Banner Image URL (Optional)</FormLabel>
+                    <FormControl><Input placeholder="https://example.com/banner.png" {...field} value={field.value || ''} /></FormControl>
+                    {field.value && <img src={field.value} alt="Banner preview" className="mt-2 h-24 w-auto object-contain rounded"/>}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Gameplay Attributes */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Gameplay Attributes</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+               <FormField
+                control={form.control}
+                name="rtp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>RTP (%) (Optional)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="96.5" {...field} 
+                    onChange={e => field.onChange(parseFloat(e.target.value))}  value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="volatility"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Volatility (Optional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Select volatility" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Clear selection</SelectItem>
+                        {AllGameVolatilities.map(v => <SelectItem key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="lines"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Paylines (Optional)</FormLabel>
+                    <FormControl><Input type="number" placeholder="20" {...field} 
+                    onChange={e => field.onChange(parseInt(e.target.value, 10))} value={field.value || ''}/></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="min_bet"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Min Bet (Optional)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="0.10" {...field} 
+                    onChange={e => field.onChange(parseFloat(e.target.value))} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="max_bet"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Bet (Optional)</FormLabel>
+                    <FormControl><Input type="number" step="1" placeholder="100" {...field} 
+                    onChange={e => field.onChange(parseFloat(e.target.value))} value={field.value || ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Features, Tags, Themes */}
+          <Card className="lg:col-span-1">
+            <CardHeader><CardTitle>Features, Tags & Themes</CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+              {/* Features */}
+              <FormItem>
+                <FormLabel>Features (Optional)</FormLabel>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="text"
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    placeholder="Add feature (e.g., Free Spins)"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(featureInput, setFeatureInput, currentFeatures, setCurrentFeatures, 'features');}}}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(featureInput, setFeatureInput, currentFeatures, setCurrentFeatures, 'features')}><PlusCircleIcon className="h-4 w-4"/></Button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {currentFeatures.map(feature => (
+                    <Badge key={feature} variant="secondary" className="flex items-center">
+                      {feature}
+                      <Button type="button" variant="ghost" size="icon" className="ml-1 h-4 w-4" onClick={() => handleRemoveItem(feature, currentFeatures, setCurrentFeatures, 'features')}>
+                        <XIcon className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                <FormMessage>{form.formState.errors.features?.message}</FormMessage>
+              </FormItem>
+
+              {/* Tags */}
+              <FormItem>
+                <FormLabel>Tags (Optional)</FormLabel>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    placeholder="Add tag (e.g., Popular)"
+                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(tagInput, setTagInput, currentTags, setCurrentTags, 'tags');}}}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(tagInput, setTagInput, currentTags, setCurrentTags, 'tags')}><PlusCircleIcon className="h-4 w-4"/></Button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {currentTags.map(tag => (
+                    <Badge key={tag} variant="secondary" className="flex items-center">
+                      {tag}
+                       <Button type="button" variant="ghost" size="icon" className="ml-1 h-4 w-4" onClick={() => handleRemoveItem(tag, currentTags, setCurrentTags, 'tags')}>
+                        <XIcon className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                 <FormMessage>{form.formState.errors.tags?.message}</FormMessage>
+              </FormItem>
+
+              {/* Themes */}
+              <FormItem>
+                <FormLabel>Themes (Optional)</FormLabel>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="text"
+                    value={themeInput}
+                    onChange={(e) => setThemeInput(e.target.value)}
+                    placeholder="Add theme (e.g., Adventure)"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddItem(themeInput, setThemeInput, currentThemes, setCurrentThemes, 'themes');}}}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(themeInput, setThemeInput, currentThemes, setCurrentThemes, 'themes')}><PlusCircleIcon className="h-4 w-4"/></Button>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {currentThemes.map(theme => (
+                    <Badge key={theme} variant="secondary" className="flex items-center">
+                      {theme}
+                      <Button type="button" variant="ghost" size="icon" className="ml-1 h-4 w-4" onClick={() => handleRemoveItem(theme, currentThemes, setCurrentThemes, 'themes')}>
+                        <XIcon className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                <FormMessage>{form.formState.errors.themes?.message}</FormMessage>
+              </FormItem>
+            </CardContent>
+          </Card>
+          
+          {/* Boolean Flags */}
+          <Card className="lg:col-span-3">
+            <CardHeader><CardTitle>Flags & Visibility</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {[
+                { name: "is_popular", label: "Popular" },
+                { name: "is_new", label: "New" },
+                { name: "is_featured", label: "Featured" },
+                { name: "show_home", label: "Show on Home Page" },
+                { name: "has_freespins", label: "Has Freespins" },
+                { name: "has_jackpot", label: "Has Jackpot" },
+              ].map(flag => (
+                <FormField
+                  key={flag.name}
+                  control={form.control}
+                  name={flag.name as keyof GameFormData}
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value as boolean | undefined}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>{flag.label}</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex justify-end space-x-2 pt-4">
+          {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>}
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (game?.id ? 'Updating...' : 'Creating...') : (game?.id ? 'Save Changes' : 'Create Game')}
           </Button>
-        )}
-        <Button type="submit" disabled={isSubmitting || isDeleting}>
-          {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {game ? 'Save Changes' : 'Create Game'}
-        </Button>
-      </div>
-    </form>
+        </div>
+      </form>
+    </Form>
   );
 };
 

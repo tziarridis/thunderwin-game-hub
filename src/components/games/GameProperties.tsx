@@ -1,74 +1,62 @@
-import React from 'react';
-import { Game, GameTag } from '@/types'; // GameTag might be used for displaying tags if they are objects
-import { Badge } from '@/components/ui/badge';
-import { Tag, Percent, BarChart3, CalendarDays, Layers, Hash, Thermometer, DollarSign } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 
+import React from 'react';
+import { Game, GameVolatilityEnum } from '@/types/game';
+import { Badge } from '@/components/ui/badge';
+import { Tag, Percent, BarChart3, Zap, CalendarDays, Info as InfoIcon } from 'lucide-react'; // Added InfoIcon
 
 interface GamePropertiesProps {
   game: Game;
-  className?: string;
 }
 
-const GameProperties: React.FC<GamePropertiesProps> = ({ game, className }) => {
+const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
   const properties = [
-    { label: 'RTP', value: game.rtp ? `${game.rtp.toFixed(2)}%` : 'N/A', icon: <Percent className="h-4 w-4" /> },
-    { label: 'Volatility', value: game.volatility || 'N/A', icon: <BarChart3 className="h-4 w-4" /> },
-    { label: 'Lines', value: game.lines || 'N/A', icon: <Layers className="h-4 w-4" /> }, // Assuming 'Layers' for lines
-    { label: 'Min Bet', value: game.min_bet ?? 'N/A', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Max Bet', value: game.max_bet ?? 'N/A', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Release Date', value: game.releaseDate ? format(parseISO(game.releaseDate), 'MMM d, yyyy') : 'N/A', icon: <CalendarDays className="h-4 w-4" /> },
-    { label: 'Status', value: game.status ? game.status.replace(/_/g, ' ') : 'N/A', icon: <Info className="h-4 w-4" /> }, // Example icon
-    { label: 'Game Code', value: game.game_code || 'N/A', icon: <Hash className="h-4 w-4" /> }, // Example icon for game_code
-    { label: 'Technology', value: game.technology || 'N/A', icon: <Thermometer className="h-4 w-4" /> }, // Example icon
+    { label: 'RTP', value: game.rtp ? `${game.rtp}%` : 'N/A', icon: <Percent className="w-4 h-4 mr-1" /> },
+    { label: 'Volatility', value: game.volatility || 'N/A', icon: <BarChart3 className="w-4 h-4 mr-1" />, variant: game.volatility ? (
+        game.volatility === GameVolatilityEnum.LOW ? 'green' :
+        game.volatility === GameVolatilityEnum.MEDIUM ? 'yellow' :
+        game.volatility === GameVolatilityEnum.HIGH ? 'red' :
+        game.volatility === GameVolatilityEnum.LOW_MEDIUM ? 'blue' :
+        game.volatility === GameVolatilityEnum.MEDIUM_HIGH ? 'purple' : 'default'
+      ) : 'default' as any
+    },
+    { label: 'Paylines', value: game.lines || 'N/A', icon: <Zap className="w-4 h-4 mr-1" /> },
+    { label: 'Release Date', value: game.releaseDate ? new Date(game.releaseDate).toLocaleDateString() : 'N/A', icon: <CalendarDays className="w-4 h-4 mr-1" /> },
+    { label: 'Provider', value: game.providerName || game.provider?.name || 'N/A', icon: <InfoIcon className="w-4 h-4 mr-1" /> },
   ];
 
-  const displayTags: string[] = Array.isArray(game.tags)
-    ? game.tags.map(tag => (typeof tag === 'string' ? tag : tag.name)) // Use tag.name if GameTag object
-    : [];
-  
-  const displayFeatures: string[] = Array.isArray(game.features) ? game.features : [];
-  const displayThemes: string[] = Array.isArray(game.themes) ? game.themes : [];
-
-
   return (
-    <div className={className}>
-      <h3 className="text-xl font-semibold mb-4">Game Properties</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-        {properties.map(prop => (
-          (prop.value && prop.value !== 'N/A') && (
-            <div key={prop.label} className="flex items-start p-3 bg-muted/50 rounded-md">
-              <div className="mr-3 text-primary">{prop.icon}</div>
-              <div>
-                <p className="text-xs text-muted-foreground">{prop.label}</p>
-                <p className="text-sm font-medium capitalize">{String(prop.value)}</p>
-              </div>
-            </div>
-          )
-        ))}
-      </div>
-
-      {displayTags.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-md font-semibold mb-2 flex items-center"><Tag className="h-4 w-4 mr-2 text-primary" /> Tags</h4>
-          <div className="flex flex-wrap gap-2">
-            {displayTags.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+    <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+      {properties.map(prop => (
+        <div key={prop.label} className="bg-card p-3 rounded-lg shadow">
+          <div className="text-xs text-muted-foreground flex items-center mb-1">
+            {prop.icon}
+            {prop.label}
           </div>
+          <Badge 
+            variant={prop.variant || 'secondary'}
+            className={
+              prop.variant === 'green' ? 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30' :
+              prop.variant === 'yellow' ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30' :
+              prop.variant === 'red' ? 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30' :
+              prop.variant === 'blue' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30' :
+              prop.variant === 'purple' ? 'bg-purple-500/20 text-purple-700 dark:text-purple-400 border-purple-500/30' :
+              ''
+            }
+          >
+            {prop.value}
+          </Badge>
         </div>
-      )}
-      {displayFeatures.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-md font-semibold mb-2 flex items-center"><Tag className="h-4 w-4 mr-2 text-primary" /> Features</h4>
-          <div className="flex flex-wrap gap-2">
-            {displayFeatures.map(feature => <Badge key={feature} variant="outline">{feature}</Badge>)}
+      ))}
+      {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
+        <div className="md:col-span-3 bg-card p-3 rounded-lg shadow">
+          <div className="text-xs text-muted-foreground flex items-center mb-1">
+            <Tag className="w-4 h-4 mr-1" />
+            Tags
           </div>
-        </div>
-      )}
-       {displayThemes.length > 0 && (
-        <div>
-          <h4 className="text-md font-semibold mb-2 flex items-center"><Tag className="h-4 w-4 mr-2 text-primary" /> Themes</h4>
           <div className="flex flex-wrap gap-2">
-            {displayThemes.map(theme => <Badge key={theme} variant="default">{theme}</Badge>)}
+            {(game.tags as string[]).map(tag => ( // Assuming tags are strings for now
+              <Badge key={tag} variant="outline">{typeof tag === 'object' ? (tag as any).name : tag}</Badge>
+            ))}
           </div>
         </div>
       )}

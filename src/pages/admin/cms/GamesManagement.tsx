@@ -1,176 +1,166 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameCategory as CategoryType, GameProvider as ProviderType } from '@/types/game';
+import { Game, DbGame, GameProvider, GameCategory, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import GameForm from '@/components/admin/GameForm';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { gameService } from '@/services/gameService'; // Using gameService
 
-const ITEMS_PER_PAGE = 10;
+const fetchAdminGames = async (searchTerm: string = ''): Promise<DbGame[]> => {
+  let query = supabase.from('games').select('*').order('title', { ascending: true });
+  if (searchTerm) {
+    query = query.or(`title.ilike.%${searchTerm}%,slug.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
+  }
+  const { data, error } = await query;
+  if (error) {
+    console.error("Error fetching games:", error);
+    throw new Error('Failed to fetch games');
+  }
+  return data as DbGame[];
+};
 
-const AdminGamesManagement: React.FC = () => {
-  const [games, setGames] = useState<Game[]>([]);
-  const [categories, setCategories] = useState<CategoryType[]>([]);
-  const [providers, setProviders] = useState<ProviderType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+const fetchProvidersForForm = async (): Promise<{ slug: string; name: string }[]> => {
+    const { data, error } = await supabase.from('game_providers').select('slug, name').eq('is_active', true);
+    if (error) throw error;
+    return data || [];
+};
+
+const fetchCategoriesForForm = async (): Promise<{ slug: string; name: string }[]> => {
+    const { data, error } = await supabase.from('game_categories').select('slug, name'); // Add filtering if needed e.g. by active status
+    if (error) throw error;
+    return data || [];
+};
+
+
+const GamesManagement: React.FC = () => {
+  const queryClient = useQueryClient();
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingGame, setEditingGame] = useState<Game | null>(null);
-  const [showFormDialog, setShowFormDialog] = useState(false);
-  const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
-  const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
-  
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalGames, setTotalGames] = useState(0);
-
-  const fetchGames = useCallback(async (page: number, search: string) => {
-    setIsLoading(true);
-    try {
-      const result = await gameService.getAllGames({ 
-        limit: ITEMS_PER_PAGE, 
-        offset: (page - 1) * ITEMS_PER_PAGE, 
-        search: search || undefined 
-      });
-      setGames(result.games);
-      setTotalGames(result.count || 0);
-    } catch (error: any) {
-      toast.error(`Failed to fetch games: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const fetchMeta = async () => {
-    try {
-      const [cats, provs] = await Promise.all([
-        gameService.getGameCategories(),
-        gameService.getGameProviders()
-      ]);
-      setCategories(cats);
-      setProviders(provs);
-    } catch (error: any) {
-      toast.error(`Failed to fetch categories/providers: ${error.message}`);
-    }
-  };
-
-  useEffect(() => {
-    fetchGames(currentPage, searchTerm);
-  }, [fetchGames, currentPage, searchTerm]);
-
-  useEffect(() => {
-    fetchMeta();
-  }, []);
-
-  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const gameData: Partial<Game> = {
-      title: formData.get('title') as string,
-      description: formData.get('description') as string,
-      provider_slug: formData.get('provider_slug') as string,
-      category_slugs: formData.getAll('category_slugs') as string[],
-      tags: (formData.get('tags') as string)?.split(',').map(tag => tag.trim()).filter(Boolean),
-      rtp: parseFloat(formData.get('rtp') as string) || undefined,
-      volatility: formData.get('volatility') as 'low' | 'medium' | 'high' | undefined,
-      image_url: formData.get('image_url') as string || undefined, // Corrected property name
-      cover: formData.get('cover') as string || undefined,
-      is_active: formData.get('is_active') === 'on',
-      is_featured: formData.get('is_featured') === 'on',
-      isPopular: formData.get('isPopular') === 'on',
-      isNew: formData.get('isNew') === 'on',
-      // game_id: formData.get('game_id') as string, // External game ID if applicable
-      slug: formData.get('slug') as string || formData.get('title')?.toString().toLowerCase().replace(/\s+/g, '-') || undefined,
-      // provider_id: providers.find(p => p.slug === formData.get('provider_slug'))?.id,
-      // providerName: providers.find(p => p.slug === formData.get('provider_slug'))?.name,
-      // providerData: // This would be complex to handle in a simple form
-      // game_props: // this too
-    };
-    
-    // Find provider ID based on slug
-    const selectedProvider = providers.find(p => p.slug === gameData.provider_slug);
-    if (selectedProvider) {
-      gameData.provider_id = selectedProvider.id;
-      gameData.providerName = selectedProvider.name;
-    }
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<DbGame | null>(null);
 
 
-    setIsLoading(true);
-    try {
-      if (editingGame) {
-        await gameService.updateGame(editingGame.id!, gameData); // Assuming id is string UUID
-        toast.success('Game updated successfully!');
-      } else {
-        await gameService.createGame(gameData as Game); // Cast as Game, ensure all required fields are present
-        toast.success('Game created successfully!');
-      }
-      setShowFormDialog(false);
-      setEditingGame(null);
-      fetchGames(currentPage, searchTerm);
-    } catch (error: any) {
-      toast.error(`Operation failed: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery<DbGame[], Error>({
+    queryKey: ['adminGames', searchTerm],
+    queryFn: () => fetchAdminGames(searchTerm),
+    staleTime: 1000 * 60 * 1, // 1 minute
+  });
 
-  const openDeleteDialog = (game: Game) => {
-    setGameToDelete(game);
-    setShowConfirmDeleteDialog(true);
-  };
+  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery<{ slug: string; name: string }[], Error>({
+    queryKey: ['formProviders'],
+    queryFn: fetchProvidersForForm,
+    staleTime: Infinity, // Providers list doesn't change often
+  });
 
-  const handleDeleteConfirm = async () => {
-    if (!gameToDelete || !gameToDelete.id) return;
-    setIsLoading(true);
-    try {
-      await gameService.deleteGame(gameToDelete.id);
-      toast.success('Game deleted successfully!');
-      setShowConfirmDeleteDialog(false);
+  const { data: categoriesForForm = [], isLoading: isLoadingCategories } = useQuery<{ slug: string; name: string }[], Error>({
+    queryKey: ['formCategories'],
+    queryFn: fetchCategoriesForForm,
+    staleTime: Infinity, // Categories list doesn't change often
+  });
+
+
+  const deleteGameMutation = useMutation<void, Error, string>({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.from('games').delete().eq('id', gameId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Game deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['allGames'] }); // Also invalidate public games list
+      setShowDeleteConfirm(false);
       setGameToDelete(null);
-      fetchGames(currentPage, searchTerm);
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(`Failed to delete game: ${error.message}`);
-    } finally {
-      setIsLoading(false);
+      setShowDeleteConfirm(false);
+      setGameToDelete(null);
+    },
+  });
+
+  const handleAddNewGame = () => {
+    setEditingGame(null);
+    setIsFormOpen(true);
+  };
+
+  const handleEditGame = (game: DbGame) => {
+    setEditingGame(game);
+    setIsFormOpen(true);
+  };
+
+  const handleDeleteGame = (game: DbGame) => {
+    setGameToDelete(game);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteGame = () => {
+    if (gameToDelete) {
+      deleteGameMutation.mutate(gameToDelete.id);
     }
   };
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    setEditingGame(null);
+    refetchGames(); // Refetch games list after add/edit
+  };
   
-  const totalPages = Math.ceil(totalGames / ITEMS_PER_PAGE);
+  const toggleGameStatusMutation = useMutation<void, Error, { gameId: string; newStatus: GameStatusEnum }>({
+    mutationFn: async ({ gameId, newStatus }) => {
+      const { error } = await supabase.from('games').update({ status: newStatus }).eq('id', gameId);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Game status updated to ${variables.newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update game status: ${error.message}`);
+    },
+  });
+
+  const handleToggleStatus = (game: DbGame) => {
+    const newStatus = game.status === GameStatusEnum.ACTIVE ? GameStatusEnum.INACTIVE : GameStatusEnum.ACTIVE;
+    toggleGameStatusMutation.mutate({ gameId: game.id, newStatus });
+  };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="p-6">
       <CMSPageHeader
-        title="Games Content Management"
-        description="Manage all casino games, categories, and providers."
-        actions={
-          <Button onClick={() => { setEditingGame(null); setShowFormDialog(true); }}>
+        title="Games Management"
+        description="Add, edit, and manage all casino games."
+        actionButton={
+          <Button onClick={handleAddNewGame}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
           </Button>
         }
       />
 
-      <div className="mb-4 flex items-center">
-        <Input
-          placeholder="Search games..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-         <Button onClick={() => fetchGames(1, searchTerm)} className="ml-2">
-          <Search className="mr-2 h-4 w-4" /> Search
-        </Button>
+      <div className="my-6">
+        <div className="relative">
+          <Input
+            placeholder="Search games by title, slug, provider..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        </div>
       </div>
 
-      {isLoading && games.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
-      {games.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-card">
+      {isLoadingGames || isLoadingProviders || isLoadingCategories ? (
+        <p>Loading game data...</p>
+      ) : (
+        <div className="bg-card p-4 rounded-lg shadow">
           <Table>
             <TableHeader>
               <TableRow>
@@ -178,196 +168,81 @@ const AdminGamesManagement: React.FC = () => {
                 <TableHead>Provider</TableHead>
                 <TableHead>Categories</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Featured</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {games.map((game) => (
                 <TableRow key={game.id}>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {game.image_url ? (
-                        <img src={game.image_url || game.image || game.cover} alt={game.title} className="h-10 w-10 object-cover rounded-sm" onError={(e) => e.currentTarget.style.display = 'none'}/>
-                    ) : (
-                        <div className="h-10 w-10 bg-muted rounded-sm flex items-center justify-center text-muted-foreground text-xs">No Img</div>
-                    )}
-                    {game.title}
-                    {game.slug && <a href={`/casino/game/${game.slug}`} target="_blank" rel="noopener noreferrer" title="View Game Page"><ExternalLink className="h-3 w-3 text-blue-500 hover:text-blue-700"/></a>}
-                    </TableCell>
-                  <TableCell>{game.providerName || game.provider_slug}</TableCell>
-                  <TableCell className="max-w-xs truncate">
-                    {game.category_slugs?.join(', ') || game.categoryName || game.category || 'N/A'}
+                  <TableCell className="font-medium">{game.title || game.game_name}</TableCell>
+                  <TableCell>{game.provider_slug}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {game.category_slugs?.map(slug => <Badge key={slug} variant="secondary">{slug}</Badge>)}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {game.is_active ? (
-                      <span className="text-green-600 flex items-center"><Eye className="mr-1 h-4 w-4" /> Active</span>
-                    ) : (
-                      <span className="text-red-600 flex items-center"><EyeOff className="mr-1 h-4 w-4" /> Inactive</span>
-                    )}
+                    <Badge variant={game.status === GameStatusEnum.ACTIVE ? 'default' : 'outline'}
+                      className={game.status === GameStatusEnum.ACTIVE ? 'bg-green-500 text-white' : 'border-gray-500'}
+                    >
+                      {game.status ? game.status.toString().charAt(0).toUpperCase() + game.status.toString().slice(1) : 'Unknown'}
+                    </Badge>
                   </TableCell>
-                   <TableCell>{game.is_featured ? 'Yes' : 'No'}</TableCell>
-                  <TableCell className="space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditingGame(game); setShowFormDialog(true); }}>
+                  <TableCell className="text-right">
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleToggleStatus(game)}
+                        title={game.status === GameStatusEnum.ACTIVE ? "Deactivate" : "Activate"}
+                        className="mr-2 hover:text-primary"
+                      >
+                        {game.status === GameStatusEnum.ACTIVE ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEditGame(game)} className="mr-2 hover:text-blue-500">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(game)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteGame(game)} className="hover:text-red-500">
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-      
-      {totalPages > 1 && (
-         <div className="flex justify-between items-center mt-4">
-            <Button 
-                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
-                disabled={currentPage === 1 || isLoading}
-                variant="outline"
-            >
-                Previous
-            </Button>
-            <span>Page {currentPage} of {totalPages}</span>
-            <Button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
-                disabled={currentPage === totalPages || isLoading}
-                variant="outline"
-            >
-                Next
-            </Button>
+           {games.length === 0 && <p className="text-center py-4 text-muted-foreground">No games found.</p>}
         </div>
       )}
 
-      <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[800px] md:max-w-[1000px] lg:max-w-[1200px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
-            <DialogDescription>
-              {editingGame ? 'Update the details for this game.' : 'Fill in the form to add a new game.'}
-            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleFormSubmit} className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" name="title" defaultValue={editingGame?.title || ''} required className="mt-1" />
-            </div>
-             <div>
-              <Label htmlFor="slug">Slug (URL friendly identifier)</Label>
-              <Input id="slug" name="slug" defaultValue={editingGame?.slug || ''} placeholder="e.g. my-awesome-game" className="mt-1" />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" defaultValue={editingGame?.description || ''} className="mt-1" />
-            </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="game_id">External Game ID (from provider)</Label>
-                    <Input id="game_id" name="game_id" defaultValue={editingGame?.game_id || ''} className="mt-1" />
-                </div>
-                <div>
-                    <Label htmlFor="provider_slug">Provider</Label>
-                    <Select name="provider_slug" defaultValue={editingGame?.provider_slug || ''}>
-                        <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select provider" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-            <div>
-                <Label>Categories</Label>
-                <div className="mt-1 grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto border p-2 rounded-md">
-                    {categories.map(cat => (
-                    <div key={cat.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                        id={`category-${cat.slug}`} 
-                        name="category_slugs" 
-                        value={cat.slug}
-                        defaultChecked={editingGame?.category_slugs?.includes(cat.slug) || false}
-                        />
-                        <Label htmlFor={`category-${cat.slug}`} className="font-normal">{cat.name}</Label>
-                    </div>
-                    ))}
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="tags">Tags (comma-separated)</Label>
-                    <Input id="tags" name="tags" defaultValue={editingGame?.tags?.join(', ') || ''} className="mt-1" />
-                </div>
-                <div>
-                    <Label htmlFor="rtp">RTP (%)</Label>
-                    <Input id="rtp" name="rtp" type="number" step="0.01" defaultValue={editingGame?.rtp || ''} className="mt-1" />
-                </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="volatility">Volatility</Label>
-                    <Select name="volatility" defaultValue={editingGame?.volatility || ''}>
-                        <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Select volatility" />
-                        </SelectTrigger>
-                        <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div>
-                    <Label htmlFor="image_url">Image URL</Label>
-                    <Input id="image_url" name="image_url" defaultValue={editingGame?.image_url || editingGame?.image || ''} className="mt-1" />
-                </div>
-            </div>
-            <div>
-                <Label htmlFor="cover">Cover Image URL (Large)</Label>
-                <Input id="cover" name="cover" defaultValue={editingGame?.cover || ''} className="mt-1" />
-            </div>
-            <div className="space-y-2 pt-2">
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="is_active" name="is_active" defaultChecked={editingGame?.is_active === undefined ? true : editingGame.is_active} />
-                    <Label htmlFor="is_active" className="font-normal">Active (Visible to players)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="is_featured" name="is_featured" defaultChecked={editingGame?.is_featured || false} />
-                    <Label htmlFor="is_featured" className="font-normal">Featured Game</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="isPopular" name="isPopular" defaultChecked={editingGame?.isPopular || false} />
-                    <Label htmlFor="isPopular" className="font-normal">Popular Game</Label>
-                </div>
-                 <div className="flex items-center space-x-2">
-                    <Checkbox id="isNew" name="isNew" defaultChecked={editingGame?.isNew || false} />
-                    <Label htmlFor="isNew" className="font-normal">New Game</Label>
-                </div>
-            </div>
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setShowFormDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingGame ? 'Save Changes' : 'Create Game'}
-              </Button>
-            </DialogFooter>
-          </form>
+          { (isLoadingProviders || isLoadingCategories) && !isFormOpen ? <p>Loading form dependencies...</p> :
+            <GameForm
+                game={editingGame}
+                onSubmitSuccess={handleFormSuccess}
+                onCancel={() => setIsFormOpen(false)}
+                providers={providersForForm}
+                categories={categoriesForForm}
+            />
+          }
         </DialogContent>
       </Dialog>
-
+      
       <ConfirmationDialog
-        isOpen={showConfirmDeleteDialog}
-        onClose={() => setShowConfirmDeleteDialog(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Game"
-        description={`Are you sure you want to delete the game "${gameToDelete?.title}"? This action cannot be undone.`}
-        confirmButtonText="Delete"
-        isLoading={isLoading}
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteGame}
+        title="Confirm Deletion"
+        description={`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        isDestructive
+        isLoading={deleteGameMutation.isPending}
       />
+
     </div>
   );
 };
 
-export default AdminGamesManagement;
+export default GamesManagement;

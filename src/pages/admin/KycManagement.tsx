@@ -1,241 +1,249 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client'; // Corrected import path
-import { KycRequestWithUser, KycStatus, KycRequestUpdatePayload } from '@/types/kyc';
+import { KycRequest, KycStatus as KycStatusType, KycStatusEnum } from '@/types/kyc'; // Assuming KycStatusEnum will be added
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { format, parseISO } from 'date-fns';
-import { Eye, CheckCircle, XCircle, Search, Filter, Edit } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 
-const KYC_REQUESTS_QUERY_KEY = 'admin_kyc_requests';
+const fetchKycRequests = async (): Promise<KycRequest[]> => {
+  const { data, error } = await supabase
+    .from('kyc_requests')
+    .select(`
+      id,
+      user_id,
+      status,
+      document_type,
+      document_front_url,
+      document_back_url,
+      selfie_url,
+      submitted_at,
+      reviewed_at,
+      reviewed_by,
+      rejection_reason,
+      notes,
+      created_at,
+      updated_at,
+      user:profiles (id, email, full_name)
+    `)
+    .order('submitted_at', { ascending: false });
 
-const KycManagementPage: React.FC = () => {
+  if (error) {
+    console.error('Error fetching KYC requests:', error);
+    throw new Error(error.message);
+  }
+  // TODO: Fix this type assertion once `profiles` is correctly typed or joined
+  return data as unknown as KycRequest[];
+};
+
+const KycManagement: React.FC = () => {
   const queryClient = useQueryClient();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<KycStatus | 'all'>('all');
-  const [selectedRequest, setSelectedRequest] = useState<KycRequestWithUser | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [updatePayload, setUpdatePayload] = useState<Partial<KycRequestUpdatePayload>>({});
+  const [editingRequest, setEditingRequest] = useState<KycRequest | null>(null);
+  const [newStatus, setNewStatus] = useState<KycStatusType | ''>('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const { data: kycRequests = [], isLoading } = useQuery<KycRequestWithUser[], Error>({
-    queryKey: [KYC_REQUESTS_QUERY_KEY, searchTerm, filterStatus],
-    queryFn: async () => {
-      let query = supabase
-        .from('kyc_requests') 
-        .select(`
-          *,
-          user:profiles (id, email, username, first_name, last_name)
-        `); 
-
-      if (searchTerm) {
-        query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
-      }
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
-      }
-      
-      const { data, error } = await query.order('submitted_at', { ascending: false });
-      if (error) {
-        console.error("Error fetching KYC requests:", error);
-        throw error;
-      }
-      return data as KycRequestWithUser[];
-    }
+  const { data: kycRequests, isLoading, error } = useQuery<KycRequest[], Error>({
+    queryKey: ['kycRequests'],
+    queryFn: fetchKycRequests,
   });
-  
-  const updateKycMutation = useMutation<any, Error, { id: string; payload: KycRequestUpdatePayload }>({
-    mutationFn: async ({ id, payload }) => {
+
+  const updateKycMutation = useMutation<KycRequest, Error, { id: string; status: KycStatusType; rejection_reason?: string; notes?: string }>({
+    mutationFn: async ({ id, status, rejection_reason, notes }) => {
       const { data, error } = await supabase
         .from('kyc_requests')
-        .update(payload)
+        .update({ 
+            status, 
+            rejection_reason: status === KycStatusEnum.REJECTED ? rejection_reason : null,
+            notes, 
+            reviewed_at: new Date().toISOString(), 
+            // reviewed_by: 'admin_user_id' // TODO: Get actual admin user ID
+        })
         .eq('id', id)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return data as KycRequest;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [KYC_REQUESTS_QUERY_KEY] });
-      toast.success('KYC request updated successfully.');
-      setIsModalOpen(false);
-      setSelectedRequest(null);
+      toast.success('KYC status updated successfully.');
+      queryClient.invalidateQueries({ queryKey: ['kycRequests'] });
+      setEditingRequest(null);
+      setNewStatus('');
+      setRejectionReason('');
+      setNotes('');
     },
-    onError: (error) => {
-      toast.error(`Failed to update KYC request: ${error.message}`);
+    onError: (err) => {
+      toast.error(`Failed to update KYC status: ${err.message}`);
     },
   });
 
-  const handleViewDetails = (request: KycRequestWithUser) => {
-    setSelectedRequest(request);
-    setUpdatePayload({ status: request.status, rejection_reason: request.rejection_reason || '', notes: request.notes || '' });
-    setIsModalOpen(true);
+  const handleEdit = (request: KycRequest) => {
+    setEditingRequest(request);
+    setNewStatus(request.status);
+    setRejectionReason(request.rejection_reason || '');
+    setNotes(request.notes || '');
   };
 
-  const handleSaveChanges = () => {
-    if (selectedRequest && updatePayload) {
-        const payloadToSend: KycRequestUpdatePayload = {
-            status: updatePayload.status,
-            rejection_reason: updatePayload.rejection_reason || null,
-            notes: updatePayload.notes || null, 
-        };
-      updateKycMutation.mutate({ id: selectedRequest.id, payload: payloadToSend });
-    }
+  const handleCancelEdit = () => {
+    setEditingRequest(null);
+    setNewStatus('');
+    setRejectionReason('');
+    setNotes('');
   };
   
-  const getStatusBadgeColor = (status: KycStatus) => {
-    switch (status) {
-      case KycStatus.VERIFIED: return "bg-green-500";
-      case KycStatus.PENDING: return "bg-yellow-500";
-      case KycStatus.REJECTED: return "bg-red-500";
-      case KycStatus.ACTION_REQUIRED: return "bg-orange-500";
-      default: return "bg-gray-500";
+  const handleSubmitUpdate = () => {
+    if (editingRequest && newStatus) {
+      updateKycMutation.mutate({
+        id: editingRequest.id,
+        status: newStatus as KycStatusType, // newStatus is KycStatusType or ''
+        rejection_reason: newStatus === KycStatusEnum.REJECTED ? rejectionReason : undefined,
+        notes: notes,
+      });
     }
   };
 
-  const kycStatuses = Object.values(KycStatus).filter(value => typeof value === 'string');
+  const getStatusBadge = (status: KycStatusType | null | undefined) => {
+    if (!status) return <Badge variant="outline">Unknown</Badge>;
+    switch (status) {
+      case KycStatusEnum.APPROVED:
+        return <Badge variant="default" className="bg-green-500 text-white"><CheckCircle className="mr-1 h-3 w-3" />Approved</Badge>;
+      case KycStatusEnum.REJECTED:
+        return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" />Rejected</Badge>;
+      case KycStatusEnum.PENDING:
+        return <Badge variant="secondary" className="bg-yellow-500 text-black"><AlertTriangle className="mr-1 h-3 w-3" />Pending</Badge>;
+      case KycStatusEnum.RESUBMIT:
+         return <Badge variant="outline" className="border-orange-500 text-orange-500"><RefreshCw className="mr-1 h-3 w-3" />Resubmit</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader><CardTitle>Manage KYC Requests</CardTitle></CardHeader>
+          <CardContent><Skeleton className="h-64 w-full" /></CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <p className="text-red-500">Error loading KYC requests: {error.message}</p>;
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-6">KYC Management</h1>
+      
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Pending KYC Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {kycRequests && kycRequests.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User Email</TableHead>
+                  <TableHead>Document Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted At</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {kycRequests.map((req) => (
+                  <TableRow key={req.id}>
+                    <TableCell>{req.user?.email || req.user_id}</TableCell>
+                    <TableCell>{req.document_type}</TableCell>
+                    <TableCell>{getStatusBadge(req.status)}</TableCell>
+                    <TableCell>{new Date(req.submitted_at).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(req)}>
+                        Review
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p>No KYC requests found.</p>
+          )}
+        </CardContent>
+      </Card>
 
-      <div className="mb-6 p-4 bg-card rounded-lg shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <Input
-          type="search"
-          placeholder="Search by Request ID or User ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          icon={<Search className="h-4 w-4 text-muted-foreground" />}
-        />
-        <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as KycStatus | 'all')}>
-          <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {kycStatuses.map(status => (
-              <SelectItem key={status} value={status}>{String(status).replace(/_/g, ' ')}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {editingRequest && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Review KYC Request for {editingRequest.user?.email || editingRequest.user_id}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="font-semibold">Documents:</h3>
+              {editingRequest.document_front_url && <a href={editingRequest.document_front_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block">View Document Front</a>}
+              {editingRequest.document_back_url && <a href={editingRequest.document_back_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block">View Document Back</a>}
+              {editingRequest.selfie_url && <a href={editingRequest.selfie_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block">View Selfie</a>}
+            </div>
+            
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium mb-1">Update Status</label>
+              <Select 
+                value={newStatus || undefined}
+                onValueChange={(value) => setNewStatus(value as KycStatusType)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select new status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(KycStatusEnum).map(statusVal => (
+                    <SelectItem key={statusVal} value={statusVal}>{statusVal.charAt(0).toUpperCase() + statusVal.slice(1)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-      {isLoading ? <p>Loading KYC requests...</p> : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Submitted At</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Reviewed At</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {kycRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell>
-                  <div>{request.user?.username || request.user?.email || request.user_id}</div>
-                  <div className="text-xs text-muted-foreground">{request.user_id}</div>
-                </TableCell>
-                <TableCell>{request.submitted_at ? format(parseISO(request.submitted_at), 'PPpp') : 'N/A'}</TableCell>
-                <TableCell>
-                  <Badge className={`${getStatusBadgeColor(request.status)} text-white hover:${getStatusBadgeColor(request.status)}`}>
-                    {request.status.replace(/_/g, ' ')}
-                  </Badge>
-                </TableCell>
-                <TableCell>{request.reviewed_at ? format(parseISO(request.reviewed_at), 'PPpp') : 'N/A'}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="outline" size="sm" onClick={() => handleViewDetails(request)}>
-                    <Eye className="mr-1 h-4 w-4" /> View/Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      {kycRequests.length === 0 && !isLoading && <p className="text-center py-4">No KYC requests found.</p>}
-
-      <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
-          setIsModalOpen(isOpen);
-          if (!isOpen) setSelectedRequest(null);
-      }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>KYC Request Details: {selectedRequest?.id}</DialogTitle>
-            <DialogDescription>
-              User: {selectedRequest?.user?.email || selectedRequest?.user_id}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRequest && (
-            <div className="space-y-4 py-4">
-              <p><strong>Current Status:</strong> {selectedRequest.status.replace(/_/g, ' ')}</p>
-              {selectedRequest.first_name && <p><strong>Name:</strong> {selectedRequest.first_name} {selectedRequest.last_name}</p>}
-              {selectedRequest.date_of_birth && <p><strong>DOB:</strong> {format(parseISO(selectedRequest.date_of_birth), 'P')}</p>}
-              {selectedRequest.documents && selectedRequest.documents.length > 0 && (
-                <div>
-                  <strong>Documents:</strong>
-                  <ul className="list-disc pl-5">
-                    {selectedRequest.documents.map(doc => (
-                      <li key={doc.id}><a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{doc.document_type} - {doc.file_name || 'View Document'}</a></li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="kycStatus">Update Status</Label>
-                <Select
-                  value={updatePayload.status || selectedRequest.status}
-                  onValueChange={(value) => setUpdatePayload(prev => ({ ...prev, status: value as KycStatus }))}
-                >
-                  <SelectTrigger id="kycStatus"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {kycStatuses.map(status => (
-                      <SelectItem key={status} value={status}>{String(status).replace(/_/g, ' ')}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {(updatePayload.status === KycStatus.REJECTED || updatePayload.status === KycStatus.ACTION_REQUIRED) && (
-                <div className="space-y-2">
-                  <Label htmlFor="rejectionReason">Rejection Reason / Action Required Note</Label>
-                  <Textarea
-                    id="rejectionReason"
-                    value={updatePayload.rejection_reason || ''}
-                    onChange={(e) => setUpdatePayload(prev => ({ ...prev, rejection_reason: e.target.value }))}
-                    placeholder="Provide clear reason for rejection or required action"
-                  />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="adminNotes">Admin Notes</Label>
+            {newStatus === KycStatusEnum.REJECTED && (
+              <div>
+                <label htmlFor="rejectionReason" className="block text-sm font-medium mb-1">Rejection Reason</label>
                 <Textarea
-                  id="adminNotes"
-                  value={updatePayload.notes || ''}
-                  onChange={(e) => setUpdatePayload(prev => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Internal notes (optional)"
+                  id="rejectionReason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter rejection reason"
                 />
               </div>
+            )}
+             <div>
+                <label htmlFor="notes" className="block text-sm font-medium mb-1">Review Notes (Optional)</label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Enter internal notes"
+                />
+              </div>
+
+            <div className="flex space-x-2">
+              <Button onClick={handleSubmitUpdate} disabled={updateKycMutation.isPending || !newStatus}>
+                {updateKycMutation.isPending ? 'Updating...' : 'Submit Update'}
+              </Button>
+              <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
             </div>
-          )}
-          <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-            <Button onClick={handleSaveChanges} disabled={updateKycMutation.isPending}>
-              {updateKycMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
 
-export default KycManagementPage;
+export default KycManagement;

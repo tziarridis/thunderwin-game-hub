@@ -1,159 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Game } from '@/types';
-import { gameService } from '@/services/gameService'; // Assuming gameService fetches games
-import EnhancedGameCard from './EnhancedGameCard'; // Use EnhancedGameCard
-import GameSectionLoading from './GameSectionLoading'; // Loading skeleton
+
+import React, { useEffect, useState } from 'react';
+import { useGames } from '@/hooks/useGames';
+import EnhancedGameCard from './EnhancedGameCard'; // Assuming this is the correct path
+import { Game } from '@/types/game';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useGames } from '@/hooks/useGames'; // For play/details handlers
-import { useRouter } from '@/hooks/useRouter'; // If navigation is needed for details page
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom'; // Changed from useRouter
+import { ChevronRight } from 'lucide-react';
+import GameCardLoadingSk NpmIeleton from '@/components/skeletons/GameCardLoadingSkeleton';
 
 
 interface FeaturedGamesProps {
+  count?: number;
   title?: string;
-  count?: number; // Number of games to display
-  className?: string;
-  autoplay?: boolean;
-  delay?: number;
+  showViewAllButton?: boolean;
+  viewAllLink?: string;
 }
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({
-  title = "Featured Games",
   count = 8,
-  className,
-  autoplay = true,
-  delay = 5000,
+  title = "Featured Games",
+  showViewAllButton = true,
+  viewAllLink = "/casino/main?filter=featured"
 }) => {
-  const { data: games, isLoading, error } = useQuery<Game[], Error>({
-    queryKey: ['featuredGames', count],
-    queryFn: () => gameService.getFeaturedGames({ limit: count }), // Assuming service method
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const { navigate } = useRouter();
-  const { handlePlayGame, handleGameDetails } = useGames(); // Get handlers
+  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingGamesContext } = useGames();
+  const navigate = useNavigate(); // Changed from useRouter
+  const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!autoplay || !games || games.length === 0) return;
+    const fetchGames = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (getFeaturedGames) { // Check if function exists
+          const games = await getFeaturedGames(count);
+          setFeaturedGames(games);
+        } else {
+          setError("Could not load featured games functionality.");
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch featured games');
+        console.error("Error fetching featured games:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    const intervalId = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % games.length);
-    }, delay);
+    fetchGames();
+  }, [count, getFeaturedGames]);
 
-    return () => clearInterval(intervalId);
-  }, [autoplay, delay, games]);
+  const isLoadingState = isLoading || isLoadingGamesContext;
 
-  const handlePrev = () => {
-    if (!games) return;
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + games.length) % games.length);
-  };
-
-  const handleNext = () => {
-    if (!games) return;
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % games.length);
-  };
-
-  const onPlayClick = (game: Game, mode: 'real' | 'demo') => {
-    // console.log(`Playing ${game.title} in ${mode} mode.`);
-    // Example: Open game launcher or navigate to game page
-    // This might involve calling a global context function or service
-    handlePlayGame(game, mode);
-    // toast.success(`Launching ${game.title} (${mode})`);
-  };
-
-  const onDetailsClick = (game: Game) => {
-    // console.log(`Viewing details for ${game.title}.`);
-    // Example: Navigate to a game details page
-    handleGameDetails(game);
-    // navigate(`/games/${game.slug || game.id}`);
-  };
-
-
-  if (isLoading) {
-    return (
-      <div className={className}>
-        {title && <h2 className="text-2xl font-semibold mb-4 px-4 sm:px-0">{title}</h2>}
-        <GameSectionLoading /> {/* Removed cardCount prop */}
-      </div>
-    );
-  }
 
   if (error) {
-    return (
-        <div className={className}>
-            {title && <h2 className="text-2xl font-semibold mb-4 px-4 sm:px-0">{title}</h2>}
-            <p className="text-red-500 px-4 sm:px-0">Error loading featured games: {error.message}</p>
-        </div>
-    );
+    return <div className="text-red-500 py-4">Error loading featured games: {error}</div>;
   }
-
-  if (!games || games.length === 0) {
-    return (
-        <div className={className}>
-            {title && <h2 className="text-2xl font-semibold mb-4 px-4 sm:px-0">{title}</h2>}
-            <p className="px-4 sm:px-0">No featured games available at the moment.</p>
-        </div>
-    );
-  }
-  
-  // For a carousel-like display, you might show a subset of games at a time
-  // This example shows one game at a time, or a small grid if you adjust styling.
-  const currentGame = games[currentIndex];
 
   return (
-    <div className={className}>
-      {title && <h2 className="text-2xl font-semibold mb-4 px-4 sm:px-0">{title}</h2>}
-      <div className="relative">
-        {/* This assumes you might want a carousel. For a simple grid, map 'games' directly. */}
-        {/* Current game display (simple version) */}
-        {/* 
-        <EnhancedGameCard 
-            game={currentGame} 
-            onPlayClick={onPlayClick}
-            onDetailsClick={onDetailsClick}
-        />
-        */}
-        
-        {/* Grid display */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {games.map(game => (
-                <EnhancedGameCard
-                    key={game.id}
-                    game={game}
-                    onPlayClick={onPlayClick}
-                    onDetailsClick={onDetailsClick}
-                />
-            ))}
+    <section className="py-8 md:py-12">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">{title}</h2>
+          {showViewAllButton && (
+            <Button variant="ghost" onClick={() => navigate(viewAllLink)} className="text-primary hover:text-primary/80">
+              View All <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          )}
         </div>
-
-        {/* Navigation for carousel (if implementing) */}
-        {/* 
-        {games.length > 1 && (
-          <>
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background"
-              onClick={handlePrev}
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-background/80 hover:bg-background"
-              onClick={handleNext}
-            >
-              <ChevronRight className="h-6 w-6" />
-            </Button>
-          </>
+        {isLoadingState && !featuredGames.length ? (
+           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            {Array.from({ length: count }).map((_, index) => (
+              <GameCardLoadingSkeleton key={index} />
+            ))}
+          </div>
+        ) : !featuredGames.length && !isLoadingState ? (
+          <p className="text-center text-muted-foreground py-8">No featured games available at the moment.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            {featuredGames.map((game) => (
+              <EnhancedGameCard
+                key={game.id || game.slug}
+                game={game}
+                onPlay={(selectedGame, mode) => handlePlayGame && handlePlayGame(selectedGame, mode)}
+                onDetails={(selectedGame) => handleGameDetails && handleGameDetails(selectedGame)}
+              />
+            ))}
+          </div>
         )}
-         */}
       </div>
-    </div>
+    </section>
   );
 };
 
