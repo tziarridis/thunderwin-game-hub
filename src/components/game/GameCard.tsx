@@ -1,90 +1,155 @@
 
-// This component appears to be a duplicate or older version of components/games/GameCard.tsx
-// or components/casino/EnhancedGameCard.tsx.
-// For now, I will update it to fix the 'isFavorite' error, but it should be reviewed for consolidation.
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { PlayCircle, Info, Heart } from 'lucide-react'; // Added Heart
+import { Heart, PlayCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
-interface GameCardProps {
+interface GameCardProps extends React.HTMLAttributes<HTMLDivElement> {
   game: Game;
-  onPlay: (game: Game, mode: 'real' | 'demo') => void; // Pass the full game object
-  onDetails?: (game: Game) => void;
-  className?: string;
+  isFavorite?: boolean;
+  onToggleFavorite?: (gameId: string) => void;
+  onPlay?: (game: Game) => void;
+  onDetails?: (game: Game) => void; // For navigating to a game details page
+  showProvider?: boolean;
+  variant?: 'default' | 'compact' | 'featured';
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game, onPlay, onDetails, className }) => {
-  const { favoriteGameIds, toggleFavoriteGame } = useGames();
+const GameCard: React.FC<GameCardProps> = ({
+  game,
+  isFavorite,
+  onToggleFavorite,
+  onPlay,
+  onDetails,
+  className,
+  showProvider = true,
+  variant = 'default',
+  ...props
+}) => {
   const { isAuthenticated } = useAuth();
-  const isFavorite = favoriteGameIds.has(String(game.id)) || favoriteGameIds.has(String(game.game_id));
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isAuthenticated) return;
-    toggleFavoriteGame(String(game.id || game.game_id));
+    e.preventDefault();
+    if (onToggleFavorite && game.id) {
+      onToggleFavorite(String(game.id));
+    }
   };
 
+  const handlePlayClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onPlay) {
+      onPlay(game);
+    }
+  };
+  
+  const handleDetailsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (onDetails) {
+      onDetails(game);
+    } else if (onPlay) { // Fallback to onPlay if no onDetails
+      onPlay(game);
+    }
+  };
+
+  const gameImage = game.cover || game.image || '/placeholder-game.png';
+  const providerNameDisplay = typeof game.providerName === 'object' 
+    ? (game.providerName as { name: string }).name 
+    : game.providerName;
+
   return (
-    <Card className={cn("overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group", className)}>
-      <CardHeader className="p-0 relative">
-        <AspectRatio ratio={4 / 3}> {/* Adjusted ratio for better image display */}
-          <img
-            src={game.image || game.image_url || game.cover || '/placeholder.svg'}
-            alt={game.title}
-            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-          />
-        </AspectRatio>
-        {isAuthenticated && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-1 right-1 z-10 text-white bg-black/20 hover:bg-black/40"
-            onClick={handleFavoriteClick}
-          >
-            <Heart className={cn("h-5 w-5", isFavorite ? "fill-red-500 text-red-400" : "text-white")} />
-          </Button>
-        )}
-         {(game.isNew || (game.tags && game.tags.includes('new'))) && (
-          <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-sm z-10">
-            NEW
-          </div>
-        )}
-        {game.rtp && (
-          <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded-sm">
-            RTP: {typeof game.rtp === 'number' ? game.rtp.toFixed(2) : game.rtp}%
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="p-3 md:p-4">
-        <CardTitle className="text-sm md:text-base font-semibold truncate mb-1 group-hover:text-primary transition-colors">
+    <div
+      className={cn(
+        'thunder-card group relative overflow-hidden rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-neon',
+        variant === 'compact' ? 'w-full' : 'w-full',
+        className
+      )}
+      onClick={handleDetailsClick} // Main click action
+      {...props}
+    >
+      <AspectRatio ratio={3 / 4} className="bg-slate-900">
+        <LazyLoadImage
+          alt={game.title || 'Game image'}
+          src={gameImage}
+          effect="blur"
+          className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110"
+          placeholderSrc="/placeholder-game-lazy.png" // Small, low-quality placeholder
+        />
+      </AspectRatio>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+        <h3 className={cn(
+          "font-bold text-white truncate",
+          variant === 'compact' ? 'text-sm' : 'text-base md:text-lg'
+        )}>
           {game.title}
-        </CardTitle>
-        <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider || 'Unknown Provider'}
-        </p>
-      </CardContent>
-      <CardFooter className="p-3 md:p-4 pt-0 grid grid-cols-2 gap-2">
-        <Button onClick={() => onPlay(game, 'real')} size="sm" className="w-full">
-          <PlayCircle className="mr-1 h-4 w-4" /> Real
-        </Button>
-        <Button onClick={() => onPlay(game, 'demo')} variant="outline" size="sm" className="w-full">
-          <PlayCircle className="mr-1 h-4 w-4" /> Demo
-        </Button>
-        {/* {onDetails && (
-          <Button onClick={() => onDetails(game)} variant="link" size="sm" className="col-span-2 text-xs justify-start p-0 h-auto mt-1">
-            <Info className="mr-1 h-3 w-3" /> View Details
-          </Button>
-        )} */}
-      </CardFooter>
-    </Card>
+        </h3>
+        {showProvider && providerNameDisplay && (
+          <p className={cn(
+            "text-xs text-casino-thunder-green/80 truncate",
+             variant === 'compact' ? 'hidden sm:block' : '' // Hide provider on compact mobile
+          )}>
+            {providerNameDisplay} {/* Corrected usage */}
+          </p>
+        )}
+
+        <div className="mt-2 flex items-center space-x-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 delay-100">
+          {onPlay && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="bg-casino-thunder-green/80 hover:bg-casino-thunder-green text-casino-thunder-darker px-3 py-1.5 h-auto rounded-md"
+              onClick={handlePlayClick}
+              aria-label={`Play ${game.title}`}
+            >
+              <PlayCircle size={variant === 'compact' ? 16 : 18} className="mr-1.5" />
+              Play
+            </Button>
+          )}
+          {onToggleFavorite && isAuthenticated && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn(
+                "text-white/70 hover:text-red-500 rounded-full p-1.5 h-auto w-auto",
+                isFavorite ? 'text-red-500' : ''
+              )}
+              onClick={handleFavoriteClick}
+              aria-label={isFavorite ? `Remove ${game.title} from favorites` : `Add ${game.title} to favorites`}
+            >
+              <Heart size={variant === 'compact' ? 16: 18} fill={isFavorite ? 'currentColor' : 'none'} />
+            </Button>
+          )}
+        </div>
+      </div>
+      
+      {/* Visible info bar when not hovered (optional) */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent group-hover:opacity-0 transition-opacity duration-200 pointer-events-none">
+        <h3 className={cn(
+            "font-semibold text-white truncate",
+            variant === 'compact' ? 'text-xs' : 'text-sm'
+        )}>
+            {game.title}
+        </h3>
+        {showProvider && providerNameDisplay && variant !== 'compact' && (
+          <p className="text-xs text-casino-thunder-green/70 truncate">{providerNameDisplay}</p>
+        )}
+      </div>
+
+      {game.isNew && (
+        <div className="absolute top-2 right-2 bg-casino-gold text-casino-thunder-darker px-2 py-0.5 rounded-full text-xs font-bold shadow-md">
+          NEW
+        </div>
+      )}
+    </div>
   );
 };
 
 export default GameCard;
-
