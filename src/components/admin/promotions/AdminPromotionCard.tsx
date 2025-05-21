@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Promotion } from '@/types';
+import { Promotion, PromotionStatus } from '@/types'; // PromotionStatus might be needed if not using isActive
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,19 +11,21 @@ interface AdminPromotionCardProps {
   promotion: Promotion;
   onEdit: (promotion: Promotion) => void;
   onDelete: (id: string) => void;
-  onToggleActive: (id: string) => void;
+  onToggleActive: (id: string, currentStatus: PromotionStatus) => void; // Pass current status
 }
 
 const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEdit, onDelete, onToggleActive }) => {
-  const cardStatusClass = promotion.isActive ? 'border-green-500' : 'border-red-500';
-  const statusText = promotion.isActive ? 'Active' : 'Inactive';
+  const isActive = promotion.status === 'active'; // Determine active status from 'status'
+  const cardStatusClass = isActive ? 'border-green-500' : 'border-red-500';
+  const statusText = isActive ? 'Active' : (promotion.status.charAt(0).toUpperCase() + promotion.status.slice(1));
+
 
   return (
     <Card className={cn("h-full flex flex-col shadow-lg hover:shadow-xl transition-shadow", cardStatusClass)}>
       <CardHeader>
         <div className="flex justify-between items-start">
             <CardTitle className="text-lg leading-tight">{promotion.title}</CardTitle>
-            <Badge variant={promotion.isActive ? 'default' : 'destructive'} className={promotion.isActive ? 'bg-green-500' : ''}>
+            <Badge variant={isActive ? 'default' : 'destructive'} className={isActive ? 'bg-green-500' : ''}>
                 {statusText}
             </Badge>
         </div>
@@ -35,7 +37,7 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
             src={promotion.imageUrl} 
             alt={promotion.title} 
             className="w-full h-32 object-cover rounded-md mb-3" 
-            onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails to load
+            onError={(e) => (e.currentTarget.style.display = 'none')}
           />
         )}
         <p className="text-sm text-muted-foreground mb-2 line-clamp-3">{promotion.description}</p>
@@ -53,9 +55,9 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
           <Edit2 className="mr-2 h-4 w-4" /> Edit
         </Button>
         <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="ghost" size="sm" onClick={() => onToggleActive(promotion.id)} className="flex-1">
-            {promotion.isActive ? <ToggleRight className="mr-2 h-4 w-4 text-green-500" /> : <ToggleLeft className="mr-2 h-4 w-4 text-red-500" />}
-            {promotion.isActive ? 'Deactivate' : 'Activate'}
+            <Button variant="ghost" size="sm" onClick={() => onToggleActive(promotion.id, promotion.status)} className="flex-1">
+            {isActive ? <ToggleRight className="mr-2 h-4 w-4 text-green-500" /> : <ToggleLeft className="mr-2 h-4 w-4 text-red-500" />}
+            {isActive ? 'Deactivate' : 'Activate'}
             </Button>
             <Button variant="destructive" size="icon" onClick={() => onDelete(promotion.id)} title="Delete Promotion">
             <Trash2 className="h-4 w-4" />

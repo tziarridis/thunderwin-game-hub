@@ -1,16 +1,18 @@
+
 import React from 'react';
 import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import AdminSidebar from './AdminSidebar'; // Ensure this is the correct path
-import AdminHeader from '../admin/AdminHeader'; // Ensure this is the correct path
+import AdminSidebar from './AdminSidebar';
+import AdminHeader from '../admin/AdminHeader';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminLayout = () => {
-  const { isAuthenticated, user, isLoading } = useAuth(); // Use isLoading from context
+  const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
 
-  const isAdminUser = user?.role === 'admin' || user?.app_metadata?.role === 'admin'; // Check user role
+  // Corrected: use app_meta_data and also check user.role directly if populated by Supabase JWT
+  const isAdminUser = user?.role === 'admin' || user?.app_meta_data?.role === 'admin';
 
   if (isLoading) {
     return (
@@ -25,8 +27,6 @@ const AdminLayout = () => {
   }
 
   if (!isAdminUser) {
-    // Optionally, show an "Access Denied" page or redirect to a non-admin area
-    // For now, redirecting to home.
     toast.error("Access Denied: You do not have administrative privileges.");
     return <Navigate to="/" replace />;
   }

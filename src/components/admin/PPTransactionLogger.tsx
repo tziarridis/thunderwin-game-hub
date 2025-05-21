@@ -1,21 +1,19 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { DateRangePicker, DateRange } from '@/components/ui/date-range-picker'; // Assuming this is the correct component
+// Assuming DateRangePicker props are value and onValueChange
+import { DateRangePicker, DateRange } from '@/components/ui/date-range-picker';
 import { Loader2, Download } from 'lucide-react';
-import { Transaction, TRANSACTION_TYPES_ARRAY, TRANSACTION_STATUS_ARRAY } from '@/types/transaction'; // Corrected import
+import { Transaction, TRANSACTION_TYPES_ARRAY, TRANSACTION_STATUS_ARRAY } from '@/types/transaction';
 import { format } from 'date-fns';
 
 const ITEMS_PER_PAGE = 20;
 
-interface PPTransaction extends Omit<Transaction, 'user_id'> {
-  player_id: string; // From Pragmatic Play
-}
-
+// Interface PPTransaction was Omit<Transaction, 'user_id'> & { player_id: string; }
+// We will ensure that the data fetched is mapped to Transaction type directly.
 
 const PPTransactionLogger: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -32,11 +30,12 @@ const PPTransactionLogger: React.FC = () => {
     setError(null);
     try {
       let query = supabase
-        .from('pp_transactions') // Assuming a specific table for PP transactions
+        .from('transactions') // Corrected table name from 'pp_transactions'
         .select('*', { count: 'exact' });
 
       if (searchTerm) {
-        query = query.or(`player_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%`);
+        // Assuming user_id in 'transactions' table corresponds to player_id contextually
+        query = query.or(`user_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%`);
       }
       if (filters.type) {
         query = query.eq('type', filters.type);
@@ -57,14 +56,17 @@ const PPTransactionLogger: React.FC = () => {
       const { data, error: fetchError, count } = await query;
 
       if (fetchError) throw fetchError;
+      
+      // Data from 'transactions' should already match Transaction[] if columns are aligned.
+      // If 'player_id' specifically exists in your DB table 'transactions' and needs mapping to 'user_id' in the type:
+      // const mappedData = data?.map((tx: any) => ({
+      //   ...tx,
+      //   user_id: tx.player_id || tx.user_id, // Prioritize existing user_id, fallback to player_id if that's the raw column name
+      // })) as Transaction[];
+      // setTransactions(mappedData || []);
 
-      // Map player_id to user_id and ensure data matches Transaction type
-      const mappedData = data?.map((tx: any) => ({
-        ...tx,
-        user_id: tx.player_id, // Map player_id to user_id
-      })) as Transaction[];
-
-      setTransactions(mappedData || []);
+      // Assuming 'transactions' table has 'user_id' column directly.
+      setTransactions((data as Transaction[]) || []);
       setTotalTransactions(count || 0);
 
     } catch (err: any) {
@@ -97,8 +99,7 @@ const PPTransactionLogger: React.FC = () => {
   const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
 
   const exportToCSV = () => {
-    // Basic CSV export logic
-    const headers = "ID,Player ID,Game ID,Round ID,Type,Amount,Currency,Status,Created At\n";
+    const headers = "ID,User ID,Game ID,Round ID,Type,Amount,Currency,Status,Created At\n"; // Changed Player ID to User ID
     const csvContent = transactions.map(tx => 
         `${tx.id},${tx.user_id},${tx.game_id || ''},${tx.round_id || ''},${tx.type},${tx.amount},${tx.currency},${tx.status},${format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss')}`
     ).join("\n");
@@ -107,7 +108,7 @@ const PPTransactionLogger: React.FC = () => {
     if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
-        link.setAttribute("download", "pp_transactions.csv");
+        link.setAttribute("download", "transactions_log.csv"); // Renamed file
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -120,7 +121,7 @@ const PPTransactionLogger: React.FC = () => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
         <Input
-          placeholder="Search by Player ID, Round ID, Game ID..."
+          placeholder="Search by User ID, Round ID, Game ID..." // Changed Player ID
           value={searchTerm}
           onChange={handleSearchChange}
           className="max-w-sm"
@@ -147,7 +148,8 @@ const PPTransactionLogger: React.FC = () => {
             ))}
           </SelectContent>
         </Select>
-        <DateRangePicker range={dateRange} onRangeUpdate={handleDateRangeChange} /> 
+        {/* Corrected props for DateRangePicker, assuming value and onValueChange */}
+        <DateRangePicker value={dateRange} onValueChange={handleDateRangeChange} /> 
         <Button onClick={exportToCSV} variant="outline" size="sm">
           <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
@@ -162,7 +164,7 @@ const PPTransactionLogger: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Player ID</TableHead>
+                <TableHead>User ID</TableHead> {/* Changed Player ID */}
                 <TableHead>Game ID</TableHead>
                 <TableHead>Round ID</TableHead>
                 <TableHead>Type</TableHead>

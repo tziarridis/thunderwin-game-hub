@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { transactionService } from '@/services/transactionService';
 import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
-import { walletService } from '@/services/walletService'; // Assuming walletService exists
+import { walletService } from '@/services/walletService';
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -27,6 +26,7 @@ const ERC20_ABI = [
 ];
 const YOUR_TOKEN_CONTRACT_ADDRESS = 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE'; // e.g., USDT, USDC on chosen network
 const YOUR_RECEIVING_WALLET_ADDRESS = 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE';
+
 
 const MetaMaskDeposit: React.FC = () => {
   const { user } = useAuth();
@@ -63,7 +63,6 @@ const MetaMaskDeposit: React.FC = () => {
       const currentAccount = await currentSigner.getAddress();
       setAccount(currentAccount);
 
-      // Get token info (assuming a specific token for deposit)
       if (YOUR_TOKEN_CONTRACT_ADDRESS !== 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE') {
         const tokenContract = new ethers.Contract(YOUR_TOKEN_CONTRACT_ADDRESS, ERC20_ABI, provider);
         const symbol = await tokenContract.symbol();
@@ -72,10 +71,9 @@ const MetaMaskDeposit: React.FC = () => {
         const decimals = await tokenContract.decimals();
         setBalance(ethers.utils.formatUnits(userBalance, decimals));
       } else {
-        // Fallback to native currency if no token address
         const nativeBalance = await provider.getBalance(currentAccount);
         setBalance(ethers.utils.formatEther(nativeBalance));
-        setTokenSymbol('ETH'); // Or the native symbol of the network
+        setTokenSymbol('ETH'); 
       }
 
       toast.success(`Wallet connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`);
@@ -111,28 +109,20 @@ const MetaMaskDeposit: React.FC = () => {
       const tokenContract = new ethers.Contract(YOUR_TOKEN_CONTRACT_ADDRESS, ERC20_ABI, signer);
       const decimals = await tokenContract.decimals();
       const amountToSend = ethers.utils.parseUnits(amount, decimals);
-
-      // Check allowance
-      const allowance = await tokenContract.allowance(account, YOUR_RECEIVING_WALLET_ADDRESS); // Incorrect: allowance should be for casino's spender contract if it's pulling
-                                                                                             // For direct transfer, allowance isn't needed FROM user TO casino_wallet
-                                                                                             // If casino uses a smart contract to manage deposits, then user approves casino's SC.
-                                                                                             // Here, we assume direct transfer user -> casino_wallet
       
-      // Direct transfer to casino's wallet
       const tx = await tokenContract.transfer(YOUR_RECEIVING_WALLET_ADDRESS, amountToSend);
       
       toast.info('Processing transaction... Please wait for confirmation.');
       setTransactionHash(tx.hash);
       
-      await tx.wait(); // Wait for transaction to be mined
+      await tx.wait();
 
-      // Record transaction in your backend
       const transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'balance_after' | 'balance_before'> = {
         user_id: user.id,
         amount: parseFloat(amount),
         currency: tokenSymbol,
         type: 'deposit' as TransactionType,
-        status: 'completed' as TransactionStatus, // Or 'pending' until confirmed by your backend listeners
+        status: 'completed' as TransactionStatus,
         provider: 'metamask_erc20',
         provider_transaction_id: tx.hash,
         metadata: { 
@@ -141,14 +131,17 @@ const MetaMaskDeposit: React.FC = () => {
           token_contract: YOUR_TOKEN_CONTRACT_ADDRESS
         },
       };
-      const createdTransaction = await transactionService.createTransaction(transactionData);
+      await transactionService.createTransaction(transactionData);
       
-      // Update user's wallet balance in your system
-      await walletService.credit(user.id, parseFloat(amount), tokenSymbol, `Metamask deposit: ${tx.hash}`);
+      if (walletService.updateWalletBalance) {
+        await walletService.updateWalletBalance(user.id, parseFloat(amount), tokenSymbol);
+      } else {
+        console.warn("walletService.updateWalletBalance is not available. User balance may not be updated in UI immediately.");
+      }
+
 
       toast.success(`Deposit of ${amount} ${tokenSymbol} successful! Transaction: ${tx.hash.substring(0,10)}...`);
-      setAmount(''); // Reset amount
-      // Re-fetch balance
+      setAmount('');
       const userBalance = await tokenContract.balanceOf(account);
       setBalance(ethers.utils.formatUnits(userBalance, decimals));
 
@@ -156,9 +149,7 @@ const MetaMaskDeposit: React.FC = () => {
       console.error('Deposit failed:', err);
       setError(err.reason || err.message || 'Deposit failed.');
       toast.error(err.reason || err.message || 'Deposit failed.');
-      // Optionally, if transaction was sent but failed confirmation, mark as failed in DB
       if (transactionHash && user) {
-         // This part needs careful implementation: Find the pending tx and update its status
       }
     } finally {
       setIsLoading(false);
@@ -215,7 +206,7 @@ const MetaMaskDeposit: React.FC = () => {
             <p className="text-sm">
               Transaction Sent! Hash: 
               <a 
-                href={`https://etherscan.io/tx/${transactionHash}`} // Replace with relevant block explorer
+                href={`https://etherscan.io/tx/${transactionHash}`}
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="font-mono underline ml-1 hover:text-green-500"

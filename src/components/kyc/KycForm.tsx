@@ -8,16 +8,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { kycService } from '@/services/kycService'; // Corrected import
-import { useAuth } from '@/contexts/AuthContext'; // Assuming user ID comes from AuthContext
+import { kycService } from '@/services/kycService';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 import { KycSubmission } from '@/types/kyc';
 
 const kycFormSchema = z.object({
   document_type: z.string().min(1, 'Document type is required'),
   document_front: z.instanceof(FileList).refine(files => files?.length === 1, 'Front document is required.'),
-  document_back: z.instanceof(FileList).optional(), // Optional for some document types
-  selfie: z.instanceof(FileList).optional(), // Optional
+  document_back: z.instanceof(FileList).optional(),
+  selfie: z.instanceof(FileList).optional(),
 });
 
 type KycFormValues = z.infer<typeof kycFormSchema>;
@@ -49,7 +49,15 @@ const KycForm: React.FC<KycFormProps> = ({ onSuccess }) => {
         selfie: data.selfie?.[0],
       };
 
-      await kycService.submitKycRequest(user.id, submissionData); // Changed to submitKycRequest
+      // Corrected: Use createKycRequest as suggested by build error if submitKycRequest doesn't exist
+      if (kycService.createKycRequest) {
+        await kycService.createKycRequest(user.id, submissionData);
+      } else if (kycService.submitKycRequest) { // Fallback if createKycRequest was a misinterpretation
+         await kycService.submitKycRequest(user.id, submissionData);
+      } else {
+        throw new Error("KYC submission function not found in kycService.");
+      }
+      
       toast.success('KYC documents submitted successfully. We will review them shortly.');
       if (onSuccess) onSuccess();
     } catch (error: any) {
@@ -88,7 +96,7 @@ const KycForm: React.FC<KycFormProps> = ({ onSuccess }) => {
 
       {(documentType === 'driver_license' || documentType === 'id_card') && (
         <div>
-          <Label htmlFor="document_back">Document Back (Required for {documentType})</Label>
+          <Label htmlFor="document_back">Document Back (Required for {documentType === 'driver_license' ? "Driver's License" : "ID Card"})</Label>
           <Input id="document_back" type="file" {...register('document_back')} accept="image/jpeg, image/png, application/pdf" />
           {errors.document_back && <p className="text-sm text-red-500 mt-1">{errors.document_back.message}</p>}
         </div>

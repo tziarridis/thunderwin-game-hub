@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { Transaction, TransactionFilters, TransactionType, TransactionStatus } from '@/types/transaction'; // Ensure correct import
+import { Transaction, TransactionFilters, TransactionType, TransactionStatus } from '@/types/transaction';
 import { PostgrestSingleResponse } from '@supabase/supabase-js';
 
 export const transactionService = {
@@ -29,7 +28,7 @@ export const transactionService = {
       console.error('Error fetching transactions:', error);
       throw error;
     }
-    return data as Transaction[] || []; // Ensure data is cast to Transaction[]
+    return data as Transaction[] || [];
   },
 
   async getTransactionById(id: string): Promise<Transaction | null> {
@@ -41,24 +40,26 @@ export const transactionService = {
 
     if (error) {
       console.error('Error fetching transaction by ID:', error);
-      if (error.code === 'PGRST116') return null; // Not found
+      if (error.code === 'PGRST116') return null; 
       throw error;
     }
     return data;
   },
 
+  // The input type for createTransaction might need to be more flexible if `player_id` can come from external sources
+  // For now, assuming `transactionData` correctly provides `user_id` as per `Transaction` type.
   async createTransaction(transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>): Promise<Transaction> {
-     // Ensure player_id is mapped to user_id if it comes in transactionData
-    const dataToInsert = {
-      ...transactionData,
-      user_id: transactionData.user_id || (transactionData as any).player_id, 
-    };
-    delete (dataToInsert as any).player_id;
-
-
+    // The `Transaction` type (from src/types/transaction.ts) expects `user_id`.
+    // If `player_id` is a legacy field or comes from a specific provider (like Pragmatic Play),
+    // the calling code (e.g., PPTransactionLogger or an edge function) should map it to `user_id`
+    // before calling this generic `createTransaction` service.
+    // Removed: user_id: transactionData.user_id || (transactionData as any).player_id,
+    // Removed: delete (dataToInsert as any).player_id;
+    // Assuming transactionData already has user_id correctly.
+    
     const { data, error }: PostgrestSingleResponse<Transaction> = await supabase
       .from('transactions')
-      .insert(dataToInsert)
+      .insert(transactionData) // Use transactionData directly
       .select()
       .single();
 
@@ -89,14 +90,13 @@ export const transactionService = {
     return data;
   },
   
-  // Example: Summing deposits for a user
   async getTotalDeposits(userId: string): Promise<number> {
-    const { data, error, count } = await supabase
+    const { data, error } = await supabase // removed count from destructuring as it's not used
       .from('transactions')
-      .select('amount', { count: 'exact' })
+      .select('amount') // removed { count: 'exact' } as count variable wasn't used for sum
       .eq('user_id', userId)
-      .eq('type', 'deposit' as TransactionType) // Cast to TransactionType
-      .eq('status', 'completed' as TransactionStatus); // Cast to TransactionStatus
+      .eq('type', 'deposit' as TransactionType)
+      .eq('status', 'completed' as TransactionStatus);
 
     if (error) {
       console.error('Error fetching total deposits:', error);

@@ -1,186 +1,180 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet'; // Assuming this is the correct Wallet type
-import { walletService } from '@/services/walletService'; // Assuming this service exists
-import { User, Profile } from '@/types/user'; // Using combined User type
 
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null; // Combined User type
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { User } from '@/types/user'; // Your custom User type
+import { Wallet } from '@/types/wallet'; // Your custom Wallet type
+import { walletService } from '@/services/walletService'; // Assuming this service exists
+import { toast } from 'sonner';
+import { Profile } from '@/types/user'; // Assuming Profile type for profiles table data
+
+export interface AuthContextType {
   session: Session | null;
-  profile: Profile | null; 
+  user: User | null; // Your custom User type
+  profile: Profile | null; // Data from your public.profiles table
   wallet: Wallet | null;
   isLoading: boolean;
-  isAdmin: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username?: string) => Promise<void>;
+  isAuthenticated: boolean;
+  login: (email: string,password: string) => Promise<any>;
   logout: () => Promise<void>;
-  refreshAuthData: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
+  setProfile: React.Dispatch<React.SetStateAction<Profile | null>>;
+  fetchUserProfile: (userId: string) => Promise<void>;
+  updateUserMetadata: (metadata: Partial<User['user_metadata']>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<User | null>(null); // Your app's User object
+  const [profile, setProfile] = useState<Profile | null>(null); // From profiles table
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchAndSetUserData = async (supabaseUser: SupabaseUser | null, currentSession: Session | null) => {
-    if (supabaseUser && currentSession) {
+  const fetchUserProfileAndWallet = async (supabaseUser: SupabaseUser | null) => {
+    if (supabaseUser) {
       try {
-        // Fetch profile
-        const { data: userProfile, error: profileError } = await supabase
+        // Fetch from public.profiles table
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', supabaseUser.id)
+          .eq('id', supabaseUser.id) // Assuming public.profiles.id maps to auth.users.id
           .single();
 
         if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 0 rows
-          console.error('Error fetching profile:', profileError);
+            throw profileError;
         }
+        setProfile(profileData as Profile || null);
         
-        const combinedUser: User = {
-          ...supabaseUser,
-          profile: userProfile || undefined,
-          // Supabase User already has role if JWT is set up, otherwise check profile
-          role: supabaseUser.user_metadata?.role || userProfile?.role || 'user', 
+        // Combine Supabase auth user data with your profile data into your app's User type
+        const appUser: User = {
+          ...supabaseUser, // Spread all properties from SupabaseUser
+                           // This includes id, email, app_meta_data, user_metadata, role, etc.
+          // If profileData has specific fields you want directly on User type (not just user_metadata)
+          // ensure your User type definition allows them. For now, assume they are in user_metadata or profile object.
         };
-
-        setUser(combinedUser);
-        setProfile(userProfile || null);
-        setIsAdmin(combinedUser.role === 'admin');
+        setUser(appUser);
 
         // Fetch wallet
-        const userWallet = await walletService.getWalletByUserId(supabaseUser.id);
-        setWallet(userWallet); // This should be Wallet | null
-        
-      } catch (err) {
-        console.error("Error fetching additional user data:", err);
-        setUser({ ...supabaseUser, role: supabaseUser.user_metadata?.role || 'user' } as User); // Fallback with Supabase user
-        setProfile(null);
-        setWallet(null);
-        setIsAdmin(supabaseUser.user_metadata?.role === 'admin');
+        const walletResponse = await walletService.getWalletByUserId(supabaseUser.id);
+        if (walletResponse.data) {
+          setWallet(walletResponse.data as Wallet); // Assuming data is Wallet type
+        } else if (walletResponse.error) {
+          console.warn('Failed to fetch wallet:', walletResponse.error);
+          // Potentially create a wallet if one doesn't exist
+          // const newWallet = await walletService.createWallet(supabaseUser.id, 'USD'); // Example currency
+          // if (newWallet.data) setWallet(newWallet.data);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile or wallet:', error);
+        toast.error('Failed to load user data.');
       }
     } else {
       setUser(null);
       setProfile(null);
       setWallet(null);
-      setIsAdmin(false);
     }
   };
 
 
   useEffect(() => {
-    const setAuthData = async (currentSession: Session | null) => {
-      setSession(currentSession);
-      const supabaseUser = currentSession?.user ?? null;
-      await fetchAndSetUserData(supabaseUser, currentSession);
+    setIsLoading(true);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session);
+      await fetchUserProfileAndWallet(session?.user || null);
       setIsLoading(false);
-    };
-
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      setAuthData(initialSession);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      // Potentially defer heavy operations if needed as per Supabase deadlock prevention
-      // For now, direct call to keep logic simpler, monitor for issues
-      setIsLoading(true); 
-      await setAuthData(newSession);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      await fetchUserProfileAndWallet(session?.user || null);
+      if (_event === 'USER_UPDATED') {
+        // If Supabase user object is updated, re-fetch profile too.
+        if(session?.user) await fetchUserProfileAndWallet(session.user);
+      }
+      setIsLoading(false);
     });
 
     return () => {
-      subscription.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string,password: string) => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setIsLoading(false);
-      throw error;
-    }
-    // Auth state change will handle setting user, profile, wallet
-  };
-
-  const register = async (email: string, password: string, username?: string) => {
-    setIsLoading(true);
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username: username || email.split('@')[0], // Default username
-          role: 'user', // Default role
-        },
-      },
-    });
-    if (error) {
-      setIsLoading(false);
-      throw error;
-    }
-    // If sign up is successful and a user is returned, create profile and wallet
-    if (signUpData.user) {
-        try {
-            if (username) { // Only create profile if username is provided, or handle default
-                 await supabase.from('profiles').insert({
-                    id: signUpData.user.id,
-                    username: username || email.split('@')[0],
-                    email: email, // Store email in profiles for easier access if needed
-                    role: 'user'
-                 });
-            }
-            await walletService.createWallet(signUpData.user.id, 'USD'); // Default currency
-        } catch(profileWalletError) {
-            console.error("Error creating profile/wallet post-signup:", profileWalletError);
-            // User is signed up, but profile/wallet creation failed. Might need manual fix or retry.
-        }
-    }
-    // Auth state change will handle setting user, profile, wallet for the new session
+    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    setIsLoading(false);
+    if (error) throw error;
+    return data;
   };
 
   const logout = async () => {
     setIsLoading(true);
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      setIsLoading(false);
-      throw error;
-    }
-    // Auth state change will clear user, profile, wallet
-  };
-
-  const refreshAuthData = async () => {
-    setIsLoading(true);
-    const { data: { session: currentSession }, error } = await supabase.auth.refreshSession();
-    if (error) console.error("Error refreshing session:", error);
-    await fetchAndSetUserData(currentSession?.user ?? null, currentSession);
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setWallet(null);
+    setSession(null);
     setIsLoading(false);
   };
 
-
-  const value = {
-    isAuthenticated: !!user && !!session,
-    user,
-    session,
-    profile,
-    wallet,
-    isLoading,
-    isAdmin,
-    login,
-    register,
-    logout,
-    refreshAuthData,
+  const fetchUserProfile = async (userId: string) => { // Renamed from loadUser for clarity
+    // This function might be redundant if onAuthStateChange handles it,
+    // but useful for manual refresh or if profile updates outside auth events.
+    const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+    if (supabaseUser && supabaseUser.id === userId) {
+        await fetchUserProfileAndWallet(supabaseUser);
+    }
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const updateUserMetadata = async (metadataUpdate: Partial<User['user_metadata']>) => {
+    if (!user) {
+        toast.error("User not found for update.");
+        return;
+    }
+    setIsLoading(true);
+    try {
+        const { data, error } = await supabase.auth.updateUser({
+            data: metadataUpdate // user_metadata is updated via 'data' field
+        });
+        if (error) throw error;
+        if (data.user) {
+            // Update local user state. Supabase onAuthStateChange for USER_UPDATED should also trigger.
+             setUser(prevUser => prevUser ? ({ ...prevUser, ...data.user }) : null); // Merge with existing local user state
+             toast.success("Profile updated!");
+        }
+    } catch (error: any) {
+        toast.error(error.message || "Failed to update profile.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+
+  const isAuthenticated = !!user && !!session;
+
+  return (
+    <AuthContext.Provider value={{ 
+        session, 
+        user, 
+        profile,
+        wallet, 
+        isLoading, 
+        isAuthenticated, 
+        login, 
+        logout, 
+        setUser, 
+        setProfile,
+        fetchUserProfile,
+        updateUserMetadata
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
