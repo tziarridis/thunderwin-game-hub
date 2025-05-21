@@ -4,18 +4,18 @@ import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from "next-themes";
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext'; // Supabase User type comes from here
+import { useAuth } from '@/contexts/AuthContext'; 
 import NavLinks from './NavLinks';
 import MobileNavBar from './MobileNavBar'; 
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu'; // UserMenu expects AppUser
+import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet as AppWalletType } from '@/types/wallet'; // Renamed to avoid conflict
-import { AppUser } from '@/types/user'; // For UserMenu
+import { Wallet } from '@/types/wallet'; 
+import { AppUser } from '@/types/user';
 
-interface WalletState extends AppWalletType { // Using the full Wallet type
+interface WalletState extends Wallet {
   // WalletState can be removed if AppWalletType is sufficient
 }
 

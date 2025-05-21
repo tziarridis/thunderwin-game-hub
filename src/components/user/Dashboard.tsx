@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import WalletBalance from '@/components/user/WalletBalance';
@@ -7,10 +6,11 @@ import TransactionsList from '@/components/user/TransactionsList';
 import { useAuth } from '@/contexts/AuthContext';
 import { Stats } from '@/components/user/Stats';
 import { supabase } from '@/integrations/supabase/client';
+import { Wallet } from '@/types/wallet';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [wallet, setWallet] = useState<any>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [stats, setStats] = useState({
     totalBets: 0,
     totalWins: 0,
@@ -85,7 +85,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Dashboard</h1>
-      <WalletBalance />
+      <WalletBalance wallet={wallet} /> {/* Pass wallet prop */}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>

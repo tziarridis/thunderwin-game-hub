@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wallet } from '@/types'; // Changed from WalletType to Wallet
+import { Wallet } from '@/types/wallet'; // Updated import path
 import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 

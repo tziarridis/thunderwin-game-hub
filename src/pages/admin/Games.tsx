@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client'; // Corrected path
@@ -12,7 +11,7 @@ import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'; // Removed Filter, Upload, Settings2
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { convertAPIGameToUIGame } from '@/utils/gameTypeAdapter';
+import { convertAPIGameToUIGame, convertUIGameToDbGame } from '@/utils/gameTypeAdapter';
 
 const GAMES_ADMIN_QUERY_KEY = 'admin_games';
 const PROVIDERS_ADMIN_QUERY_KEY = 'admin_game_providers';
@@ -36,10 +35,10 @@ const GamesAdminPage: React.FC = () => {
         query = query.or(`title.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
       }
       if (filterProvider !== 'all') {
-        query = query.eq('provider_slug', filterProvider); // Assuming provider_slug exists on games table
+        query = query.eq('provider_slug', filterProvider);
       }
       if (filterCategory !== 'all') {
-        query = query.contains('category_slugs', [filterCategory]); // Corrected array contains syntax
+        query = query.contains('category_slugs', [filterCategory]);
       }
       if (filterStatus !== 'all') {
         query = query.eq('status', filterStatus);
@@ -47,80 +46,62 @@ const GamesAdminPage: React.FC = () => {
       
       const { data, error } = await query.order('title', { ascending: true });
       if (error) throw error;
-      return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+      return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
     },
   });
 
   const { data: providers = [] } = useQuery<GameProvider[], Error>({
     queryKey: [PROVIDERS_ADMIN_QUERY_KEY],
     queryFn: async () => {
-        const { data, error } = await supabase.from('providers').select('id, name'); // Select only necessary fields
-        if (error) throw error;
-        // Map to GameProvider, ensuring slug is present
-        return data ? data.map(p => ({
-            ...p,
-            id: String(p.id),
-            slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id), // Generate slug
-        })) : [];
+      const { data, error } = await supabase.from('providers').select('id, name');
+      if (error) throw error;
+      // Map to GameProvider, ensuring slug is present
+      return data ? data.map(p => ({
+        id: String(p.id),
+        name: p.name,
+        slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id),
+        status: 'active' as const, // Cast to the allowed literal type
+      })) : [];
     }
   });
 
   const { data: categories = [] } = useQuery<GameCategory[], Error>({
     queryKey: [CATEGORIES_ADMIN_QUERY_KEY],
     queryFn: async () => {
-        const { data, error } = await supabase.from('game_categories').select('*');
-        if (error) throw error;
-        return data as GameCategory[];
+      const { data, error } = await supabase.from('game_categories').select('*');
+      if (error) throw error;
+      return data.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        description: c.description || '',
+        icon: c.icon || '',
+      })) as GameCategory[];
     }
   });
   
-  const gameMutation = useMutation<Game, Error, Partial<Game>>(
-    async (gameData) => {
-      const payload: Partial<DbGame> = { // Construct a payload that matches DbGame / actual table structure
-        ...gameData, // Start with Game data
-        // Map Game fields to DbGame fields if names differ
-        game_name: gameData.title, 
-        // provider_id: ... need to get provider_id from provider_slug if that's how it's stored
-        // category_slugs: gameData.category_slugs, (already array of strings)
-        // Ensure numeric fields are numbers
-        rtp: gameData.rtp ? Number(gameData.rtp) : undefined, // Use undefined for null to avoid sending "null" string
-        lines: gameData.lines ? Number(gameData.lines) : undefined,
-        min_bet: gameData.min_bet ? Number(gameData.min_bet) : undefined,
-        max_bet: gameData.max_bet ? Number(gameData.max_bet) : undefined,
-        is_featured: !!gameData.is_featured,
-        is_new: !!gameData.isNew, // Ensure isNew is mapped if your table uses this
-        // Map other Game specific fields to their DbGame counterparts
-        // id might be string (from Game) but UUID in DbGame, Supabase handles this if PK is game_id or auto-gen UUID
-      };
-      
-      // Remove UI-specific fields not in DbGame before upsert
-      delete (payload as any).providerName; 
-      delete (payload as any).categoryName;
-      // if game.id is from UI and DB uses auto-generated UUID, don't send game.id for inserts.
-      // if game_id is the primary key and is string:
-      // if (!payload.id && !payload.game_id) throw new Error("Game ID or slug is required");
-
+  const gameMutation = useMutation({
+    mutationFn: async (gameData: Partial<Game>) => {
+      const dbGameData = convertUIGameToDbGame(gameData);
       const { data, error } = await supabase
         .from('games')
-        .upsert(payload as any) // Upsert based on primary key (e.g., 'id' or 'game_id')
+        .upsert(dbGameData as any)
         .select()
         .single();
-
+      
       if (error) throw error;
-      return convertAPIGameToUIGame(data as unknown as DbGame);
+      return convertAPIGameToUIGame(data as DbGame);
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: [GAMES_ADMIN_QUERY_KEY] });
-        setIsModalOpen(false);
-        setEditingGame(null);
-        toast.success(`Game ${editingGame?.id || editingGame?.game_id ? 'updated' : 'created'} successfully.`);
-      },
-      onError: (error) => {
-        toast.error(`Error saving game: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [GAMES_ADMIN_QUERY_KEY] });
+      setIsModalOpen(false);
+      setEditingGame(null);
+      toast.success(`Game ${editingGame?.id ? 'updated' : 'created'} successfully.`);
+    },
+    onError: (error) => {
+      toast.error(`Error saving game: ${error.message}`);
+    },
+  });
 
   const handleEdit = (game: Game) => {
     setEditingGame(game);

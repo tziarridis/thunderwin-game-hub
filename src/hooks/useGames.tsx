@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { convertAPIGameToUIGame } from '@/utils/gameTypeAdapter';
+import { convertAPIGameToUIGame, convertUIGameToDbGame } from '@/utils/gameTypeAdapter';
 
 // Game service implementation
 const gameService = {
@@ -16,20 +16,25 @@ const gameService = {
       .limit(limit);
     
     if (error) throw error;
-    const convertedGames = data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    const convertedGames = data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
     return { games: convertedGames, count: count || 0 };
   },
   
   getProviders: async (): Promise<GameProvider[]> => {
-    const { data, error } = await supabase.from('providers').select('id, name, logo, description, status'); // Select specific fields
+    const { data, error } = await supabase.from('providers').select('id, name, logo, description, status');
     if (error) throw error;
-    // Map to GameProvider, ensuring slug exists
+    
     return data ? data.map(p => ({
-      ...p,
       id: String(p.id), 
-      slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id), // Generate slug from name or use ID
-      // games_count and other optional fields can be added if available or needed
-    })) : [];
+      slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id),
+      name: p.name,
+      logoUrl: p.logo,
+      description: p.description,
+      isActive: p.status === 'active',
+      status: (p.status === 'active' || p.status === 'inactive' || p.status === 'coming_soon') 
+        ? p.status 
+        : 'inactive',
+    } as GameProvider)) : [];
   },
   
   getCategories: async (): Promise<GameCategory[]> => {
@@ -70,29 +75,28 @@ const gameService = {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('id', gameId) // Assuming 'id' is the primary key being queried
-      .maybeSingle(); // Use maybeSingle to handle not found gracefully
+      .eq('id', gameId)
+      .maybeSingle();
     
     if (error) {
-      // PGRST116 means no rows found, which is fine for maybeSingle
       if (error.code === 'PGRST116') return null; 
       throw error;
     }
-    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
+    return data ? convertAPIGameToUIGame(data as DbGame) : null;
   },
   
   getGameBySlug: async (slug: string): Promise<Game | null> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('slug', slug) // Assuming 'slug' column exists and is used for lookup
+      .eq('slug', slug)
       .maybeSingle();
     
     if (error) {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
-    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
+    return data ? convertAPIGameToUIGame(data as DbGame) : null;
   },
   
   getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
@@ -104,38 +108,23 @@ const gameService = {
     // It does not show 'provider_slug'.
     // Let's assume we first fetch provider by slug, then games by provider_id.
     
-    const { data: providerData, error: providerError } = await supabase
-      .from('providers')
-      .select('id')
-      //.eq('slug', providerSlug) // This won't work as 'providers' table doesn't have 'slug'
-      // Let's try to match by name-generated slug, or assume providerSlug is actually provider_id for now
-      // This part is problematic due to schema mismatch. A proper fix might involve DB changes.
-      // For now, let's assume providerSlug is actually the provider's name for a hacky match, or their ID
-      .or(`name.ilike.${providerSlug},id.eq.${providerSlug}`) // Highly indicative of schema/type issue
-      .single();
-
-    if (providerError || !providerData) {
-        console.error(`Error fetching provider by slug ${providerSlug}:`, providerError);
-        return [];
-    }
-
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('provider_id', providerData.id); // Use provider_id
+      .eq('provider_slug', providerSlug);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
   },
   
   getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .contains('category_slugs', [categorySlug]); // Assuming category_slugs is an array
+      .contains('category_slugs', [categorySlug]);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
   },
   
   getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
@@ -152,7 +141,7 @@ const gameService = {
       .limit(count);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
   },
   
   getPopularGames: async (count: number = 8): Promise<Game[]> => {
@@ -163,7 +152,7 @@ const gameService = {
       .limit(count);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
   },
   
   getLatestGames: async (count: number = 8): Promise<Game[]> => {
@@ -174,7 +163,7 @@ const gameService = {
       .limit(count);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
   }
 };
 

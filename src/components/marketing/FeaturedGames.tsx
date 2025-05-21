@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Game, GameTag } from '@/types'; // GameTag is 'featured' | 'popular' | 'new' | string;
 import { useGames } from '@/hooks/useGames';
@@ -18,7 +19,7 @@ interface FeaturedGamesProps {
   title?: string;
   count?: number; 
   categorySlug?: string; 
-  tag?: GameTag; 
+  tag?: string | GameTag; // Accept both string and GameTag
 }
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 
@@ -38,13 +39,14 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       if (categorySlug) {
         tempFiltered = tempFiltered.filter(g => 
             (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
-            g.categoryName === categorySlug // Fallback, ensure categoryName is part of Game type if used
+            g.categoryName === categorySlug
         );
       }
       
       if (tag) {
-        const lowerTag = tag.toLowerCase();
-        switch (lowerTag) {
+        const tagString = typeof tag === 'string' ? tag.toLowerCase() : String(tag).toLowerCase();
+        
+        switch (tagString) {
           case 'featured':
             tempFiltered = tempFiltered.filter(g => g.is_featured);
             break;
@@ -56,8 +58,9 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             break;
           default:
             // Make sure g.tags is an array before filtering
-            // And that tag elements are simple strings if tag is a simple string
-            tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag as string));
+            tempFiltered = tempFiltered.filter(g => 
+              Array.isArray(g.tags) && g.tags.includes(tagString as string)
+            );
             break;
         }
       } else if (!categorySlug) { 
@@ -65,7 +68,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
         tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
       }
       
-      if (tag === 'new') {
+      if (tag === 'new' || (typeof tag === 'string' && tag.toLowerCase() === 'new')) {
         tempFiltered.sort((a,b) => 
           new Date(b.releaseDate || b.created_at || 0).getTime() - 
           new Date(a.releaseDate || a.created_at || 0).getTime()
