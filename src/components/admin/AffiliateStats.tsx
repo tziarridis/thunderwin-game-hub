@@ -1,72 +1,84 @@
-
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client'; // Assuming supabase client is here
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
-import { Affiliate, AffiliateStatSummary } from '@/types/affiliate'; // Corrected import
+import { Users, UserCheck, UserX, Link2, TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
+import { AffiliateStatSummary } from '@/types/affiliate'; // Ensure this type is correctly defined
+import { Skeleton } from '@/components/ui/skeleton';
 
-interface AffiliateStatsProps {
-  summary?: AffiliateStatSummary; // Made summary optional
-  recentAffiliates?: Affiliate[]; // Made recentAffiliates optional
-  isLoading: boolean;
-  error?: string | null; // Added error prop
-}
 
-const AffiliateStats: React.FC<AffiliateStatsProps> = ({ summary, recentAffiliates = [], isLoading, error }) => {
-  if (isLoading) {
-    return <div>Loading affiliate stats...</div>;
+const fetchAffiliateStats = async (): Promise<AffiliateStatSummary> => {
+  // This is a placeholder. You'll need to implement actual Supabase queries
+  // to calculate these statistics from your 'affiliates', 'users', and 'transactions' tables.
+  // For example, count affiliates by status, sum commissions, count referred users.
+
+  // Example structure (replace with actual queries):
+  const { count: totalAffiliates, error: totalError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true });
+  const { count: activeAffiliates, error: activeError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('status', 'approved');
+  const { count: pendingAffiliates, error: pendingError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+  
+  // These are very simplified examples. You'd need more complex queries for referrals and commissions.
+  // For totalReferrals, you might need a join or a way to link users to their referring affiliate.
+  // For totalCommissionPaid, you'd sum up commission payments from a relevant table.
+
+  if (totalError || activeError || pendingError) {
+    console.error('Error fetching affiliate stats:', totalError || activeError || pendingError);
+    // throw totalError || activeError || pendingError;
   }
 
-  if (error) {
-    return <div className="text-red-500">Error loading stats: {error}</div>;
+  return {
+    totalAffiliates: totalAffiliates ?? 0,
+    activeAffiliates: activeAffiliates ?? 0,
+    pendingAffiliates: pendingAffiliates ?? 0,
+    totalReferrals: 0, // Placeholder - implement query
+    totalCommissionPaid: 0, // Placeholder - implement query
+  };
+};
+
+
+const AffiliateStats: React.FC = () => {
+  const { data: stats, isLoading, error } = useQuery<AffiliateStatSummary, Error>({
+    queryKey: ['affiliateStatsSummary'],
+    queryFn: fetchAffiliateStats,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[120px] w-full" />)}
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return <p className="text-red-500">Error loading affiliate statistics: {error?.message || 'Unknown error'}</p>;
   }
   
-  if (!summary) {
-    return <div className="text-orange-500">Affiliate summary data is not available.</div>;
-  }
+  const statItems = [
+    { title: 'Total Affiliates', value: stats.totalAffiliates, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Active Affiliates', value: stats.activeAffiliates, icon: <UserCheck className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Pending Approvals', value: stats.pendingAffiliates, icon: <UserX className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Total Referrals', value: stats.totalReferrals, icon: <Link2 className="h-5 w-5 text-muted-foreground" /> }, // Assuming totalReferrals exists
+    { title: 'Total Commission Paid', value: stats.totalCommissionPaid, icon: <DollarSign className="h-5 w-5 text-muted-foreground" />, isCurrency: true }, // Corrected property
+  ];
 
-  const activeAffiliates = recentAffiliates.filter(aff => aff.isActive).length;
-  // const pendingAffiliates = recentAffiliates.filter(aff => aff.status === 'pending').length; // Assuming status field exists if needed
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> {/* Adjusted grid to 3 cols */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Referrals</CardTitle> {/* Changed title */}
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{summary.totalReferrals ?? 0}</div> {/* Changed to totalReferrals */}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Affiliates</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{activeAffiliates}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Commission</CardTitle> {/* Changed title */}
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">${summary.totalCommission?.toFixed(2) ?? '0.00'}</div> {/* Changed to totalCommission */}
-        </CardContent>
-      </Card>
-      {/* Removed New Sign-ups (Month) card as data is not available in summary object 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">New Sign-ups (Month)</CardTitle>
-          <AlertCircle className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{summary.newSignUpsThisMonth ?? 0}</div>
-        </CardContent>
-      </Card>
-      */}
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-6">
+      {statItems.map((item, index) => (
+        <Card key={index}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
+            {item.icon}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {item.isCurrency ? `$${item.value.toFixed(2)}` : item.value}
+            </div>
+            {/* <p className="text-xs text-muted-foreground">+20.1% from last month</p> */}
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 };

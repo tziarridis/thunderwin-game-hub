@@ -1,4 +1,5 @@
-import { Game, DbGame, GameStatus, GameVolatility } from '@/types/game'; // Adjusted import
+
+import { Game, DbGame, GameStatus, GameVolatility, GameTag } from '@/types/game';
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
 export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
@@ -6,14 +7,13 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
 
   // Helper to safely cast string to GameStatus
   const parseGameStatus = (statusStr: string | null | undefined): GameStatus => {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived'];
+    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked']; // Added pending, blocked
     if (statusStr && validStatuses.includes(statusStr as GameStatus)) {
       return statusStr as GameStatus;
     }
-    return 'inactive'; // Default status if invalid or missing
+    return 'inactive'; 
   };
 
-  // Helper to safely cast string to GameVolatility
   const parseGameVolatility = (volStr: string | null | undefined): GameVolatility | undefined => {
     const validVolatilities: GameVolatility[] = ['low', 'medium', 'high', 'low-medium', 'medium-high'];
      if (volStr && validVolatilities.includes(volStr as GameVolatility)) {
@@ -21,13 +21,14 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     }
     return undefined;
   };
-
+  
   const providerData = dbGame.providers &&
                        typeof dbGame.providers === 'object' &&
                        'name' in dbGame.providers &&
                        'slug' in dbGame.providers
-    ? { id: dbGame.providers.id, name: dbGame.providers.name, slug: dbGame.providers.slug }
+    ? { id: String(dbGame.providers.id), name: dbGame.providers.name, slug: dbGame.providers.slug } // Ensure id is string
     : null;
+
 
   return {
     id: String(dbGame.id), 
@@ -65,7 +66,10 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     max_bet: dbGame.max_bet ?? undefined, 
     
     features: Array.isArray(dbGame.features) ? dbGame.features : [],
-    tags: Array.isArray(dbGame.tags) ? dbGame.tags : [],
+    // DbGame.tags is string[] | null. Game.tags can be string[] | GameTag[].
+    // For now, map DbGame.tags (string[]) directly to Game.tags as string[].
+    // If Game.tags needs to be GameTag[], further transformation is needed here based on available tag data.
+    tags: Array.isArray(dbGame.tags) ? dbGame.tags : [], 
     themes: Array.isArray(dbGame.themes) ? dbGame.themes : [],
     
     releaseDate: dbGame.release_date || dbGame.created_at || undefined, 
@@ -75,7 +79,7 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     status: parseGameStatus(dbGame.status),
     only_demo: dbGame.only_demo ?? false,
     only_real: dbGame.only_real ?? false,
-    provider_id: dbGame.provider_id || undefined, 
+    provider_id: String(dbGame.provider_id || ''), // Ensure provider_id is string
   };
 };
 
@@ -88,17 +92,15 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.title) dbGame.game_name = game.title;
   if (game.slug) dbGame.slug = game.slug;
 
-  // When mapping Game to DbGame, we don't need to map game.provider object
-  // back to dbGame.providers, as provider_id or provider_slug is usually used for saving.
   if (game.provider_slug) dbGame.provider_slug = game.provider_slug; 
-  if (game.provider_id) dbGame.provider_id = game.provider_id; // if you store provider_id
+  if (game.provider_id) dbGame.provider_id = String(game.provider_id); 
 
   
   if (game.categoryName) dbGame.game_type = game.categoryName;
   if (game.category_slugs) dbGame.category_slugs = game.category_slugs; 
   
-  if (game.image) dbGame.cover = game.image; // Prefer 'cover' for saving if that's primary
-  if (game.image_url && !dbGame.cover) dbGame.image_url = game.image_url; // Fallback
+  if (game.image) dbGame.cover = game.image; 
+  if (game.image_url && !dbGame.cover) dbGame.image_url = game.image_url; 
   if (game.bannerUrl) dbGame.banner_url = game.bannerUrl;
 
 
@@ -125,7 +127,10 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.max_bet !== undefined && game.max_bet !== null) dbGame.max_bet = Number(game.max_bet);
 
   if (game.features) dbGame.features = game.features;
-  if (game.tags) dbGame.tags = game.tags;
+  // Convert Game.tags (string[] | GameTag[]) to DbGame.tags (string[])
+  if (game.tags) {
+    dbGame.tags = game.tags.map(tag => (typeof tag === 'string' ? tag : tag.slug));
+  }
   if (game.themes) dbGame.themes = game.themes;
   
   if (game.releaseDate) dbGame.release_date = game.releaseDate; 
@@ -134,7 +139,7 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.game_code) dbGame.game_code = String(game.game_code);
   
   if (game.status) {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived'];
+    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked']; // Added pending, blocked
     if (validStatuses.includes(game.status)) {
       dbGame.status = game.status;
     } else {
@@ -145,7 +150,6 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
 
   if (game.only_demo !== undefined) dbGame.only_demo = game.only_demo;
   if (game.only_real !== undefined) dbGame.only_real = game.only_real;
-
 
   Object.keys(dbGame).forEach(key => {
     const dbGameKey = key as keyof DbGame;

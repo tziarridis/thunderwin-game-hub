@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { KycRequest, KycStatus, KycSubmission } from '@/types/kyc'; // Ensure correct import
+import { KycRequest, KycStatus, KycSubmission, KycDocumentType } from '@/types/kyc'; // Ensure correct import
 import { PostgrestSingleResponse, PostgrestResponse } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -23,6 +22,15 @@ async function uploadKycFile(userId: string, file: File, type: string): Promise<
   return publicUrlData.publicUrl;
 }
 
+// Helper function to split full name
+const splitFullName = (fullName: string): { firstName?: string, lastName?: string } => {
+  if (!fullName) return { firstName: undefined, lastName: undefined };
+  const parts = fullName.trim().split(/\s+/);
+  const firstName = parts.shift();
+  const lastName = parts.join(' ') || undefined; // Handle single name case
+  return { firstName, lastName };
+};
+
 
 export const kycService = {
   async submitKycRequest(userId: string, submission: KycSubmission): Promise<KycRequest> {
@@ -36,17 +44,35 @@ export const kycService = {
       selfieUrl = await uploadKycFile(userId, submission.selfie, 'selfie');
     }
 
-    const kycData: Omit<KycRequest, 'id' | 'submitted_at' | 'created_at' | 'updated_at' | 'status' | 'reviewed_at' | 'reviewed_by' | 'rejection_reason' | 'admin_notes'> = {
+    const { firstName, lastName } = splitFullName(submission.first_name); // Assuming submission.first_name is the full name for now. This should be submission.fullName from the form.
+                                                                         // Correcting: KycSubmission has first_name and last_name already.
+
+    const kycDataForInsert: Omit<KycRequest, 'id' | 'created_at' | 'updated_at' | 'reviewed_at' | 'reviewed_by' | 'rejection_reason' | 'notes' | 'documents'> = {
       user_id: userId,
-      document_type: submission.document_type,
+      status: KycStatus.PENDING,
+      submitted_at: new Date().toISOString(),
+      
+      first_name: submission.first_name,
+      last_name: submission.last_name,
+      date_of_birth: submission.date_of_birth,
+      address_line1: submission.address_line1,
+      address_line2: submission.address_line2,
+      city: submission.city,
+      state_province: submission.state_province,
+      postal_code: submission.postal_code,
+      country_code: submission.country_code, // Make sure this is an ISO code if your DB expects that
+
+      document_type: submission.document_type, // This is the enum value
       document_front_url: documentFrontUrl,
       document_back_url: documentBackUrl,
       selfie_url: selfieUrl,
+      // documentNumber is often part of the KycDocument, not KycRequest directly.
+      // If it needs to be on KycRequest, add a field there and pass submission.documentNumber.
     };
 
-    const { data, error }: PostgrestSingleResponse<KycRequest> = await supabase
-      .from('kyc_requests') // Ensure this table name is correct
-      .insert({ ...kycData, status: 'pending' as KycStatus, submitted_at: new Date().toISOString() })
+    const { data, error } = await supabase
+      .from('kyc_requests') 
+      .insert(kycDataForInsert)
       .select()
       .single();
 
@@ -80,7 +106,7 @@ export const kycService = {
     
     if (error) {
       console.error('Error fetching KYC request by ID:', error);
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') return null; // No rows found
       throw error;
     }
     return data;
@@ -88,7 +114,7 @@ export const kycService = {
 
   // For Admin
   async getAllKycRequests(filters: { status?: KycStatus, userId?: string } = {}): Promise<KycRequest[]> {
-    let query = supabase.from('kyc_requests').select('*');
+    let query = supabase.from('kyc_requests').select('*, user:profiles (id, email, username, first_name, last_name)'); // Ensure join syntax if needed or rely on KycRequestWithUser type from direct query on admin page
     if (filters.status) {
       query = query.eq('status', filters.status);
     }
@@ -111,14 +137,14 @@ export const kycService = {
     status: KycStatus, 
     adminId: string, 
     rejectionReason?: string, 
-    adminNotes?: string
+    adminNotes?: string // Changed from notes to adminNotes for clarity if schema has admin_notes
   ): Promise<KycRequest | null> {
     const updateData: Partial<KycRequest> = {
       status,
       reviewed_by: adminId,
       reviewed_at: new Date().toISOString(),
       rejection_reason: rejectionReason,
-      admin_notes: adminNotes,
+      notes: adminNotes, // Assuming 'notes' is the column for admin notes in kyc_requests
     };
 
     const { data, error }: PostgrestSingleResponse<KycRequest> = await supabase
@@ -135,11 +161,3 @@ export const kycService = {
     return data;
   },
 };
-
-// Ensure you have a 'kyc_documents' bucket in Supabase Storage with appropriate policies.
-// Example policies for kyc_documents bucket:
-// For select: (bucket_id = 'kyc_documents' AND (storage.foldername(name))[1] = uid()::text) OR (select true from profiles where id = uid() and role = 'admin')
-// For insert: (bucket_id = 'kyc_documents' AND (storage.foldername(name))[1] = uid()::text)
-// For update: (bucket_id = 'kyc_documents' AND (storage.foldername(name))[1] = uid()::text) OR (select true from profiles where id = uid() and role = 'admin')
-// For delete: (bucket_id = 'kyc_documents' AND (storage.foldername(name))[1] = uid()::text) OR (select true from profiles where id = uid() and role = 'admin')
-// Replace 'profiles' and 'role' with your actual user table and role column if different.

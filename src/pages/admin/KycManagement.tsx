@@ -1,7 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client'; // Corrected import path
 import { KycRequestWithUser, KycStatus, KycRequestUpdatePayload } from '@/types/kyc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -25,20 +24,17 @@ const KycManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [updatePayload, setUpdatePayload] = useState<Partial<KycRequestUpdatePayload>>({});
 
-  const { data: kycRequests = [], isLoading } = useQuery<KycRequestWithUser[], Error>(
-    [KYC_REQUESTS_QUERY_KEY, searchTerm, filterStatus],
-    async () => {
-      // Assuming your Supabase table is named 'kyc_requests' and has a 'user_id' foreign key to 'users' or 'profiles'
-      // Adjust the select query for user details as per your schema.
+  const { data: kycRequests = [], isLoading } = useQuery<KycRequestWithUser[], Error>({
+    queryKey: [KYC_REQUESTS_QUERY_KEY, searchTerm, filterStatus],
+    queryFn: async () => {
       let query = supabase
-        .from('kyc_requests') // Ensure this table name is correct in your Supabase schema
+        .from('kyc_requests') 
         .select(`
           *,
           user:profiles (id, email, username, first_name, last_name)
-        `); // Change 'profiles' if your user table is named 'users'
+        `); 
 
       if (searchTerm) {
-        // This is a basic search. For searching user email/name, you might need a more complex query or function.
         query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
       }
       if (filterStatus !== 'all') {
@@ -52,10 +48,10 @@ const KycManagementPage: React.FC = () => {
       }
       return data as KycRequestWithUser[];
     }
-  );
+  });
   
-  const updateKycMutation = useMutation<any, Error, { id: string; payload: KycRequestUpdatePayload }>(
-    async ({ id, payload }) => {
+  const updateKycMutation = useMutation<any, Error, { id: string; payload: KycRequestUpdatePayload }>({
+    mutationFn: async ({ id, payload }) => {
       const { data, error } = await supabase
         .from('kyc_requests')
         .update(payload)
@@ -65,18 +61,16 @@ const KycManagementPage: React.FC = () => {
       if (error) throw error;
       return data;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries([KYC_REQUESTS_QUERY_KEY]);
-        toast.success('KYC request updated successfully.');
-        setIsModalOpen(false);
-        setSelectedRequest(null);
-      },
-      onError: (error) => {
-        toast.error(`Failed to update KYC request: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [KYC_REQUESTS_QUERY_KEY] });
+      toast.success('KYC request updated successfully.');
+      setIsModalOpen(false);
+      setSelectedRequest(null);
+    },
+    onError: (error) => {
+      toast.error(`Failed to update KYC request: ${error.message}`);
+    },
+  });
 
   const handleViewDetails = (request: KycRequestWithUser) => {
     setSelectedRequest(request);
@@ -88,8 +82,8 @@ const KycManagementPage: React.FC = () => {
     if (selectedRequest && updatePayload) {
         const payloadToSend: KycRequestUpdatePayload = {
             status: updatePayload.status,
-            rejection_reason: updatePayload.rejection_reason || null, // Send null if empty
-            notes: updatePayload.notes || null, // Send null if empty
+            rejection_reason: updatePayload.rejection_reason || null,
+            notes: updatePayload.notes || null, 
         };
       updateKycMutation.mutate({ id: selectedRequest.id, payload: payloadToSend });
     }
@@ -105,7 +99,8 @@ const KycManagementPage: React.FC = () => {
     }
   };
 
-  const kycStatuses = Object.values(KycStatus);
+  const kycStatuses = Object.values(KycStatus).filter(value => typeof value === 'string');
+
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -124,7 +119,7 @@ const KycManagementPage: React.FC = () => {
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
             {kycStatuses.map(status => (
-              <SelectItem key={status} value={status}>{status.replace(/_/g, ' ')}</SelectItem>
+              <SelectItem key={status} value={status}>{String(status).replace(/_/g, ' ')}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -183,7 +178,6 @@ const KycManagementPage: React.FC = () => {
               <p><strong>Current Status:</strong> {selectedRequest.status.replace(/_/g, ' ')}</p>
               {selectedRequest.first_name && <p><strong>Name:</strong> {selectedRequest.first_name} {selectedRequest.last_name}</p>}
               {selectedRequest.date_of_birth && <p><strong>DOB:</strong> {format(parseISO(selectedRequest.date_of_birth), 'P')}</p>}
-              {/* Display documents if available */}
               {selectedRequest.documents && selectedRequest.documents.length > 0 && (
                 <div>
                   <strong>Documents:</strong>
@@ -204,7 +198,7 @@ const KycManagementPage: React.FC = () => {
                   <SelectTrigger id="kycStatus"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {kycStatuses.map(status => (
-                      <SelectItem key={status} value={status}>{status.replace(/_/g, ' ')}</SelectItem>
+                      <SelectItem key={status} value={status}>{String(status).replace(/_/g, ' ')}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -234,8 +228,8 @@ const KycManagementPage: React.FC = () => {
           )}
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-            <Button onClick={handleSaveChanges} disabled={updateKycMutation.isLoading}>
-              {updateKycMutation.isLoading ? 'Saving...' : 'Save Changes'}
+            <Button onClick={handleSaveChanges} disabled={updateKycMutation.isPending}>
+              {updateKycMutation.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>

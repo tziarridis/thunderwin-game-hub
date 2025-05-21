@@ -1,154 +1,122 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Game } from '@/types';
+import { Game, GameTag } from '@/types'; // Ensure GameTag is imported if used for game.tags
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { Heart, PlayCircle, Info } from 'lucide-react';
+import { PlayCircle, Info, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
+// import { LazyLoadImage } from 'react-lazy-load-image-component'; // Dependency added
+// import 'react-lazy-load-image-component/src/effects/blur.css'; // Optional: if you want blur effect
 
-interface GameCardProps extends React.HTMLAttributes<HTMLDivElement> {
+interface GameCardProps { // Removed 'extends React.HTMLAttributes<HTMLDivElement>'
   game: Game;
+  onPlay?: (game: Game, mode: 'real' | 'demo') => void; // Renamed from onPlayClick to match other cards, made optional
+  onDetails?: (game: Game) => void; // Renamed for consistency
+  className?: string;
   isFavorite?: boolean;
   onToggleFavorite?: (gameId: string) => void;
-  onPlay?: (game: Game) => void;
-  onDetails?: (game: Game) => void; // For navigating to a game details page
-  showProvider?: boolean;
-  variant?: 'default' | 'compact' | 'featured';
 }
 
-const GameCard: React.FC<GameCardProps> = ({
-  game,
-  isFavorite,
-  onToggleFavorite,
-  onPlay,
-  onDetails,
+const GameCard: React.FC<GameCardProps> = ({ 
+  game, 
+  onPlay, 
+  onDetails, 
   className,
-  showProvider = true,
-  variant = 'default',
-  ...props
+  isFavorite,
+  onToggleFavorite
 }) => {
-  const { isAuthenticated } = useAuth();
+  
+  // Simplified playability check, assuming context/auth handles real play enabling
+  const canPlayDemo = !game.only_real || game.only_demo || (game.tags && game.tags.some(t => {
+    if (typeof t === 'string') return t === 'demo_playable';
+    if (typeof t === 'object' && t !== null && 'slug' in t) return (t as GameTag).slug === 'demo_playable';
+    return false;
+  }));
+  
+  // This component might not have full auth context, so real play logic might be simpler or passed via props
+  const canPlayReal = !game.only_demo; // Simplified: assumes if not demo only, real is possible if onPlay is wired for it
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    e.preventDefault();
-    if (onToggleFavorite && game.id) {
-      onToggleFavorite(String(game.id));
-    }
-  };
-
-  const handlePlayClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (onPlay) {
-      onPlay(game);
+    if (onToggleFavorite) {
+      onToggleFavorite(String(game.id || game.game_id));
     }
   };
   
-  const handleDetailsClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (onDetails) {
-      onDetails(game);
-    } else if (onPlay) { // Fallback to onPlay if no onDetails
-      onPlay(game);
+  const defaultPlayHandler = () => {
+    if (onPlay) {
+        onPlay(game, canPlayReal ? 'real' : 'demo');
     }
   };
 
-  const gameImage = game.cover || game.image || '/placeholder-game.png';
-  const providerNameDisplay = typeof game.providerName === 'object' 
-    ? (game.providerName as { name: string }).name 
-    : game.providerName;
+  const defaultDetailsHandler = () => {
+      if (onDetails) {
+          onDetails(game);
+      } else if (onPlay) { // Fallback to play if no details handler
+          defaultPlayHandler();
+      }
+  }
 
   return (
-    <div
-      className={cn(
-        'thunder-card group relative overflow-hidden rounded-lg shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-neon',
-        variant === 'compact' ? 'w-full' : 'w-full',
-        className
-      )}
-      onClick={handleDetailsClick} // Main click action
-      {...props}
+    <Card 
+      className={cn("overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200 group bg-card cursor-pointer", className)}
+      onClick={defaultDetailsHandler}
     >
-      <AspectRatio ratio={3 / 4} className="bg-slate-900">
-        <LazyLoadImage
-          alt={game.title || 'Game image'}
-          src={gameImage}
-          effect="blur"
-          className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-110"
-          placeholderSrc="/placeholder-game-lazy.png" // Small, low-quality placeholder
-        />
-      </AspectRatio>
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
-        <h3 className={cn(
-          "font-bold text-white truncate",
-          variant === 'compact' ? 'text-sm' : 'text-base md:text-lg'
-        )}>
+      <CardHeader className="p-0 relative">
+        <AspectRatio ratio={4 / 3}>
+          {/* <LazyLoadImage
+            alt={game.title}
+            src={game.image || game.image_url || game.cover || '/placeholder.svg'}
+            effect="blur" // Optional
+            width="100%"
+            height="100%"
+            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            placeholderSrc="/placeholder.svg" // Small placeholder
+            onError={(e: any) => (e.target.src = '/placeholder.svg')}
+          /> */}
+           <img
+            src={game.image || game.image_url || game.cover || '/placeholder.svg'}
+            alt={game.title}
+            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => (e.currentTarget.src = '/placeholder.svg')}
+          />
+        </AspectRatio>
+        {onToggleFavorite && (
+            <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 z-10 bg-black/30 hover:bg-primary text-white hover:text-white rounded-full"
+                onClick={handleFavoriteClick}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            >
+                <Heart className={cn("h-5 w-5", isFavorite ? "fill-red-500 text-red-500" : "text-white")} />
+            </Button>
+        )}
+         {game.isNew && (
+          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">NEW</div>
+        )}
+      </CardHeader>
+      <CardContent className="p-3">
+        <CardTitle className="text-base font-semibold truncate group-hover:text-primary transition-colors">
           {game.title}
-        </h3>
-        {showProvider && providerNameDisplay && (
-          <p className={cn(
-            "text-xs text-casino-thunder-green/80 truncate",
-             variant === 'compact' ? 'hidden sm:block' : '' // Hide provider on compact mobile
-          )}>
-            {providerNameDisplay} {/* Corrected usage */}
-          </p>
+        </CardTitle>
+        <p className="text-xs text-muted-foreground truncate">
+          {game.providerName || game.provider_slug || 'Unknown Provider'}
+        </p>
+      </CardContent>
+      <CardFooter className="p-3 pt-0">
+        {onPlay && (canPlayReal || canPlayDemo) ? (
+          <Button onClick={(e) => {e.stopPropagation(); onPlay(game, canPlayReal ? 'real' : 'demo')}} className="w-full" size="sm">
+            <PlayCircle className="mr-2 h-4 w-4" /> Play {canPlayReal ? 'Now' : 'Demo'}
+          </Button>
+        ) : (
+          <Button className="w-full" size="sm" variant="outline" disabled>
+            Unavailable
+          </Button>
         )}
-
-        <div className="mt-2 flex items-center space-x-2 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 delay-100">
-          {onPlay && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="bg-casino-thunder-green/80 hover:bg-casino-thunder-green text-casino-thunder-darker px-3 py-1.5 h-auto rounded-md"
-              onClick={handlePlayClick}
-              aria-label={`Play ${game.title}`}
-            >
-              <PlayCircle size={variant === 'compact' ? 16 : 18} className="mr-1.5" />
-              Play
-            </Button>
-          )}
-          {onToggleFavorite && isAuthenticated && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className={cn(
-                "text-white/70 hover:text-red-500 rounded-full p-1.5 h-auto w-auto",
-                isFavorite ? 'text-red-500' : ''
-              )}
-              onClick={handleFavoriteClick}
-              aria-label={isFavorite ? `Remove ${game.title} from favorites` : `Add ${game.title} to favorites`}
-            >
-              <Heart size={variant === 'compact' ? 16: 18} fill={isFavorite ? 'currentColor' : 'none'} />
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      {/* Visible info bar when not hovered (optional) */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/70 to-transparent group-hover:opacity-0 transition-opacity duration-200 pointer-events-none">
-        <h3 className={cn(
-            "font-semibold text-white truncate",
-            variant === 'compact' ? 'text-xs' : 'text-sm'
-        )}>
-            {game.title}
-        </h3>
-        {showProvider && providerNameDisplay && variant !== 'compact' && (
-          <p className="text-xs text-casino-thunder-green/70 truncate">{providerNameDisplay}</p>
-        )}
-      </div>
-
-      {game.isNew && (
-        <div className="absolute top-2 right-2 bg-casino-gold text-casino-thunder-darker px-2 py-0.5 rounded-full text-xs font-bold shadow-md">
-          NEW
-        </div>
-      )}
-    </div>
+      </CardFooter>
+    </Card>
   );
 };
 
