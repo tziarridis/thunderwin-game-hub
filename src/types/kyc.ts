@@ -1,4 +1,3 @@
-
 export interface KycDocument {
   document_type: 'id_card' | 'passport' | 'drivers_license' | 'utility_bill';
   file_front: File;
@@ -12,18 +11,19 @@ export interface KycSubmission {
   notes?: string;
 }
 
-export type KycStatusType = 'pending' | 'approved' | 'rejected' | 'resubmit';
+export type KycStatus = 'pending' | 'approved' | 'rejected' | 'resubmit'; // Renamed KycStatusType to KycStatus
 
 // Define KycRequest if it's used elsewhere and represents the DB structure for a KYC request
 export interface KycRequest {
   id: string; // Request ID
   user_id: string;
-  status: KycStatusType;
+  status: KycStatus; // Use the renamed KycStatus
   documents_submitted: KycDocumentInfo[]; // Store info about files, not files themselves
   submitted_at: string;
   reviewed_at?: string;
-  notes?: string; // Admin notes (can be used for review_notes)
-  rejection_reason?: string; // Added optional rejection_reason
+  notes?: string; // Admin notes
+  review_notes?: string; // Added for compatibility with read-only KycStatusDisplay
+  rejection_reason?: string;
 }
 
 export interface KycDocumentInfo {

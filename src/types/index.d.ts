@@ -1,9 +1,10 @@
 export * from './user';
-export * from './game'; // Game type is now primarily defined in game.ts
-export * from './transaction';
+export * from './game'; // Game type, DbGame, GameLaunchOptions are now primarily defined and exported from game.ts
+export * from './transaction'; // Ensure this exports TransactionStatus from transaction.ts
 export * from './wallet';
 export * from './affiliate';
-export * from './promotion'; // Added this export
+export * from './promotion';
+export * from './kyc'; // Added KYC export
 
 // General API response type
 export interface ApiResponse<T> {
@@ -16,78 +17,20 @@ export interface ApiResponse<T> {
 // LoadingStatus
 export type LoadingStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
 
-
 // DisplayGame can extend the Game from game.ts if needed
 export interface DisplayGame extends Game { // Game is now imported from './game'
   isFavorite?: boolean; 
 }
 
-// DbGame type for Supabase interactions
-export interface DbGame {
-  id: string; // UUID, ensure it's string in Supabase table or cast upon fetch
-  game_name: string; // Maps to Game.title
-  slug: string;
-  
-  provider_id?: string; // Foreign key to providers table (UUID)
-  provider_slug?: string; // Denormalized or from a view, maps to Game.provider_slug
-
-  game_type?: string; // Maps to Game.categoryName
-  category_slugs?: string[] | string; // Can be string array in DB or parsed, or single string
-
-  cover?: string; // Maps to Game.image
-  banner?: string; // Maps to Game.banner
-
-  description?: string;
-  rtp?: number | string; // Should be numeric in DB, but handle string from source
-
-  is_popular?: boolean;
-  is_new?: boolean;
-  is_featured?: boolean;
-  show_home?: boolean;
-
-  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high'; // Enum in DB
-  lines?: number; // Numeric in DB
-  min_bet?: number; // Numeric in DB
-  max_bet?: number; // Numeric in DB
-  
-  features?: string[]; // JSONB array in DB
-  tags?: string[]; // JSONB array in DB
-  themes?: string[]; // JSONB array in DB
-  
-  release_date?: string; // Date or Timestamp in DB, maps to ISO string
-
-  game_id?: string; // External game ID (string)
-  game_code?: string; // External game code (string)
-
-  status?: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived'; // Enum in DB
-  
-  technology?: string;
-  distribution?: string;
-  game_server_url?: string;
-  
-  has_lobby?: boolean;
-  is_mobile?: boolean;
-  has_freespins?: boolean;
-  has_tables?: boolean;
-  only_demo?: boolean;
-  
-  views?: number;
-  created_at?: string; // timestamptz
-  updated_at?: string; // timestamptz
-  
-  // For joining with providers table
-  providers?: { name: string; slug?: string }; // Include slug if available from join
-
-  // Keep 'title' if forms are directly using it for DbGame, but game_name is canonical
-  title?: string; // Alias for game_name for form compatibility
-  image_url?: string; // Alias for cover
-}
-
-// WalletType to be used in AppHeader
-export interface WalletType {
+// WalletType to be used in AppHeader (ensure this is defined or imported if used)
+// It seems WalletType might be locally defined in AppHeader or should be moved to wallet.ts
+export interface WalletType { // This was defined here, ensure it matches usage or move to wallet.ts
   balance: number | null;
   currency: string;
   vipLevel?: number;
-  vipPoints?: number; // Added vipPoints
+  vipPoints?: number;
   // other wallet properties
 }
+
+// The DbGame interface that was here is removed.
+// The authoritative DbGame is in src/types/game.ts and re-exported via `export * from './game';`

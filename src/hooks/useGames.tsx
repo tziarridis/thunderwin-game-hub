@@ -1,14 +1,14 @@
-
 // src/hooks/useGames.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameProvider, GameCategory, GameLaunchOptions } from '@/types';
-import gameProviderService from '@/services/gameProviderService'; // For launching games
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game'; // Ensure DbGame is imported if used for explicit casting
+import gameProviderService from '@/services/gameProviderService'; 
 import { toast } from 'sonner';
+import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter'; // Use the centralized adapter
 
 interface GamesContextType {
   games: Game[];
-  filteredGames: Game[]; // Games after applying filters
+  filteredGames: Game[]; 
   categories: GameCategory[];
   providers: GameProvider[];
   isLoading: boolean;
@@ -19,76 +19,47 @@ interface GamesContextType {
   getGameById: (id: string) => Promise<Game | null>;
   getGameBySlug: (slug: string) => Promise<Game | null>;
   fetchGamesAndProviders: () => Promise<void>;
-  filterGames: (searchTerm?: string, categorySlug?: string, providerSlug?: string) => void; // New filter method
+  filterGames: (searchTerm?: string, categorySlug?: string, providerSlug?: string) => void;
 }
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
 export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [games, setGames] = useState<Game[]>([]);
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]); // State for filtered games
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [categories, setCategories] = useState<GameCategory[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
-  // TODO: Add auth context to handle user-specific favorites
-  // const { user } = useAuth(); 
 
-  const mapDbGameToGameType = (dbGame: any): Game => {
-    return {
-      id: dbGame.id,
-      game_id: dbGame.game_id, // External game ID
-      title: dbGame.game_name || dbGame.title || 'Unknown Title', // Prioritize game_name
-      slug: dbGame.game_code || dbGame.slug || dbGame.id, // Prioritize game_code as slug
-      description: dbGame.description || '',
-      providerName: dbGame.providers?.name || dbGame.provider_name || '',
-      provider_slug: dbGame.providers?.slug || dbGame.provider_slug || '',
-      provider_id: dbGame.provider_id,
-      categoryName: Array.isArray(dbGame.game_categories) ? dbGame.game_categories.map((c: any) => c.name).join(', ') : (dbGame.game_categories?.name || ''),
-      category_slugs: Array.isArray(dbGame.game_categories) ? dbGame.game_categories.map((c: any) => c.slug) : (dbGame.game_categories?.slug ? [dbGame.game_categories.slug] : []),
-      tags: dbGame.tags || [],
-      rtp: typeof dbGame.rtp === 'number' ? dbGame.rtp : (parseFloat(dbGame.rtp) || undefined),
-      volatility: dbGame.volatility,
-      cover: dbGame.cover || dbGame.image_url,
-      image: dbGame.cover || dbGame.image_url, // Ensure image is also populated
-      releaseDate: dbGame.release_date || dbGame.created_at,
-      isNew: dbGame.is_new || false,
-      isPopular: dbGame.is_popular || false,
-      is_featured: dbGame.is_featured || false,
-      only_demo: dbGame.only_demo || false,
-      only_real: dbGame.only_real || false, // Add only_real
-      views: dbGame.views || 0,
-      status: dbGame.status || 'active',
-      // ... any other fields
-      lines: dbGame.lines,
-      features: dbGame.features || [],
-      default_bet: dbGame.default_bet,
-    };
-  };
+  // Removed mapDbGameToGameType, using imported mapDbGameToGameAdapter
 
   const mapDbProviderToProviderType = (dbProvider: any): GameProvider => {
+    // Assuming dbProvider matches the structure from Supabase 'providers' table
     return {
         id: dbProvider.id,
         name: dbProvider.name,
-        slug: dbProvider.slug || dbProvider.name.toLowerCase().replace(/\s+/g, '-'),
+        slug: dbProvider.slug || dbProvider.name?.toLowerCase().replace(/\s+/g, '-'),
         logoUrl: dbProvider.logo || dbProvider.logo_url,
         description: dbProvider.description,
-        isActive: dbProvider.status === 'active', // Assuming 'active' means true
-        game_ids: dbProvider.game_ids || [], // if available
+        status: dbProvider.status || 'inactive', // Align with GameProvider type
+        // game_ids are usually not directly on provider, but on games linked to provider
     };
   };
   
   const mapDbCategoryToCategoryType = (dbCategory: any): GameCategory => {
+    // Assuming dbCategory matches structure from Supabase 'game_categories' table
     return {
         id: dbCategory.id,
         name: dbCategory.name,
         slug: dbCategory.slug,
-        icon: dbCategory.icon,
-        imageUrl: dbCategory.image || dbCategory.image_url,
+        icon_svg: dbCategory.icon || dbCategory.icon_svg, // map to icon_svg
+        icon: dbCategory.icon || dbCategory.icon_svg, // also map to icon for compatibility
+        image_url: dbCategory.image || dbCategory.image_url,
         description: dbCategory.description,
-        gameCount: dbCategory.game_count || 0, // if available
-        isActive: dbCategory.status === 'active',
+        // gameCount: dbCategory.game_count || 0, // Not in GameCategory type
+        // isActive: dbCategory.status === 'active', // Not in GameCategory type, use status if needed elsewhere
     };
   };
 
@@ -98,16 +69,27 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const gameQuery = supabase.from('games').select(`
         *, 
-        providers (id, name, slug, logo), 
-        game_categories (id, name, slug, icon)
-      `); 
-      // Add filters for status if needed: .eq('status', 'active')
+        providers (id, name, slug, logo_url), 
+        game_categories!game_category_games (game_categories(id, name, slug, icon, image_url)) 
+      `).eq('status', 'active'); // Example: fetch only active games
 
-      const { data: gamesData, error: gamesError } = await gameQuery;
+      // Note: The join with game_categories via a linking table (e.g., game_category_games)
+      // needs to be adjusted based on your actual DB schema for many-to-many.
+      // If it's a direct FK or array on 'games' table, the query is simpler.
+      // Assuming 'game_categories' on 'games' table is an array of category IDs/slugs for now,
+      // or 'game_type' for a single category.
+      // The provided mapDbGameToGameAdapter handles category_slugs array.
+
+      const { data: gamesData, error: gamesError } = await supabase
+        .from('games')
+        .select('*, providers(name, slug)') // Adjust based on actual 'games' table and relations
+        .eq('status', 'active'); // Fetch active games
+        
       if (gamesError) throw gamesError;
-      const mappedGames = gamesData.map(mapDbGameToGameType);
+      // Cast to DbGame before mapping if the structure from Supabase isn't already DbGame
+      const mappedGames = gamesData.map(dbGame => mapDbGameToGameAdapter(dbGame as DbGame));
       setGames(mappedGames);
-      setFilteredGames(mappedGames); // Initially, filteredGames are all games
+      setFilteredGames(mappedGames);
 
 
       const { data: categoriesData, error: categoriesError } = await supabase.from('game_categories').select('*').eq('status', 'active');
@@ -125,7 +107,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // mapDbGameToGameAdapter is stable
 
   useEffect(() => {
     fetchGamesAndProviders();
@@ -133,7 +115,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Method to apply filters
   const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
-    setIsLoading(true); // Indicate loading during filtering
+    setIsLoading(true); 
     let tempFilteredGames = [...games];
 
     if (categorySlug) {
@@ -159,8 +141,6 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 
   const toggleFavoriteGame = async (gameId: string) => {
-    // This needs user context to persist favorites to DB
-    // For now, client-side only
     setFavoriteGameIds(prev => {
       const newSet = new Set(prev);
       if (newSet.has(gameId)) {
@@ -172,29 +152,20 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return newSet;
     });
-    // Example DB interaction (needs user ID):
-    // if (user) {
-    //   const isCurrentlyFavorite = favoriteGameIds.has(gameId);
-    //   if (isCurrentlyFavorite) {
-    //     await supabase.from('favorite_games').delete().match({ user_id: user.id, game_id: gameId });
-    //   } else {
-    //     await supabase.from('favorite_games').insert({ user_id: user.id, game_id: gameId });
-    //   }
-    // }
   };
 
   const launchGame = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     try {
-      const providerIdentifier = game.provider_id || game.provider_slug || (game.providerName ? providers.find(p => p.name === game.providerName)?.id : null);
+      const providerIdentifier = game.provider_id || game.provider_slug || game.provider?.id || (game.providerName ? providers.find(p => p.name === game.providerName)?.id : null);
       if (!providerIdentifier) {
           toast.error("Game provider information is missing.");
           return null;
       }
-      const gameIdentifier = game.game_id || game.id; // External game ID or internal if former not present
+      const gameIdentifier = game.game_id || game.id; 
       
       const launchUrl = await gameProviderService.getLaunchUrl({
         gameId: gameIdentifier,
-        providerId: providerIdentifier, // This should be the provider's unique ID/slug for the service
+        providerId: providerIdentifier, 
         mode: options.mode,
         user_id: options.user_id,
         username: options.username,
@@ -202,8 +173,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         language: options.language,
         platform: options.platform,
         returnUrl: options.returnUrl,
-        token: options.token, // Pass token if available
-        // ... any other necessary params
+        token: options.token,
       });
       
       if (launchUrl) {
@@ -220,19 +190,17 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   
   const getGameById = async (id: string): Promise<Game | null> => {
-    // First check local cache
     const cachedGame = games.find(g => String(g.id) === id);
     if (cachedGame) return cachedGame;
 
-    // If not in cache, fetch from DB
     try {
       const { data, error } = await supabase
         .from('games')
-        .select(`*, providers (id, name, slug, logo), game_categories (id, name, slug, icon)`)
+        .select('*, providers(name, slug)') // Adjust query as needed
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
-      return data ? mapDbGameToGameType(data) : null;
+      return data ? mapDbGameToGameAdapter(data as DbGame) : null;
     } catch (e: any) {
       console.error(`Error fetching game by ID ${id}:`, e);
       return null;
@@ -240,19 +208,36 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getGameBySlug = async (slug: string): Promise<Game | null> => {
-    const cachedGame = games.find(g => g.slug === slug);
+    const cachedGame = games.find(g => g.slug === slug); // Check slug first
     if (cachedGame) return cachedGame;
     
+    // Fallback to game_code if slug is often mapped to game_code
+    const cachedGameByCode = games.find(g => g.game_code === slug);
+    if (cachedGameByCode) return cachedGameByCode;
+    
     try {
-      const { data, error } = await supabase
+      // Query by slug, then by game_code as a fallback
+      let { data, error } = await supabase
         .from('games')
-        .select(`*, providers (id, name, slug, logo), game_categories (id, name, slug, icon)`)
-        .eq('game_code', slug) // Assuming slug maps to game_code
+        .select('*, providers(name, slug)')
+        .eq('slug', slug) 
         .maybeSingle();
+
       if (error) throw error;
-      return data ? mapDbGameToGameType(data) : null;
+      if (data) return mapDbGameToGameAdapter(data as DbGame);
+
+      // Fallback: query by game_code if slug is used interchangeably with game_code
+      ({ data, error } = await supabase
+        .from('games')
+        .select('*, providers(name, slug)')
+        .eq('game_code', slug) 
+        .maybeSingle());
+      
+      if (error) throw error;
+      return data ? mapDbGameToGameAdapter(data as DbGame) : null;
+
     } catch (e: any) {
-      console.error(`Error fetching game by slug ${slug}:`, e);
+      console.error(`Error fetching game by slug/code ${slug}:`, e);
       return null;
     }
   };
@@ -272,7 +257,8 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     getGameBySlug,
     fetchGamesAndProviders,
     filterGames,
-  }), [games, filteredGames, categories, providers, isLoading, error, favoriteGameIds, fetchGamesAndProviders, filterGames]); // Added filterGames to deps
+  }), [games, filteredGames, categories, providers, isLoading, error, favoriteGameIds, fetchGamesAndProviders, filterGames, toggleFavoriteGame, launchGame, getGameById, getGameBySlug]);
+
 
   return (
     <GamesContext.Provider value={contextValue}>
@@ -288,4 +274,3 @@ export const useGames = (): GamesContextType => {
   }
   return context;
 };
-

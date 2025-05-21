@@ -1,5 +1,5 @@
 
-import { Game, DbGame, GameStatus, GameVolatility } from '@/types'; 
+import { Game, DbGame, GameStatus, GameVolatility } from '@/types/game'; // Adjusted import
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
 export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
@@ -31,6 +31,8 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     
     providerName: dbGame.providers?.name || dbGame.provider_slug || dbGame.distribution || 'N/A',
     provider_slug: dbGame.provider_slug || dbGame.providers?.slug || dbGame.distribution || 'unknown-provider', 
+    provider: dbGame.providers ? { name: dbGame.providers.name, slug: dbGame.providers.slug || (dbGame.provider_slug || '') } : 
+              (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined), // Added provider object
 
     categoryName: dbGame.game_type || undefined, 
     category_slugs: Array.isArray(dbGame.category_slugs) 
@@ -64,7 +66,9 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     
     game_code: dbGame.game_code || undefined, 
     
-    status: parseGameStatus(dbGame.status), 
+    status: parseGameStatus(dbGame.status),
+    only_demo: dbGame.only_demo ?? false,
+    only_real: dbGame.only_real ?? false,
   };
 };
 
@@ -77,25 +81,28 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.title) dbGame.game_name = game.title;
   if (game.slug) dbGame.slug = game.slug;
 
+  // When mapping Game to DbGame, we don't need to map game.provider object
+  // back to dbGame.providers, as provider_id or provider_slug is usually used for saving.
   if (game.provider_slug) dbGame.provider_slug = game.provider_slug; 
+  // if (game.provider_id) dbGame.provider_id = game.provider_id; // if you store provider_id
+
   
   if (game.categoryName) dbGame.game_type = game.categoryName;
   if (game.category_slugs) dbGame.category_slugs = game.category_slugs; 
   
-  if (game.image) dbGame.cover = game.image;
+  if (game.image) dbGame.cover = game.image; // Prefer 'cover' for saving if that's primary
+  if (game.image_url && !dbGame.cover) dbGame.image_url = game.image_url; // Fallback
   if (game.bannerUrl) dbGame.banner_url = game.bannerUrl;
 
 
   if (game.description) dbGame.description = game.description;
   if (game.rtp !== undefined && game.rtp !== null) dbGame.rtp = Number(game.rtp);
 
-  // Ensure GameVolatility is assigned correctly
   if (game.volatility) {
     const validVolatilities: GameVolatility[] = ['low', 'medium', 'high', 'low-medium', 'medium-high'];
     if (validVolatilities.includes(game.volatility)) {
       dbGame.volatility = game.volatility;
     } else {
-      // Handle invalid volatility string if necessary, or leave as undefined
       console.warn(`Invalid volatility value: ${game.volatility}`);
     }
   }
@@ -119,17 +126,18 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.game_id) dbGame.game_id = String(game.game_id);
   if (game.game_code) dbGame.game_code = String(game.game_code);
   
-  // Ensure GameStatus is assigned correctly
   if (game.status) {
     const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived'];
     if (validStatuses.includes(game.status)) {
       dbGame.status = game.status;
     } else {
-      // Handle invalid status string if necessary
       console.warn(`Invalid status value: ${game.status}`);
-      dbGame.status = 'inactive'; // Default to a valid status
+      dbGame.status = 'inactive'; 
     }
   }
+
+  if (game.only_demo !== undefined) dbGame.only_demo = game.only_demo;
+  if (game.only_real !== undefined) dbGame.only_real = game.only_real;
 
 
   Object.keys(dbGame).forEach(key => {
@@ -141,3 +149,4 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   
   return dbGame;
 };
+

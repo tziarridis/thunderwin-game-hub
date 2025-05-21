@@ -1,13 +1,14 @@
+
 export type GameStatus = 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived';
 export type GameVolatility = 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
 
 export interface GameProvider {
   id: string;
   name: string;
-  slug?: string; // Made slug optional
+  slug?: string;
   logoUrl?: string;
   games?: Game[];
-  status?: 'active' | 'inactive' | 'coming_soon'; // Added status for provider
+  status?: 'active' | 'inactive' | 'coming_soon';
   description?: string;
 }
 
@@ -18,7 +19,19 @@ export interface GameCategory {
   description?: string;
   image_url?: string;
   icon_svg?: string; // For SVG icons
+  icon?: string; // Added for compatibility with read-only components
   game_ids?: string[]; // List of game IDs in this category
+}
+
+export interface GameLaunchOptions {
+  mode: 'real' | 'demo';
+  user_id?: string;
+  username?: string;
+  currency?: string;
+  platform?: 'mobile' | 'desktop' | 'web';
+  language?: string;
+  token?: string;
+  returnUrl?: string;
 }
 
 export interface Game {
@@ -27,8 +40,11 @@ export interface Game {
   title: string;
   slug: string;
   description?: string;
+  
   providerName: string; // Denormalized for convenience
   provider_slug: string; // Denormalized for convenience
+  provider?: { name: string; slug?: string }; // Added for compatibility with GameCard.tsx
+
   categoryName?: string; // Main category name
   category_slugs: string[]; // Slugs of categories it belongs to
   
@@ -44,7 +60,7 @@ export interface Game {
   max_bet?: number;
   
   features?: string[]; // e.g., "bonus-buy", "free-spins", "megaways"
-  tags?: string[]; // e.g., "popular", "new", "hot"
+  tags?: string[]; // e.g., "popular", "new", "hot", "demo_playable", "demo"
   themes?: string[]; // e.g., "adventure", "egyptian", "space"
   
   isPopular?: boolean;
@@ -72,6 +88,9 @@ export interface Game {
   supported_currencies?: string[];
   supported_languages?: string[];
   technology?: 'html5' | 'flash' | 'other'; // Game technology
+
+  only_demo?: boolean; // Ensure this exists
+  only_real?: boolean; // Ensure this exists
 }
 
 // Represents the structure of game data as stored in the database (e.g., Supabase 'games' table)
@@ -121,8 +140,10 @@ export interface DbGame {
   has_freespins?: boolean | null;
   has_tables?: boolean | null;
   only_demo?: boolean | null;
+  only_real?: boolean | null; // Ensure this exists
   views?: number | null;
   // Relation to providers table (if you join)
   providers?: { name: string; slug: string } | null; // Example if providers table is joined
   title?: string; // Alternative for game_name
 }
+

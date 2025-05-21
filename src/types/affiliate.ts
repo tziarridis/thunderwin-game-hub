@@ -1,3 +1,10 @@
+export interface AffiliateStatSummary {
+  totalReferrals: number;
+  totalCommission: number;
+  conversionRate: number;
+  activePlayersReferred: number;
+}
+
 export interface Affiliate {
   id: string;
   user_id: string; // The user who IS an affiliate
@@ -8,6 +15,7 @@ export interface Affiliate {
   updated_at: string;
   commission_rate_cpa?: number; // Cost Per Acquisition
   commission_rate_revenue_share?: number; // Percentage of NGR
+  isActive?: boolean; // Added for compatibility
   // Add other relevant affiliate details
 }
 

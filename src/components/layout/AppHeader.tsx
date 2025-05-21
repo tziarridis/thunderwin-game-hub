@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -14,7 +13,6 @@ import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
 
-// Define a local Wallet type for AppHeader state
 interface WalletState {
   id: string;
   userId: string;
@@ -37,14 +35,12 @@ const AppHeader = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<WalletState | null>(null);
-  // const [loadingWallet, setLoadingWallet] = useState<boolean>(false); // Not used by UserMenu
 
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
     if (isAuthenticated && user) {
       const fetchWallet = async () => {
-        // setLoadingWallet(true); // Not used by UserMenu
         try {
           const { data, error } = await supabase
             .from('wallets')
@@ -76,17 +72,16 @@ const AppHeader = () => {
         } catch (err: any) {
           console.error("Error in wallet fetch:", err.message);
           setWallet(null);
-        } finally {
-          // setLoadingWallet(false); // Not used by UserMenu
         }
       };
 
       fetchWallet();
 
       const fetchNotificationsStatus = async () => {
-        // Mocking notification status
+        // Mocking notification status for now
         // const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_read', false);
-        const unreadCount = 0; 
+        // const unreadCount = count ?? 0;
+        const unreadCount = 0; // Placeholder
         setHasUnreadNotifications(unreadCount > 0);
       };
 
@@ -140,11 +135,11 @@ const AppHeader = () => {
               <UserMenu 
                 user={user} 
                 onLogout={signOut}
-                // wallet={wallet} // Removed as UserMenuProps in read-only file likely doesn't expect it
-                // loadingWallet={loadingWallet} // Removed
-                // Pass individual, simple props if UserMenu needs them and its props allow
-                balance={wallet?.balance} // Example: Pass balance if UserMenu can accept it
-                currencySymbol={wallet?.symbol} // Example
+                // wallet={wallet} // UserMenuProps in read-only file likely doesn't expect this complex object
+                // loadingWallet={loadingWallet} // Also likely not expected
+                // The following props caused errors, commenting out until UserMenu props are known/updated:
+                // balance={wallet?.balance} 
+                // currencySymbol={wallet?.symbol} 
               />
             </>
           ) : (
