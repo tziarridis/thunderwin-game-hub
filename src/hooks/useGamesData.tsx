@@ -100,5 +100,7 @@ export const useGamesData = ({
   };
 };
 
-export default useGamesData;
+// Aliased export to satisfy read-only components that import `useGames` from this file path
+export { useGamesData as useGames };
 
+export default useGamesData;
