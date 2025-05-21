@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { 
   Tabs, 
@@ -49,7 +50,7 @@ import {
   CircleCheck
 } from "lucide-react";
 import { toast } from "sonner";
-import { KycStatus } from "@/types";
+import { KycStatus } from "@/types/kyc"; // Corrected import path
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
