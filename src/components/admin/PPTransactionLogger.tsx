@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -6,12 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Search, Download, RefreshCw, AlertCircle } from 'lucide-react';
-// import { DateRangePicker, DateRangePickerProps } from '@/components/ui/daterangepicker'; // Assuming this path
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import Papa from 'papaparse';
-import { Transaction } from '@/types/transaction'; // Corrected import path
-import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Assuming this component exists
+import Papa from 'papaparse'; // Import papaparse
+import { Transaction } from '@/types/transaction'; 
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -31,11 +31,12 @@ const PPTransactionLogger = () => {
     setError(null);
     try {
       let query = supabase
-        .from('transactions') // Use the correct table name from your Supabase schema
+        .from('transactions') 
         .select('*', { count: 'exact' });
 
       if (searchTerm) {
-        query = query.or(`player_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%`);
+        // Ensure search terms are appropriate for columns being searched
+        query = query.or(`player_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,provider_transaction_id.ilike.%${searchTerm}%`);
       }
       if (filterType !== 'all') {
         query = query.eq('type', filterType);
@@ -47,7 +48,6 @@ const PPTransactionLogger = () => {
         query = query.gte('created_at', dateRange.from.toISOString());
       }
       if (dateRange?.to) {
-        // Adjust 'to' date to include the whole day
         const toDate = new Date(dateRange.to);
         toDate.setHours(23, 59, 59, 999);
         query = query.lte('created_at', toDate.toISOString());
@@ -61,9 +61,7 @@ const PPTransactionLogger = () => {
 
       if (dbError) throw dbError;
       
-      // The 'transactions' table has player_id, not user_id.
-      // The Transaction type should reflect this.
-      setTransactions(data as Transaction[]); // Cast as Transaction[]
+      setTransactions(data as Transaction[]); 
       setTotalTransactions(count || 0);
       setCurrentPage(page);
 
@@ -88,7 +86,7 @@ const PPTransactionLogger = () => {
 
   const handleDateChange = (newRange: DateRange | undefined) => {
     setDateRange(newRange);
-    // fetchTransactions(1); // Fetch on date change
+    // fetchTransactions(1); // Optionally fetch on date change, or rely on "Apply Filters"
   };
   
   const handleDownloadCSV = () => {
@@ -96,7 +94,15 @@ const PPTransactionLogger = () => {
       toast.info("No transactions to download.");
       return;
     }
-    const csv = Papa.unparse(transactions);
+    // Ensure all fields are strings for CSV, handle null/undefined
+    const csvReadyTransactions = transactions.map(tx => ({
+      ...tx,
+      amount: tx.amount.toString(),
+      balance_before: tx.balance_before?.toString() ?? '',
+      balance_after: tx.balance_after?.toString() ?? '',
+      metadata: tx.metadata ? JSON.stringify(tx.metadata) : '',
+    }));
+    const csv = Papa.unparse(csvReadyTransactions);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -129,7 +135,7 @@ const PPTransactionLogger = () => {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-2xl font-bold">Transaction Logger</h1>
         <div className="flex items-center gap-2">
-           <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} /> {/* Corrected prop usage */}
+           <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
           <Button onClick={handleDownloadCSV} variant="outline" size="sm" disabled={transactions.length === 0}>
             <Download className="mr-2 h-4 w-4" /> CSV
           </Button>
@@ -148,7 +154,7 @@ const PPTransactionLogger = () => {
             <Input
               id="search-transactions"
               type="search"
-              placeholder="Player ID, Game ID, Round ID..."
+              placeholder="Player ID, Game ID, Tx ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8 w-full"
@@ -230,6 +236,7 @@ const PPTransactionLogger = () => {
                 <TableHead>Provider</TableHead>
                 <TableHead>Game ID</TableHead>
                 <TableHead>Round ID</TableHead>
+                <TableHead>Tx Hash</TableHead>
                 <TableHead>Created At</TableHead>
               </TableRow>
             </TableHeader>
@@ -237,16 +244,16 @@ const PPTransactionLogger = () => {
               {transactions.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell className="font-medium text-xs" title={tx.id}>{tx.id.substring(0, 8)}...</TableCell>
-                  <TableCell title={tx.player_id}>{tx.player_id.substring(0,8)}...</TableCell>
+                  <TableCell title={tx.player_id}>{tx.player_id?.substring(0,8)}...</TableCell>
                   <TableCell>{tx.type}</TableCell>
                   <TableCell className="text-right">{tx.amount.toFixed(2)}</TableCell>
                   <TableCell>{tx.currency}</TableCell>
                   <TableCell>
                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        tx.status === 'completed' ? 'bg-green-500/20 text-green-700' :
-                        tx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-700' :
-                        tx.status === 'failed' ? 'bg-red-500/20 text-red-700' :
-                        'bg-gray-500/20 text-gray-700'
+                        tx.status === 'completed' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300' :
+                        tx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-300' :
+                        tx.status === 'failed' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-300' :
+                        'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-300'
                       }`}>
                       {tx.status}
                     </span>
@@ -254,13 +261,14 @@ const PPTransactionLogger = () => {
                   <TableCell>{tx.provider || 'N/A'}</TableCell>
                   <TableCell>{tx.game_id || 'N/A'}</TableCell>
                   <TableCell>{tx.round_id || 'N/A'}</TableCell>
+                  <TableCell title={tx.provider_transaction_id || ''}>{tx.provider_transaction_id?.substring(0,8) || 'N/A'}...</TableCell>
                   <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={10}>
+                <TableCell colSpan={11}> {/* Adjusted colSpan */}
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalTransactions)} of {totalTransactions} transactions
@@ -295,3 +303,4 @@ const PPTransactionLogger = () => {
 };
 
 export default PPTransactionLogger;
+

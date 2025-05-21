@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Bell, UserCircle, Settings, LogOut, ChevronDown } from 'lucide-react';
@@ -8,17 +8,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import SiteLogo from '../SiteLogo';
 
 const AdminHeader = () => {
-  const { user, logout } = useAuth(); // Changed signOut to logout
-  const navigate = useNavigate(); // Initialize navigate
+  const { user, signOut } = useAuth(); // Changed logout to signOut
+  const navigate = useNavigate(); 
 
   const handleSignOut = async () => {
-    if (logout) { // Changed from signOut
-      await logout(); // Changed from signOut
-      navigate('/admin/login'); // Redirect to admin login after logout
+    if (signOut) { 
+      await signOut(); 
+      navigate('/admin/login'); 
     }
   };
   
-  const displayName = user?.user_metadata?.username || user?.email || 'Admin';
+  const displayName = user?.app_metadata?.full_name || user?.email || 'Admin'; // Prefer full_name from app_metadata
 
   return (
     <header className="bg-slate-900 text-white border-b border-slate-700 sticky top-0 z-40">
@@ -63,3 +63,4 @@ const AdminHeader = () => {
 };
 
 export default AdminHeader;
+

@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { transactionService } from '@/services/transactionService';
-import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
-import { walletService } from '@/services/walletService';
+import { transactionService } from '@/services/transactionService'; // Assuming this exists and is typed
+import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction'; // Correctly import
+import { walletService } from '@/services/walletService'; // Assuming this exists
 import { Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -24,8 +24,9 @@ const ERC20_ABI = [
   "event Transfer(address indexed from, address indexed to, uint256 value)",
   "event Approval(address indexed owner, address indexed spender, uint256 value)"
 ];
-const YOUR_TOKEN_CONTRACT_ADDRESS = 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE'; // e.g., USDT, USDC on chosen network
-const YOUR_RECEIVING_WALLET_ADDRESS = 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE';
+// IMPORTANT: Replace these placeholder values with your actual contract and wallet addresses
+const YOUR_TOKEN_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_TOKEN_CONTRACT_ADDRESS || 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE'; 
+const YOUR_RECEIVING_WALLET_ADDRESS = process.env.NEXT_PUBLIC_RECEIVING_WALLET_ADDRESS || 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE';
 
 
 const MetaMaskDeposit: React.FC = () => {
@@ -42,7 +43,7 @@ const MetaMaskDeposit: React.FC = () => {
 
   useEffect(() => {
     if (typeof window.ethereum !== 'undefined') {
-      const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+      const web3Provider = new ethers.providers.Web3Provider(window.ethereum as any); // Added 'as any' for type compatibility
       setProvider(web3Provider);
     } else {
       toast.error('MetaMask is not installed. Please install it to use this feature.');
@@ -63,7 +64,7 @@ const MetaMaskDeposit: React.FC = () => {
       const currentAccount = await currentSigner.getAddress();
       setAccount(currentAccount);
 
-      if (YOUR_TOKEN_CONTRACT_ADDRESS !== 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE') {
+      if (YOUR_TOKEN_CONTRACT_ADDRESS && YOUR_TOKEN_CONTRACT_ADDRESS !== 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE') {
         const tokenContract = new ethers.Contract(YOUR_TOKEN_CONTRACT_ADDRESS, ERC20_ABI, provider);
         const symbol = await tokenContract.symbol();
         setTokenSymbol(symbol);
@@ -71,9 +72,13 @@ const MetaMaskDeposit: React.FC = () => {
         const decimals = await tokenContract.decimals();
         setBalance(ethers.utils.formatUnits(userBalance, decimals));
       } else {
+        // Fallback to native currency if token address is not set
         const nativeBalance = await provider.getBalance(currentAccount);
         setBalance(ethers.utils.formatEther(nativeBalance));
-        setTokenSymbol('ETH'); 
+        setTokenSymbol('ETH'); // Or the native currency symbol of the network (e.g., MATIC)
+        if (YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE') {
+             toast.warn('Token contract address not configured. Using native currency (e.g. ETH) balance.');
+        }
       }
 
       toast.success(`Wallet connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`);
@@ -96,8 +101,8 @@ const MetaMaskDeposit: React.FC = () => {
       return;
     }
      if (YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE' || YOUR_RECEIVING_WALLET_ADDRESS === 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE') {
-      toast.error('Contract or receiving wallet address not configured by admin.');
-      setError('Deposit functionality is not fully configured. Please contact support.');
+      toast.error('Deposit system not fully configured by admin. Please contact support.');
+      setError('Deposit functionality is not configured. This is a placeholder setup.');
       return;
     }
 
@@ -115,10 +120,14 @@ const MetaMaskDeposit: React.FC = () => {
       toast.info('Processing transaction... Please wait for confirmation.');
       setTransactionHash(tx.hash);
       
-      await tx.wait();
+      const receipt = await tx.wait();
+      if (receipt.status === 0) {
+        throw new Error("Transaction failed on-chain.");
+      }
+
 
       const transactionData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'balance_after' | 'balance_before'> = {
-        user_id: user.id,
+        player_id: user.id, // Corrected: player_id instead of user_id for Transaction type
         amount: parseFloat(amount),
         currency: tokenSymbol,
         type: 'deposit' as TransactionType,
@@ -130,11 +139,14 @@ const MetaMaskDeposit: React.FC = () => {
           to_address: YOUR_RECEIVING_WALLET_ADDRESS,
           token_contract: YOUR_TOKEN_CONTRACT_ADDRESS
         },
+        // game_id, round_id, session_id are optional and might not apply here
       };
-      await transactionService.createTransaction(transactionData);
+      // Assuming transactionService.createTransaction expects data matching Transaction type (excluding id etc.)
+      await transactionService.createTransaction(transactionData as any); // Using 'as any' if exact type match is complex here
       
-      if (walletService.updateWalletBalance) {
-        await walletService.updateWalletBalance(user.id, parseFloat(amount), tokenSymbol);
+      // Wallet service update
+      if (walletService.updateWalletBalance) { // Ensure updateWalletBalance exists
+        await walletService.updateWalletBalance(user.id, parseFloat(amount), tokenSymbol); // Pass tokenSymbol as currency
       } else {
         console.warn("walletService.updateWalletBalance is not available. User balance may not be updated in UI immediately.");
       }
@@ -142,14 +154,37 @@ const MetaMaskDeposit: React.FC = () => {
 
       toast.success(`Deposit of ${amount} ${tokenSymbol} successful! Transaction: ${tx.hash.substring(0,10)}...`);
       setAmount('');
+      // Refresh balance
       const userBalance = await tokenContract.balanceOf(account);
       setBalance(ethers.utils.formatUnits(userBalance, decimals));
 
     } catch (err: any) {
       console.error('Deposit failed:', err);
-      setError(err.reason || err.message || 'Deposit failed.');
-      toast.error(err.reason || err.message || 'Deposit failed.');
+      const errorMessage = err.reason || err.data?.message || err.message || 'Deposit failed.';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      // Log failed transaction if hash is available
       if (transactionHash && user) {
+        try {
+            const failedTxData: Omit<Transaction, 'id' | 'created_at' | 'updated_at' | 'balance_after' | 'balance_before'> = {
+                player_id: user.id,
+                amount: parseFloat(amount),
+                currency: tokenSymbol,
+                type: 'deposit' as TransactionType,
+                status: 'failed' as TransactionStatus,
+                provider: 'metamask_erc20',
+                provider_transaction_id: transactionHash,
+                metadata: { 
+                    error: errorMessage,
+                    from_address: account, 
+                    to_address: YOUR_RECEIVING_WALLET_ADDRESS,
+                    token_contract: YOUR_TOKEN_CONTRACT_ADDRESS
+                },
+            };
+            await transactionService.createTransaction(failedTxData as any);
+        } catch (logError: any) {
+            console.error("Failed to log failed transaction:", logError);
+        }
       }
     } finally {
       setIsLoading(false);
@@ -162,8 +197,8 @@ const MetaMaskDeposit: React.FC = () => {
         <CardTitle>Deposit with MetaMask</CardTitle>
         <CardDescription>
           Connect your MetaMask wallet to deposit {tokenSymbol || 'crypto'}.
-          {YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE' && (
-            <p className="text-yellow-500 text-xs mt-1">Note: Token contract address is not configured. Deposits may not work.</p>
+          {(YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE' || YOUR_RECEIVING_WALLET_ADDRESS === 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE') && (
+            <p className="text-yellow-500 text-xs mt-1">Note: Deposit system not fully configured. This is a placeholder.</p>
           )}
         </CardDescription>
       </CardHeader>
@@ -186,6 +221,8 @@ const MetaMaskDeposit: React.FC = () => {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`Enter amount in ${tokenSymbol}`}
                 disabled={isLoading}
+                min="0" // Basic validation
+                step="any" // Allow decimals
               />
             </div>
           </div>
@@ -193,9 +230,18 @@ const MetaMaskDeposit: React.FC = () => {
       </CardContent>
       {account && (
         <CardFooter className="flex flex-col items-stretch space-y-2">
-            <Button onClick={handleDeposit} disabled={isLoading || !amount || parseFloat(amount) <= 0 || YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE' || YOUR_RECEIVING_WALLET_ADDRESS === 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE'}>
+            <Button 
+              onClick={handleDeposit} 
+              disabled={
+                isLoading || 
+                !amount || 
+                parseFloat(amount) <= 0 || 
+                YOUR_TOKEN_CONTRACT_ADDRESS === 'YOUR_TOKEN_CONTRACT_ADDRESS_HERE' || 
+                YOUR_RECEIVING_WALLET_ADDRESS === 'YOUR_CASINO_RECEIVING_WALLET_ADDRESS_HERE'
+              }
+            >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Deposit {amount} {tokenSymbol}
+            Deposit {amount || 0} {tokenSymbol}
           </Button>
         </CardFooter>
       )}
@@ -206,7 +252,8 @@ const MetaMaskDeposit: React.FC = () => {
             <p className="text-sm">
               Transaction Sent! Hash: 
               <a 
-                href={`https://etherscan.io/tx/${transactionHash}`}
+                // TODO: Make this link dynamic based on the network (e.g., Etherscan, Polygonscan)
+                href={`https://etherscan.io/tx/${transactionHash}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="font-mono underline ml-1 hover:text-green-500"

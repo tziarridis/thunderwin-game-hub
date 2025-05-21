@@ -1,40 +1,20 @@
 
-// Fix the DateRangePicker component errors
-import * as React from "react"
-import { CalendarIcon } from "lucide-react"
-import { addDays, format } from "date-fns"
-import { DateRange } from "react-day-picker"
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-
-// Export the DateRange type for use in other components
-export { type DateRange } from "react-day-picker";
-
-export interface DateRangePickerProps {
-  className?: string
-  value?: DateRange
-  onChange?: (date: DateRange) => void
+interface DatePickerWithRangeProps {
+  date: DateRange | undefined;
+  onDateChange: (range: DateRange | undefined) => void;
+  className?: string;
 }
 
-export function DateRangePicker({
-  className,
-  value,
-  onChange,
-}: DateRangePickerProps) {
-  const [date, setDate] = React.useState<DateRange | undefined>(
-    value || {
-      from: new Date(2022, 0, 20),
-      to: addDays(new Date(2022, 0, 20), 20),
-    }
-  )
-
+export const DatePickerWithRange: React.FC<DatePickerWithRangeProps> = ({ date, onDateChange, className }) => {
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
@@ -58,26 +38,22 @@ export function DateRangePicker({
                 format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Pick a date range</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
           <Calendar
             initialFocus
             mode="range"
             defaultMonth={date?.from}
             selected={date}
-            onSelect={(newDate) => {
-              setDate(newDate);
-              if (onChange && newDate) {
-                onChange(newDate);
-              }
-            }}
+            onSelect={onDateChange}
             numberOfMonths={2}
           />
         </PopoverContent>
       </Popover>
     </div>
-  )
-}
+  );
+};
+

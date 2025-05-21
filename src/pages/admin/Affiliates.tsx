@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import {
@@ -8,60 +9,56 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TableFooter, // Added TableFooter
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import { Textarea } from "@/components/ui/textarea"; // Not used currently
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import AdminPageLayout from '@/components/layout/AdminPageLayout'; // Corrected path
-import { UserPageLoadingSkeleton } from '@/components/skeletons/UserPageLoadingSkeleton'; // Corrected path
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"; // DialogTrigger removed as modal state is handled by useState
+import AdminPageLayout from '@/components/layout/AdminPageLayout'; 
+import { UserPageLoadingSkeleton } from '@/components/skeletons/UserPageLoadingSkeleton'; 
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth, AppUser } from '@/contexts/AuthContext'; // Import AppUser
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react'; // Search, Filter removed as not used directly in this simplified version
-import { useIsMobile } from '@/hooks/use-mobile';
+import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-is-mobile'; // Assuming this hook exists
 
-// Adjusted Affiliate type to align with Supabase 'users' table and potential affiliate metadata
 interface CommissionTier {
-  id?: string;
+  id?: string; // Optional: if tiers are stored with IDs
   name: string;
-  rate: number;
+  rate: number; // Percentage
   min_revenue_threshold?: number | null;
 }
 
-interface Affiliate {
-  id: string; // This will be the user_id from Supabase auth.users / public.users
-  auth_id?: string; // Supabase auth.users.id if different from public.users.id
-  name: string; // From users.username or a dedicated name field
-  email: string; // From users.email
-  tracking_code?: string; // This would ideally be in user_metadata or a separate affiliate profile table
+// Represents a user from public.users who might be an affiliate
+// Affiliate-specific data is primarily from app_metadata
+interface AffiliateUser extends AppUser { // Extend AppUser for base fields like id, email
+  // Fields from public.users table, if different or more specific than AppUser
+  username: string; // Assuming 'username' is a non-nullable field in your public.users
+  
+  // Affiliate specific data, typically stored in app_metadata of auth.users
+  // or in separate columns in public.users or a dedicated affiliates table
+  tracking_code?: string;
   website_url?: string | null;
-  status: 'active' | 'pending' | 'suspended' | 'archived'; // Could be from user_metadata or users table
-  commission_tiers?: CommissionTier[]; // Store as JSONB in users table or separate table
+  status: 'active' | 'pending' | 'suspended' | 'archived'; // Affiliate status
+  commission_tiers?: CommissionTier[];
+  
+  // Timestamps from public.users
   created_at: string;
   updated_at?: string | null;
-  // Supabase user object structure for app_metadata
-  app_metadata?: {
-    role?: string;
-    tracking_code?: string;
-    website_url?: string;
-    status?: 'active' | 'pending' | 'suspended' | 'archived';
-    commission_tiers?: CommissionTier[];
-    // other custom fields
-  };
-  user_metadata?: { // For standard user profile data
-    full_name?: string; // Example
-    avatar_url?: string;
-  }
+
+  // Raw Supabase app_metadata and user_metadata for flexibility
+  // These would be populated by enriching the user from AuthContext or direct fetch
+  // For users list, you might fetch auth.users and join with public.users/profiles
+  // raw_app_metadata?: Record<string, any>; 
+  // raw_user_metadata?: Record<string, any>;
 }
 
-// Adjusted FormData for creating/editing an affiliate (user with affiliate role)
+
 interface AffiliateFormData {
-  id?: string; // user_id
-  auth_id?: string;
-  name: string; // For user creation (e.g. username)
-  email: string; // For user creation
-  password?: string; // For new user creation
+  id?: string; // user_id for existing user, undefined for new
+  username: string; 
+  email: string; 
+  password?: string; // Only for new user creation
   tracking_code?: string;
   website_url?: string;
   status: 'active' | 'pending' | 'suspended' | 'archived';
@@ -70,61 +67,90 @@ interface AffiliateFormData {
 
 
 const AdminAffiliates = () => {
-  const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
+  const [affiliates, setAffiliates] = useState<AffiliateUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<string | null>(null); // Changed error type to string
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<{ status?: string }>({});
-  const [editingAffiliate, setEditingAffiliate] = useState<Affiliate | null>(null);
+  const [editingAffiliate, setEditingAffiliate] = useState<AffiliateUser | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const { user: adminUser } = useAuth(); // Assuming adminUser is the logged-in admin
+  const { user: adminUser } = useAuth();
 
   const fetchAffiliates = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch users who might be affiliates.
-      // Ideally, filter by a role or a specific field in app_metadata.
-      // For now, fetching all users and assuming role is in app_metadata.
+      // This fetches from your public.users table.
+      // To get app_metadata (where role, tracking_code etc. are often stored),
+      // you'd typically need to use Supabase Admin SDK or an Edge Function
+      // if you're listing *all* users.
+      // For client-side, you can only easily get app_metadata for the *current* logged-in user.
+      // For simplicity, this example assumes 'status' might be on public.users table,
+      // or that app_metadata is being manually set/retrieved if possible.
       const { data: usersData, error: usersError } = await supabase
-        .from('users') // Querying the 'users' table
-        .select('*') // Select all fields from users table
+        .from('users') // Your public users table
+        .select(`
+          id, email, username, created_at, updated_at, 
+          status, language, role_id, cpf, phone, last_name, avatar,
+          inviter_code, inviter_id, banned, is_demo_agent,
+          affiliate_baseline, affiliate_cpa, affiliate_revenue_share, affiliate_revenue_share_fake
+        `) // Select specific fields
         .order('created_at', { ascending: false });
 
       if (usersError) {
-        setError(usersError);
+        setError(usersError.message);
         toast.error(`Error fetching users: ${usersError.message}`);
       } else {
-        // Transform usersData to Affiliate[]
-        // This requires knowing how affiliate-specific data is stored (e.g., in app_metadata)
-        // For now, we'll assume some fields might be in user_metadata or app_metadata
         const fetchedAffiliates = usersData
-          .filter(u => u.email !== adminUser?.email) // Filter out the admin user if desired
-          // .filter(u => u.app_metadata?.role === 'affiliate') // Ideal filter
-          .map(u => ({
-            id: u.id, // Assuming public.users.id
-            // auth_id: u.auth_id, // If you have a separate auth_id column in public.users linked to auth.users.id
-            name: u.username || u.email, // Use username or fallback to email
-            email: u.email,
-            // Attempt to get affiliate specific data from a hypothetical app_metadata structure
-            tracking_code: (u.app_metadata as any)?.tracking_code || `TEMP-${u.id.substring(0,6)}`,
-            website_url: (u.app_metadata as any)?.website_url || undefined,
-            status: (u.app_metadata as any)?.status || 'pending',
-            commission_tiers: (u.app_metadata as any)?.commission_tiers || [],
-            created_at: u.created_at,
-            updated_at: u.updated_at,
-            app_metadata: (u.app_metadata as any) || {},
-            user_metadata: (u.user_metadata as any) || {},
-          }));
-        setAffiliates(fetchedAffiliates as Affiliate[]);
+          .filter(u => u.email !== adminUser?.email)
+          // Example: filter users who are designated as affiliates
+          // This requires 'role_id' to correspond to an affiliate role, or another indicator.
+          // .filter(u => u.role_id === YOUR_AFFILIATE_ROLE_ID) // Placeholder for actual role check
+          .map((u): AffiliateUser => {
+             // Attempt to parse JSONB columns if they exist, e.g., if 'commission_tiers_json' is a column
+            // const commissionTiers = typeof u.commission_tiers_json === 'string' ? JSON.parse(u.commission_tiers_json) : u.commission_tiers_json || [];
+
+            return {
+              // Base AppUser fields (id, email come from SupabaseUser, enrich further if needed)
+              id: u.id, 
+              email: u.email,
+              // AppUser optional fields (these would be from enriched user or profiles table)
+              firstName: u.last_name, // Assuming last_name might be used as firstName for simplicity here
+              lastName: u.last_name,
+              avatarUrl: u.avatar,
+              role: u.role_id ? mapRoleIdToRoleName(u.role_id) : 'user', // mapRoleIdToRoleName is a placeholder
+              app_metadata: {}, // Placeholder, app_metadata is not directly on public.users row usually
+              user_metadata: {}, // Placeholder
+
+              // AffiliateUser specific fields
+              username: u.username || u.email.split('@')[0], // Ensure username is not null
+              // These fields ideally come from app_metadata or a joined 'affiliate_profiles' table
+              tracking_code: u.inviter_code || `AFF-${u.id.substring(0, 6)}`, // Placeholder
+              website_url: null, // Placeholder
+              status: (u.status as AffiliateUser['status']) || 'pending', // Cast if 'status' field exists on users table
+              commission_tiers: [], // Placeholder, load from app_metadata or related table
+
+              created_at: u.created_at,
+              updated_at: u.updated_at || null,
+            };
+          });
+        setAffiliates(fetchedAffiliates);
       }
     } catch (err: any) {
-      setError(err);
+      setError(err.message);
       toast.error(`Unexpected error: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   }, [adminUser?.email]);
+  
+  // Placeholder: map role_id to a role name
+  const mapRoleIdToRoleName = (roleId: number): string => {
+    if (roleId === 1) return 'admin';
+    if (roleId === 2) return 'affiliate'; // Example
+    return 'user';
+  };
+
 
   useEffect(() => {
     fetchAffiliates();
@@ -137,39 +163,31 @@ const AdminAffiliates = () => {
   const handleFilterChange = (key: string, value: any) => {
     setFilters(prevFilters => ({
       ...prevFilters,
-      [key]: value,
+      [key]: value === 'all' ? undefined : value, // Store undefined for 'all'
     }));
   };
 
-  const handleEditAffiliate = (affiliate: Affiliate) => {
-    setEditingAffiliate(affiliate);
+  const handleEditAffiliate = (affiliate: AffiliateUser) => {
+    setEditingAffiliate(JSON.parse(JSON.stringify(affiliate))); // Deep copy to avoid state mutation issues
   };
 
   const handleDeleteAffiliate = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this user (affiliate)? This might be irreversible.')) return;
+    // Note: Deleting users (auth.users) from client-side requires admin client.
+    // This usually "archives" or changes status in public.users table.
+    if (!window.confirm('Are you sure you want to change this user\'s status to archived?')) return;
 
     setIsLoading(true);
     try {
-      // Deleting a user is complex. It involves deleting from auth.users and then public.users.
-      // This requires admin privileges for supabase.auth.admin.deleteUser.
-      // For now, we'll just "archive" or change status in public.users if possible, or simulate deletion.
-      // const { error: adminDeleteError } = await supabase.auth.admin.deleteUser(userId); // Requires auth_id
-      // if (adminDeleteError) {
-      //   toast.error(`Error deleting auth user: ${adminDeleteError.message}`);
-      //   setIsLoading(false);
-      //   return;
-      // }
-      // This is a placeholder, actual deletion from users table
       const { error } = await supabase
         .from('users')
-        .delete()
+        .update({ status: 'archived' }) // Example: Soft delete by changing status
         .eq('id', userId);
 
       if (error) {
-        toast.error(`Error deleting user from public table: ${error.message}`);
+        toast.error(`Error archiving user: ${error.message}`);
       } else {
-        toast.success('User (affiliate) marked for deletion or deleted.');
-        fetchAffiliates();
+        toast.success('User status set to archived.');
+        fetchAffiliates(); // Refresh list
       }
     } catch (err: any) {
       toast.error(`Unexpected error: ${err.message}`);
@@ -186,49 +204,36 @@ const AdminAffiliates = () => {
         return;
     }
     try {
-      const updateData: Partial<Affiliate> & { app_metadata?: any } = {
-        username: formData.name, // Assuming name maps to username
-        email: formData.email, // Email update might need special handling (verification)
-        // To update app_metadata, you usually need an admin client or an edge function
-        // For client-side, this might not directly work or is insecure.
-        app_metadata: {
-            ...(editingAffiliate?.app_metadata || {}), // Preserve existing app_metadata
-            role: 'affiliate', // Ensure role is set
-            tracking_code: formData.tracking_code,
-            website_url: formData.website_url,
-            status: formData.status,
-            commission_tiers: formData.commission_tiers,
-        }
+      // Data for public.users table
+      const publicUsersUpdate: Partial<AffiliateUser> = {
+        username: formData.username,
+        status: formData.status,
+        // email: formData.email, // Email updates are sensitive and might require verification.
       };
-       // This will update the public.users table.
-       // Updating app_metadata directly from client-side for other users is generally not allowed for security reasons.
-       // This should ideally be done via a secure Edge Function or with admin rights.
-      const { data, error } = await supabase
+      
+      const { error: usersTableError } = await supabase
         .from('users')
-        .update({
-            username: formData.name,
-            // email: formData.email, // Email updates are sensitive
-            // Store affiliate specific data in a jsonb column if 'users' table has one, e.g., 'affiliate_data'
-            // Or rely on app_metadata updates via admin (which is complex from client)
-            // For now, showing intent, but direct app_metadata update from client for *other* users is tricky.
-            // This part needs a proper backend mechanism (Edge Function).
-            // As a placeholder, we'll update fields that are on the 'users' table directly if they exist.
-            // If 'status' is a column on 'users':
-            // status: formData.status, 
-        })
-        .eq('id', formData.id)
-        .select()
-        .single();
+        .update(publicUsersUpdate)
+        .eq('id', formData.id);
 
-      if (error) {
-        toast.error(`Error updating user (affiliate): ${error.message}. App metadata updates might require admin rights or an edge function.`);
-      } else {
-        toast.success('Affiliate (user) updated successfully. Metadata changes may need server-side processing.');
-        setEditingAffiliate(null);
-        fetchAffiliates();
+      if (usersTableError) {
+        throw usersTableError;
       }
+      
+      // Updating app_metadata for a user (other than current) requires admin rights (usually via Edge Function)
+      // Example: Call an edge function to update app_metadata
+      // await supabase.functions.invoke('update-user-app-metadata', {
+      //   body: { userId: formData.id, appMetadata: { tracking_code: formData.tracking_code, ... } }
+      // });
+      // For now, we'll assume these fields might be on public.users or a separate table managed by admin
+      toast.info("User details updated. App metadata changes (like tracking code, commission tiers) may require server-side admin action if not directly on 'users' table.");
+
+
+      toast.success('Affiliate user updated successfully.');
+      setEditingAffiliate(null);
+      fetchAffiliates();
     } catch (err: any)      {
-      toast.error(`Unexpected error: ${err.message}`);
+      toast.error(`Error updating affiliate user: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -238,99 +243,99 @@ const AdminAffiliates = () => {
   const handleCreateUserAndAffiliate = async (formData: AffiliateFormData) => {
     setIsLoading(true);
     try {
-      // 1. Create User
-      const { data: userResponse, error: userError } = await supabase.auth.signUp({
+      if (!formData.password) {
+        toast.error("Password is required for new user creation.");
+        setIsLoading(false);
+        return;
+      }
+      // 1. Create User with Supabase Auth
+      const { data: signUpResponse, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
-        password: formData.password || 'defaultpassword', // TODO: Improve password handling
+        password: formData.password,
         options: {
-          data: { // This becomes user.app_metadata in auth.users
-            full_name: formData.name, // Will be available in app_metadata
-            role: 'affiliate',
+          data: { // This becomes user.app_metadata in auth.users table
+            // Raw user_meta_data for handle_new_user trigger if it uses it
+            // Or directly set app_metadata fields relevant to affiliate status
+            role: 'affiliate', // Example role
             tracking_code: formData.tracking_code,
             website_url: formData.website_url,
-            status: formData.status,
-            commission_tiers: formData.commission_tiers,
-            // Any other initial affiliate data
+            initial_status: formData.status, // Custom field for trigger to pick up
+            commission_tiers: formData.commission_tiers, // Store as JSON
+            // username: formData.username, // If trigger handles inserting username from here
           },
         },
       });
 
-      if (userError) {
-        toast.error(`Error creating user: ${userError.message}`);
+      if (signUpError) {
+        toast.error(`Error creating user: ${signUpError.message}`);
         setIsLoading(false);
         return;
       }
 
-      if (!userResponse.user?.id) {
-        toast.error('User creation failed, user ID not found.');
+      if (!signUpResponse.user) {
+        toast.error('User creation succeeded but no user object returned.');
         setIsLoading(false);
         return;
       }
-      // The handle_new_user trigger should create an entry in public.users table.
-      // We might need to update that public.users entry if affiliate specific columns exist there.
-      // For now, assuming app_metadata is sufficient or handle_new_user also populates these.
+      
+      // The handle_new_user trigger in Supabase should create an entry in your public.users table.
+      // If that trigger also needs to set the username from formData.username, ensure it's passed in options.data
+      // or update public.users separately if needed (requires user_id from signUpResponse.user.id)
+      // For example, if the trigger doesn't set username:
+      // await supabase.from('users').update({ username: formData.username }).eq('id', signUpResponse.user.id);
+      // This depends on your `handle_new_user` trigger logic.
 
-      toast.success('User with affiliate role created successfully. Profile will be set up by trigger.');
+      toast.success('User with affiliate role created. Profile setup by trigger.');
       setShowCreateModal(false);
       fetchAffiliates();
     } catch (err: any) {
-      toast.error(`Unexpected error: ${err.message}`);
+      toast.error(`User creation process failed: ${err.message}`);
     } finally {
       setIsLoading(false);
     }
   };
   
-  const handleCommissionChange = (affiliateId: string, tierIndex: number, field: keyof CommissionTier, value: string | number | null) => {
+  const handleCommissionChange = (tierIndex: number, field: keyof CommissionTier, value: string | number | null) => {
     setEditingAffiliate(prev => {
-        if (!prev || prev.id !== affiliateId) return prev;
-        const updatedTiers = [...(prev.commission_tiers || [])];
+        if (!prev) return prev;
+        const updatedTiers = prev.commission_tiers ? [...prev.commission_tiers] : [];
         if (tierIndex >= 0 && tierIndex < updatedTiers.length) {
             updatedTiers[tierIndex] = {
                 ...updatedTiers[tierIndex],
-                [field]: value,
+                [field]: field === 'rate' || field === 'min_revenue_threshold' ? (value !== null ? Number(value) : null) : value,
             };
         }
         return { ...prev, commission_tiers: updatedTiers };
     });
   };
 
-  const addCommissionTier = (affiliateId: string) => {
+  const addCommissionTier = () => {
      setEditingAffiliate(prev => {
-        if (!prev || prev.id !== affiliateId) return prev;
+        if (!prev) return prev;
         return {
             ...prev,
             commission_tiers: [
                 ...(prev.commission_tiers || []),
-                { name: '', rate: 0 }, 
+                { name: '', rate: 0, min_revenue_threshold: null }, 
             ],
         };
     });
   };
 
-  const removeCommissionTier = (affiliateId: string, tierIndex: number) => {
+  const removeCommissionTier = (tierIndex: number) => {
     setEditingAffiliate(prev => {
-        if (!prev || prev.id !== affiliateId) return prev;
-        const updatedTiers = [...(prev.commission_tiers || [])];
+        if (!prev || !prev.commission_tiers) return prev;
+        const updatedTiers = [...prev.commission_tiers];
         updatedTiers.splice(tierIndex, 1);
         return { ...prev, commission_tiers: updatedTiers };
     });
   };
 
-
-  useEffect(() => {
-    // Reset editingAffiliate when it changes - this was causing data not to show in edit form
-    // if (editingAffiliate) {
-      // NO: This logic was clearing the form.
-      // The `editingAffiliate` state itself is what powers the form.
-    // }
-  }, [editingAffiliate]);
-
   const isMobile = useIsMobile();
 
   const filteredAffiliates = affiliates.filter(affiliate => {
     const searchTermLower = searchTerm.toLowerCase();
-    // Using optional chaining for safety as these fields might be missing
-    const nameMatch = affiliate.name?.toLowerCase().includes(searchTermLower);
+    const nameMatch = affiliate.username?.toLowerCase().includes(searchTermLower);
     const emailMatch = affiliate.email?.toLowerCase().includes(searchTermLower);
 
     let statusMatch = true;
@@ -340,34 +345,45 @@ const AdminAffiliates = () => {
     return (nameMatch || emailMatch) && statusMatch;
   });
 
-  if (isLoading && !affiliates.length) return <UserPageLoadingSkeleton />;
-  if (error) return <div className="text-red-500">Error loading affiliates: {error.message}</div>;
+  if (isLoading && !affiliates.length) {
+    return (
+      <AdminPageLayout title="Affiliates Management">
+        <UserPageLoadingSkeleton />
+      </AdminPageLayout>
+    );
+  }
+  if (error && !isLoading) { // Added !isLoading condition
+    return (
+        <AdminPageLayout title="Affiliates Management">
+            <div className="text-red-500 p-4 border border-red-500 rounded-md bg-red-50">
+                Error loading affiliates: {error}
+                <Button onClick={fetchAffiliates} className="ml-4">Try Again</Button>
+            </div>
+        </AdminPageLayout>
+    );
+  }
 
   return (
-    <AdminPageLayout title="Affiliates (Users)"> {/* Updated title */}
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Affiliates Management (Users)</h1>
-        <Button onClick={() => {
-          // Reset form data for create modal
-          // setEditingAffiliate(null); // Clear any existing edit state
-          // Set default form data for new affiliate
-          // Or handle this within the modal component itself
-          setShowCreateModal(true);
-        }}><PlusCircle className="mr-2 h-4 w-4" /> Create Affiliate User</Button>
+    <AdminPageLayout title="Affiliates (Users Management)">
+      <div className="mb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Affiliate Users</h1>
+        <Button onClick={() => setShowCreateModal(true)}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Create Affiliate User
+        </Button>
       </div>
 
-      <div className="mb-4 flex items-center space-x-4">
+      <div className="mb-4 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
         <Input
           type="text"
-          placeholder="Search affiliates by name or email..."
+          placeholder="Search by username or email..."
           value={searchTerm}
           onChange={(e) => handleSearch(e.target.value)}
-          className="md:w-1/3"
+          className="md:w-1/3 w-full"
         />
         <select
           value={filters.status || 'all'}
           onChange={(e) => handleFilterChange('status', e.target.value)}
-          className="border rounded px-2 py-1 bg-background text-foreground"
+          className="border rounded px-3 py-2 bg-background text-foreground w-full sm:w-auto"
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
@@ -377,170 +393,206 @@ const AdminAffiliates = () => {
         </select>
       </div>
 
-      <Table>
-        <TableCaption>A list of users (potential affiliates).</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            {!isMobile && <TableHead>Tracking Code</TableHead>}
-            {!isMobile && <TableHead>Website URL</TableHead>}
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredAffiliates.map((affiliate) => (
-            <React.Fragment key={affiliate.id}>
-              <TableRow>
-                <TableCell>{affiliate.name}</TableCell>
-                <TableCell>{affiliate.email}</TableCell>
-                {!isMobile && <TableCell>{affiliate.tracking_code || 'N/A'}</TableCell>}
-                {!isMobile && <TableCell>{affiliate.website_url || 'N/A'}</TableCell>}
-                <TableCell>{affiliate.status}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handleEditAffiliate(affiliate)}>
-                    <Edit className="mr-2 h-4 w-4" />Edit
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteAffiliate(affiliate.id)}>
-                    <Trash2 className="mr-2 h-4 w-4" />Delete
-                  </Button>
-                </TableCell>
-              </TableRow>
-              {editingAffiliate && editingAffiliate.id === affiliate.id && (
-                <tr>
-                  <td colSpan={isMobile ? 4 : 6} className="p-0"> {/* Adjusted colSpan */}
-                    <div className="p-4 bg-muted dark:bg-slate-800">
-                      <h3 className="text-lg font-semibold mb-4">Edit Affiliate: {editingAffiliate.name}</h3>
-                       {/* Form fields should use editingAffiliate data */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor={`affiliate-name-${affiliate.id}`}>Name</Label>
-                          <Input 
-                            id={`affiliate-name-${affiliate.id}`} 
-                            value={editingAffiliate.name} 
-                            onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, name: e.target.value} : null)} 
-                          />
+      <div className="overflow-x-auto">
+        <Table>
+          <TableCaption>A list of users who are potential affiliates.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Username</TableHead>
+              <TableHead>Email</TableHead>
+              {!isMobile && <TableHead>Tracking Code</TableHead>}
+              {!isMobile && <TableHead>Status</TableHead>}
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAffiliates.length === 0 && !isLoading && (
+                <TableRow>
+                    <TableCell colSpan={isMobile ? 3 : 5} className="text-center py-10">
+                        No affiliates found matching your criteria.
+                    </TableCell>
+                </TableRow>
+            )}
+            {isLoading && filteredAffiliates.length === 0 && (
+                 <TableRow>
+                    <TableCell colSpan={isMobile ? 3 : 5} className="text-center py-10">
+                        <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+                        <p>Loading affiliates...</p>
+                    </TableCell>
+                </TableRow>
+            )}
+            {filteredAffiliates.map((affiliate) => (
+              <React.Fragment key={affiliate.id}>
+                <TableRow>
+                  <TableCell>{affiliate.username}</TableCell>
+                  <TableCell>{affiliate.email}</TableCell>
+                  {!isMobile && <TableCell>{affiliate.tracking_code || 'N/A'}</TableCell>}
+                  {!isMobile && <TableCell className="capitalize">{affiliate.status}</TableCell>}
+                  <TableCell className="text-right space-x-1">
+                    <Button variant="outline" size="sm" onClick={() => handleEditAffiliate(affiliate)}>
+                      <Edit className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDeleteAffiliate(affiliate.id)}>
+                      <Trash2 className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">Archive</span>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                {editingAffiliate && editingAffiliate.id === affiliate.id && (
+                  <TableRow>
+                    <TableCell colSpan={isMobile ? 3 : 5} className="p-0"> {/* Adjusted colSpan */}
+                      <div className="p-4 bg-muted dark:bg-slate-800 border-t">
+                        <h3 className="text-lg font-semibold mb-4">Edit Affiliate: {editingAffiliate.username}</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`affiliate-username-${affiliate.id}`}>Username</Label>
+                            <Input 
+                              id={`affiliate-username-${affiliate.id}`} 
+                              value={editingAffiliate.username} 
+                              onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, username: e.target.value} : null)} 
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`affiliate-email-${affiliate.id}`}>Email (cannot change here)</Label>
+                            <Input 
+                              id={`affiliate-email-${affiliate.id}`} 
+                              type="email" 
+                              value={editingAffiliate.email} 
+                              disabled 
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`affiliate-tracking-code-${affiliate.id}`}>Tracking Code</Label>
+                            <Input 
+                              id={`affiliate-tracking-code-${affiliate.id}`} 
+                              value={editingAffiliate.tracking_code || ''} 
+                              onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, tracking_code: e.target.value} : null)} 
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`affiliate-website-url-${affiliate.id}`}>Website URL</Label>
+                            <Input 
+                              id={`affiliate-website-url-${affiliate.id}`} 
+                              value={editingAffiliate.website_url || ''} 
+                              onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, website_url: e.target.value} : null)} 
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`affiliate-status-${affiliate.id}`}>Status</Label>
+                            <select
+                              id={`affiliate-status-${affiliate.id}`}
+                              value={editingAffiliate.status}
+                              onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, status: e.target.value as AffiliateUser['status']} : null)}
+                              className="border rounded px-3 py-2 bg-background text-foreground w-full"
+                            >
+                              <option value="active">Active</option>
+                              <option value="pending">Pending</option>
+                              <option value="suspended">Suspended</option>
+                              <option value="archived">Archived</option>
+                            </select>
+                          </div>
                         </div>
-                        <div>
-                          <Label htmlFor={`affiliate-email-${affiliate.id}`}>Email</Label>
-                          <Input 
-                            id={`affiliate-email-${affiliate.id}`} 
-                            type="email" 
-                            value={editingAffiliate.email} 
-                            onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, email: e.target.value} : null)} 
-                            // disabled // Email changes are sensitive
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`affiliate-tracking-code-${affiliate.id}`}>Tracking Code</Label>
-                          <Input 
-                            id={`affiliate-tracking-code-${affiliate.id}`} 
-                            value={editingAffiliate.tracking_code || ''} 
-                            onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, tracking_code: e.target.value} : null)} 
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`affiliate-website-url-${affiliate.id}`}>Website URL</Label>
-                          <Input 
-                            id={`affiliate-website-url-${affiliate.id}`} 
-                            value={editingAffiliate.website_url || ''} 
-                            onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, website_url: e.target.value} : null)} 
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`affiliate-status-${affiliate.id}`}>Status</Label>
-                          <select
-                            id={`affiliate-status-${affiliate.id}`}
-                            value={editingAffiliate.status}
-                            onChange={(e) => setEditingAffiliate(prev => prev ? {...prev, status: e.target.value as Affiliate['status']} : null)}
-                            className="border rounded px-2 py-1 bg-background text-foreground w-full"
-                          >
-                            <option value="active">Active</option>
-                            <option value="pending">Pending</option>
-                            <option value="suspended">Suspended</option>
-                            <option value="archived">Archived</option>
-                          </select>
+                        <h4 className="text-md font-semibold mt-6 mb-2">Commission Tiers</h4>
+                        {editingAffiliate.commission_tiers?.map((tier, tierIndex) => (
+                          <div key={tier.id || tierIndex} className="grid grid-cols-1 md:grid-cols-4 gap-4 border p-3 mb-3 rounded-md items-end">
+                            <div>
+                              <Label htmlFor={`tier-name-${affiliate.id}-${tierIndex}`}>Tier Name</Label>
+                              <Input id={`tier-name-${affiliate.id}-${tierIndex}`} value={tier.name} onChange={(e) => handleCommissionChange(tierIndex, 'name', e.target.value)} placeholder="e.g., Standard" />
+                            </div>
+                            <div>
+                              <Label htmlFor={`tier-rate-${affiliate.id}-${tierIndex}`}>Rate (%)</Label>
+                              <Input type="number" id={`tier-rate-${affiliate.id}-${tierIndex}`} value={tier.rate} onChange={(e) => handleCommissionChange(tierIndex, 'rate', parseFloat(e.target.value))} placeholder="e.g., 10" />
+                            </div>
+                            <div>
+                              <Label htmlFor={`tier-threshold-${affiliate.id}-${tierIndex}`}>Min Revenue (Optional)</Label>
+                              <Input type="number" id={`tier-threshold-${affiliate.id}-${tierIndex}`} value={tier.min_revenue_threshold || ''} onChange={(e) => handleCommissionChange(tierIndex, 'min_revenue_threshold', parseFloat(e.target.value))} placeholder="e.g., 1000" />
+                            </div>
+                            <Button variant="destructive" size="sm" onClick={() => removeCommissionTier(tierIndex)} className="self-center">Remove Tier</Button>
+                          </div>
+                        ))}
+                        <Button onClick={() => addCommissionTier()} size="sm" variant="outline" className="mt-2">Add Commission Tier</Button>
+                        <div className="flex justify-end space-x-2 mt-6">
+                          <Button variant="outline" onClick={() => setEditingAffiliate(null)}>Cancel</Button>
+                          <Button onClick={() => editingAffiliate && handleSaveAffiliate(editingAffiliate as AffiliateFormData)} disabled={isLoading}>
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Save Changes
+                          </Button>
                         </div>
                       </div>
-                      <h4 className="text-md font-semibold mt-6 mb-2">Commission Tiers</h4>
-                      {editingAffiliate.commission_tiers?.map((tier, tierIndex) => (
-                        <div key={tierIndex} className="grid grid-cols-1 md:grid-cols-4 gap-4 border p-3 mb-3 rounded-md items-end">
-                          <div>
-                            <Label htmlFor={`tier-name-${affiliate.id}-${tierIndex}`}>Tier Name</Label>
-                            <Input id={`tier-name-${affiliate.id}-${tierIndex}`} value={tier.name} onChange={(e) => handleCommissionChange(affiliate.id, tierIndex, 'name', e.target.value)} placeholder="e.g., Standard" />
-                          </div>
-                          <div>
-                            <Label htmlFor={`tier-rate-${affiliate.id}-${tierIndex}`}>Rate (%)</Label>
-                            <Input type="number" id={`tier-rate-${affiliate.id}-${tierIndex}`} value={tier.rate} onChange={(e) => handleCommissionChange(affiliate.id, tierIndex, 'rate', parseFloat(e.target.value))} placeholder="e.g., 10" />
-                          </div>
-                          <div>
-                            <Label htmlFor={`tier-threshold-${affiliate.id}-${tierIndex}`}>Min Revenue (Optional)</Label>
-                            <Input type="number" id={`tier-threshold-${affiliate.id}-${tierIndex}`} value={tier.min_revenue_threshold || ''} onChange={(e) => handleCommissionChange(affiliate.id, tierIndex, 'min_revenue_threshold', parseFloat(e.target.value))} placeholder="e.g., 1000" />
-                          </div>
-                          <Button variant="destructive" size="sm" onClick={() => removeCommissionTier(affiliate.id, tierIndex)} className="self-center">Remove Tier</Button>
-                        </div>
-                      ))}
-                      <Button onClick={() => addCommissionTier(affiliate.id)} size="sm" className="mt-2">Add Commission Tier</Button>
-                      <div className="flex justify-end space-x-2 mt-6">
-                        <Button variant="outline" onClick={() => setEditingAffiliate(null)}>Cancel</Button>
-                        <Button onClick={() => editingAffiliate && handleSaveAffiliate(editingAffiliate as AffiliateFormData)}>Save Changes</Button>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </TableBody>
-        <TableFooter>
-          <TableRow>
-            <TableCell colSpan={isMobile ? 4: 6}>
-              {filteredAffiliates.length} {filteredAffiliates.length === 1 ? 'affiliate user' : 'affiliate users'}
-            </TableCell>
-          </TableRow>
-        </TableFooter>
-      </Table>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={isMobile ? 3 : 5}>
+                Total affiliate users: {filteredAffiliates.length}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
 
        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] md:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create New Affiliate User</DialogTitle>
             <DialogDescription>
-              Create a new user account with an affiliate role.
+              Create a new user account that can act as an affiliate.
             </DialogDescription>
           </DialogHeader>
-          {/* This form needs to be controlled and use a state object for formData */}
-          <CreateAffiliateForm onSubmit={handleCreateUserAndAffiliate} onModalClose={() => setShowCreateModal(false)} />
+          <CreateAffiliateForm 
+            onSubmit={handleCreateUserAndAffiliate} 
+            onModalClose={() => setShowCreateModal(false)} 
+            isLoading={isLoading} 
+          />
         </DialogContent>
       </Dialog>
     </AdminPageLayout>
   );
 };
 
-// A new component for the creation form to manage its own state
 interface CreateAffiliateFormProps {
     onSubmit: (data: AffiliateFormData) => Promise<void>;
     onModalClose: () => void;
+    isLoading: boolean;
 }
 
-const CreateAffiliateForm: React.FC<CreateAffiliateFormProps> = ({ onSubmit, onModalClose }) => {
+const CreateAffiliateForm: React.FC<CreateAffiliateFormProps> = ({ onSubmit, onModalClose, isLoading }) => {
     const [formData, setFormData] = useState<AffiliateFormData>({
-        name: '',
+        username: '',
         email: '',
         password: '',
         tracking_code: '',
         website_url: '',
         status: 'pending',
-        commission_tiers: [],
+        commission_tiers: [{ name: 'Default', rate: 10, min_revenue_threshold: null }], // Default tier
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         setFormData(prev => ({ ...prev, [e.target.id]: e.target.value }));
     };
     
-    // Simplified commission tier handling for create form for brevity
-    // A more robust solution would allow adding/removing tiers here too
+    const handleTierChange = (index: number, field: keyof CommissionTier, value: string | number | null) => {
+        const updatedTiers = [...formData.commission_tiers];
+        updatedTiers[index] = { ...updatedTiers[index], [field]: value };
+        setFormData(prev => ({ ...prev, commission_tiers: updatedTiers }));
+    };
+
+    const addTier = () => {
+        setFormData(prev => ({
+            ...prev,
+            commission_tiers: [...prev.commission_tiers, { name: '', rate: 0, min_revenue_threshold: null }]
+        }));
+    };
+
+    const removeTier = (index: number) => {
+        const updatedTiers = [...formData.commission_tiers];
+        updatedTiers.splice(index, 1);
+        setFormData(prev => ({ ...prev, commission_tiers: updatedTiers }));
+    };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -549,52 +601,66 @@ const CreateAffiliateForm: React.FC<CreateAffiliateFormProps> = ({ onSubmit, onM
             return;
         }
         await onSubmit(formData);
-        // onModalClose(); // onSubmit should handle closing on success
+        // Modal close is handled by parent or by onSubmit success
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-                {/* Name */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="name" className="text-right">Name</Label>
-                    <Input id="name" value={formData.name} onChange={handleChange} className="col-span-3" required />
-                </div>
-                {/* Email */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="email" className="text-right">Email</Label>
-                    <Input type="email" id="email" value={formData.email} onChange={handleChange} className="col-span-3" required />
-                </div>
-                {/* Password */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="password" className="text-right">Password</Label>
-                    <Input type="password" id="password" value={formData.password} onChange={handleChange} className="col-span-3" required />
-                </div>
-                {/* Tracking Code */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="tracking_code" className="text-right">Tracking Code</Label>
-                    <Input id="tracking_code" value={formData.tracking_code} onChange={handleChange} className="col-span-3" />
-                </div>
-                {/* Website URL */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="website_url" className="text-right">Website URL</Label>
-                    <Input id="website_url" value={formData.website_url} onChange={handleChange} className="col-span-3" />
-                </div>
-                {/* Status */}
-                <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status" className="text-right">Status</Label>
-                    <select id="status" value={formData.status} onChange={handleChange} className="col-span-3 border rounded px-2 py-1 bg-background text-foreground w-full">
-                        <option value="active">Active</option>
-                        <option value="pending">Pending</option>
-                        <option value="suspended">Suspended</option>
-                    </select>
-                </div>
-                {/* Commission Tiers - simplified for create form, could be more complex */}
-                 <p className="text-sm text-muted-foreground col-span-4">Commission tiers can be configured after creation.</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" value={formData.username} onChange={handleChange} required />
             </div>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={onModalClose}>Cancel</Button>
-                <Button type="submit">Create Affiliate</Button>
+            <div>
+                <Label htmlFor="email">Email</Label>
+                <Input type="email" id="email" value={formData.email} onChange={handleChange} required />
+            </div>
+            <div>
+                <Label htmlFor="password">Password</Label>
+                <Input type="password" id="password" value={formData.password} onChange={handleChange} required />
+            </div>
+            <div>
+                <Label htmlFor="tracking_code">Tracking Code (Optional)</Label>
+                <Input id="tracking_code" value={formData.tracking_code} onChange={handleChange} />
+            </div>
+            <div>
+                <Label htmlFor="website_url">Website URL (Optional)</Label>
+                <Input id="website_url" value={formData.website_url} onChange={handleChange} />
+            </div>
+            <div>
+                <Label htmlFor="status">Status</Label>
+                <select id="status" value={formData.status} onChange={handleChange} className="border rounded px-3 py-2 bg-background text-foreground w-full">
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                </select>
+            </div>
+            
+            <h4 className="text-md font-semibold pt-2">Commission Tiers</h4>
+            {formData.commission_tiers.map((tier, index) => (
+                <div key={index} className="grid grid-cols-1 sm:grid-cols-3 gap-2 border p-3 rounded-md items-end">
+                    <div className="sm:col-span-3">
+                        <Label htmlFor={`tier-name-${index}`}>Tier Name</Label>
+                        <Input id={`tier-name-${index}`} value={tier.name} onChange={(e) => handleTierChange(index, 'name', e.target.value)} placeholder="e.g., Standard" />
+                    </div>
+                    <div>
+                        <Label htmlFor={`tier-rate-${index}`}>Rate (%)</Label>
+                        <Input type="number" id={`tier-rate-${index}`} value={tier.rate} onChange={(e) => handleTierChange(index, 'rate', parseFloat(e.target.value))} placeholder="e.g., 10" />
+                    </div>
+                    <div>
+                        <Label htmlFor={`tier-threshold-${index}`}>Min Revenue</Label>
+                        <Input type="number" id={`tier-threshold-${index}`} value={tier.min_revenue_threshold || ''} onChange={(e) => handleTierChange(index, 'min_revenue_threshold', parseFloat(e.target.value))} placeholder="e.g., 1000" />
+                    </div>
+                    <Button type="button" variant="destructive" size="sm" onClick={() => removeTier(index)} className="self-center mt-4 sm:mt-0">Remove</Button>
+                </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={addTier} className="mt-1">Add Tier</Button>
+            
+            <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={onModalClose} disabled={isLoading}>Cancel</Button>
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                    Create Affiliate User
+                </Button>
             </DialogFooter>
         </form>
     );
@@ -602,3 +668,4 @@ const CreateAffiliateForm: React.FC<CreateAffiliateFormProps> = ({ onSubmit, onM
 
 
 export default AdminAffiliates;
+

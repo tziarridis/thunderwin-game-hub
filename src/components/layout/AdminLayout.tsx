@@ -8,13 +8,12 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminLayout = () => {
-  const { isAuthenticated, user, isLoading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth(); // Changed isLoading to loading
   const location = useLocation();
 
-  // Corrected: use app_meta_data and also check user.role directly if populated by Supabase JWT
-  const isAdminUser = user?.role === 'admin' || user?.app_meta_data?.role === 'admin';
+  const isAdminUser = user?.role === 'admin' || user?.app_metadata?.role === 'admin'; // Corrected app_meta_data to app_metadata
 
-  if (isLoading) {
+  if (loading) { // Changed isLoading to loading
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -45,3 +44,4 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
