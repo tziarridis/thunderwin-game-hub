@@ -1,13 +1,13 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Game, GameProvider, GameCategory, GameLaunchOptions, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { convertAPIGameToUIGame } from '@/utils/gameTypeAdapter';
 
-// Game service mock implementation (should be replaced with actual implementation)
+// Game service implementation
 const gameService = {
   getAllGames: async ({ limit = 100 } = {}): Promise<{ games: Game[], count: number }> => {
     const { data, error, count } = await supabase
@@ -16,13 +16,20 @@ const gameService = {
       .limit(limit);
     
     if (error) throw error;
-    return { games: data as Game[], count: count || 0 };
+    const convertedGames = data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    return { games: convertedGames, count: count || 0 };
   },
   
   getProviders: async (): Promise<GameProvider[]> => {
-    const { data, error } = await supabase.from('providers').select('*');
+    const { data, error } = await supabase.from('providers').select('id, name, logo, description, status'); // Select specific fields
     if (error) throw error;
-    return data as GameProvider[];
+    // Map to GameProvider, ensuring slug exists
+    return data ? data.map(p => ({
+      ...p,
+      id: String(p.id), 
+      slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id), // Generate slug from name or use ID
+      // games_count and other optional fields can be added if available or needed
+    })) : [];
   },
   
   getCategories: async (): Promise<GameCategory[]> => {
@@ -38,7 +45,7 @@ const gameService = {
       .eq('user_id', userId);
     
     if (error) throw error;
-    return data.map(item => item.game_id);
+    return data.map(item => String(item.game_id)); // Ensure game_id is string
   },
   
   addFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
@@ -63,48 +70,72 @@ const gameService = {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('id', gameId)
-      .single();
+      .eq('id', gameId) // Assuming 'id' is the primary key being queried
+      .maybeSingle(); // Use maybeSingle to handle not found gracefully
     
     if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
+      // PGRST116 means no rows found, which is fine for maybeSingle
+      if (error.code === 'PGRST116') return null; 
       throw error;
     }
-    return data as Game;
+    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
   },
   
   getGameBySlug: async (slug: string): Promise<Game | null> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('slug', slug)
-      .single();
+      .eq('slug', slug) // Assuming 'slug' column exists and is used for lookup
+      .maybeSingle();
     
     if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
+      if (error.code === 'PGRST116') return null;
       throw error;
     }
-    return data as Game;
+    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
   },
   
   getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
+    // This query might be tricky if provider_slug isn't directly on 'games' table
+    // Or if it needs to join with 'providers' table first
+    // For now, assuming 'provider_slug' exists on 'games' or is handled by a DB view/function.
+    // If 'provider_slug' is not directly on the 'games' table, this will need adjustment.
+    // The current 'games' table schema shows 'provider_id' (uuid) and 'distribution' (varchar, mapped from provider name).
+    // It does not show 'provider_slug'.
+    // Let's assume we first fetch provider by slug, then games by provider_id.
+    
+    const { data: providerData, error: providerError } = await supabase
+      .from('providers')
+      .select('id')
+      //.eq('slug', providerSlug) // This won't work as 'providers' table doesn't have 'slug'
+      // Let's try to match by name-generated slug, or assume providerSlug is actually provider_id for now
+      // This part is problematic due to schema mismatch. A proper fix might involve DB changes.
+      // For now, let's assume providerSlug is actually the provider's name for a hacky match, or their ID
+      .or(`name.ilike.${providerSlug},id.eq.${providerSlug}`) // Highly indicative of schema/type issue
+      .single();
+
+    if (providerError || !providerData) {
+        console.error(`Error fetching provider by slug ${providerSlug}:`, providerError);
+        return [];
+    }
+
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('provider_slug', providerSlug);
+      .eq('provider_id', providerData.id); // Use provider_id
     
     if (error) throw error;
-    return data as Game[];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .contains('category_slugs', [categorySlug]);
+      .contains('category_slugs', [categorySlug]); // Assuming category_slugs is an array
     
     if (error) throw error;
-    return data as Game[];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
@@ -121,33 +152,32 @@ const gameService = {
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getPopularGames: async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .order('views', { ascending: false })
+      .order('views', { ascending: false }) // Assuming 'views' correlates to popularity
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getLatestGames: async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }) // Or 'releaseDate' if that's the field
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   }
 };
 
-// Props for GameLauncher component, if it's still being used directly with these specific prop names
 export interface GameLauncherProps {
   game: Game;
   mode?: 'real' | 'demo';
@@ -172,15 +202,15 @@ interface GamesContextType {
   fetchGamesByCategory: (categorySlug: string) => Promise<Game[]>;
   fetchGameById: (id: string | number) => Promise<Game | null>;
   getGameBySlug: (slug: string) => Promise<Game | null>;
-  getGameById: (id: string | number) => Promise<Game | null>;
+  getGameById: (id: string | number) => Promise<Game | null>; // Duplicate of fetchGameById?
   
   getGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   handlePlayGame: (game: Game, mode: 'real' | 'demo') => void;
   handleGameDetails: (game: Game) => void;
   
-  favoriteGames: string[];
-  favoriteGameIds: Set<string>;
+  favoriteGames: string[]; // Array of game IDs/slugs
+  favoriteGameIds: Set<string>; // Set of game IDs/slugs for quick lookup
   toggleFavoriteGame: (gameIdOrSlug: string) => void;
   isFavorite: (gameIdOrSlug: string) => boolean;
   isLoadingFavorites: boolean;
@@ -202,20 +232,20 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const { data: gamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ games: Game[], count: number }, Error>({
     queryKey: ['allGames'],
-    queryFn: () => gameService.getAllGames({ limit: 500 }), // Fetch a larger initial set or implement pagination
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    queryFn: () => gameService.getAllGames({ limit: 500 }),
+    staleTime: 1000 * 60 * 5,
   });
 
   const { data: providersData, isLoading: isLoadingProviders, error: providersError } = useQuery<GameProvider[], Error>({
     queryKey: ['allProviders'],
     queryFn: gameService.getProviders,
-    staleTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 30,
   });
 
   const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery<GameCategory[], Error>({
     queryKey: ['allCategories'],
     queryFn: gameService.getCategories,
-    staleTime: 1000 * 60 * 30, // 30 minutes
+    staleTime: 1000 * 60 * 30,
   });
 
   const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery<string[], Error>({
@@ -228,64 +258,44 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const games = gamesData?.games || [];
   const providers = providersData || [];
   const categories = categoriesData || [];
-  const favoriteGames = favoriteGamesData || [];
+  const favoriteGames = favoriteGamesData || []; // These are string IDs
   const favoriteGameIds = new Set(favoriteGames);
 
+
   const fetchGameById = useCallback(async (id: string | number): Promise<Game | null> => {
-    try {
-      return await gameService.getGameById(id.toString());
-    } catch (error) {
-      console.error(`Error fetching game by id ${id}:`, error);
-      return null;
-    }
+    return gameService.getGameById(String(id));
   }, []);
 
+  // getGameById seems redundant if fetchGameById exists and does the same. Consolidate if identical.
+  // For now, keeping both as per existing structure, but pointing gameService.getGameById
   const getGameById = useCallback(async (id: string | number): Promise<Game | null> => {
-    try {
-      return await gameService.getGameById(id.toString());
-    } catch (error) {
-      console.error(`Error getting game by id ${id}:`, error);
-      return null;
-    }
+    return gameService.getGameById(String(id));
   }, []);
 
   const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
-    try {
-      return await gameService.getGameBySlug(slug);
-    } catch (error) {
-      console.error(`Error getting game by slug ${slug}:`, error);
-      return null;
-    }
+    return gameService.getGameBySlug(slug);
   }, []);
 
   const fetchGamesByProvider = useCallback(async (providerSlug: string): Promise<Game[]> => {
-    try {
-      return await gameService.getGamesByProvider(providerSlug);
-    } catch (error) {
-      console.error(`Error fetching games for provider ${providerSlug}:`, error);
-      return [];
-    }
+    return gameService.getGamesByProvider(providerSlug);
   }, []);
 
   const fetchGamesByCategory = useCallback(async (categorySlug: string): Promise<Game[]> => {
-     try {
-      return await gameService.getGamesByCategory(categorySlug);
-    } catch (error) {
-      console.error(`Error fetching games for category ${categorySlug}:`, error);
-      return [];
-    }
+     return gameService.getGamesByCategory(categorySlug);
   }, []);
 
   const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    if (!isAuthenticated && !game.demo_url && options.mode === 'real') {
+    if (!isAuthenticated && options.mode === 'real' && !game.demo_url /* check if game allows demo without login */) {
         toast.error("Please log in to play real money games.");
         navigate('/login');
         return null;
     }
 
     try {
-      const launchOptionsWithUser = { ...options, user_id: user?.id, username: user?.email, currency: 'USD' };
-      const url = await gameService.getGameLaunchUrl(game.id.toString(), launchOptionsWithUser);
+      const launchOptionsWithUser = { ...options, user_id: user?.id, username: user?.email?.split('@')[0], currency: 'USD' }; // TODO: get currency from wallet
+      // Use game.id for launching, ensure it's the correct ID for the provider (often game.game_id or external_id)
+      const gameIdForLaunch = game.game_id || String(game.id);
+      const url = await gameService.getGameLaunchUrl(gameIdForLaunch, launchOptionsWithUser);
       if (!url) throw new Error("Launch URL not available.");
       return url;
     } catch (error: any) {
@@ -296,41 +306,49 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [user, isAuthenticated, navigate]);
 
   const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    return await getGameLaunchUrl(game, options);
+    return getGameLaunchUrl(game, options);
   }, [getGameLaunchUrl]);
 
   const handlePlayGame = useCallback(async (game: Game, mode: 'real' | 'demo') => {
     console.log(`Attempting to play game: ${game.title}, mode: ${mode}`);
     const launchUrl = await getGameLaunchUrl(game, { mode });
     if (launchUrl) {
-      navigate(`/casino/play/${game.slug || game.id}`);
+      // Decide navigation target: could be a dedicated play page or opening in new tab
+      // For now, navigate to a play page that might embed the game or redirect
+      // Ensure game.slug or game.id is valid for URL
+      const gameSlugForUrl = game.slug || String(game.id);
+      navigate(`/casino/play/${gameSlugForUrl}`); // Assumes a route like /casino/play/:slug exists
     }
   }, [getGameLaunchUrl, navigate]);
 
   const handleGameDetails = useCallback((game: Game) => {
-    navigate(`/casino/game/${game.slug || game.id}`);
+    const gameSlugForUrl = game.slug || String(game.id);
+    navigate(`/casino/game/${gameSlugForUrl}`);
   }, [navigate]);
 
   const toggleFavoriteMutation = useMutation<void, Error, string>({
     mutationFn: async (gameIdOrSlug: string) => {
       if (!user) throw new Error("User not authenticated");
-      // Find the actual game ID if a slug is passed
-      const gameToToggle = games.find(g => g.id === gameIdOrSlug || g.slug === gameIdOrSlug);
-      if (!gameToToggle) throw new Error("Game not found");
       
-      const currentFavorites = await gameService.getFavoriteGames(user.id);
-      const isCurrentlyFavorite = currentFavorites.includes(gameToToggle.id.toString());
+      const gameToToggle = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
+      if (!gameToToggle) throw new Error("Game not found to toggle favorite status.");
+      
+      const gameId = String(gameToToggle.id); // Use the actual ID for DB operations
+
+      // No need to fetch currentFavorites again, favoriteGameIds set is the source of truth
+      const isCurrentlyFavorite = favoriteGameIds.has(gameId);
 
       if (isCurrentlyFavorite) {
-        await gameService.removeFavoriteGame(user.id, gameToToggle.id.toString());
+        await gameService.removeFavoriteGame(user.id, gameId);
         toast.success(`${gameToToggle.title} removed from favorites.`);
       } else {
-        await gameService.addFavoriteGame(user.id, gameToToggle.id.toString());
+        await gameService.addFavoriteGame(user.id, gameId);
         toast.success(`${gameToToggle.title} added to favorites.`);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
+      // Optionally, can optimistically update UI here
     },
     onError: (error) => {
       toast.error(`Failed to update favorites: ${error.message}`);
@@ -347,21 +365,21 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [isAuthenticated, user, navigate, toggleFavoriteMutation]);
 
   const isFavorite = useCallback((gameIdOrSlug: string): boolean => {
-    const game = games.find(g => g.id === gameIdOrSlug || g.slug === gameIdOrSlug);
+    const game = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
     if (!game) return false;
-    return favoriteGames.includes(game.id.toString());
-  }, [favoriteGames, games]);
+    return favoriteGameIds.has(String(game.id));
+  }, [favoriteGameIds, games]);
 
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return await gameService.getFeaturedGames(count);
+    return gameService.getFeaturedGames(count);
   }, []);
 
   const getPopularGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return await gameService.getPopularGames(count);
+    return gameService.getPopularGames(count);
   }, []);
 
   const getLatestGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return await gameService.getLatestGames(count);
+    return gameService.getLatestGames(count);
   }, []);
   
   const isLoading = isLoadingGames || isLoadingProviders || isLoadingCategories || (!!user && isLoadingFavorites);

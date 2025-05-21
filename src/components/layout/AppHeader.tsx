@@ -1,62 +1,72 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from "next-themes";
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; // Supabase User type comes from here
 import NavLinks from './NavLinks';
 import MobileNavBar from './MobileNavBar'; 
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu';
+import UserMenu from '@/components/user/UserMenu'; // UserMenu expects AppUser
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet';
+import { Wallet as AppWalletType } from '@/types/wallet'; // Renamed to avoid conflict
+import { AppUser } from '@/types/user'; // For UserMenu
 
-interface WalletState {
-  id: string;
-  userId: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  vipLevel: number;
-  vipPoints: number;
-  bonusBalance: number;
-  cryptoBalance: number;
-  demoBalance: number;
-  isActive: boolean;
-  lastTransactionDate: Date | null;
+interface WalletState extends AppWalletType { // Using the full Wallet type
+  // WalletState can be removed if AppWalletType is sufficient
 }
 
 const AppHeader = () => {
   const location = useLocation();
   const { theme, setTheme } = useTheme(); 
-  const { user, isAuthenticated, signOut } = useAuth(); 
+  const { user: supabaseUser, isAuthenticated, signOut } = useAuth(); // user is Supabase User
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [wallet, setWallet] = useState<WalletState | null>(null);
+  const [appUserForMenu, setAppUserForMenu] = useState<AppUser | null>(null);
+
 
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && supabaseUser) {
+      // Transform Supabase User to AppUser for UserMenu
+      setAppUserForMenu({
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        // @ts-ignore supabaseUser.user_metadata might not be directly available or could be empty
+        username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0], 
+        // @ts-ignore
+        avatarUrl: supabaseUser.user_metadata?.avatar_url,
+        // @ts-ignore
+        firstName: supabaseUser.user_metadata?.first_name,
+        // @ts-ignore
+        lastName: supabaseUser.user_metadata?.last_name,
+        isActive: true, // Assume active if authenticated
+        createdAt: supabaseUser.created_at,
+        updatedAt: supabaseUser.updated_at,
+        // roles and permissions would need to be fetched separately if needed
+      });
+      
       const fetchWallet = async () => {
         try {
           const { data, error } = await supabase
             .from('wallets')
             .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, updated_at') 
-            .eq('user_id', user.id)
+            .eq('user_id', supabaseUser.id) // Use supabaseUser.id here
             .maybeSingle();
 
           if (error) {
             console.error("Error fetching wallet:", error.message);
             setWallet(null);
           } else if (data) {
+            // Map to WalletState ensuring all fields from AppWalletType are covered
             setWallet({
               id: data.id,
-              userId: data.user_id,
+              userId: data.user_id, // This should align with supabaseUser.id type if user_id in wallets is UUID
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
@@ -65,8 +75,9 @@ const AppHeader = () => {
               bonusBalance: data.balance_bonus ?? 0, 
               cryptoBalance: data.balance_cryptocurrency ?? 0, 
               demoBalance: data.balance_demo ?? 0, 
-              isActive: data.active ?? false,
+              isActive: data.active ?? false, // from 'wallets' table 'active' column
               lastTransactionDate: data.updated_at ? new Date(data.updated_at) : null,
+              // any other fields required by AppWalletType
             });
           } else {
             setWallet(null);
@@ -80,9 +91,6 @@ const AppHeader = () => {
       fetchWallet();
 
       const fetchNotificationsStatus = async () => {
-        // Mocking notification status for now
-        // const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_read', false);
-        // const unreadCount = count ?? 0;
         const unreadCount = 0; // Placeholder
         setHasUnreadNotifications(unreadCount > 0);
       };
@@ -90,9 +98,10 @@ const AppHeader = () => {
       fetchNotificationsStatus();
     } else {
       setWallet(null);
+      setAppUserForMenu(null);
       setHasUnreadNotifications(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, supabaseUser]);
 
   const toggleThemeHandler = () => { 
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -128,20 +137,19 @@ const AppHeader = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          {isAuthenticated && user ? ( 
+          {isAuthenticated && appUserForMenu ? ( 
             <>
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
               <UserMenu 
-                user={user} 
+                user={appUserForMenu} // Pass the transformed AppUser object
                 onLogout={signOut}
-                // wallet={wallet} // UserMenuProps in read-only file likely doesn't expect this complex object
-                // loadingWallet={loadingWallet} // Also likely not expected
-                // The following props caused errors, commenting out until UserMenu props are known/updated:
-                // balance={wallet?.balance} 
-                // currencySymbol={wallet?.symbol} 
+                // Pass wallet related props if UserMenu expects them explicitly
+                // For example, if UserMenu has props like:
+                // balance={wallet?.balance}
+                // currencySymbol={wallet?.symbol}
               />
             </>
           ) : (

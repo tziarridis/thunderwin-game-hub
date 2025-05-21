@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
-import { Game } from '@/types';
+import { Game, GameTag } from '@/types'; // GameTag is 'featured' | 'popular' | 'new' | string;
 import { useGames } from '@/hooks/useGames';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Carousel,
@@ -14,8 +13,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { toast } from 'sonner'; 
-
-type GameTag = 'featured' | 'popular' | 'new' | string;
 
 interface FeaturedGamesProps {
   title?: string;
@@ -41,12 +38,13 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       if (categorySlug) {
         tempFiltered = tempFiltered.filter(g => 
             (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
-            g.categoryName === categorySlug // Fallback
+            g.categoryName === categorySlug // Fallback, ensure categoryName is part of Game type if used
         );
       }
       
       if (tag) {
-        switch (tag.toLowerCase()) {
+        const lowerTag = tag.toLowerCase();
+        switch (lowerTag) {
           case 'featured':
             tempFiltered = tempFiltered.filter(g => g.is_featured);
             break;
@@ -58,15 +56,20 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             break;
           default:
             // Make sure g.tags is an array before filtering
-            tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag));
+            // And that tag elements are simple strings if tag is a simple string
+            tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag as string));
             break;
         }
       } else if (!categorySlug) { 
+        // Default filter if no specific tag or category: featured or popular
         tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
       }
       
       if (tag === 'new') {
-        tempFiltered.sort((a,b) => new Date(b.releaseDate || b.created_at || 0).getTime() - new Date(a.releaseDate || a.created_at || 0).getTime());
+        tempFiltered.sort((a,b) => 
+          new Date(b.releaseDate || b.created_at || 0).getTime() - 
+          new Date(a.releaseDate || a.created_at || 0).getTime()
+        );
       }
 
       setFilteredGamesToShow(tempFiltered.slice(0, count));
@@ -79,11 +82,12 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
-        navigate(`/casino/game/${game.slug || game.id}`);
+        // Fallback to game details page if launch URL isn't available
+        navigate(`/casino/game/${game.slug || String(game.id)}`);
       }
     } catch (e:any) {
       toast.error(`Error launching game: ${(e as Error).message}`);
-      navigate(`/casino/game/${game.slug || game.id}`); 
+      navigate(`/casino/game/${game.slug || String(game.id)}`); 
     }
   };
 
@@ -97,7 +101,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   }
 
   if (!isLoading && filteredGamesToShow.length === 0) {
-    return null; 
+    return null; // Or a "No games found" message
   }
 
   return (
@@ -106,7 +110,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl sm:text-3xl font-bold">{title}</h2>
           {(categorySlug || tag) && (
-             <Button variant="outline" onClick={() => navigate(`/casino/${categorySlug || tag || 'main'}`)}>
+             <Button variant="outline" onClick={() => navigate(`/casino/${categorySlug || String(tag) || 'main'}`)}>
                 View All <ChevronRight className="ml-2 h-4 w-4" />
              </Button>
           )}
@@ -115,7 +119,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
         <Carousel
           opts={{
             align: "start",
-            loop: filteredGamesToShow.length > 5, 
+            loop: filteredGamesToShow.length > 5, // Adjust threshold as needed
           }}
           className="w-full"
         >
@@ -134,7 +138,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
               </CarouselItem>
             ))}
           </CarouselContent>
-          {filteredGamesToShow.length > 5 && ( 
+          {filteredGamesToShow.length > 5 && ( // Show controls if more items than typically visible
             <>
                 <CarouselPrevious className="absolute left-[-10px] sm:left-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex bg-background/70 hover:bg-background border border-border" />
                 <CarouselNext className="absolute right-[-10px] sm:right-0 top-1/2 -translate-y-1/2 z-10 hidden sm:flex bg-background/70 hover:bg-background border border-border" />

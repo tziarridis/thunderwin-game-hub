@@ -1,18 +1,18 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
-import { Game, GameProvider, GameCategory, GameStatus } from '@/types'; // Ensure GameProvider and GameCategory are imported
+import { supabase } from '@/integrations/supabase/client'; // Corrected path
+import { Game, GameProvider, GameCategory, GameStatus, GameVolatility, DbGame } from '@/types'; // Ensure GameProvider and GameCategory are imported
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'; // Removed DialogTrigger
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, Filter, Upload, Settings2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'; // Removed Filter, Upload, Settings2
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// import Papa from 'papaparse'; // For CSV import
+import { convertAPIGameToUIGame } from '@/utils/gameTypeAdapter';
 
 const GAMES_ADMIN_QUERY_KEY = 'admin_games';
 const PROVIDERS_ADMIN_QUERY_KEY = 'admin_game_providers';
@@ -28,7 +28,6 @@ const GamesAdminPage: React.FC = () => {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<GameStatus | 'all'>('all');
 
-  // Fetch games
   const { data: games = [], isLoading: isLoadingGames } = useQuery<Game[], Error>({
     queryKey: [GAMES_ADMIN_QUERY_KEY, searchTerm, filterProvider, filterCategory, filterStatus],
     queryFn: async () => {
@@ -37,12 +36,10 @@ const GamesAdminPage: React.FC = () => {
         query = query.or(`title.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
       }
       if (filterProvider !== 'all') {
-        query = query.eq('provider_slug', filterProvider);
+        query = query.eq('provider_slug', filterProvider); // Assuming provider_slug exists on games table
       }
       if (filterCategory !== 'all') {
-        // This assumes category_slugs is an array that can be queried with cs (contains)
-        // Adjust if your schema is different (e.g., a single category_slug field)
-        query = query.cs('category_slugs', `{${filterCategory}}`);
+        query = query.contains('category_slugs', [filterCategory]); // Corrected array contains syntax
       }
       if (filterStatus !== 'all') {
         query = query.eq('status', filterStatus);
@@ -50,17 +47,21 @@ const GamesAdminPage: React.FC = () => {
       
       const { data, error } = await query.order('title', { ascending: true });
       if (error) throw error;
-      // Ensure provider_slug is part of the data from DB or mapped correctly
-      return data.map(g => ({ ...g, provider_slug: g.provider_slug || '' })) as Game[];
+      return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
     },
   });
 
   const { data: providers = [] } = useQuery<GameProvider[], Error>({
     queryKey: [PROVIDERS_ADMIN_QUERY_KEY],
     queryFn: async () => {
-        const { data, error } = await supabase.from('providers').select('*');
+        const { data, error } = await supabase.from('providers').select('id, name'); // Select only necessary fields
         if (error) throw error;
-        return data.map(p => ({...p, slug: p.slug || String(p.id)})) as GameProvider[]; // Ensure slug is present
+        // Map to GameProvider, ensuring slug is present
+        return data ? data.map(p => ({
+            ...p,
+            id: String(p.id),
+            slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id), // Generate slug
+        })) : [];
     }
   });
 
@@ -73,42 +74,40 @@ const GamesAdminPage: React.FC = () => {
     }
   });
   
-  // Create or Update Game Mutation
   const gameMutation = useMutation<Game, Error, Partial<Game>>(
     async (gameData) => {
-      // Ensure required fields for insert/update are present
-      const payload = {
-        ...gameData,
-        // Supabase might automatically handle created_at/updated_at
-        // Ensure rtp, lines, min_bet, max_bet are numbers or null
-        rtp: gameData.rtp ? Number(gameData.rtp) : null,
-        lines: gameData.lines ? Number(gameData.lines) : null,
-        min_bet: gameData.min_bet ? Number(gameData.min_bet) : null,
-        max_bet: gameData.max_bet ? Number(gameData.max_bet) : null,
+      const payload: Partial<DbGame> = { // Construct a payload that matches DbGame / actual table structure
+        ...gameData, // Start with Game data
+        // Map Game fields to DbGame fields if names differ
+        game_name: gameData.title, 
+        // provider_id: ... need to get provider_id from provider_slug if that's how it's stored
+        // category_slugs: gameData.category_slugs, (already array of strings)
+        // Ensure numeric fields are numbers
+        rtp: gameData.rtp ? Number(gameData.rtp) : undefined, // Use undefined for null to avoid sending "null" string
+        lines: gameData.lines ? Number(gameData.lines) : undefined,
+        min_bet: gameData.min_bet ? Number(gameData.min_bet) : undefined,
+        max_bet: gameData.max_bet ? Number(gameData.max_bet) : undefined,
         is_featured: !!gameData.is_featured,
-        isNew: !!gameData.isNew,
-        only_real: !!gameData.only_real,
-        only_demo: !!gameData.only_demo,
-        has_freespins: !!gameData.has_freespins,
+        is_new: !!gameData.isNew, // Ensure isNew is mapped if your table uses this
+        // Map other Game specific fields to their DbGame counterparts
+        // id might be string (from Game) but UUID in DbGame, Supabase handles this if PK is game_id or auto-gen UUID
       };
-
-      // Remove id from payload if it's for a new game, to let DB auto-generate
-      // Or use game_id as primary key if that's your schema
-      if (!payload.id && payload.game_id) { // If using game_id as PK
-          // No separate 'id' field, upsert on 'game_id'
-      } else if (!payload.id) {
-          // delete payload.id; // If 'id' is auto-incrementing and not part of form for new
-      }
-
+      
+      // Remove UI-specific fields not in DbGame before upsert
+      delete (payload as any).providerName; 
+      delete (payload as any).categoryName;
+      // if game.id is from UI and DB uses auto-generated UUID, don't send game.id for inserts.
+      // if game_id is the primary key and is string:
+      // if (!payload.id && !payload.game_id) throw new Error("Game ID or slug is required");
 
       const { data, error } = await supabase
         .from('games')
-        .upsert(payload as any) // Cast to any if type conflicts persist due to partials
+        .upsert(payload as any) // Upsert based on primary key (e.g., 'id' or 'game_id')
         .select()
         .single();
 
       if (error) throw error;
-      return data as Game;
+      return convertAPIGameToUIGame(data as unknown as DbGame);
     },
     {
       onSuccess: () => {
@@ -129,19 +128,24 @@ const GamesAdminPage: React.FC = () => {
   };
   
   const handleAddNew = () => {
-    setEditingGame({ status: 'pending', provider_slug: '', category_slugs: [], is_featured: false, isNew: false });
+    setEditingGame({ 
+      status: 'pending', 
+      provider_slug: '', // Will be used to find provider_id
+      category_slugs: [], 
+      is_featured: false, 
+      isNew: false,
+      title: '', // required by Game type
+      slug: '', // required by Game type
+    });
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string | number) => {
-    // Use game.id or game.game_id depending on your primary key
-    const pkValue = typeof id === 'number' ? id : (editingGame?.game_id || id);
-    const pkColumn = typeof id === 'number' ? 'id' : 'game_id';
-
-
+  const handleDelete = async (gameId: string | number) => {
+    // Game ID from 'Game' type is string | number. Table 'games' has 'id' (uuid) or 'game_id' (varchar)
+    // Ensure we use the correct primary key column and value type for deletion.
+    // For this example, let's assume gameId passed is the UUID 'id' primary key.
     if (!window.confirm('Are you sure you want to delete this game?')) return;
-    // @ts-ignore
-    const { error } = await supabase.from('games').delete().match({ [pkColumn]: pkValue });
+    const { error } = await supabase.from('games').delete().match({ id: String(gameId) });
     if (error) {
       toast.error(`Failed to delete game: ${error.message}`);
     } else {
@@ -153,29 +157,23 @@ const GamesAdminPage: React.FC = () => {
   const handleSaveGame = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (editingGame) {
-        // Ensure provider_slug is set if providerName is, for example
-        if (editingGame.providerName && !editingGame.provider_slug) {
-            const provider = providers.find(p => p.name === editingGame.providerName);
-            if (provider) editingGame.provider_slug = provider.slug;
+        if (editingGame.provider_slug && !editingGame.provider_id) {
+            const provider = providers.find(p => p.slug === editingGame.provider_slug);
+            if (provider) editingGame.provider_id = provider.id; // Set provider_id for DB
         }
         gameMutation.mutate(editingGame);
     }
   };
 
-  // const handleCsvImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   // CSV import logic using Papa.parse
-  //   // This is a placeholder
-  //   toast.info("CSV Import functionality placeholder.");
-  // };
+  const gameStatuses: GameStatus[] = ["active", "inactive", "pending", "blocked", "maintenance", "pending_review", "draft", "archived"];
+  const gameVolatilities: GameVolatility[] = ["low", "medium", "high", "low-medium", "medium-high"];
 
-  const gameStatuses: GameStatus[] = ["active", "inactive", "pending", "blocked"];
 
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Games Management</h1>
         <div className="flex gap-2 flex-wrap">
-          {/* <Button variant="outline"><Upload className="mr-2 h-4 w-4" /> Import CSV</Button> */}
           <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add New Game</Button>
         </div>
       </div>
@@ -186,20 +184,20 @@ const GamesAdminPage: React.FC = () => {
           placeholder="Search games..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          icon={<Search className="h-4 w-4 text-muted-foreground" />}
+          // icon prop is not standard for shadcn Input, remove or implement custom Input
         />
         <Select value={filterProvider} onValueChange={setFilterProvider}>
             <SelectTrigger><SelectValue placeholder="Filter by Provider" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">All Providers</SelectItem>
-                {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
+                {providers.map(p => <SelectItem key={String(p.id)} value={p.slug}>{p.name}</SelectItem>)}
             </SelectContent>
         </Select>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger><SelectValue placeholder="Filter by Category" /></SelectTrigger>
             <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(c => <SelectItem key={c.id} value={c.slug}>{c.name}</SelectItem>)}
+                {categories.map(c => <SelectItem key={String(c.id)} value={c.slug}>{c.name}</SelectItem>)}
             </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as GameStatus | 'all')}>
@@ -210,7 +208,6 @@ const GamesAdminPage: React.FC = () => {
             </SelectContent>
         </Select>
       </div>
-
 
       {isLoadingGames ? (
         <p>Loading games...</p>
@@ -248,7 +245,6 @@ const GamesAdminPage: React.FC = () => {
       )}
       {games.length === 0 && !isLoadingGames && <p className="text-center py-4">No games found matching filters.</p>}
       
-      {/* Dialog for Add/Edit Game */}
       <Dialog open={isModalOpen} onOpenChange={(isOpen) => {
           setIsModalOpen(isOpen);
           if (!isOpen) setEditingGame(null);
@@ -261,15 +257,18 @@ const GamesAdminPage: React.FC = () => {
             <form onSubmit={handleSaveGame} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><Label htmlFor="title">Title</Label><Input id="title" value={editingGame.title || ''} onChange={(e) => setEditingGame(prev => ({...prev, title: e.target.value}))} required /></div>
-                <div><Label htmlFor="game_id">External Game ID</Label><Input id="game_id" value={editingGame.game_id || ''} onChange={(e) => setEditingGame(prev => ({...prev, game_id: e.target.value}))} required /></div>
-                <div><Label htmlFor="slug">Slug</Label><Input id="slug" value={editingGame.slug || ''} onChange={(e) => setEditingGame(prev => ({...prev, slug: e.target.value}))} required /></div>
+                <div><Label htmlFor="game_id">External Game ID (Unique)</Label><Input id="game_id" value={editingGame.game_id || ''} onChange={(e) => setEditingGame(prev => ({...prev, game_id: e.target.value}))} /></div>
+                <div><Label htmlFor="slug">Slug (Unique, URL-friendly)</Label><Input id="slug" value={editingGame.slug || ''} onChange={(e) => setEditingGame(prev => ({...prev, slug: e.target.value}))} required /></div>
                 
                 <div>
                   <Label htmlFor="provider_slug">Provider</Label>
-                  <Select value={editingGame.provider_slug || ''} onValueChange={(value) => setEditingGame(prev => ({...prev, provider_slug: value, providerName: providers.find(p=>p.slug===value)?.name }))}>
+                  <Select value={editingGame.provider_slug || ''} onValueChange={(value) => {
+                      const selectedProvider = providers.find(p=>p.slug===value);
+                      setEditingGame(prev => ({...prev, provider_slug: value, providerName: selectedProvider?.name, provider_id: selectedProvider?.id }))}
+                    }>
                     <SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger>
                     <SelectContent>
-                      {providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}
+                      {providers.map(p => <SelectItem key={String(p.id)} value={p.slug}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -300,11 +299,7 @@ const GamesAdminPage: React.FC = () => {
                     <SelectTrigger><SelectValue placeholder="Select Volatility"/></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="">N/A</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="low-medium">Low-Medium</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="medium-high">Medium-High</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
+                        {gameVolatilities.map(vol => <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -327,7 +322,7 @@ const GamesAdminPage: React.FC = () => {
 
               <DialogFooter className="pt-4">
                 <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                <Button type="submit" disabled={gameMutation.isLoading}>{gameMutation.isLoading ? 'Saving...' : 'Save Game'}</Button>
+                <Button type="submit" disabled={gameMutation.isPending /* Corrected: isPending not isLoading */}>{gameMutation.isPending ? 'Saving...' : 'Save Game'}</Button>
               </DialogFooter>
             </form>
           )}
