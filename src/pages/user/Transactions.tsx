@@ -1,159 +1,191 @@
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { transactionService } from '@/services/transactionService';
-import { Transaction, User } from '@/types'; // Ensure User type is imported if needed for something else
-import { Loader2, ArrowDownUp, Filter } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { format } from 'date-fns'; // For date formatting
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DatePickerWithRange, DateRange } from '@/components/ui/date-picker-range';
+import { Loader2, Download, Filter } from 'lucide-react';
+import { format } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+// import { exportToCSV } from '@/utils/exportUtils'; // Assuming a utility for CSV export
 
-const Transactions = () => {
+const ITEMS_PER_PAGE = 15;
+
+const TransactionsPage = () => {
   const { user } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filterType, setFilterType] = useState<string>(''); // e.g., 'deposit', 'withdrawal', 'bet', 'win'
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState<{
+    type: TransactionType | 'all';
+    status: TransactionStatus | 'all';
+    dateRange?: DateRange;
+  }>({ type: 'all', status: 'all' });
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!user?.id) {
-        setIsLoading(false);
-        setError("User not authenticated.");
-        return;
-      }
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Construct filter object based on state
-        const filters: any = { userId: user.id, sortBy: 'created_at', sortOrder };
-        if (filterType) {
-          filters.type = filterType;
-        }
-        const data = await transactionService.getTransactions(filters);
-        setTransactions(data);
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch transactions.");
-        console.error("Transaction fetch error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { data: queryResponse, isLoading, error } = useQuery<{ transactions: Transaction[], count: number } | undefined, Error>({
+    queryKey: ['transactions', user?.id, currentPage, filters],
+    queryFn: () => {
+        if (!user?.id) return Promise.resolve(undefined); // Or throw error
+        return transactionService.getPlayerTransactions(user.id, {
+            page: currentPage,
+            limit: ITEMS_PER_PAGE,
+            type: filters.type === 'all' ? undefined : filters.type,
+            status: filters.status === 'all' ? undefined : filters.status,
+            startDate: filters.dateRange?.from ? format(filters.dateRange.from, 'yyyy-MM-dd') : undefined,
+            endDate: filters.dateRange?.to ? format(filters.dateRange.to, 'yyyy-MM-dd') : undefined,
+        });
+    },
+    enabled: !!user?.id,
+    keepPreviousData: true,
+  });
+  
+  const transactions = queryResponse?.transactions || [];
+  const totalTransactions = queryResponse?.count || 0;
+  const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
 
-    fetchTransactions();
-  }, [user?.id, filterType, sortOrder]);
 
-  const handleSortToggle = () => {
-    setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc');
+  const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
+    setFilters(prev => ({ ...prev, [filterName]: value }));
+    setCurrentPage(1); // Reset to first page on filter change
   };
-
-  const getTransactionDescription = (tx: Transaction): string => {
-    switch (tx.type?.toLowerCase()) {
-      case 'deposit':
-        return `Deposit - ${tx.provider || 'System'}`;
-      case 'withdrawal':
-        return `Withdrawal - ${tx.provider || 'System'}`;
-      case 'bet':
-        return `Bet - Game: ${tx.game_id || tx.gameName || 'N/A'}${tx.round_id ? ` (Round: ${tx.round_id})` : ''}`;
-      case 'win':
-        return `Win - Game: ${tx.game_id || tx.gameName || 'N/A'}${tx.round_id ? ` (Round: ${tx.round_id})` : ''}`;
-      case 'bonus':
-        return `Bonus Awarded - ${tx.details || 'System Bonus'}`;
-      case 'adjustment':
-        return `Balance Adjustment - ${tx.details || 'System Adjustment'}`;
-      default:
-        return tx.details || tx.type || 'Transaction';
+  
+  const handleExport = () => {
+    if (transactions.length > 0) {
+      // exportToCSV(transactions, `transactions_${user?.id}_${new Date().toISOString().split('T')[0]}.csv`);
+      toast.info("CSV export functionality placeholder.");
+    } else {
+      toast.warn("No transactions to export.");
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+
+  if (isLoading && transactions.length === 0) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   if (error) {
-    return <div className="text-center text-destructive py-4">Error: {error}</div>;
+    return <div className="text-center py-10 text-destructive">Error loading transactions: {error.message}</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Transaction History</h1>
-      
-      <div className="flex flex-col sm:flex-row gap-4 p-4 bg-card rounded-lg shadow">
-        <div className="flex-1">
-          <label htmlFor="filter-type" className="block text-sm font-medium text-muted-foreground mb-1">Filter by Type</label>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger id="filter-type">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Types</SelectItem>
-              <SelectItem value="deposit">Deposit</SelectItem>
-              <SelectItem value="withdrawal">Withdrawal</SelectItem>
-              <SelectItem value="bet">Bet</SelectItem>
-              <SelectItem value="win">Win</SelectItem>
-              <SelectItem value="bonus">Bonus</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="container mx-auto py-8 px-4">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground">My Transactions</h1>
+        <p className="text-muted-foreground">View your complete transaction history.</p>
+      </header>
+
+      <div className="mb-6 p-4 bg-card rounded-lg shadow-sm space-y-4 md:flex md:items-end md:justify-between md:space-y-0 md:space-x-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:gap-3 gap-4 w-full">
+            <div className="flex-grow">
+                <label className="text-xs text-muted-foreground block mb-1">Date Range</label>
+                <DatePickerWithRange date={filters.dateRange} onDateChange={(range) => handleFilterChange('dateRange', range)} className="w-full" />
+            </div>
+             <div className="flex-grow min-w-[150px]">
+                <label className="text-xs text-muted-foreground block mb-1">Type</label>
+                <Select value={filters.type} onValueChange={(value) => handleFilterChange('type', value)}>
+                    <SelectTrigger className="w-full bg-input"><SelectValue placeholder="All Types" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="deposit">Deposit</SelectItem>
+                        <SelectItem value="withdrawal">Withdrawal</SelectItem>
+                        <SelectItem value="bet">Bet</SelectItem>
+                        <SelectItem value="win">Win</SelectItem>
+                         <SelectItem value="bonus">Bonus</SelectItem>
+                        <SelectItem value="refund">Refund</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+             <div className="flex-grow min-w-[150px]">
+                <label className="text-xs text-muted-foreground block mb-1">Status</label>
+                <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                    <SelectTrigger className="w-full bg-input"><SelectValue placeholder="All Statuses" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="failed">Failed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
         </div>
-        <Button onClick={handleSortToggle} variant="outline" className="self-end sm:self-center">
-          <ArrowDownUp className="mr-2 h-4 w-4" />
-          Sort by Date ({sortOrder === 'asc' ? 'Oldest' : 'Newest'})
+        <Button onClick={handleExport} variant="outline" className="w-full mt-4 md:w-auto md:mt-0">
+          <Download className="mr-2 h-4 w-4" /> Export CSV
         </Button>
       </div>
-
-      {transactions.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">No transactions found.</p>
+      
+      {transactions.length === 0 && !isLoading ? (
+         <div className="text-center py-10">
+            <Filter className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-xl text-muted-foreground">No transactions found matching your criteria.</p>
+          </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto bg-card p-1 rounded-lg shadow">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
                 <TableHead>Status</TableHead>
-                {/* <TableHead>Balance After</TableHead> */}
+                <TableHead>Provider/Game</TableHead>
+                <TableHead>Transaction ID</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions.map((tx) => (
                 <TableRow key={tx.id}>
-                  <TableCell>{tx.created_at ? format(new Date(tx.created_at), 'PPpp') : 'N/A'}</TableCell>
-                  <TableCell>{getTransactionDescription(tx)}</TableCell>
-                  <TableCell className={`text-right font-semibold ${Number(tx.amount) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {Number(tx.amount) >= 0 ? '+' : ''}
-                    {Number(tx.amount).toLocaleString(undefined, { style: 'currency', currency: tx.currency || 'USD' })}
+                  <TableCell>{new Date(tx.created_at).toLocaleString()}</TableCell>
+                  <TableCell className="capitalize">{tx.type.replace('_', ' ')}</TableCell>
+                  <TableCell className={`font-semibold ${tx.type === 'deposit' || tx.type === 'win' ? 'text-green-500' : tx.type === 'withdrawal' || tx.type === 'bet' ? 'text-red-500' : ''}`}>
+                    {tx.type === 'deposit' || tx.type === 'win' ? '+' : tx.type === 'withdrawal' || tx.type === 'bet' ? '-' : ''}
+                    {tx.currency}{Math.abs(tx.amount).toFixed(2)}
                   </TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      tx.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                      tx.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 
-                      tx.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1) : 'N/A'}
-                    </span>
+                    <Badge variant={
+                        tx.status === 'completed' ? 'success' : 
+                        tx.status === 'pending' ? 'secondary' : 
+                        tx.status === 'failed' ? 'destructive' : 'outline'
+                    } className="capitalize">
+                        {tx.status}
+                    </Badge>
                   </TableCell>
-                  {/* <TableCell>{tx.balance_after?.toLocaleString(undefined, { style: 'currency', currency: tx.currency || 'USD' })}</TableCell> */}
+                  <TableCell className="text-xs">
+                    {tx.provider}{tx.game_id ? ` (${tx.game_id})` : ''}
+                  </TableCell>
+                  <TableCell className="text-xs font-mono">{tx.provider_transaction_id || tx.id}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex justify-between items-center">
+          <Button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1 || isLoading}
+            variant="outline"
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages || isLoading}
+            variant="outline"
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Transactions;
+export default TransactionsPage;

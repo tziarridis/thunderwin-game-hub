@@ -1,98 +1,112 @@
-
-// This will be our primary frontend Game type
-export interface GameProvider {
-  id: number | string;
-  name: string;
-  slug: string; // Ensure slug is always string and present
-  logoUrl?: string; // Changed from logo to logoUrl for consistency
-  description?: string;
-  status?: 'active' | 'inactive' | 'pending'; // Added status
-  game_count?: number; // Optional: Number of games by this provider
-}
+// src/types/game.ts
 
 export interface GameCategory {
-  id: number | string;
+  id: string; // uuid
   name: string;
-  slug: string; // Ensure slug is always string and present
-  icon?: string; // Path to an icon or icon component name
-  image?: string; // Path to a representative image
-  description?: string;
-  game_count?: number; // Optional: Number of games in this category
-  order?: number; // Optional: For sorting categories
+  slug: string;
+  icon?: string | null; // URL or Lucide icon name
+  imageUrl?: string | null;
+  description?: string | null;
+  gameCount?: number;
+  isActive?: boolean;
+  // order?: number; // For display sorting
 }
+
+export interface GameProvider {
+  id: string; // uuid
+  name: string;
+  slug: string; // URL-friendly name
+  logoUrl?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  game_ids?: string[]; // List of game IDs from this provider
+  // rating?: number;
+  // popularGames?: Pick<Game, 'id' | 'title' | 'slug' | 'cover'>[]; // A few popular games
+}
+
+export interface Game {
+  id: string; // Internal DB ID (UUID)
+  game_id?: string; // External ID from provider (string)
+  title: string;
+  slug: string; // URL-friendly identifier (unique)
+  description?: string | null;
+  providerName?: string; // Denormalized for convenience
+  provider_slug?: string; // Denormalized
+  provider_id?: string; // FK to providers table
+  categoryName?: string; // Denormalized primary category name
+  category_slugs?: string[] | null; // Array of category slugs this game belongs to
+  tags?: string[] | null; // e.g., "new", "hot", "jackpot", "megaways"
+  rtp?: number | null; // Return to Player percentage
+  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high' | string | null;
+  cover?: string | null; // URL for main game image (e.g., for cards)
+  image?: string | null; // Alias or alternative for cover
+  image_url?: string | null; // Another alias
+  bannerUrl?: string | null; // URL for larger banner image (e.g., for hero sections)
+  releaseDate?: string | null; // ISO date string
+  isNew?: boolean;
+  isPopular?: boolean; // Based on plays or manual setting
+  is_featured?: boolean; // Manually set as featured
+  only_demo?: boolean; // If true, only demo mode is available
+  only_real?: boolean; // If true, only real mode is available (no demo)
+  views?: number; // Total views/plays
+  status: 'active' | 'inactive' | 'maintenance' | string; // Game status
+  
+  // More detailed properties (optional)
+  lines?: number | null; // Paylines for slots
+  reels?: number | null; // Reels for slots
+  features?: string[] | null; // e.g., "FreeSpins", "BonusGame", "WildMultiplier"
+  min_bet?: number | null;
+  max_bet?: number | null;
+  default_bet?: number | null; // Added for default bet
+  currencies_accepted?: string[] | null;
+  languages_supported?: string[] | null;
+  
+  // Technical details (optional)
+  technology?: 'html5' | 'flash' | string | null;
+  is_mobile_compatible?: boolean;
+  
+  // For game launching
+  launch_url_template?: string | null; // If URL construction is simple
+  api_integration_type?: string | null; // e.g., 'direct_api', 'iframe_url'
+  
+  // Timestamps
+  created_at?: string;
+  updated_at?: string;
+
+  // For Game Aggregators - these fields may come from the aggregator's API
+  aggregator_game_id?: string;
+  aggregator_provider_id?: string;
+}
+
 
 export interface GameLaunchOptions {
   mode: 'real' | 'demo';
-  user_id?: string; // Made optional for demo mode
-  username?: string; // Made optional for demo mode
-  currency?: string;
-  language?: string;
+  user_id?: string; // Required for 'real' mode
+  username?: string; // For display or provider API
+  currency?: string; // User's currency
+  language?: string; // Preferred game language
+  token?: string; // Session token or JWT for provider
   platform?: 'web' | 'mobile' | 'desktop';
-  returnUrl?: string; // URL to redirect to after game session if applicable
-  token?: string; // Session token if required by provider
-  [key: string]: any; // Allow other provider-specific options
+  returnUrl?: string; // URL to return to after game session (if applicable)
+  // ... any other provider-specific parameters
+  [key: string]: any;
 }
 
-
-export interface Game {
-  id: string; // Should be string (UUID from DB)
-  title: string; // Was game_name in DbGame
-  slug: string;
-  
-  providerName?: string; // From DbGame.providers.name or DbGame.provider_slug
-  provider_slug?: string; // Direct from DbGame.provider_slug
-  
-  categoryName?: string; // From DbGame.game_type
-  category_slugs?: string[] | string; // Can be string array or single string
-
-  image?: string; // Mapped from DbGame.cover
-  banner?: string; // From DbGame.banner
-  
-  description?: string;
-  rtp?: number;
-  
-  isPopular?: boolean; // Mapped from DbGame.is_popular or DbGame.show_home
-  isNew?: boolean; // Mapped from DbGame.is_new or derived from DbGame.created_at
-  is_featured?: boolean; // Direct from DbGame.is_featured
-  show_home?: boolean; // Direct from DbGame.show_home
-  
-  volatility?: 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
-  lines?: number;
-  minBet?: number; // Mapped from DbGame.min_bet
-  maxBet?: number; // Mapped from DbGame.max_bet
-  
-  features?: string[];
-  tags?: string[];
-  themes?: string[];
-  
-  releaseDate?: string; // Mapped from DbGame.release_date (ISO string)
-  
-  game_id?: string; // External game ID from provider, from DbGame.game_id
-  game_code?: string; // External game code from provider, from DbGame.game_code
-  
-  status?: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived'; // From DbGame.status
-  
-  // Compatibility fields (try to consolidate to above)
-  provider?: string; // Fallback if providerName/provider_slug not available
-  category?: string; // Fallback if categoryName/category_slugs not available
-  cover?: string; // Alias for image, from DbGame.cover
-  image_url?: string; // Another alias for image
-  
-  // Client-side state, not from DB directly mapped here
-  isFavorite?: boolean;
-
-  // Fields that might come from DB but less common on frontend game card
-  technology?: string;
-  has_lobby?: boolean;
-  is_mobile?: boolean;
-  has_freespins?: boolean;
-  has_tables?: boolean;
-  only_demo?: boolean; // Important for demo mode checks
-  distribution?: string;
-  views?: number;
-  created_at?: string;
-  updated_at?: string;
-  provider_id?: string; // Foreign key, less common for direct display
-  game_server_url?: string;
+export interface GameFilters {
+  category?: string; // Category slug
+  provider?: string; // Provider slug
+  tag?: string;
+  searchTerm?: string;
+  isNew?: boolean;
+  isPopular?: boolean;
+  isFeatured?: boolean;
+  rtpMin?: number;
+  rtpMax?: number;
+  volatility?: 'low' | 'medium' | 'high';
+  // ... other potential filters
 }
 
+export interface GameSort {
+  field: keyof Game | 'popularity' | 'default'; // 'popularity' could be based on views/plays
+  order: 'asc' | 'desc';
+}

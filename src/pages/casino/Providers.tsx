@@ -1,44 +1,78 @@
 
-import React, { useEffect } from 'react';
-import { useGames } from '@/hooks/useGames';
-import ProviderCard from '@/components/providers/ProviderCard'; // Ensure this path is correct
-import { GameProvider } from '@/types';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import React, { useState, useEffect, useMemo } from 'react';
+import { useGames } from '@/hooks/useGames'; // Provides providers list
+import { GameProvider } from '@/types'; // Provider type
+import { Link } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Loader2, Search } from 'lucide-react';
+// import ProviderFilters from '@/components/providers/ProviderFilters'; // Placeholder created
+// import ProviderGrid from '@/components/providers/ProviderGrid'; // Placeholder created
 
 const ProvidersPage = () => {
-  const { providers, isLoading, fetchGamesAndProviders } = useGames();
+  const { providers, isLoading: isLoadingProviders } = useGames();
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    // Fetch fresh data if providers list is empty or stale
-    if (providers.length === 0 && !isLoading) {
-      fetchGamesAndProviders();
-    }
-  }, [providers, isLoading, fetchGamesAndProviders]);
+  const filteredProviders = useMemo(() => {
+    if (!providers) return [];
+    return providers.filter(provider =>
+      provider.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [providers, searchTerm]);
 
+  if (isLoadingProviders && !providers?.length) {
+    return (
+      <div className="container mx-auto py-12 text-center">
+        <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading providers...</p>
+      </div>
+    );
+  }
+  
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-8 text-center">Game Providers</h1>
-      
-      {isLoading && providers.length === 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div key={index} className="space-y-2">
-              <Skeleton className="h-32 w-full rounded-lg" />
-              <Skeleton className="h-4 w-3/4" />
-            </div>
-          ))}
-        </div>
-      ) : providers.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-          {providers
-            .filter(p => p.status === 'active') // Optionally filter for active providers
-            .map((provider: GameProvider) => (
-              <ProviderCard key={provider.id} provider={provider} />
-          ))}
-        </div>
-      ) : (
-        <p className="text-center text-muted-foreground mt-8">No game providers available at the moment.</p>
+    <div className="container mx-auto py-8 px-4">
+      <header className="mb-10 text-center">
+        <h1 className="text-4xl font-bold text-foreground">Game Providers</h1>
+        <p className="text-lg text-muted-foreground mt-2">Discover games from your favorite software providers.</p>
+      </header>
+
+      <div className="relative mb-8 max-w-md mx-auto">
+        <Input
+          type="search"
+          placeholder="Search providers..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 py-3 text-base bg-card border-border focus:ring-primary w-full"
+        />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+      </div>
+
+      {/* <ProviderFilters onFilterChange={...} /> */} {/* Placeholder component */}
+
+      {filteredProviders.length === 0 && !isLoadingProviders && (
+        <p className="text-center text-muted-foreground py-10 text-xl">
+          No providers found matching "{searchTerm}".
+        </p>
       )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {/* Replace with <ProviderGrid providers={filteredProviders} /> when implemented */}
+        {filteredProviders.map((provider: GameProvider) => (
+          <Link key={provider.id || provider.slug} to={`/casino/provider/${provider.slug || provider.id}`}>
+            <Card className="hover:shadow-primary/20 transition-shadow h-full flex flex-col items-center justify-center text-center p-4 min-h-[150px]">
+              <CardHeader className="p-2">
+                {provider.logoUrl && (
+                  <img src={provider.logoUrl} alt={`${provider.name} logo`} className="h-12 max-w-[150px] object-contain mx-auto mb-3"/>
+                )}
+                <CardTitle className="text-lg">{provider.name}</CardTitle>
+              </CardHeader>
+              {/* <CardContent className="p-2">
+                {provider.description && <p className="text-xs text-muted-foreground line-clamp-2">{provider.description}</p>}
+              </CardContent> */}
+            </Card>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 };
