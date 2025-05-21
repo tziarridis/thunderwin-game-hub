@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -5,15 +6,14 @@ import { Heart, PlayCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext'; 
-import { Badge } from '@/components/ui/badge'; // Added for New/Featured badges
+import { Badge } from '@/components/ui/badge'; 
 
 export interface GameCardProps {
   game: Game;
   isFavorite: boolean;
   onToggleFavorite: (gameId: string) => void;
   className?: string;
-  onPlay?: (game: Game) => void; // For direct play action
-  // onDetailsClick?: (game: Game) => void; // For navigating to details
+  onPlay?: (game: Game) => void; 
 }
 
 const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite, className, onPlay }) => {
@@ -26,7 +26,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
     e.stopPropagation(); 
     if (onPlay) {
       onPlay(game);
-    } else if (game.slug) { // Fallback to navigate if onPlay not provided
+    } else if (game.slug) { 
       navigate(`/casino/game/${game.slug}`);
     } else if (gameIdStr) {
        navigate(`/casino/game/${gameIdStr}`);
@@ -54,8 +54,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
     onToggleFavorite(gameIdStr); 
   };
 
-  const providerDisplay = game.providerName || game.provider_slug || game.provider || '';
-  // const gameTags = game.tags || []; // Not displayed directly on card in this version
+  const providerDisplay = game.providerName || game.provider_slug || ''; // Use providerName or provider_slug
 
   return (
     <div 
@@ -78,7 +77,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             variant="ghost" 
             size="icon" 
             className={cn(
-                "absolute top-2 right-2 rounded-full bg-black/40 hover:bg-black/60 text-white p-1.5 z-20", // Ensure z-index is high
+                "absolute top-2 right-2 rounded-full bg-black/40 hover:bg-black/60 text-white p-1.5 z-20", 
                 isFavorite ? "text-red-500 hover:text-red-400" : "text-white/70 hover:text-white"
             )}
             onClick={handleToggleFavorite}
@@ -87,15 +86,13 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
             </Button>
         )}
-        {/* Badges for New/Featured */}
         <div className="absolute top-2 left-2 z-20 space-y-1">
             {game.isNew && <Badge variant="destructive" className="text-xs">New</Badge>}
             {game.is_featured && <Badge variant="secondary" className="text-xs bg-amber-500 text-black">Featured</Badge>}
         </div>
         
-        {/* Overlay Play Button - appears on hover */}
         <div 
-            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" // z-10 below favorite button
+            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" 
             onClick={handlePlay} 
             style={{ cursor: 'pointer' }}
         >
@@ -138,3 +135,4 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
 };
 
 export default GameCard;
+

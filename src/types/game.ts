@@ -7,7 +7,7 @@ export interface GameCategory {
   icon?: string | null; // URL or Lucide icon name
   imageUrl?: string | null;
   description?: string | null;
-  gameCount?: number;
+  gameCount?: number; // Corrected casing
   isActive?: boolean;
   // order?: number; // For display sorting
 }
@@ -41,25 +41,28 @@ export interface Game {
   cover?: string | null; // URL for main game image (e.g., for cards)
   image?: string | null; // Alias or alternative for cover
   image_url?: string | null; // Another alias
-  bannerUrl?: string | null; // URL for larger banner image (e.g., for hero sections)
+  bannerUrl?: string | null; // URL for larger banner image (e.g., for hero sections) - ALREADY PRESENT, WILL USE THIS FOR banner
   releaseDate?: string | null; // ISO date string
   isNew?: boolean;
   isPopular?: boolean; // Based on plays or manual setting
   is_featured?: boolean; // Manually set as featured
+  show_home?: boolean; // ADDED: To control visibility on homepage etc.
   only_demo?: boolean; // If true, only demo mode is available
   only_real?: boolean; // If true, only real mode is available (no demo)
   views?: number; // Total views/plays
-  status: 'active' | 'inactive' | 'maintenance' | string; // Game status
+  status: 'active' | 'inactive' | 'maintenance' | 'pending_review' | 'draft' | 'archived' | string; // Game status - WIDENED
   
   // More detailed properties (optional)
   lines?: number | null; // Paylines for slots
   reels?: number | null; // Reels for slots
   features?: string[] | null; // e.g., "FreeSpins", "BonusGame", "WildMultiplier"
+  themes?: string[] | null; // ADDED: Game themes
   min_bet?: number | null;
   max_bet?: number | null;
   default_bet?: number | null; // Added for default bet
   currencies_accepted?: string[] | null;
   languages_supported?: string[] | null;
+  game_code?: string | null; // External game code for launching (already present)
   
   // Technical details (optional)
   technology?: 'html5' | 'flash' | string | null;

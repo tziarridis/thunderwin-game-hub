@@ -7,7 +7,7 @@ import { Game } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { PlayCircle, Info, Heart } from 'lucide-react'; // Added Heart
+import { PlayCircle, Info, Heart } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
@@ -63,7 +63,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPlay, onDetails, className 
           {game.title}
         </CardTitle>
         <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider || 'Unknown Provider'}
+          {game.providerName || game.provider_slug || 'Unknown Provider'} {/* Use providerName or provider_slug */}
         </p>
       </CardContent>
       <CardFooter className="p-3 pt-0 grid grid-cols-2 gap-2">

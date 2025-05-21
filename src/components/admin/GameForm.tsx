@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Game, DbGame } from '@/types'; // Assuming Game is the primary type, DbGame might be for DB interaction
+import { Game, DbGame } from '@/types';
 import { toast } from 'sonner';
 
 // This schema should align with the fields you expect in DbGame or the form
@@ -24,28 +23,31 @@ const gameSchema = z.object({
   ),
   description: z.string().optional().nullable(),
   image: z.string().url('Must be a valid URL').optional().nullable(),
-  banner: z.string().url('Must be a valid URL').optional().nullable(),
-  status: z.enum(['active', 'inactive', 'draft']).default('active'),
+  bannerUrl: z.string().url('Must be a valid URL').optional().nullable(), // Changed to bannerUrl
+  status: z.enum(['active', 'inactive', 'draft', 'maintenance', 'pending_review', 'archived']).default('active'), // Widened enum
   isPopular: z.boolean().default(false),
   isNew: z.boolean().default(false),
   is_featured: z.boolean().default(false),
-  show_home: z.boolean().default(false),
-  game_id: z.string().optional().nullable(), // External game ID from provider
-  game_code: z.string().optional().nullable(), // External game code/launch code
-  minBet: z.preprocess(
+  show_home: z.boolean().default(false), // Added show_home
+  game_id: z.string().optional().nullable(), 
+  game_code: z.string().optional().nullable(), // Added game_code
+  min_bet: z.preprocess( // Changed to min_bet
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional().nullable()
   ),
-  maxBet: z.preprocess(
+  max_bet: z.preprocess( // Changed to max_bet
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional().nullable()
   ),
-  volatility: z.enum(['low', 'medium', 'high']).optional().nullable(),
-  lines: z.number().int().min(0).optional().nullable(),
+  volatility: z.enum(['low', 'medium', 'high', 'low-medium', 'medium-high']).optional().nullable(), // Widened enum
+  lines: z.preprocess( // Ensure number or null
+    (val) => (val === '' || val === null || val === undefined ? null : parseInt(String(val), 10)),
+    z.number().int().min(0).optional().nullable()
+  ),
   features: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
-  themes: z.array(z.string()).optional(),
-  releaseDate: z.string().optional().nullable(), // Or z.date() if using a date picker
+  themes: z.array(z.string()).optional(), // Added themes
+  releaseDate: z.string().optional().nullable(), 
 });
 
 // Define a type for the form data based on the schema
@@ -53,45 +55,43 @@ export type GameFormData = z.infer<typeof gameSchema>;
 
 // Define props for the GameForm component
 export interface GameFormProps {
-  game?: Game | DbGame | null; // Game type from your types, DbGame if interacting with DB structure
-  onSubmit: (data: GameFormData, id?: string) => Promise<void>; // Pass DbGame structure if that's what backend expects
+  game?: Game | DbGame | null; 
+  onSubmit: (data: GameFormData, id?: string) => Promise<void>; 
   onCancel: () => void;
   isLoading?: boolean;
-  isEditing?: boolean; // To differentiate between create and edit
-  // Mock data for providers and categories, replace with actual data fetching
+  isEditing?: boolean; 
   providers?: { slug: string; name: string }[];
   categories?: { slug: string; name: string }[];
 }
 
 // Helper to map Game (frontend type) to GameFormData (form type)
 const mapGameToFormData = (game: Game | DbGame): GameFormData => {
-  // Check if it's DbGame (has game_name) or Game (has title)
-  const isDbGame = 'game_name' in game;
+  const isDbGame = 'game_name' in game && !('title' in game); // More robust check
 
   return {
     title: isDbGame ? (game as DbGame).game_name || '' : (game as Game).title || '',
     slug: game.slug || '',
-    provider_slug: (game as any).provider_slug || (game as Game).providerName?.toLowerCase().replace(' ', '-') || '', // Adjust based on your Game type
-    category_slugs: (game as any).category_slugs || (typeof (game as Game).categoryName === 'string' ? [(game as Game).categoryName.toLowerCase().replace(' ', '-')] : []),
+    provider_slug: (game as any).provider_slug || (game as Game).providerName?.toLowerCase().replace(/\s+/g, '-') || '',
+    category_slugs: (game as any).category_slugs || (typeof (game as Game).categoryName === 'string' ? [(game as Game).categoryName.toLowerCase().replace(/\s+/g, '-')] : []),
     rtp: typeof game.rtp === 'string' ? parseFloat(game.rtp) : game.rtp,
     description: game.description || '',
-    image: (game as any).cover || (game as Game).image || '',
-    banner: game.banner || '',
-    status: (game.status as 'active' | 'inactive' | 'draft') || 'active',
-    isPopular: (game as any).is_popular || (game as Game).isPopular || false,
-    isNew: (game as any).is_new || (game as Game).isNew || false,
+    image: (game as Game).image || (game as any).cover || '',
+    bannerUrl: (game as Game).bannerUrl || (game as any).banner_url || '', // Use bannerUrl
+    status: (game.status as GameFormData['status']) || 'active',
+    isPopular: (game as Game).isPopular ?? (game as any).is_popular ?? false,
+    isNew: (game as Game).isNew ?? (game as any).is_new ?? false,
     is_featured: game.is_featured || false,
-    show_home: game.show_home || false,
-    game_id: (game as any).game_id || '',
-    game_code: (game as any).game_code || '',
-    minBet: (game as any).min_bet ?? (game as Game).minBet ?? null,
-    maxBet: (game as any).max_bet ?? (game as Game).maxBet ?? null,
-    volatility: (game.volatility as 'low' | 'medium' | 'high') || null,
+    show_home: (game as Game).show_home ?? (game as any).show_home ?? false, // Use show_home
+    game_id: (game as Game).game_id || (game as any).game_id || '',
+    game_code: (game as Game).game_code || (game as any).game_code || '', // Use game_code
+    min_bet: (game as Game).min_bet ?? (game as any).min_bet ?? null, // Use min_bet
+    max_bet: (game as Game).max_bet ?? (game as any).max_bet ?? null, // Use max_bet
+    volatility: (game.volatility as GameFormData['volatility']) || null,
     lines: (game as any).lines ?? null,
     features: game.features || [],
     tags: game.tags || [],
-    themes: game.themes || [],
-    releaseDate: (game as any).release_date || (game as Game).releaseDate || null,
+    themes: (game as Game).themes || (game as any).themes || [], // Use themes
+    releaseDate: (game as Game).releaseDate || (game as any).release_date || null,
   };
 };
 
@@ -102,13 +102,15 @@ const GameForm: React.FC<GameFormProps> = ({
   onCancel,
   isLoading = false,
   isEditing = false,
-  providers = [{slug: 'netent', name: 'NetEnt'}, {slug: 'pragmatic', name: 'Pragmatic Play'}], // Mock
-  categories = [{slug: 'slots', name: 'Slots'}, {slug: 'live-casino', name: 'Live Casino'}], // Mock
+  providers = [{slug: 'netent', name: 'NetEnt'}, {slug: 'pragmatic', name: 'Pragmatic Play'}],
+  categories = [{slug: 'slots', name: 'Slots'}, {slug: 'live-casino', name: 'Live Casino'}],
 }) => {
   const { register, handleSubmit, control, reset, formState: { errors } } = useForm<GameFormData>({
     resolver: zodResolver(gameSchema),
     defaultValues: game ? mapGameToFormData(game) : gameSchema.parse({
-        title: '', slug: '', provider_slug: '', category_slugs: [], rtp: 96 // Example default
+        title: '', slug: '', provider_slug: '', category_slugs: [], rtp: 96, status: 'active', // ensure all defaults are present
+        isPopular: false, isNew: false, is_featured: false, show_home: false,
+        min_bet: null, max_bet: null, lines: null, volatility: null, themes: []
     }),
   });
 
@@ -117,14 +119,15 @@ const GameForm: React.FC<GameFormProps> = ({
       reset(mapGameToFormData(game));
     } else {
       reset(gameSchema.parse({
-        title: '', slug: '', provider_slug: '', category_slugs: [], rtp: 96
+        title: '', slug: '', provider_slug: '', category_slugs: [], rtp: 96, status: 'active',
+        isPopular: false, isNew: false, is_featured: false, show_home: false,
+        min_bet: null, max_bet: null, lines: null, volatility: null, themes: []
       }));
     }
   }, [game, reset]);
 
   const handleFormSubmit = async (data: GameFormData) => {
     try {
-      // The onSubmit prop should handle mapping GameFormData to whatever the service expects (Partial<Game> or Partial<DbGame>)
       await onSubmit(data, game?.id ? String(game.id) : undefined);
     } catch (error: any) {
       toast.error(error.message || `Failed to ${isEditing ? 'update' : 'create'} game.`);
@@ -168,9 +171,9 @@ const GameForm: React.FC<GameFormProps> = ({
         <Controller
             name="category_slugs"
             control={control}
-            render={({ field }) => (
+            render={({ field }) => ( // Assuming single category selection for simplicity. For multi-select, a different component would be better.
                 <Select
-                    onValueChange={(value) => field.onChange(value ? [value] : [])} // Simplified to single select for now, or implement multi-select
+                    onValueChange={(value) => field.onChange(value ? [value] : [])} 
                     defaultValue={field.value?.[0]}
                 >
                     <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
@@ -180,7 +183,6 @@ const GameForm: React.FC<GameFormProps> = ({
                 </Select>
             )}
         />
-        {/* For multi-select, you'd typically use checkboxes or a multi-select component */}
         {errors.category_slugs && <p className="text-red-500 text-sm mt-1">{errors.category_slugs.message}</p>}
       </div>
 
@@ -197,9 +199,9 @@ const GameForm: React.FC<GameFormProps> = ({
           {errors.image && <p className="text-red-500 text-sm mt-1">{errors.image.message}</p>}
         </div>
         <div>
-          <Label htmlFor="banner">Banner URL</Label>
-          <Input id="banner" {...register('banner')} placeholder="https://example.com/game-banner.jpg" />
-          {errors.banner && <p className="text-red-500 text-sm mt-1">{errors.banner.message}</p>}
+          <Label htmlFor="bannerUrl">Banner URL</Label> {/* Changed to bannerUrl */}
+          <Input id="bannerUrl" {...register('bannerUrl')} placeholder="https://example.com/game-banner.jpg" /> {/* Changed to bannerUrl */}
+          {errors.bannerUrl && <p className="text-red-500 text-sm mt-1">{errors.bannerUrl.message}</p>} {/* Changed to bannerUrl */}
         </div>
       </div>
       
@@ -221,6 +223,9 @@ const GameForm: React.FC<GameFormProps> = ({
                             <SelectItem value="active">Active</SelectItem>
                             <SelectItem value="inactive">Inactive</SelectItem>
                             <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="maintenance">Maintenance</SelectItem>
+                            <SelectItem value="pending_review">Pending Review</SelectItem>
+                            <SelectItem value="archived">Archived</SelectItem>
                         </SelectContent>
                     </Select>
                 )}
@@ -239,6 +244,8 @@ const GameForm: React.FC<GameFormProps> = ({
                             <SelectItem value="low">Low</SelectItem>
                             <SelectItem value="medium">Medium</SelectItem>
                             <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="low-medium">Low-Medium</SelectItem>
+                            <SelectItem value="medium-high">Medium-High</SelectItem>
                         </SelectContent>
                     </Select>
                 )}
@@ -249,17 +256,53 @@ const GameForm: React.FC<GameFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label htmlFor="minBet">Min Bet</Label>
-          <Input id="minBet" type="number" step="0.01" {...register('minBet')} placeholder="e.g., 0.10" />
-          {errors.minBet && <p className="text-red-500 text-sm mt-1">{errors.minBet.message}</p>}
+          <Label htmlFor="min_bet">Min Bet</Label> {/* Changed to min_bet */}
+          <Input id="min_bet" type="number" step="0.01" {...register('min_bet')} placeholder="e.g., 0.10" /> {/* Changed to min_bet */}
+          {errors.min_bet && <p className="text-red-500 text-sm mt-1">{errors.min_bet.message}</p>} {/* Changed to min_bet */}
         </div>
         <div>
-          <Label htmlFor="maxBet">Max Bet</Label>
-          <Input id="maxBet" type="number" step="1" {...register('maxBet')} placeholder="e.g., 100" />
-          {errors.maxBet && <p className="text-red-500 text-sm mt-1">{errors.maxBet.message}</p>}
+          <Label htmlFor="max_bet">Max Bet</Label> {/* Changed to max_bet */}
+          <Input id="max_bet" type="number" step="1" {...register('max_bet')} placeholder="e.g., 100" /> {/* Changed to max_bet */}
+          {errors.max_bet && <p className="text-red-500 text-sm mt-1">{errors.max_bet.message}</p>} {/* Changed to max_bet */}
         </div>
       </div>
       
+      {/* ... other fields like lines, game_id, game_code ... */}
+       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <Label htmlFor="lines">Lines</Label>
+          <Input id="lines" type="number" {...register('lines')} placeholder="e.g., 20" />
+          {errors.lines && <p className="text-red-500 text-sm mt-1">{errors.lines.message}</p>}
+        </div>
+        <div>
+          <Label htmlFor="game_id">External Game ID</Label>
+          <Input id="game_id" {...register('game_id')} placeholder="Provider's game ID" />
+          {errors.game_id && <p className="text-red-500 text-sm mt-1">{errors.game_id.message}</p>}
+        </div>
+        <div>
+          <Label htmlFor="game_code">External Game Code</Label>
+          <Input id="game_code" {...register('game_code')} placeholder="Provider's launch code" />
+          {errors.game_code && <p className="text-red-500 text-sm mt-1">{errors.game_code.message}</p>}
+        </div>
+      </div>
+       <div>
+          <Label htmlFor="themes">Themes (comma-separated)</Label>
+          <Controller
+            name="themes"
+            control={control}
+            render={({ field }) => (
+              <Input
+                id="themes"
+                placeholder="e.g., adventure, mythology, fruits"
+                value={Array.isArray(field.value) ? field.value.join(', ') : ''}
+                onChange={(e) => field.onChange(e.target.value ? e.target.value.split(',').map(s => s.trim()).filter(Boolean) : [])}
+              />
+            )}
+          />
+          {errors.themes && <p className="text-red-500 text-sm mt-1">{errors.themes.message}</p>}
+        </div>
+
+
       <div className="space-y-2 pt-2">
         <div className="flex items-center space-x-2">
             <Controller name="isPopular" control={control} render={({ field }) => <Switch id="isPopular" checked={field.value} onCheckedChange={field.onChange} />} />
@@ -274,12 +317,10 @@ const GameForm: React.FC<GameFormProps> = ({
             <Label htmlFor="is_featured">Featured Game</Label>
         </div>
         <div className="flex items-center space-x-2">
-            <Controller name="show_home" control={control} render={({ field }) => <Switch id="show_home" checked={field.value} onCheckedChange={field.onChange} />} />
-            <Label htmlFor="show_home">Show on Homepage</Label>
+            <Controller name="show_home" control={control} render={({ field }) => <Switch id="show_home" checked={field.value} onCheckedChange={field.onChange} />} /> {/* Added show_home */}
+            <Label htmlFor="show_home">Show on Homepage</Label> {/* Added show_home */}
         </div>
       </div>
-
-      {/* Add more fields as needed: game_id, game_code, lines, features, tags, themes, releaseDate */}
 
       <div className="flex justify-end space-x-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

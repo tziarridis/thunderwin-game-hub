@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
@@ -12,21 +13,20 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { toast } from 'sonner'; // For notifications
+import { toast } from 'sonner'; 
 
 interface FeaturedGamesProps {
   title?: string;
   count?: number; 
   categorySlug?: string; 
-  tag?: string; // e.g., "featured", "popular"
-  // Potentially add more specific filter props like is_new, is_popular
+  tag?: string; 
 }
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 
   title = "Featured Games", 
   count = 12,
   categorySlug,
-  tag // This 'tag' can be used to filter by Game.tags OR map to Game.is_featured, Game.isPopular etc.
+  tag 
 }) => {
   const { games, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
   const [filteredGamesToShow, setFilteredGamesToShow] = useState<Game[]>([]);
@@ -34,12 +34,11 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
 
   useEffect(() => {
     if (games.length > 0) {
-      let tempFiltered = [...games]; // Make a mutable copy
+      let tempFiltered = [...games]; 
 
       if (categorySlug) {
         tempFiltered = tempFiltered.filter(g => 
             (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
-            g.category === categorySlug || // Fallback
             g.categoryName === categorySlug // Fallback
         );
       }
@@ -56,20 +55,16 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             tempFiltered = tempFiltered.filter(g => g.isNew);
             break;
           default:
-            // If tag is not a special keyword, filter by actual game tags array
             tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag));
             break;
         }
       } else if (!categorySlug) { 
-        // Default to showing generally featured or popular if no specific tag/category given
         tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
       }
       
-      // Sort by a metric if needed, e.g., views or created_at for 'new'
       if (tag === 'new') {
         tempFiltered.sort((a,b) => new Date(b.releaseDate || b.created_at || 0).getTime() - new Date(a.releaseDate || a.created_at || 0).getTime());
       }
-
 
       setFilteredGamesToShow(tempFiltered.slice(0, count));
     }
@@ -81,12 +76,11 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
-        // If no URL, maybe navigate to details page
         navigate(`/casino/game/${game.slug || game.id}`);
       }
     } catch (e:any) {
-      toast.error(`Error launching game: ${e.message}`);
-      navigate(`/casino/game/${game.slug || game.id}`); // Fallback to details page
+      toast.error(`Error launching game: ${(e as Error).message}`); // Type assertion
+      navigate(`/casino/game/${game.slug || game.id}`); 
     }
   };
 
@@ -122,7 +116,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
           }}
           className="w-full"
         >
-          <CarouselContent className="-ml-2 md:-ml-4"> {/* Adjust margin for pl on item */}
+          <CarouselContent className="-ml-2 md:-ml-4"> 
             {filteredGamesToShow.map((game) => (
               <CarouselItem key={String(game.id)} className="pl-2 md:pl-4 basis-[48%] sm:basis-1/3 md:basis-1/4 lg:basis-1/5 xl:basis-1/6">
                 <div className="p-1 h-full"> 
@@ -150,3 +144,4 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
 };
 
 export default FeaturedGames;
+

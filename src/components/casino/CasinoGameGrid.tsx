@@ -1,3 +1,4 @@
+
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
@@ -27,20 +28,17 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
     await toggleFavoriteContext(gameId);
   };
 
-  // The onPlay prop of GameCard will call this.
-  // This function decides what 'playing' means for this grid.
   const handlePlayAction = (game: Game) => {
     if (onGameClick) {
-        onGameClick(game); // If provided, use the specific click handler from parent (e.g., Slots.tsx)
-    } else if (game.game_id && (game.provider_slug || game.provider)) { 
-        // Fallback to direct launch if no onGameClick and launch details available
+        onGameClick(game); 
+    } else if (game.game_id && (game.provider_slug || game.providerName)) { // Use provider_slug or providerName
         console.log("Direct play from CasinoGameGrid for:", game.title);
         launchGame(game, {mode: 'real'})
             .then(url => {
                 if (url) window.open(url, '_blank');
                 else toast.error("Could not get game URL.");
             })
-            .catch(err => toast.error(`Launch error: ${err.message}`));
+            .catch(err => toast.error(`Launch error: ${(err as Error).message}`)); // Type assertion for error
     } else {
         toast.error("Cannot launch game: missing details or play action.");
     }
@@ -62,7 +60,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           game={game}
           isFavorite={favoriteGameIds.has(String(game.id))}
           onToggleFavorite={() => handleToggleFavorite(String(game.id))}
-          onPlay={() => handlePlayAction(game)} // Pass the unified play handler
+          onPlay={() => handlePlayAction(game)} 
         />
       ))}
     </div>
@@ -70,3 +68,4 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
 };
 
 export default CasinoGameGrid;
+

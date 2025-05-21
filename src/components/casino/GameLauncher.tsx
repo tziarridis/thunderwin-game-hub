@@ -1,28 +1,25 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useGames } from '@/hooks/useGames'; 
 import { useAuth } from '@/contexts/AuthContext'; 
-import { Game, GameLaunchOptions } from '@/types'; // Corrected import
+import { Game, GameLaunchOptions } from '@/types'; 
 import { toast } from 'sonner';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import ResponsiveEmbed from '@/components/ResponsiveEmbed';
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; 
-// import { gameService } from '@/services/gameService'; // Import gameService - Not used directly here
-
-// import GameProperties from './GameProperties'; 
-// import GameReviews from './GameReviews'; 
 
 const GameLauncher = () => {
-  const { gameId } = useParams<{ gameId: string }>(); // This is likely game slug or DB ID
+  const { gameId } = useParams<{ gameId: string }>(); 
   const navigate = useNavigate();
   const location = useLocation();
   const { launchGame, getGameById, getGameBySlug, games: allGames } = useGames();
   const { user, isAuthenticated } = useAuth();
   const [game, setGame] = useState<Game | null>(null);
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Combined loading state
+  const [isLoading, setIsLoading] = useState(true); 
   const [error, setError] = useState<string | null>(null);
   const [relatedGames, setRelatedGames] = useState<Game[]>([]);
 
@@ -44,13 +41,13 @@ const GameLauncher = () => {
       if (fetchedGame) {
         setGame(fetchedGame);
         const currentCategory = fetchedGame.categoryName || 
-          (Array.isArray(fetchedGame.category_slugs) ? fetchedGame.category_slugs[0] : typeof fetchedGame.category_slugs === 'string' ? fetchedGame.category_slugs : fetchedGame.category);
-        const currentProvider = fetchedGame.providerName || fetchedGame.provider_slug || fetchedGame.provider;
+          (Array.isArray(fetchedGame.category_slugs) ? fetchedGame.category_slugs[0] : typeof fetchedGame.category_slugs === 'string' ? fetchedGame.category_slugs : undefined);
+        const currentProvider = fetchedGame.providerName || fetchedGame.provider_slug;
 
         const filteredRelatedGames = allGames
           .filter(g => {
-            const gCategory = g.categoryName || (Array.isArray(g.category_slugs) ? g.category_slugs[0] : typeof g.category_slugs === 'string' ? g.category_slugs : g.category);
-            const gProvider = g.providerName || g.provider_slug || g.provider;
+            const gCategory = g.categoryName || (Array.isArray(g.category_slugs) ? g.category_slugs[0] : typeof g.category_slugs === 'string' ? g.category_slugs : undefined);
+            const gProvider = g.providerName || g.provider_slug;
             return String(g.id) !== String(fetchedGame!.id) && (gCategory === currentCategory || gProvider === currentProvider);
           })
           .slice(0, 6);
@@ -83,6 +80,10 @@ const GameLauncher = () => {
       navigate('/login', { state: { from: location.pathname } });
       return;
     }
+    if (mode === 'demo' && game.only_real) {
+        toast.info("This game is available for real play only.");
+        return;
+    }
 
     setIsLoading(true); 
     setError(null);
@@ -90,7 +91,7 @@ const GameLauncher = () => {
     const launchOptions: GameLaunchOptions = {
       mode,
       user_id: user?.id, 
-      username: user?.user_metadata?.username || user?.email?.split('@')[0], // Corrected username
+      username: user?.user_metadata?.username || user?.email?.split('@')[0], 
       currency: user?.user_metadata?.currency || 'USD', 
       platform: 'web', 
       language: user?.user_metadata?.language || 'en',
@@ -116,25 +117,22 @@ const GameLauncher = () => {
   
   const isDemoModeAvailable = (gameToCheck: Game | null): boolean => {
     if (!gameToCheck) return false;
-    if (gameToCheck.only_demo) return true;
+    if (gameToCheck.only_demo) return true; // Explicitly demo only
+    if (gameToCheck.only_real) return false; // Explicitly real only
     if (gameToCheck.tags && (gameToCheck.tags.includes('demo_playable') || gameToCheck.tags.includes('demo'))) {
         return true;
     }
-    // Default to true if not explicitly disabled (e.g. via a 'real_only' tag or specific provider rule)
-    // The launchGame service should ultimately confirm this.
     return true; 
   };
 
 
   useEffect(() => {
     if (game && !launchUrl && !isLoading && !error) {
-      const canPlayReal = isAuthenticated && !game.only_demo;
       const preferDemo = !isAuthenticated || game.only_demo;
       
       if (preferDemo && isDemoModeAvailable(game)) {
          handleLaunchGame('demo');
       }
-      // If authenticated and real play is possible, wait for user interaction (buttons below)
     }
   }, [game, launchUrl, isLoading, error, handleLaunchGame, isAuthenticated]);
 
@@ -171,7 +169,7 @@ const GameLauncher = () => {
       {game && (
         <div className="mb-8 text-center">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">{game.title}</h1>
-          <p className="text-white/80">Provider: {game.providerName || game.provider_slug || game.provider}</p>
+          <p className="text-white/80">Provider: {game.providerName || game.provider_slug}</p> {/* Use providerName or provider_slug */}
         </div>
       )}
 
@@ -236,3 +234,4 @@ const GameLauncher = () => {
 };
 
 export default GameLauncher;
+

@@ -1,7 +1,6 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
-import { Game, GameProvider as ProviderType, GameCategory } from '@/types'; // Added GameCategory
+import { Game, GameProvider as ProviderType, GameCategory } from '@/types'; 
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +14,13 @@ const ITEMS_PER_PAGE = 24;
 
 const Slots = () => {
   const { 
-    games: allGames, // All games from context
-    isLoading: isLoadingGamesGlobal, // Global loading state
-    error: gamesErrorGlobal, // Global error state
-    filterGames, // Method to apply filters
-    filteredGames, // Games after context-level filtering
-    providers: gameProvidersFromContext, // Providers from context
-    categories: gameCategoriesFromContext, // Categories from context
+    games: allGames, 
+    isLoading: isLoadingGamesGlobal, 
+    error: gamesErrorGlobal, 
+    filterGames, 
+    filteredGames, 
+    providers: gameProvidersFromContext, 
+    categories: gameCategoriesFromContext, 
     launchGame 
   } = useGames();
   const { isAuthenticated, user } = useAuth();
@@ -32,20 +31,17 @@ const Slots = () => {
   
   const slotsCategorySlug = useMemo(() => {
     const slotsCat = gameCategoriesFromContext.find(cat => cat.name.toLowerCase().includes('slots') || cat.slug.toLowerCase().includes('slots'));
-    return slotsCat?.slug || 'slots'; // Default to 'slots' if not found or if categories are not loaded yet
+    return slotsCat?.slug || 'slots'; 
   }, [gameCategoriesFromContext]);
 
-  // Apply filters using the method from useGames context
   useEffect(() => {
-    // Only filter if slotsCategorySlug is determined
     if (slotsCategorySlug) {
       filterGames(searchTerm, slotsCategorySlug, selectedProviderSlug);
     }
-    setVisibleCount(ITEMS_PER_PAGE); // Reset visible count on filter change
+    setVisibleCount(ITEMS_PER_PAGE); 
   }, [searchTerm, selectedProviderSlug, slotsCategorySlug, filterGames]);
 
   const displayedGames = useMemo(() => {
-    // `filteredGames` from `useGames` are already filtered by term, category, provider
     return filteredGames.slice(0, visibleCount);
   }, [filteredGames, visibleCount]);
 
@@ -58,22 +54,25 @@ const Slots = () => {
   };
 
   const handleGameClick = async (game: Game) => {
-    if (!isAuthenticated && !game.only_demo) {
-      toast.error("Please log in to play.");
-      // Potentially navigate to login: navigate('/login');
+    if (!isAuthenticated && game.only_demo !== true && game.only_real === true) {
+      toast.error("Please log in to play this game.");
       return;
     }
     try {
-      const gameUrl = await launchGame(game, {
-        mode: game.only_demo || !isAuthenticated ? 'demo' : 'real',
-      });
+      const mode: 'real' | 'demo' = (isAuthenticated && game.only_demo !== true) ? 'real' : 'demo';
+      if (mode === 'demo' && game.only_real === true) {
+        toast.info("This game is available for real play only.");
+        return;
+      }
+
+      const gameUrl = await launchGame(game, { mode });
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
         toast.error("Could not launch game.");
       }
     } catch (e: any) {
-      toast.error("Error launching game: " + e.message);
+      toast.error("Error launching game: " + (e as Error).message);
     }
   };
 
@@ -130,16 +129,16 @@ const Slots = () => {
             </div>
           )}
           {!isLoadingGamesGlobal && displayedGames.length === 0 && (searchTerm || selectedProviderSlug) && (
-             <div className="text-center py-10">
-                <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-xl text-muted-foreground">No slot games found matching your filters.</p>
-             </div>
+            <div className="text-center py-10">
+              <FilterX className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">No slot games match your current filters.</p>
+              <Button variant="link" onClick={() => { setSearchTerm(''); setSelectedProviderSlug(undefined); }}>Clear filters</Button>
+            </div>
           )}
            {!isLoadingGamesGlobal && displayedGames.length === 0 && !searchTerm && !selectedProviderSlug && (
-             <div className="text-center py-10">
-                <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-xl text-muted-foreground">No slot games currently available for the "{slotsCategorySlug}" category.</p>
-             </div>
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">No slot games available at the moment.</p>
+            </div>
           )}
         </>
       )}
@@ -148,4 +147,3 @@ const Slots = () => {
 };
 
 export default Slots;
-

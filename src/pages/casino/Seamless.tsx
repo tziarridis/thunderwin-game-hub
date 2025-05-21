@@ -1,14 +1,14 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// import { gamesDatabaseService } from '@/services/gamesDatabaseService'; // Using gameService now
 import { gameService } from '@/services/gameService';
-import { Game } from '@/types'; // Using updated Game type
-import LaunchGame from '@/components/casino/LaunchGame'; 
+import { Game } from '@/types'; 
+import LaunchGameButton from '@/components/casino/LaunchGameButton'; // Use the button component
 import { Loader2, AlertTriangle } from 'lucide-react';
-import { useGames } from '@/hooks/useGames'; // For consistent game object mapping if needed
+// import { useGames } from '@/hooks/useGames'; // Not strictly needed here if gameService is used directly
 
 const Seamless = () => {
-  const { gameId } = useParams<{ gameId: string }>(); // gameId here refers to the slug or UUID
+  const { gameId } = useParams<{ gameId: string }>(); 
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,6 @@ const Seamless = () => {
       setLoading(true);
       setError(null);
       try {
-        // gameService.getGameById can handle slugs or UUIDs
         const gameData = await gameService.getGameById(gameId); 
         if (gameData) {
           setSelectedGame(gameData);
@@ -42,7 +41,6 @@ const Seamless = () => {
   }, [gameId]);
 
   if (loading) {
-    
     return (
       <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center min-h-[300px]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
@@ -52,7 +50,6 @@ const Seamless = () => {
   }
 
   if (error) {
-    
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <AlertTriangle className="h-10 w-10 text-destructive mx-auto mb-4" />
@@ -62,13 +59,15 @@ const Seamless = () => {
   }
 
   if (!selectedGame) {
-    
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p className="text-muted-foreground">Game details could not be loaded.</p>
       </div>
     );
   }
+
+  const isDemoAvailable = selectedGame.only_real !== true; // Demo is available if not 'only_real'
+  const isRealAvailable = selectedGame.only_demo !== true; // Real is available if not 'only_demo'
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -77,15 +76,17 @@ const Seamless = () => {
       
       <div className="flex flex-col items-center gap-4">
         <img src={selectedGame.image || selectedGame.cover || '/placeholder.svg'} alt={selectedGame.title || 'Game image'} className="w-full max-w-sm h-auto rounded-lg shadow-lg mb-4" />
-        <LaunchGame 
-          game={selectedGame} 
-          mode="real" 
-          buttonText="Play Real Money" 
-          size="lg"
-          className="bg-primary hover:bg-primary/90"
-        />
-        {!selectedGame.only_demo && ( // Show demo button if not demo-only
-            <LaunchGame 
+        {isRealAvailable && (
+            <LaunchGameButton 
+            game={selectedGame} 
+            mode="real" 
+            buttonText="Play Real Money" 
+            size="lg"
+            className="bg-primary hover:bg-primary/90"
+            />
+        )}
+        {isDemoAvailable && ( 
+            <LaunchGameButton 
             game={selectedGame} 
             mode="demo" 
             buttonText="Play Demo" 
@@ -109,3 +110,4 @@ const Seamless = () => {
 };
 
 export default Seamless;
+

@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Star, PlayCircle, Info, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useGames } from '@/hooks/useGames'; // For favorite status
-import { useAuth } from '@/contexts/AuthContext'; // For checking authentication
+import { useGames } from '@/hooks/useGames'; 
+import { useAuth } from '@/contexts/AuthContext'; 
 
 interface EnhancedGameCardProps {
   game: Game;
@@ -22,17 +22,16 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
   const isFavorite = favoriteGameIds.has(String(game.id)) || favoriteGameIds.has(String(game.game_id));
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click when favoriting
+    e.stopPropagation(); 
     if (!isAuthenticated) {
-        // Optionally, prompt to login
         console.log("Please log in to favorite games.");
         return;
     }
     toggleFavoriteGame(String(game.id || game.game_id));
   };
   
-  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay'); // Example logic
-  const canPlayReal = isAuthenticated; // Simplified, actual logic might depend on game status, user region etc.
+  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay');
+  const canPlayReal = isAuthenticated; 
 
 
   return (
@@ -74,7 +73,7 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
           {game.title}
         </CardTitle>
         <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider || 'Unknown Provider'}
+          {game.providerName || game.provider_slug || 'Unknown Provider'} {/* Use providerName or provider_slug */}
         </p>
         {/* {game.volatility && (
           <p className="text-xs text-muted-foreground mt-1">Volatility: {game.volatility}</p>
@@ -115,3 +114,4 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({ game, onPlayClick, 
 };
 
 export default EnhancedGameCard;
+
