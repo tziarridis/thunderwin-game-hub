@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useGames } from '@/hooks/useGames';
 import EnhancedGameCard from './EnhancedGameCard'; // Assuming this is the correct path
@@ -6,8 +5,7 @@ import { Game } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom'; // Changed from useRouter
 import { ChevronRight } from 'lucide-react';
-import GameCardLoadingSk NpmIeleton from '@/components/skeletons/GameCardLoadingSkeleton';
-
+import GameCardLoadingSkeleton from '@/components/skeletons/GameCardLoadingSkeleton'; // Corrected typo here
 
 interface FeaturedGamesProps {
   count?: number;
