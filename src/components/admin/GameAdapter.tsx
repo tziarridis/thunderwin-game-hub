@@ -22,16 +22,23 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     return undefined;
   };
 
+  const providerData = dbGame.providers &&
+                       typeof dbGame.providers === 'object' &&
+                       'name' in dbGame.providers &&
+                       'slug' in dbGame.providers
+    ? { id: dbGame.providers.id, name: dbGame.providers.name, slug: dbGame.providers.slug }
+    : null;
+
   return {
     id: String(dbGame.id), 
     game_id: dbGame.game_id, 
     title: dbGame.game_name || dbGame.title || 'N/A', 
-    slug: dbGame.slug || String(dbGame.id), // Use fallback if slug is not present
+    slug: dbGame.slug || String(dbGame.id), 
     
-    providerName: dbGame.providers?.name || dbGame.provider_slug || dbGame.distribution || 'N/A',
-    provider_slug: dbGame.provider_slug || dbGame.providers?.slug || dbGame.distribution || 'unknown-provider', 
-    provider: dbGame.providers ? { id: dbGame.providers.id, name: dbGame.providers.name, slug: dbGame.providers.slug || (dbGame.provider_slug || '') } : 
-              (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined), // Added provider.id
+    providerName: providerData?.name || dbGame.provider_slug || dbGame.distribution || 'N/A',
+    provider_slug: providerData?.slug || dbGame.provider_slug || dbGame.distribution || 'unknown-provider', 
+    provider: providerData ? { ...providerData, slug: providerData.slug || dbGame.provider_slug || '' } : 
+              (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined),
 
     categoryName: dbGame.game_type || undefined, 
     category_slugs: Array.isArray(dbGame.category_slugs) 
@@ -68,7 +75,7 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     status: parseGameStatus(dbGame.status),
     only_demo: dbGame.only_demo ?? false,
     only_real: dbGame.only_real ?? false,
-    provider_id: dbGame.provider_id || undefined, // Added provider_id mapping
+    provider_id: dbGame.provider_id || undefined, 
   };
 };
 

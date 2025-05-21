@@ -1,10 +1,10 @@
 // src/hooks/useGames.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game'; // Ensure DbGame is imported if used for explicit casting
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game';
 import gameProviderService from '@/services/gameProviderService'; 
 import { toast } from 'sonner';
-import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter'; // Use the centralized adapter
+import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter';
 
 interface GamesContextType {
   games: Game[];
@@ -24,6 +24,23 @@ interface GamesContextType {
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
+// Helper function to sanitize raw game data from Supabase, especially the 'providers' field
+const sanitizeRawSupabaseGame = (rawGame: any): DbGame => {
+  const sanitizedProviders = 
+    rawGame.providers && 
+    typeof rawGame.providers === 'object' &&
+    'name' in rawGame.providers && 
+    'slug' in rawGame.providers
+    ? rawGame.providers
+    : null;
+
+  return {
+    ...(rawGame as Omit<DbGame, 'providers'>), // Spread all properties, type assertion for clarity
+    providers: sanitizedProviders as { id?: string; name: string; slug: string; } | null,
+  };
+};
+
+
 export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
@@ -32,8 +49,6 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
-
-  // Removed mapDbGameToGameType, using imported mapDbGameToGameAdapter
 
   const mapDbProviderToProviderType = (dbProvider: any): GameProvider => {
     // Assuming dbProvider matches the structure from Supabase 'providers' table
@@ -67,23 +82,16 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsLoading(true);
     setError(null);
     try {
-      const gameQuery = supabase.from('games').select(`
-        *, 
-        providers (id, name, slug, logo_url), 
-        game_categories!game_category_games (game_categories(id, name, slug, icon, image_url)) 
-      `).eq('status', 'active');
-
       const { data: gamesData, error: gamesError } = await supabase
         .from('games')
-        .select('*, providers(id, name, slug)') // Select id from providers
-        .eq('status', 'active'); // Fetch active games
+        .select('*, providers(id, name, slug)') 
+        .eq('status', 'active'); 
         
       if (gamesError) throw gamesError;
-      // Cast to DbGame before mapping if the structure from Supabase isn't already DbGame
-      const mappedGames = gamesData.map(dbGame => mapDbGameToGameAdapter(dbGame as DbGame));
+
+      const mappedGames = gamesData.map(rawDbGame => mapDbGameToGameAdapter(sanitizeRawSupabaseGame(rawDbGame)));
       setGames(mappedGames);
       setFilteredGames(mappedGames);
-
 
       const { data: categoriesData, error: categoriesError } = await supabase.from('game_categories').select('*').eq('status', 'active');
       if (categoriesError) throw categoriesError;
@@ -100,13 +108,12 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setIsLoading(false);
     }
-  }, []); // mapDbGameToGameAdapter is stable
+  }, []); 
 
   useEffect(() => {
     fetchGamesAndProviders();
   }, [fetchGamesAndProviders]);
 
-  // Method to apply filters
   const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
     setIsLoading(true); 
     let tempFilteredGames = [...games];
@@ -183,7 +190,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return null;
     }
   };
-  
+
   const getGameById = async (id: string): Promise<Game | null> => {
     const cachedGame = games.find(g => String(g.id) === id);
     if (cachedGame) return cachedGame;
@@ -191,11 +198,11 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const { data, error } = await supabase
         .from('games')
-        .select('*, providers(id, name, slug)') // Select id from providers
+        .select('*, providers(id, name, slug)')
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
-      return data ? mapDbGameToGameAdapter(data as DbGame) : null;
+      return data ? mapDbGameToGameAdapter(sanitizeRawSupabaseGame(data)) : null;
     } catch (e: any) {
       console.error(`Error fetching game by ID ${id}:`, e);
       return null;
@@ -211,32 +218,29 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (cachedGameByCode) return cachedGameByCode;
     
     try {
-      // Query by slug, then by game_code as a fallback
       let { data, error } = await supabase
         .from('games')
-        .select('*, providers(id, name, slug)') // Select id from providers
+        .select('*, providers(id, name, slug)')
         .eq('slug', slug) 
         .maybeSingle();
 
       if (error) throw error;
-      if (data) return mapDbGameToGameAdapter(data as DbGame);
+      if (data) return mapDbGameToGameAdapter(sanitizeRawSupabaseGame(data));
 
-      // Fallback: query by game_code if slug is used interchangeably with game_code
       ({ data, error } = await supabase
         .from('games')
-        .select('*, providers(id, name, slug)') // Select id from providers
+        .select('*, providers(id, name, slug)')
         .eq('game_code', slug) 
         .maybeSingle());
       
       if (error) throw error;
-      return data ? mapDbGameToGameAdapter(data as DbGame) : null;
+      return data ? mapDbGameToGameAdapter(sanitizeRawSupabaseGame(data)) : null;
 
     } catch (e: any) {
       console.error(`Error fetching game by slug/code ${slug}:`, e);
       return null;
     }
   };
-
 
   const contextValue = useMemo(() => ({
     games,
@@ -253,7 +257,6 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchGamesAndProviders,
     filterGames,
   }), [games, filteredGames, categories, providers, isLoading, error, favoriteGameIds, fetchGamesAndProviders, filterGames, toggleFavoriteGame, launchGame, getGameById, getGameBySlug]);
-
 
   return (
     <GamesContext.Provider value={contextValue}>
