@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -188,36 +189,37 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
 
   const onSubmit: SubmitHandler<GameFormData> = async (data) => {
     try {
-      const gameDataToSave: Partial<DbGame> = {
+      // We need to ensure types are correct for the database
+      const gameDataToSave: any = {
         // id: game?.id, // ID is used for update condition, not in data object itself for insert/update typically unless part of the type
-        game_id: data.game_id,
+        game_id: data.game_id || null,
         game_name: data.title, 
         title: data.title,
         slug: data.slug,
         provider_slug: data.provider_slug,
         category_slugs: data.category_slugs,
-        rtp: data.rtp,
-        cover: data.image,
-        image_url: data.image,
-        banner: data.bannerUrl,
-        banner_url: data.bannerUrl,
-        description: data.description,
+        rtp: data.rtp !== null ? data.rtp : null, // Ensure numeric type
+        cover: data.image || null,
+        image_url: data.image || null,
+        banner: data.bannerUrl || null,
+        banner_url: data.bannerUrl || null,
+        description: data.description || null,
         status: data.status,
-        volatility: data.volatility,
-        lines: data.lines,
-        min_bet: data.min_bet,
-        max_bet: data.max_bet,
-        features: data.features, // Now string[]
-        tags: data.tags, // Now string[]
-        themes: data.themes, // Now string[]
-        is_popular: data.is_popular,
-        is_new: data.is_new,
-        is_featured: data.is_featured,
-        show_home: data.show_home,
+        volatility: data.volatility || null,
+        lines: data.lines !== null ? data.lines : null,
+        min_bet: data.min_bet !== null ? data.min_bet : null,
+        max_bet: data.max_bet !== null ? data.max_bet : null,
+        features: data.features || [],
+        tags: data.tags || [],
+        themes: data.themes || [],
+        is_popular: data.is_popular || false,
+        is_new: data.is_new || false,
+        is_featured: data.is_featured || false,
+        show_home: data.show_home || false,
         release_date: data.release_date ? new Date(data.release_date).toISOString() : null,
-        has_freespins: data.has_freespins,
-        // has_jackpot is NOT in DbGame type, so we don't include it here for saving
-        game_code: data.game_code,
+        has_freespins: data.has_freespins || false,
+        game_code: data.game_code || null,
+        distribution: game?.distribution || 'internal', // Provide a default value
       };
 
       let savedGame: DbGame;

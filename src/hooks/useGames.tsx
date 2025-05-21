@@ -2,10 +2,150 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Game, GameProvider, GameCategory, GameLaunchOptions, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
-import { gameService } from '@/services/gameService'; // Assuming gameService is correctly implemented
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+
+// Game service mock implementation (should be replaced with actual implementation)
+const gameService = {
+  getAllGames: async ({ limit = 100 } = {}): Promise<{ games: Game[], count: number }> => {
+    const { data, error, count } = await supabase
+      .from('games')
+      .select('*', { count: 'exact' })
+      .limit(limit);
+    
+    if (error) throw error;
+    return { games: data as Game[], count: count || 0 };
+  },
+  
+  getProviders: async (): Promise<GameProvider[]> => {
+    const { data, error } = await supabase.from('providers').select('*');
+    if (error) throw error;
+    return data as GameProvider[];
+  },
+  
+  getCategories: async (): Promise<GameCategory[]> => {
+    const { data, error } = await supabase.from('game_categories').select('*');
+    if (error) throw error;
+    return data as GameCategory[];
+  },
+  
+  getFavoriteGames: async (userId: string): Promise<string[]> => {
+    const { data, error } = await supabase
+      .from('favorite_games')
+      .select('game_id')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    return data.map(item => item.game_id);
+  },
+  
+  addFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('favorite_games')
+      .insert({ user_id: userId, game_id: gameId });
+    
+    if (error) throw error;
+  },
+  
+  removeFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('favorite_games')
+      .delete()
+      .eq('user_id', userId)
+      .eq('game_id', gameId);
+    
+    if (error) throw error;
+  },
+  
+  getGameById: async (gameId: string): Promise<Game | null> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('id', gameId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data as Game;
+  },
+  
+  getGameBySlug: async (slug: string): Promise<Game | null> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('slug', slug)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data as Game;
+  },
+  
+  getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('provider_slug', providerSlug);
+    
+    if (error) throw error;
+    return data as Game[];
+  },
+  
+  getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .contains('category_slugs', [categorySlug]);
+    
+    if (error) throw error;
+    return data as Game[];
+  },
+  
+  getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
+    // Implementation depends on game integration
+    // Mock implementation
+    return `https://demo-games.example.com/play/${gameId}?mode=${options.mode}&lang=${options.language || 'en'}&currency=${options.currency || 'USD'}`;
+  },
+  
+  getFeaturedGames: async (count: number = 8): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .eq('is_featured', true)
+      .limit(count);
+    
+    if (error) throw error;
+    return data as Game[];
+  },
+  
+  getPopularGames: async (count: number = 8): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .order('views', { ascending: false })
+      .limit(count);
+    
+    if (error) throw error;
+    return data as Game[];
+  },
+  
+  getLatestGames: async (count: number = 8): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(count);
+    
+    if (error) throw error;
+    return data as Game[];
+  }
+};
 
 // Props for GameLauncher component, if it's still being used directly with these specific prop names
 export interface GameLauncherProps {
@@ -31,12 +171,16 @@ interface GamesContextType {
   fetchGamesByProvider: (providerSlug: string) => Promise<Game[]>;
   fetchGamesByCategory: (categorySlug: string) => Promise<Game[]>;
   fetchGameById: (id: string | number) => Promise<Game | null>;
+  getGameBySlug: (slug: string) => Promise<Game | null>;
+  getGameById: (id: string | number) => Promise<Game | null>;
   
   getGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   handlePlayGame: (game: Game, mode: 'real' | 'demo') => void;
   handleGameDetails: (game: Game) => void;
   
-  favoriteGames: string[]; // Array of game IDs or slugs
+  favoriteGames: string[];
+  favoriteGameIds: Set<string>;
   toggleFavoriteGame: (gameIdOrSlug: string) => void;
   isFavorite: (gameIdOrSlug: string) => boolean;
   isLoadingFavorites: boolean;
@@ -85,18 +229,34 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const providers = providersData || [];
   const categories = categoriesData || [];
   const favoriteGames = favoriteGamesData || [];
+  const favoriteGameIds = new Set(favoriteGames);
 
   const fetchGameById = useCallback(async (id: string | number): Promise<Game | null> => {
-    // This could also use gameService.getGameById if available, or filter from `games`
-    const game = games.find(g => g.id === id || g.slug === id || g.game_id === id);
-    if (game) return game;
     try {
-      return await gameService.getGameById(id.toString()); // Ensure service expects string
+      return await gameService.getGameById(id.toString());
     } catch (error) {
       console.error(`Error fetching game by id ${id}:`, error);
       return null;
     }
-  }, [games]);
+  }, []);
+
+  const getGameById = useCallback(async (id: string | number): Promise<Game | null> => {
+    try {
+      return await gameService.getGameById(id.toString());
+    } catch (error) {
+      console.error(`Error getting game by id ${id}:`, error);
+      return null;
+    }
+  }, []);
+
+  const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
+    try {
+      return await gameService.getGameBySlug(slug);
+    } catch (error) {
+      console.error(`Error getting game by slug ${slug}:`, error);
+      return null;
+    }
+  }, []);
 
   const fetchGamesByProvider = useCallback(async (providerSlug: string): Promise<Game[]> => {
     try {
@@ -117,20 +277,15 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    if (!isAuthenticated && !game.demo_url) {
-        toast.error("Please log in to play real money games.");
-        navigate('/login');
-        return null;
-    }
-    if (!isAuthenticated && game.demo_url && options.mode === 'real') {
+    if (!isAuthenticated && !game.demo_url && options.mode === 'real') {
         toast.error("Please log in to play real money games.");
         navigate('/login');
         return null;
     }
 
     try {
-      const launchOptionsWithUser = { ...options, user_id: user?.id, username: user?.email, currency: 'USD' /* TODO: get user currency */ };
-      const url = await gameService.getGameLaunchUrl(game.id.toString(), launchOptionsWithUser); // Ensure service uses game.id
+      const launchOptionsWithUser = { ...options, user_id: user?.id, username: user?.email, currency: 'USD' };
+      const url = await gameService.getGameLaunchUrl(game.id.toString(), launchOptionsWithUser);
       if (!url) throw new Error("Launch URL not available.");
       return url;
     } catch (error: any) {
@@ -140,11 +295,15 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [user, isAuthenticated, navigate]);
 
+  const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
+    return await getGameLaunchUrl(game, options);
+  }, [getGameLaunchUrl]);
+
   const handlePlayGame = useCallback(async (game: Game, mode: 'real' | 'demo') => {
     console.log(`Attempting to play game: ${game.title}, mode: ${mode}`);
     const launchUrl = await getGameLaunchUrl(game, { mode });
     if (launchUrl) {
-      navigate(`/casino/seamless?gameUrl=${encodeURIComponent(launchUrl)}&gameTitle=${encodeURIComponent(game.title)}`);
+      navigate(`/casino/play/${game.slug || game.id}`);
     }
   }, [getGameLaunchUrl, navigate]);
 
@@ -194,19 +353,16 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [favoriteGames, games]);
 
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    // return gameService.getFeaturedGames(count); // Assuming service method
-    return games.filter(g => g.is_featured).slice(0, count); // Placeholder
-  }, [games]);
+    return await gameService.getFeaturedGames(count);
+  }, []);
 
   const getPopularGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    // return gameService.getPopularGames(count); // Assuming service method
-    return games.filter(g => g.isPopular).slice(0, count); // Placeholder
-  }, [games]);
+    return await gameService.getPopularGames(count);
+  }, []);
 
   const getLatestGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    // return gameService.getLatestGames(count); // Assuming service method
-    return [...games].sort((a,b) => new Date(b.releaseDate || 0).getTime() - new Date(a.releaseDate || 0).getTime()).slice(0,count); // Placeholder
-  }, [games]);
+    return await gameService.getLatestGames(count);
+  }, []);
   
   const isLoading = isLoadingGames || isLoadingProviders || isLoadingCategories || (!!user && isLoadingFavorites);
 
@@ -216,8 +372,9 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       providers, isLoadingProviders, providersError,
       categories, isLoadingCategories, categoriesError,
       fetchGameById, fetchGamesByProvider, fetchGamesByCategory,
-      getGameLaunchUrl, handlePlayGame, handleGameDetails,
-      favoriteGames, toggleFavoriteGame, isFavorite, isLoadingFavorites,
+      getGameById, getGameBySlug,
+      getGameLaunchUrl, launchGame, handlePlayGame, handleGameDetails,
+      favoriteGames, favoriteGameIds, toggleFavoriteGame, isFavorite, isLoadingFavorites,
       getFeaturedGames, getPopularGames, getLatestGames,
       isLoading
     }}>
