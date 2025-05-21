@@ -43,7 +43,7 @@ export interface Game {
   
   providerName: string; // Denormalized for convenience
   provider_slug: string; // Denormalized for convenience
-  provider?: { name: string; slug?: string }; // Added for compatibility with GameCard.tsx
+  provider?: { id?: string; name: string; slug?: string }; // Made id optional
 
   categoryName?: string; // Main category name
   category_slugs: string[]; // Slugs of categories it belongs to
@@ -98,7 +98,7 @@ export interface DbGame {
   id: string; // Primary key (UUID)
   game_id: string; // Provider's game ID
   game_name: string; // Title of the game
-  slug: string;
+  slug?: string; // Made slug optional
   provider_id?: string | null; // Foreign key to your providers table
   provider_slug?: string | null; // Denormalized provider slug
   
@@ -143,7 +143,6 @@ export interface DbGame {
   only_real?: boolean | null; // Ensure this exists
   views?: number | null;
   // Relation to providers table (if you join)
-  providers?: { name: string; slug: string } | null; // Example if providers table is joined
+  providers?: { id?: string; name: string; slug: string } | null; // Added id, ensure it's selected
   title?: string; // Alternative for game_name
 }
-

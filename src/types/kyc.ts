@@ -1,3 +1,4 @@
+
 export interface KycDocument {
   document_type: 'id_card' | 'passport' | 'drivers_license' | 'utility_bill';
   file_front: File;
@@ -11,7 +12,7 @@ export interface KycSubmission {
   notes?: string;
 }
 
-export type KycStatus = 'pending' | 'approved' | 'rejected' | 'resubmit'; // Renamed KycStatusType to KycStatus
+export type KycStatus = 'pending' | 'approved' | 'rejected' | 'resubmit' | 'resubmit_required'; // Added 'resubmit_required'
 
 // Define KycRequest if it's used elsewhere and represents the DB structure for a KYC request
 export interface KycRequest {

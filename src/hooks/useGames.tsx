@@ -71,18 +71,11 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         *, 
         providers (id, name, slug, logo_url), 
         game_categories!game_category_games (game_categories(id, name, slug, icon, image_url)) 
-      `).eq('status', 'active'); // Example: fetch only active games
-
-      // Note: The join with game_categories via a linking table (e.g., game_category_games)
-      // needs to be adjusted based on your actual DB schema for many-to-many.
-      // If it's a direct FK or array on 'games' table, the query is simpler.
-      // Assuming 'game_categories' on 'games' table is an array of category IDs/slugs for now,
-      // or 'game_type' for a single category.
-      // The provided mapDbGameToGameAdapter handles category_slugs array.
+      `).eq('status', 'active');
 
       const { data: gamesData, error: gamesError } = await supabase
         .from('games')
-        .select('*, providers(name, slug)') // Adjust based on actual 'games' table and relations
+        .select('*, providers(id, name, slug)') // Select id from providers
         .eq('status', 'active'); // Fetch active games
         
       if (gamesError) throw gamesError;
@@ -156,7 +149,9 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const launchGame = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     try {
-      const providerIdentifier = game.provider_id || game.provider_slug || game.provider?.id || (game.providerName ? providers.find(p => p.name === game.providerName)?.id : null);
+      // Use provider.id if available, otherwise provider_id, then provider_slug
+      const providerIdentifier = game.provider?.id || game.provider_id || game.provider_slug || (game.providerName ? providers.find(p => p.name === game.providerName)?.id : null);
+
       if (!providerIdentifier) {
           toast.error("Game provider information is missing.");
           return null;
@@ -196,7 +191,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const { data, error } = await supabase
         .from('games')
-        .select('*, providers(name, slug)') // Adjust query as needed
+        .select('*, providers(id, name, slug)') // Select id from providers
         .eq('id', id)
         .maybeSingle();
       if (error) throw error;
@@ -219,7 +214,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Query by slug, then by game_code as a fallback
       let { data, error } = await supabase
         .from('games')
-        .select('*, providers(name, slug)')
+        .select('*, providers(id, name, slug)') // Select id from providers
         .eq('slug', slug) 
         .maybeSingle();
 
@@ -229,7 +224,7 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Fallback: query by game_code if slug is used interchangeably with game_code
       ({ data, error } = await supabase
         .from('games')
-        .select('*, providers(name, slug)')
+        .select('*, providers(id, name, slug)') // Select id from providers
         .eq('game_code', slug) 
         .maybeSingle());
       

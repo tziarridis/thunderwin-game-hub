@@ -1,4 +1,3 @@
-
 import { Game, DbGame, GameStatus, GameVolatility } from '@/types/game'; // Adjusted import
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
@@ -27,12 +26,12 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     id: String(dbGame.id), 
     game_id: dbGame.game_id, 
     title: dbGame.game_name || dbGame.title || 'N/A', 
-    slug: dbGame.slug || String(dbGame.id), 
+    slug: dbGame.slug || String(dbGame.id), // Use fallback if slug is not present
     
     providerName: dbGame.providers?.name || dbGame.provider_slug || dbGame.distribution || 'N/A',
     provider_slug: dbGame.provider_slug || dbGame.providers?.slug || dbGame.distribution || 'unknown-provider', 
-    provider: dbGame.providers ? { name: dbGame.providers.name, slug: dbGame.providers.slug || (dbGame.provider_slug || '') } : 
-              (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined), // Added provider object
+    provider: dbGame.providers ? { id: dbGame.providers.id, name: dbGame.providers.name, slug: dbGame.providers.slug || (dbGame.provider_slug || '') } : 
+              (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined), // Added provider.id
 
     categoryName: dbGame.game_type || undefined, 
     category_slugs: Array.isArray(dbGame.category_slugs) 
@@ -69,6 +68,7 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     status: parseGameStatus(dbGame.status),
     only_demo: dbGame.only_demo ?? false,
     only_real: dbGame.only_real ?? false,
+    provider_id: dbGame.provider_id || undefined, // Added provider_id mapping
   };
 };
 
@@ -84,7 +84,7 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   // When mapping Game to DbGame, we don't need to map game.provider object
   // back to dbGame.providers, as provider_id or provider_slug is usually used for saving.
   if (game.provider_slug) dbGame.provider_slug = game.provider_slug; 
-  // if (game.provider_id) dbGame.provider_id = game.provider_id; // if you store provider_id
+  if (game.provider_id) dbGame.provider_id = game.provider_id; // if you store provider_id
 
   
   if (game.categoryName) dbGame.game_type = game.categoryName;
@@ -149,4 +149,3 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   
   return dbGame;
 };
-

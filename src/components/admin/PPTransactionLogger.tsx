@@ -36,6 +36,7 @@ const PPTransactionLogger = () => {
 
       if (searchTerm) {
         // Ensure search terms are appropriate for columns being searched
+        // Using player_id as it is in the Transaction type and Supabase table
         query = query.or(`player_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,provider_transaction_id.ilike.%${searchTerm}%`);
       }
       if (filterType !== 'all') {
@@ -95,13 +96,16 @@ const PPTransactionLogger = () => {
       return;
     }
     // Ensure all fields are strings for CSV, handle null/undefined
-    const csvReadyTransactions = transactions.map(tx => ({
-      ...tx,
-      amount: tx.amount.toString(),
-      balance_before: tx.balance_before?.toString() ?? '',
-      balance_after: tx.balance_after?.toString() ?? '',
-      metadata: tx.metadata ? JSON.stringify(tx.metadata) : '',
-    }));
+    const csvReadyTransactions = transactions.map(tx => {
+      const { ...restOfTx } = tx; // Destructure to omit metadata if it was ever there
+      return {
+        ...restOfTx,
+        amount: tx.amount.toString(),
+        balance_before: tx.balance_before?.toString() ?? '',
+        balance_after: tx.balance_after?.toString() ?? '',
+        // metadata: tx.metadata ? JSON.stringify(tx.metadata) : '', // Removed metadata
+      };
+    });
     const csv = Papa.unparse(csvReadyTransactions);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -190,6 +194,10 @@ const PPTransactionLogger = () => {
               <SelectItem value="completed">Completed</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
+              {/* Added other statuses from TransactionStatus type */}
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -233,10 +241,10 @@ const PPTransactionLogger = () => {
                 <TableHead>Amount</TableHead>
                 <TableHead>Currency</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Provider</TableHead>
+                <TableHead>Provider</TableHead> {/* Added from Transaction type */}
                 <TableHead>Game ID</TableHead>
-                <TableHead>Round ID</TableHead>
-                <TableHead>Tx Hash</TableHead>
+                <TableHead>Round ID</TableHead> {/* Added from Transaction type */}
+                <TableHead>Provider Tx ID</TableHead> {/* Changed from Tx Hash */}
                 <TableHead>Created At</TableHead>
               </TableRow>
             </TableHeader>
@@ -244,15 +252,16 @@ const PPTransactionLogger = () => {
               {transactions.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell className="font-medium text-xs" title={tx.id}>{tx.id.substring(0, 8)}...</TableCell>
-                  <TableCell title={tx.player_id}>{tx.player_id?.substring(0,8)}...</TableCell>
+                  <TableCell title={tx.player_id}>{tx.player_id?.substring(0,8)}...</TableCell> {/* Uses player_id */}
                   <TableCell>{tx.type}</TableCell>
                   <TableCell className="text-right">{tx.amount.toFixed(2)}</TableCell>
                   <TableCell>{tx.currency}</TableCell>
                   <TableCell>
                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        tx.status === 'completed' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300' :
-                        tx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-300' :
-                        tx.status === 'failed' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-300' :
+                        tx.status === 'completed' || tx.status === 'approved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300' :
+                        tx.status === 'pending' || tx.status === 'processing' ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-300' :
+                        tx.status === 'failed' || tx.status === 'rejected' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-300' :
+                        tx.status === 'cancelled' ? 'bg-orange-500/20 text-orange-700 dark:bg-orange-500/30 dark:text-orange-300' :
                         'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-300'
                       }`}>
                       {tx.status}
@@ -303,4 +312,3 @@ const PPTransactionLogger = () => {
 };
 
 export default PPTransactionLogger;
-

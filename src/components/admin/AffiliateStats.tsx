@@ -28,14 +28,14 @@ const AffiliateStats: React.FC<AffiliateStatsProps> = ({ summary, recentAffiliat
   // const pendingAffiliates = recentAffiliates.filter(aff => aff.status === 'pending').length; // Assuming status field exists if needed
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"> {/* Adjusted grid to 3 cols */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+          <CardTitle className="text-sm font-medium">Total Referrals</CardTitle> {/* Changed title */}
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{summary.totalAffiliates ?? 0}</div>
+          <div className="text-2xl font-bold">{summary.totalReferrals ?? 0}</div> {/* Changed to totalReferrals */}
         </CardContent>
       </Card>
       <Card>
@@ -49,13 +49,14 @@ const AffiliateStats: React.FC<AffiliateStatsProps> = ({ summary, recentAffiliat
       </Card>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Commissions Paid</CardTitle>
+          <CardTitle className="text-sm font-medium">Total Commission</CardTitle> {/* Changed title */}
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">${summary.totalCommissionsPaid?.toFixed(2) ?? '0.00'}</div>
+          <div className="text-2xl font-bold">${summary.totalCommission?.toFixed(2) ?? '0.00'}</div> {/* Changed to totalCommission */}
         </CardContent>
       </Card>
+      {/* Removed New Sign-ups (Month) card as data is not available in summary object 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">New Sign-ups (Month)</CardTitle>
@@ -65,6 +66,7 @@ const AffiliateStats: React.FC<AffiliateStatsProps> = ({ summary, recentAffiliat
           <div className="text-2xl font-bold">{summary.newSignUpsThisMonth ?? 0}</div>
         </CardContent>
       </Card>
+      */}
     </div>
   );
 };
