@@ -23,16 +23,20 @@ interface GameCardProps {
 const GameCard: React.FC<GameCardProps> = ({ game, onPlay, onDetails, className }) => {
   const { favoriteGameIds, toggleFavoriteGame } = useGames();
   const { isAuthenticated } = useAuth();
-  const isFavorite = favoriteGameIds.has(String(game.id)) || favoriteGameIds.has(String(game.game_id));
+  // Ensure IDs are consistently strings for Set comparison
+  const isFavorite = favoriteGameIds.has(String(game.id)) || (game.game_id ? favoriteGameIds.has(String(game.game_id)) : false);
 
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
      if (!isAuthenticated) return;
-    toggleFavoriteGame(String(game.id || game.game_id));
+    const idToToggle = game.id || game.game_id;
+    if (idToToggle) {
+      toggleFavoriteGame(String(idToToggle));
+    }
   };
   
-  const gameId = game.id || game.game_id || 'unknown-game';
+  const gameIdForActions = String(game.id || game.game_id || 'unknown-game');
 
   return (
     <Card className={cn("overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group", className)}>
@@ -63,18 +67,18 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPlay, onDetails, className 
           {game.title}
         </CardTitle>
         <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider_slug || 'Unknown Provider'} {/* Use providerName or provider_slug */}
+          {game.providerName || game.provider_slug || 'Unknown Provider'}
         </p>
       </CardContent>
       <CardFooter className="p-3 pt-0 grid grid-cols-2 gap-2">
-        <Button onClick={() => onPlay(gameId, 'real')} size="sm" className="w-full">
+        <Button onClick={() => onPlay(gameIdForActions, 'real')} size="sm" className="w-full">
           <PlayCircle className="mr-1 h-4 w-4" /> Real
         </Button>
-        <Button onClick={() => onPlay(gameId, 'demo')} variant="outline" size="sm" className="w-full">
+        <Button onClick={() => onPlay(gameIdForActions, 'demo')} variant="outline" size="sm" className="w-full">
           <PlayCircle className="mr-1 h-4 w-4" /> Demo
         </Button>
         {/* {onDetails && (
-          <Button onClick={() => onDetails(gameId)} variant="link" size="sm" className="col-span-2 text-xs">
+          <Button onClick={() => onDetails(gameIdForActions)} variant="link" size="sm" className="col-span-2 text-xs">
             <Info className="mr-1 h-3 w-3" /> Details
           </Button>
         )} */}
@@ -84,4 +88,3 @@ const GameCard: React.FC<GameCardProps> = ({ game, onPlay, onDetails, className 
 };
 
 export default GameCard;
-

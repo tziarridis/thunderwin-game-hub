@@ -1,74 +1,30 @@
 
-// src/types/kyc.ts
-
-export enum KycStatus {
-  NOT_SUBMITTED = "not_submitted",
-  PENDING = "pending",
-  APPROVED = "approved",
-  REJECTED = "rejected",
-  RESUBMIT_REQUIRED = "resubmit_required",
-  EXPIRED = "expired", // e.g. document expired
-}
-
-export enum KycDocumentType {
-  ID_CARD = "id_card",
-  PASSPORT = "passport",
-  DRIVING_LICENSE = "driving_license",
-  UTILITY_BILL = "utility_bill", // For Proof of Address (POA)
-  BANK_STATEMENT = "bank_statement", // For POA or Proof of Funds (POF)
-  SELFIE_WITH_ID = "selfie_with_id",
-  OTHER = "other",
-}
-
 export interface KycDocument {
-  id?: string; // uuid, if stored separately
-  document_type: KycDocumentType | string; // Allow string for flexibility if new types added
-  file_name: string;
-  file_url: string; // URL to the stored document in Supabase Storage or S3
-  uploaded_at?: string; // ISO date string
-  expires_at?: string | null; // ISO date string, for documents like passports
-  status?: 'verified' | 'rejected' | 'pending_review'; // Status of individual document
-  rejection_reason?: string | null; // If this specific document was rejected
+  document_type: 'id_card' | 'passport' | 'drivers_license' | 'utility_bill';
+  file_front: File;
+  file_back?: File | null;
+  // Any other relevant fields for a document
 }
 
+export interface KycSubmission {
+  documents: KycDocument[];
+  // Any other relevant fields for a submission
+  notes?: string;
+}
+
+// Define KycRequest if it's used elsewhere and represents the DB structure for a KYC request
 export interface KycRequest {
-  id: string; // uuid, primary key of the KYC request
-  user_id: string; // uuid, foreign key to users table
-  status: KycStatus | string; // Current status of the KYC request
-  documents?: KycDocument[]; // Array of submitted documents
-  user_details?: Record<string, any>; // JSONB field for submitted form data (name, DOB, address etc.)
-  rejection_reason?: string | null; // Overall rejection reason if status is 'rejected'
-  review_notes?: string | null; // Internal notes from admin/reviewer
-  submitted_at: string; // ISO date string
-  reviewed_at?: string | null; // ISO date string
-  reviewed_by?: string | null; // uuid of admin user who reviewed
-  created_at: string; // ISO date string for record creation
-  updated_at: string; // ISO date string for record update
-  // Additional fields like IP address, device info, etc. might be useful
+  id: string; // Request ID
+  user_id: string;
+  status: 'pending' | 'approved' | 'rejected' | 'resubmit';
+  documents_submitted: KycDocumentInfo[]; // Store info about files, not files themselves
+  submitted_at: string;
+  reviewed_at?: string;
+  notes?: string; // Admin notes
 }
 
-// For updating a KYC request
-export interface KycRequestUpdatePayload {
-  status: KycStatus | string;
-  rejection_reason?: string | null; // Ensure consistency, using snake_case from DB
-  review_notes?: string | null;
-  reviewed_by?: string; // Admin user ID
-  reviewed_at?: string; // ISO Date
-}
-
-// For creating a new KYC submission (from user form)
-export interface KycSubmissionPayload {
-  user_details: {
-    fullName: string;
-    dateOfBirth: string; // YYYY-MM-DD
-    addressLine1: string;
-    city: string;
-    postalCode: string;
-    country: string;
-    // ... any other form fields
-  };
-  documentsToUpload: Array<{
-    documentType: KycDocumentType | string;
-    file: File; // The actual file object to be uploaded
-  }>;
+export interface KycDocumentInfo {
+  document_type: string;
+  file_front_url: string;
+  file_back_url?: string;
 }

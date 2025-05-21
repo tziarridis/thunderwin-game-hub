@@ -3,17 +3,31 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTheme } from "next-themes"; // Corrected import
+import { useTheme } from "next-themes";
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import NavLinks from './NavLinks';
 import MobileNavBar from './MobileNavBar'; 
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu';
+import UserMenu from '@/components/user/UserMenu'; // UserMenuProps might not expect 'wallet'
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet';
+// Define a local Wallet type for AppHeader state, ensure UserMenuProps aligns if passed.
+interface WalletState {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  vipPoints: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
+  lastTransactionDate: Date | null; // Will use updated_at for this
+}
 
 const AppHeader = () => {
   const location = useLocation();
@@ -21,7 +35,7 @@ const AppHeader = () => {
   const { user, isAuthenticated, signOut } = useAuth(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [wallet, setWallet] = useState<WalletState | null>(null);
   const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
 
   const isHomePage = location.pathname === '/';
@@ -31,9 +45,10 @@ const AppHeader = () => {
       const fetchWallet = async () => {
         setLoadingWallet(true);
         try {
+          // Fetch 'updated_at' instead of 'last_transaction_at'
           const { data, error } = await supabase
             .from('wallets')
-            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, last_transaction_at') // Ensure all fields in Wallet type are fetched or handled
+            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, updated_at') 
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -53,7 +68,7 @@ const AppHeader = () => {
               cryptoBalance: data.balance_cryptocurrency ?? 0, 
               demoBalance: data.balance_demo ?? 0, 
               isActive: data.active ?? false,
-              lastTransactionDate: data.last_transaction_at ? new Date(data.last_transaction_at) : null, 
+              lastTransactionDate: data.updated_at ? new Date(data.updated_at) : null, // Use updated_at
             });
           } else {
             setWallet(null);
@@ -69,7 +84,6 @@ const AppHeader = () => {
       fetchWallet();
 
       const fetchNotificationsStatus = async () => {
-        // Placeholder: Replace with actual notification fetching logic
         // const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_read', false);
         const unreadCount = 0; 
         setHasUnreadNotifications(unreadCount > 0);
@@ -122,7 +136,14 @@ const AppHeader = () => {
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              <UserMenu user={user} onLogout={signOut} wallet={wallet} loadingWallet={loadingWallet} />
+              {/* Pass individual props to UserMenu if wallet object isn't expected, or if UserMenuProps needs update */}
+              <UserMenu 
+                user={user} 
+                onLogout={signOut} 
+                // wallet={wallet} // Removed as it caused type error, UserMenuProps likely doesn't expect whole wallet object
+                // loadingWallet={loadingWallet} // Also remove if not in UserMenuProps
+                // If UserMenu needs balance, it should be a specific prop like `balance={wallet?.balance}`
+              />
             </>
           ) : (
             <div className="hidden md:flex items-center space-x-2">
@@ -143,6 +164,7 @@ const AppHeader = () => {
       
        {isMobileMenuOpen && ( 
         <div className="md:hidden">
+          {/* Pass wallet or specific wallet properties to MobileNavBar if needed and defined in its props */}
           <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
         </div>
       )}

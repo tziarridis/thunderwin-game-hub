@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
@@ -8,7 +9,8 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Heart, PlayCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import GameSectionLoading from './GameSectionLoading'; // Assuming this component handles its own appearance
+import GameSectionLoading from './GameSectionLoading'; 
+import { toast } from 'sonner'; // Added toast import
 
 interface FeaturedGamesProps {
   count?: number;
@@ -22,27 +24,23 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
     if (isAuthenticated) {
       onToggleFavorite(String(game.id || game.game_id));
     } else {
-      // Optionally, prompt to log in or show a toast
-      console.log("User not authenticated, cannot toggle favorite.");
-      // toast.info("Please log in to manage your favorites.");
+      toast.info("Please log in to manage your favorites.");
     }
   };
   
-  // Determine if demo play is allowed. Pragmatic Play often restricts demo.
-  // This logic might need refinement based on specific game properties or provider rules.
-  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay'); 
+  const canPlayDemo = (game.tags && game.tags.includes('demo_playable')) || !game.provider_slug?.startsWith('pragmaticplay') || game.only_demo;
   
   return (
     <Card 
       className="overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 group relative cursor-pointer bg-card border-border/50"
-      onClick={() => onPlay(game, isAuthenticated && !(game.tags || []).includes('demo_only') ? 'real' : 'demo')}
+      onClick={() => onPlay(game, isAuthenticated && !game.only_demo ? 'real' : 'demo')}
     >
       <AspectRatio ratio={3/4} className="overflow-hidden">
         <img
           src={game.image || game.image_url || game.cover || '/placeholder.svg'}
           alt={game.title}
           className="object-cover w-full h-full transition-transform duration-500 ease-in-out group-hover:scale-110"
-          onError={(e) => (e.currentTarget.src = '/placeholder.svg')} // Fallback for broken images
+          onError={(e) => (e.currentTarget.src = '/placeholder.svg')} 
         />
       </AspectRatio>
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
@@ -51,7 +49,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-2 right-2 z-20 text-white hover:text-red-500 bg-black/30 hover:bg-black/50 rounded-full p-1.5" // Adjusted styling
+          className="absolute top-2 right-2 z-20 text-white hover:text-red-500 bg-black/30 hover:bg-black/50 rounded-full p-1.5"
           onClick={handleFavoriteClick}
           aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
         >
@@ -75,7 +73,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
           {game.title}
         </h3>
         <p className="text-xs text-gray-300 truncate">
-          {game.providerName || game.provider_slug || game.provider || 'Casino Provider'}
+          {game.providerName || game.provider_slug || 'Casino Provider'} {/* Use providerName or provider_slug */}
         </p>
       </CardContent>
       
@@ -86,7 +84,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
             className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg scale-90 group-hover:scale-100 transition-transform"
             onClick={(e) => {
                 e.stopPropagation(); 
-                onPlay(game, isAuthenticated && !(game.tags || []).includes('demo_only') ? 'real' : 'demo');
+                onPlay(game, isAuthenticated && !game.only_demo ? 'real' : 'demo');
             }}
         >
             <PlayCircle className="mr-2 h-5 w-5" /> Play Now
@@ -98,7 +96,7 @@ const FeaturedGameCard: React.FC<{ game: Game; onPlay: (game: Game, mode: 'real'
 
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, title = "Featured Games" }) => {
-  const { games, isLoading, error, favoriteGameIds, toggleFavoriteGame } = useGames();
+  const { games, isLoading, error: gamesError, favoriteGameIds, toggleFavoriteGame } = useGames(); // Renamed error to avoid conflict
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -109,25 +107,24 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, tit
   }, [games, count]);
 
   const handlePlayGame = (game: Game, mode: 'real' | 'demo') => {
-    navigate(`/casino/game/${game.slug || game.id}?mode=${mode}`);
+    navigate(`/casino/game/${game.slug || String(game.id)}?mode=${mode}`); // Ensure game.id is string
   };
 
-  if (isLoading && featuredGames.length === 0) { // Show loading only if no games are ready yet
-    // Corrected: GameSectionLoading likely doesn't take these specific props or any.
+  if (isLoading && featuredGames.length === 0) { 
     return <GameSectionLoading />;
   }
 
-  if (error) {
+  if (gamesError) {
     return (
       <div className={cn("py-8 text-center", className)}>
         <AlertTriangle className="mx-auto h-10 w-10 text-destructive mb-2" />
         <p className="text-destructive">Could not load featured games.</p>
-        <p className="text-sm text-muted-foreground">{error.message}</p>
+        <p className="text-sm text-muted-foreground">{String(gamesError)}</p> {/* Use String(gamesError) */}
       </div>
     );
   }
   
-  if (featuredGames.length === 0 && !isLoading) { // Show message if loading is done and still no games
+  if (featuredGames.length === 0 && !isLoading) { 
      return (
       <div className={cn("py-8", className)}>
         <h2 className="text-2xl font-bold mb-6 text-center">{title}</h2>
@@ -142,7 +139,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 8, className, tit
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
         {featuredGames.map(game => (
           <FeaturedGameCard
-            key={game.id || game.game_id}
+            key={String(game.id || game.game_id)} // Ensure key is string
             game={game}
             onPlay={handlePlayGame}
             isFavorite={favoriteGameIds.has(String(game.id || game.game_id))}

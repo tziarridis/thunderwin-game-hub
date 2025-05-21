@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { kycService } from '@/services/kycService'; // Assuming kycService is correctly set up
+import { kycService } from '@/services/kycService'; 
 import { toast } from 'sonner';
 import { Loader2, UploadCloud } from 'lucide-react';
 import { KycSubmission, KycDocument } from '@/types/kyc'; // Ensure types are correctly defined and imported
@@ -16,11 +17,11 @@ const kycFormSchema = z.object({
   document_type: z.enum(['id_card', 'passport', 'drivers_license', 'utility_bill'], {
     required_error: "Document type is required.",
   }),
-  file_front: z.instanceof(FileList).refine(files => files?.length === 1, "Front document image is required."),
-  file_back: z.instanceof(FileList).optional(),
+  file_front: z.instanceof(FileList).refine(files => files?.length === 1, "Front document image is required.").refine(files => files?.[0]?.size <= 5 * 1024 * 1024, "Front image size max 5MB"),
+  file_back: z.instanceof(FileList).optional().refine(files => !files || files.length === 0 || files?.[0]?.size <= 5 * 1024 * 1024, "Back image size max 5MB"),
 }).refine(data => {
   if (data.document_type === 'id_card' && (!data.file_back || data.file_back.length === 0)) {
-    return false; // Back image required for ID card
+    return false; 
   }
   return true;
 }, {
@@ -50,20 +51,28 @@ const KycForm = ({ onKycSubmitted }: { onKycSubmitted: (requestId: string) => vo
     }
     setIsLoading(true);
     try {
-      const submissionData: KycSubmission = {
-        documents: [{
+      const documents: KycDocument[] = [];
+      if (data.file_front && data.file_front[0]) {
+        documents.push({
           document_type: data.document_type,
           file_front: data.file_front[0],
-          file_back: data.file_back?.[0] || null,
-        }]
-      };
-      // Corrected: kycService.submitKycRequest
+          file_back: (data.document_type === 'id_card' && data.file_back?.[0]) ? data.file_back[0] : null,
+        });
+      }
+
+      if (documents.length === 0) {
+        toast.error("No document files selected.");
+        setIsLoading(false);
+        return;
+      }
+      
+      const submissionData: KycSubmission = { documents };
+      
       const kycRequest = await kycService.submitKycRequest(user.id, submissionData);
       if (kycRequest && kycRequest.id) {
         toast.success("KYC documents submitted successfully. We will review them shortly.");
         onKycSubmitted(kycRequest.id);
       } else {
-        // This case might indicate an issue with submitKycRequest if it can return null/undefined without erroring
         toast.error("KYC submission failed. Please try again.");
       }
     } catch (error: any) {
@@ -99,7 +108,7 @@ const KycForm = ({ onKycSubmitted }: { onKycSubmitted: (requestId: string) => vo
       </div>
 
       <div>
-        <Label htmlFor="file_front">Document Front</Label>
+        <Label htmlFor="file_front">Document Front (Max 5MB: JPG, PNG, PDF)</Label>
         <Controller
           name="file_front"
           control={control}
@@ -121,7 +130,7 @@ const KycForm = ({ onKycSubmitted }: { onKycSubmitted: (requestId: string) => vo
 
       {(documentType === 'id_card') && (
         <div>
-          <Label htmlFor="file_back">Document Back (for ID Card)</Label>
+          <Label htmlFor="file_back">Document Back (for ID Card) (Max 5MB: JPG, PNG, PDF)</Label>
           <Controller
             name="file_back"
             control={control}

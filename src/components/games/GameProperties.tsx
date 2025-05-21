@@ -2,7 +2,7 @@
 import React from 'react';
 import { Game } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tag, Calendar, Percent, BarChart3, Zap, Aperture } from 'lucide-react'; // Added Aperture for themes
+import { Tag, Calendar, Percent, BarChart3, Zap, Aperture, ShieldQuestion } from 'lucide-react'; // Added ShieldQuestion for Volatility
 
 interface GamePropertiesProps {
   game: Game;
@@ -10,18 +10,18 @@ interface GamePropertiesProps {
 
 const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
   const properties = [
-    { label: 'Provider', value: game.providerName || game.provider_slug || game.provider, icon: <Aperture className="h-4 w-4 mr-2" /> },
+    { label: 'Provider', value: game.providerName || game.provider_slug, icon: <Aperture className="h-4 w-4 mr-2" /> },
     { label: 'Category', value: game.categoryName || (Array.isArray(game.category_slugs) ? game.category_slugs.join(', ') : game.category_slugs), icon: <Tag className="h-4 w-4 mr-2" /> },
     { label: 'RTP', value: game.rtp ? `${game.rtp}%` : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
-    { label: 'Volatility', value: game.volatility || 'N/A', icon: <BarChart3 className="h-4 w-4 mr-2" /> },
-    { label: 'Lines', value: game.lines ? game.lines.toString() : 'N/A', icon: <BarChart3 className="h-4 w-4 mr-2" /> }, // Re-using BarChart3, consider more specific icon
-    { label: 'Release Date', value: game.releaseDate ? new Date(game.releaseDate).toLocaleDateString() : 'N/A', icon: <Calendar className="h-4 w-4 mr-2" /> }, // Corrected property name
-    { label: 'Min Bet', value: game.minBet ? game.minBet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
-    { label: 'Max Bet', value: game.maxBet ? game.maxBet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
+    { label: 'Volatility', value: game.volatility || 'N/A', icon: <ShieldQuestion className="h-4 w-4 mr-2" /> },
+    { label: 'Lines', value: game.lines ? game.lines.toString() : 'N/A', icon: <BarChart3 className="h-4 w-4 mr-2" /> },
+    { label: 'Release Date', value: game.releaseDate ? new Date(game.releaseDate).toLocaleDateString() : 'N/A', icon: <Calendar className="h-4 w-4 mr-2" /> },
+    { label: 'Min Bet', value: game.min_bet ? game.min_bet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
+    { label: 'Max Bet', value: game.max_bet ? game.max_bet.toString() : 'N/A', icon: <Percent className="h-4 w-4 mr-2" /> },
     { label: 'Status', value: game.status || 'N/A', icon: <Zap className="h-4 w-4 mr-2" /> },
   ];
 
-  const renderList = (title: string, items?: string[]) => {
+  const renderList = (title: string, items?: string[] | null) => { // items can be null
     if (!items || items.length === 0) return null;
     return (
       <div>
@@ -45,7 +45,7 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
               <div key={index} className="flex items-center text-sm">
                 {prop.icon}
                 <span className="font-medium capitalize">{prop.label}:&nbsp;</span>
-                <span className="text-muted-foreground truncate">{prop.value}</span>
+                <span className="text-muted-foreground truncate">{String(prop.value)}</span> {/* Ensure value is string */}
               </div>
             )
           ))}
@@ -67,4 +67,3 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
 };
 
 export default GameProperties;
-
