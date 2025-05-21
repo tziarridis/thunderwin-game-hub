@@ -1,154 +1,305 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client'; // If direct Supabase interaction is needed
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2 } from 'lucide-react';
-import KycForm from '@/components/kyc/KycForm'; // Assuming KYC form is here
-import { User } from '@/types/user'; // Your custom User type
+import { User, Edit3, ShieldCheck, ShieldAlert, Loader2, Eye, EyeOff, LogOut, KeyRound, UserCog } from 'lucide-react';
+import { KycRequest, KycStatus } from '@/types/kyc'; // Assuming KycRequest and KycStatus types
+import { kycService } from '@/services/kycService'; // Assuming kycService for fetching status
+import KycStatusDisplay from '@/components/kyc/KycStatusDisplay'; // For displaying status
+import KycForm from '@/components/kyc/KycForm'; // For KYC submission
+import ChangePasswordForm from './ChangePasswordForm'; // Assuming this component exists
+import UserSettings from './UserSettings'; // Assuming this component exists
 
-const ProfilePage: React.FC = () => {
-  const { user, profile, updateUserMetadata, isLoading: authLoading, fetchUserProfile } = useAuth();
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    username: '',
-    avatar_url: '',
-    // Add other fields from user_metadata or profile you want to edit
+const UserProfilePage = () => {
+  const { user, loading: authLoading, updateUserPassword, signOut, refreshUser } = useAuth();
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [userData, setUserData] = useState({
+    email: '',
+    username: '', // From public.users table
+    firstName: '', // From public.profiles table
+    lastName: '', // From public.profiles table
+    avatarUrl: '', // From public.profiles table
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [kycRequest, setKycRequest] = useState<KycRequest | null>(null);
+  const [kycLoading, setKycLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        full_name: user.user_metadata?.full_name || profile?.full_name || '',
-        username: user.user_metadata?.username || profile?.username || '', // Assuming username is on profile or user_metadata
-        avatar_url: user.user_metadata?.avatar_url || profile?.avatar_url || '',
-      });
-    }
-  }, [user, profile]);
+    const fetchUserProfile = async () => {
+      if (user) {
+        setProfileLoading(true);
+        try {
+          // Fetch from public.users for username
+          const { data: usersData, error: usersError } = await supabase
+            .from('users')
+            .select('username')
+            .eq('email', user.email) // Or use user.id if public.users.id === auth.users.id
+            .single();
+
+          if (usersError && usersError.code !== 'PGRST116') { // PGRST116: 0 rows, not an error if profile not created yet
+             throw usersError;
+          }
+          
+          // Fetch from public.profiles for first_name, last_name, avatar_url
+          // Assuming user.id from AuthContext is the foreign key 'id' in profiles table
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, avatar_url')
+            .eq('id', user.id) // This 'id' column in profiles table must match auth.users.id
+            .single();
+
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
+          }
+
+          setUserData({
+            email: user.email || '',
+            username: usersData?.username || user.user_metadata?.username || '',
+            firstName: profileData?.first_name || user.user_metadata?.first_name || '',
+            lastName: profileData?.last_name || user.user_metadata?.last_name || '',
+            avatarUrl: profileData?.avatar_url || user.user_metadata?.avatar_url || '',
+          });
+        } catch (error: any) {
+          toast.error(`Failed to fetch profile: ${error.message}`);
+        } finally {
+          setProfileLoading(false);
+        }
+      } else if (!authLoading) {
+        setProfileLoading(false); // Not logged in, not loading profile
+      }
+    };
+
+    const fetchKycStatus = async () => {
+      if (user?.id) {
+        setKycLoading(true);
+        try {
+          const requests = await kycService.getUserKycRequests(user.id);
+          // Find the most recent or active request. For simplicity, taking the first one.
+          if (requests && requests.length > 0) {
+            setKycRequest(requests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]);
+          } else {
+            setKycRequest(null);
+          }
+        } catch (error: any) {
+          toast.error(`Failed to fetch KYC status: ${error.message}`);
+          setKycRequest(null);
+        } finally {
+          setKycLoading(false);
+        }
+      } else if (!authLoading) {
+        setKycLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+    fetchKycStatus();
+  }, [user, authLoading]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setUserData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveField = async (field: string) => {
     if (!user) return;
-    setIsSubmitting(true);
+    setProfileLoading(true); // Indicate loading for this specific save
+    try {
+      let updatePayloadUsers: Partial<typeof userData> = {};
+      let updatePayloadProfiles: Partial<typeof userData> = {};
 
-    // Construct the metadata to update
-    // Only include fields that are part of user.user_metadata
-    const metadataToUpdate: Partial<User['user_metadata']> = {};
-    if (formData.full_name !== (user.user_metadata?.full_name || '')) {
-        metadataToUpdate.full_name = formData.full_name;
-    }
-    if (formData.username !== (user.user_metadata?.username || '')) {
-        // If username is critical or unique, ensure backend handles this.
-        // Supabase auth.updateUser doesn't typically handle unique username checks across users.
-        metadataToUpdate.username = formData.username;
-    }
-    if (formData.avatar_url !== (user.user_metadata?.avatar_url || '')) {
-        metadataToUpdate.avatar_url = formData.avatar_url;
-    }
-    
-    // TODO: If some fields are in the public.profiles table, you'd need a separate update mechanism for that.
-    // For now, this focuses on user_metadata managed by Supabase Auth.
+      if (field === 'username' && userData.username !== (user.user_metadata?.username || '')) {
+        // Update public.users table
+        updatePayloadUsers = { username: userData.username };
+        const { error } = await supabase.from('users').update({ username: userData.username }).eq('id', user.id); // Assuming user.id corresponds to public.users.id
+        if (error) throw error;
 
-    if (Object.keys(metadataToUpdate).length > 0) {
-        await updateUserMetadata(metadataToUpdate);
-    } else {
-        toast.info("No changes to save.");
+      } else if ((field === 'firstName' && userData.firstName !== (user.user_metadata?.first_name || '')) ||
+                 (field === 'lastName' && userData.lastName !== (user.user_metadata?.last_name || ''))) {
+        // Update public.profiles table
+        updatePayloadProfiles = {
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+        };
+        // user.id from AuthContext IS the profiles.id (PK, FK to auth.users.id)
+        const { error } = await supabase.from('profiles').update(updatePayloadProfiles).eq('id', user.id);
+        if (error) throw error;
+      }
+      // Note: Email updates are more complex (verification) and usually handled separately or via updateUser from AuthContext
+      // Avatar URL updates would involve file uploads, also more complex.
+
+      toast.success(`${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully.`);
+      await refreshUser(); // Refresh user data in AuthContext
+    } catch (error: any) {
+      toast.error(`Failed to update ${field}: ${error.message}`);
+    } finally {
+      setEditingField(null);
+      setProfileLoading(false);
     }
-    
-    setIsSubmitting(false);
-    setIsEditing(false);
-    if (user?.id) fetchUserProfile(user.id); // Re-fetch to ensure UI consistency if needed
+  };
+
+  const handleKycSubmitted = async (requestId: string) => {
+    // Refetch KYC status after submission
+    if (user?.id) {
+      setKycLoading(true);
+      try {
+        const updatedRequest = await kycService.getKycRequestById(requestId);
+        setKycRequest(updatedRequest);
+      } catch (error: any) {
+        toast.error(`Failed to update KYC status: ${error.message}`);
+      } finally {
+        setKycLoading(false);
+      }
+    }
   };
   
-  const handleKycSuccess = () => {
-    toast.success("KYC Submitted! Refreshing profile...");
-    if (user?.id) fetchUserProfile(user.id); // Re-fetch user data which might include updated kyc_status
-  };
-
-  if (authLoading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  if (authLoading || profileLoading) {
+    return <div className="container mx-auto p-4 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /> <p>Loading profile...</p></div>;
   }
 
   if (!user) {
-    return <div className="text-center py-10">Please log in to view your profile.</div>;
+    return <div className="container mx-auto p-4 text-center">Please log in to view your profile.</div>;
   }
 
-  return (
-    <div className="container mx-auto py-8 px-4 md:px-0 max-w-2xl">
-      <Card className="mb-8">
-        <CardHeader className="flex flex-col items-center text-center">
-          <Avatar className="w-24 h-24 mb-4">
-            <AvatarImage src={formData.avatar_url || user.user_metadata?.avatar_url || profile?.avatar_url} alt={formData.username || user.user_metadata?.username || 'User'} />
-            <AvatarFallback>{(formData.full_name || user.user_metadata?.full_name || 'U')?.[0].toUpperCase()}</AvatarFallback>
-          </Avatar>
-          <CardTitle className="text-2xl">{formData.full_name || user.user_metadata?.full_name || 'User Name'}</CardTitle>
-          <CardDescription>@{formData.username || user.user_metadata?.username || 'username'} | {user.email}</CardDescription>
-          <CardDescription>KYC Status: <span className={`font-semibold ${user.user_metadata?.kyc_status === 'verified' ? 'text-green-500' : 'text-yellow-500'}`}>{user.user_metadata?.kyc_status || 'Not Submitted'}</span></CardDescription>
+  // Determine if KYC form should be shown
+  const showKycForm = !kycRequest || kycRequest.status === 'rejected' || kycRequest.status === 'resubmit_required' || kycRequest.status === 'cancelled';
+  // KycStatus type now includes 'resubmit_required'
 
+  return (
+    <div className="container mx-auto p-4 md:p-8 max-w-4xl">
+      <Card className="mb-8 shadow-xl">
+        <CardHeader className="flex flex-row items-center space-x-4">
+          <img
+            src={userData.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${userData.email}`}
+            alt="User Avatar"
+            className="w-20 h-20 rounded-full border-2 border-primary"
+          />
+          <div>
+            <CardTitle className="text-2xl">{userData.firstName || userData.username || 'User Profile'}</CardTitle>
+            <CardDescription>{userData.email}</CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
-          {isEditing ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="full_name">Full Name</Label>
-                <Input id="full_name" name="full_name" value={formData.full_name} onChange={handleInputChange} />
-              </div>
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" name="username" value={formData.username} onChange={handleInputChange} />
-              </div>
-              <div>
-                <Label htmlFor="avatar_url">Avatar URL</Label>
-                <Input id="avatar_url" name="avatar_url" value={formData.avatar_url} onChange={handleInputChange} />
-              </div>
-              {/* Add other editable fields here */}
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} disabled={isSubmitting}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Save Changes'}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="text-center">
-              <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
-            </div>
-          )}
-        </CardContent>
       </Card>
-      
-      {/* KYC Section */}
-      {user.user_metadata?.kyc_status !== 'verified' && (
-         <Card>
+
+      <Tabs defaultValue="profile" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 mb-6">
+          <TabsTrigger value="profile"><User className="mr-2 h-4 w-4 inline-block" />Profile Details</TabsTrigger>
+          <TabsTrigger value="security"><KeyRound className="mr-2 h-4 w-4 inline-block" />Security</TabsTrigger>
+          <TabsTrigger value="kyc"><ShieldCheck className="mr-2 h-4 w-4 inline-block" />KYC Verification</TabsTrigger>
+          <TabsTrigger value="settings"><UserCog className="mr-2 h-4 w-4 inline-block" />Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <Card>
             <CardHeader>
-                <CardTitle>KYC Verification</CardTitle>
-                <CardDescription>
-                {user.user_metadata?.kyc_status === 'pending' && "Your documents are under review."}
-                {user.user_metadata?.kyc_status === 'rejected' && `Your KYC was rejected. Reason: ${user.user_metadata?.kyc_rejection_reason || 'Please check your email or resubmit.'}.`}
-                {(user.user_metadata?.kyc_status === 'not_submitted' || user.user_metadata?.kyc_status === 'resubmit_required' || !user.user_metadata?.kyc_status) && "Please submit your documents for verification."}
-                </CardDescription>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>Manage your personal details.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Username */}
+              <div className="space-y-1">
+                <Label htmlFor="username">Username</Label>
+                {editingField === 'username' ? (
+                  <div className="flex items-center gap-2">
+                    <Input id="username" name="username" value={userData.username} onChange={handleInputChange} />
+                    <Button onClick={() => handleSaveField('username')} size="sm">Save</Button>
+                    <Button onClick={() => setEditingField(null)} variant="outline" size="sm">Cancel</Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground">{userData.username || 'Not set'}</p>
+                    <Button onClick={() => setEditingField('username')} variant="ghost" size="sm"><Edit3 className="mr-2 h-4 w-4" />Edit</Button>
+                  </div>
+                )}
+              </div>
+              {/* First Name */}
+              <div className="space-y-1">
+                <Label htmlFor="firstName">First Name</Label>
+                {editingField === 'firstName' ? (
+                   <div className="flex items-center gap-2">
+                    <Input id="firstName" name="firstName" value={userData.firstName} onChange={handleInputChange} />
+                    <Button onClick={() => handleSaveField('firstName')} size="sm">Save</Button>
+                    <Button onClick={() => setEditingField(null)} variant="outline" size="sm">Cancel</Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground">{userData.firstName || 'Not set'}</p>
+                    <Button onClick={() => setEditingField('firstName')} variant="ghost" size="sm"><Edit3 className="mr-2 h-4 w-4" />Edit</Button>
+                  </div>
+                )}
+              </div>
+              {/* Last Name */}
+              <div className="space-y-1">
+                <Label htmlFor="lastName">Last Name</Label>
+                {editingField === 'lastName' ? (
+                  <div className="flex items-center gap-2">
+                    <Input id="lastName" name="lastName" value={userData.lastName} onChange={handleInputChange} />
+                    <Button onClick={() => handleSaveField('lastName')} size="sm">Save</Button>
+                    <Button onClick={() => setEditingField(null)} variant="outline" size="sm">Cancel</Button>
+                  </div>
+                ) : (
+                   <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground">{userData.lastName || 'Not set'}</p>
+                    <Button onClick={() => setEditingField('lastName')} variant="ghost" size="sm"><Edit3 className="mr-2 h-4 w-4" />Edit</Button>
+                  </div>
+                )}
+              </div>
+              {/* Email */}
+              <div className="space-y-1">
+                <Label htmlFor="email">Email</Label>
+                <p className="text-muted-foreground">{userData.email}</p>
+                <p className="text-xs text-muted-foreground">Email cannot be changed here. Contact support if needed.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security">
+          <ChangePasswordForm />
+        </TabsContent>
+
+        <TabsContent value="kyc">
+          <Card>
+            <CardHeader>
+              <CardTitle>KYC Verification</CardTitle>
+              <CardDescription>Verify your identity to access all platform features.</CardDescription>
             </CardHeader>
             <CardContent>
-                {(user.user_metadata?.kyc_status === 'not_submitted' || user.user_metadata?.kyc_status === 'resubmit_required' || !user.user_metadata?.kyc_status || user.user_metadata?.kyc_status === 'rejected' ) && (
-                    <KycForm onSuccess={handleKycSuccess} />
-                )}
+              {kycLoading ? (
+                <div className="text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /> <p>Loading KYC status...</p></div>
+              ) : (
+                <>
+                  <KycStatusDisplay kycRequest={kycRequest} />
+                  {showKycForm && (
+                    <div className="mt-6 pt-6 border-t">
+                      <h3 className="text-lg font-semibold mb-4">
+                        {kycRequest?.status === 'rejected' || kycRequest?.status === 'resubmit_required' ? 'Resubmit Documents' : 'Submit KYC Documents'}
+                      </h3>
+                      <KycForm onKycSubmitted={handleKycSubmitted} />
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
-         </Card>
-      )}
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="settings">
+            <UserSettings />
+        </TabsContent>
+      </Tabs>
+
+      <div className="mt-12 text-center">
+        <Button variant="destructive" onClick={signOut}>
+          <LogOut className="mr-2 h-4 w-4" /> Log Out
+        </Button>
+      </div>
     </div>
   );
 };
 
-export default ProfilePage;
+export default UserProfilePage;

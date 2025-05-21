@@ -1,67 +1,21 @@
-
-export type TransactionType = 
-  | 'deposit' 
-  | 'withdrawal' 
-  | 'bet' 
-  | 'win' 
-  | 'bonus_credit' 
-  | 'bonus_debit'
-  | 'commission'
-  | 'refund'
-  | 'adjustment_credit'
-  | 'adjustment_debit'
-  | 'tournament_buy_in'
-  | 'tournament_payout';
-
-export const TRANSACTION_TYPES_ARRAY: TransactionType[] = [
-  'deposit', 'withdrawal', 'bet', 'win', 'bonus_credit', 'bonus_debit', 
-  'commission', 'refund', 'adjustment_credit', 'adjustment_debit',
-  'tournament_buy_in', 'tournament_payout'
-];
-
-export type TransactionStatus = 
-  | 'pending' 
-  | 'completed' 
-  | 'failed' 
-  | 'cancelled' 
-  | 'requires_action'
-  | 'processing'
-  | 'refunded';
-
-export const TRANSACTION_STATUS_ARRAY: TransactionStatus[] = [
-  'pending', 'completed', 'failed', 'cancelled', 'requires_action', 'processing', 'refunded'
-];
+// Create this file if it doesn't exist, or update it.
+// This defines the Transaction type based on Supabase schema.
 
 export interface Transaction {
-  id: string;
-  user_id: string; // Standardize to user_id
-  amount: number;
+  id: string; // uuid
+  player_id: string; // Corresponds to user_id in your app, but is 'player_id' in 'transactions' table
+  amount: number; // numeric
   currency: string;
-  type: TransactionType;
-  status: TransactionStatus;
-  provider?: string; // e.g., 'stripe', 'metamask', 'game_provider_x'
-  provider_transaction_id?: string; // ID from the external provider
-  game_id?: string; // If related to a game
-  round_id?: string; // If related to a game round
-  session_id?: string; // If related to a game session
-  description?: string; // Optional details
-  balance_before?: number; // User balance before this transaction
-  balance_after?: number; // User balance after this transaction
-  created_at: string; // ISO 8601 timestamp
-  updated_at: string; // ISO 8601 timestamp
-  metadata?: Record<string, any>; // For any additional provider-specific data
-}
-
-export interface TransactionFilters {
-  user_id?: string;
-  type?: TransactionType;
-  status?: TransactionStatus;
-  dateFrom?: string | Date;
-  dateTo?: string | Date;
-  minAmount?: number;
-  maxAmount?: number;
-  provider?: string;
-  game_id?: string;
-  page?: number;
-  limit?: number;
+  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund' | string; // string for flexibility
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | string;
+  provider?: string | null; // e.g., 'stripe', 'paypal', game provider for bet/win
+  game_id?: string | null;
+  round_id?: string | null;
+  session_id?: string | null;
+  balance_before?: number | null;
+  balance_after?: number | null;
+  created_at: string; // timestamp with time zone
+  updated_at: string; // timestamp with time zone
+  // Any other relevant fields like metadata, payment_method, etc.
+  // user_id?: string; // If you decide to add this to the transactions table later
 }
