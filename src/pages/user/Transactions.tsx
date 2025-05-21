@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { transactionService } from '@/services/transactionService';
@@ -7,10 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DatePickerWithRange, DateRange } from '@/components/ui/date-picker-range';
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Corrected import path
+import { DateRange } from "react-day-picker"; // Added this import as it's used in filters state and DatePickerWithRange props
 import { Loader2, Download, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner'; // Added toast import as it's used in handleExport
 // import { exportToCSV } from '@/utils/exportUtils'; // Assuming a utility for CSV export
 
 const ITEMS_PER_PAGE = 15;
@@ -84,7 +85,7 @@ const TransactionsPage = () => {
             </div>
              <div className="flex-grow min-w-[150px]">
                 <label className="text-xs text-muted-foreground block mb-1">Type</label>
-                <Select value={filters.type} onValueChange={(value) => handleFilterChange('type', value)}>
+                <Select value={filters.type} onValueChange={(value) => handleFilterChange('type', value as TransactionType | 'all')}>
                     <SelectTrigger className="w-full bg-input"><SelectValue placeholder="All Types" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Types</SelectItem>
@@ -99,7 +100,7 @@ const TransactionsPage = () => {
             </div>
              <div className="flex-grow min-w-[150px]">
                 <label className="text-xs text-muted-foreground block mb-1">Status</label>
-                <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
+                <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value as TransactionStatus | 'all')}>
                     <SelectTrigger className="w-full bg-input"><SelectValue placeholder="All Statuses" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
