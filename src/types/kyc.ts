@@ -1,4 +1,3 @@
-
 export interface KycDocument {
   document_type: 'id_card' | 'passport' | 'drivers_license' | 'utility_bill';
   file_front: File;
@@ -20,7 +19,8 @@ export interface KycRequest {
   documents_submitted: KycDocumentInfo[]; // Store info about files, not files themselves
   submitted_at: string;
   reviewed_at?: string;
-  notes?: string; // Admin notes
+  notes?: string; // Admin notes (can be used for review_notes)
+  rejection_reason?: string; // Added optional rejection_reason
 }
 
 export interface KycDocumentInfo {

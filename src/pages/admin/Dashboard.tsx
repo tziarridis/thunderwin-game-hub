@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DatePickerWithRange, DateRange } from '@/components/ui/date-picker-range'; 
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'; 
+import type { DateRange } from 'react-day-picker'; // Import DateRange type from react-day-picker
 import { addDays, format } from 'date-fns';
 import OverviewMetrics from '@/components/admin/dashboard/OverviewMetrics';
 import RevenueChart from '@/components/admin/dashboard/RevenueChart';
@@ -20,7 +22,7 @@ interface DashboardStats {
   revenueData?: Array<{ date: string; revenue: number }>;
   userActivityData?: Array<{ date: string; activeUsers: number }>;
   topGames?: Array<{ id: string; title: string; plays: number }>;
-  transactionVolumeData?: Array<{ date: string; deposits: number }>;
+  transactionVolumeData?: Array<{ date: string; deposits: number; withdrawals?: number; }>; // Added withdrawals here to match usage
 }
 
 const AdminDashboard = () => {
