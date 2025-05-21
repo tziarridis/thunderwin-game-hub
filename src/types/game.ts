@@ -1,7 +1,26 @@
-
 // Game Enums (can be extended)
-export type GameStatus = "active" | "inactive" | "pending" | "blocked" | "maintenance" | "pending_review" | "draft" | "archived";
-export type GameVolatility = "low" | "medium" | "high" | "low-medium" | "medium-high";
+export enum GameStatusEnum {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  PENDING = "pending",
+  BLOCKED = "blocked",
+  MAINTENANCE = "maintenance",
+  PENDING_REVIEW = "pending_review",
+  DRAFT = "draft",
+  ARCHIVED = "archived",
+}
+export type GameStatus = `${GameStatusEnum}`;
+export const AllGameStatuses = Object.values(GameStatusEnum);
+
+export enum GameVolatilityEnum {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  LOW_MEDIUM = "low-medium",
+  MEDIUM_HIGH = "medium-high",
+}
+export type GameVolatility = `${GameVolatilityEnum}`;
+export const AllGameVolatilities = Object.values(GameVolatilityEnum);
 
 // Game Tag
 export interface GameTag {

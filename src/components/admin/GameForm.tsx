@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Game, GameStatus, GameVolatility, GameTag } from '@/types/game'; // GameTag might not be directly used in form values if tags are string[]
-import { GameProvider, GameCategory } from '@/types'; // Assuming these are for select options
+import { Game, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, GameTag } from '@/types/game';
+import { GameProvider, GameCategory } from '@/types';
 import { toast } from 'sonner';
 import { Loader2, Trash2, PlusCircle } from 'lucide-react';
 
@@ -21,11 +21,11 @@ const gameFormSchema = z.object({
   provider_slug: z.string().min(1, 'Provider slug is required'), // Or provider_id
   category_slugs: z.array(z.string()).min(1, 'At least one category is required'),
   rtp: z.number().min(0).max(100).optional(),
-  status: z.nativeEnum(GameStatus),
+  status: z.nativeEnum(GameStatusEnum),
   image: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   bannerUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   description: z.string().optional(),
-  volatility: z.nativeEnum(GameVolatility).optional(),
+  volatility: z.nativeEnum(GameVolatilityEnum).optional(),
   tags: z.array(z.string()).optional(), // Tags are handled as an array of strings
   features: z.array(z.string()).optional(),
   themes: z.array(z.string()).optional(),
@@ -68,17 +68,19 @@ const GameForm: React.FC<GameFormProps> = ({
     resolver: zodResolver(gameFormSchema),
     defaultValues: game ? {
       ...game,
+      status: game.status || GameStatusEnum.DRAFT,
+      volatility: game.volatility || undefined,
       rtp: game.rtp ?? undefined,
       lines: game.lines ?? undefined,
       min_bet: game.min_bet ?? undefined,
       max_bet: game.max_bet ?? undefined,
-      tags: Array.isArray(game.tags) ? game.tags.map(t => typeof t === 'string' ? t : t.slug) : [], // Ensure tags are string[]
+      tags: Array.isArray(game.tags) ? game.tags.map(t => typeof t === 'string' ? t : t.slug) : [],
       features: game.features ?? [],
       themes: game.themes ?? [],
       category_slugs: game.category_slugs ?? [],
-      isNew: game.isNew ?? game.is_new ?? false, // handle both isNew and is_new from Game type
+      isNew: game.isNew ?? game.is_new ?? false,
     } : {
-      status: GameStatus.DRAFT,
+      status: GameStatusEnum.DRAFT,
       tags: [],
       features: [],
       themes: [],
@@ -96,6 +98,8 @@ const GameForm: React.FC<GameFormProps> = ({
     if (game) {
       const gameData = {
         ...game,
+        status: game.status || GameStatusEnum.DRAFT,
+        volatility: game.volatility || undefined,
         rtp: game.rtp ?? undefined,
         lines: game.lines ?? undefined,
         min_bet: game.min_bet ?? undefined,
@@ -109,7 +113,8 @@ const GameForm: React.FC<GameFormProps> = ({
       reset(gameData);
     } else {
         reset({
-            status: GameStatus.DRAFT,
+            status: GameStatusEnum.DRAFT,
+            volatility: undefined,
             tags: [], features: [], themes: [], category_slugs: [],
             is_featured: false, isNew: false, isPopular: false, show_home: false,
             only_demo: false, only_real: false,
@@ -146,12 +151,14 @@ const GameForm: React.FC<GameFormProps> = ({
     setValue(field, currentArray.filter(item => item !== valueToRemove), { shouldValidate: true });
   };
 
+  // Use AllGameStatuses and AllGameVolatilities from src/types/game.ts
+  // const gameStatuses = Object.values(GameStatusEnum); // Now AllGameStatuses
+  // const gameVolatilities = Object.values(GameVolatilityEnum); // Now AllGameVolatilities
 
-  const gameStatuses = Object.values(GameStatus);
-  const gameVolatilities = Object.values(GameVolatility);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* ... keep existing code (Basic Info Section) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Info Section */}
         <div className="space-y-4 p-4 border rounded-md">
@@ -226,8 +233,7 @@ const GameForm: React.FC<GameFormProps> = ({
           </div>
         </div>
       </div>
-
-      {/* URLs Section */}
+      {/* ... keep existing code (URLs Section) */}
       <div className="space-y-4 p-4 border rounded-md">
         <h3 className="text-lg font-semibold">Image URLs</h3>
         <div>
@@ -242,7 +248,6 @@ const GameForm: React.FC<GameFormProps> = ({
         </div>
       </div>
       
-      {/* Details Section */}
       <div className="space-y-4 p-4 border rounded-md">
         <h3 className="text-lg font-semibold">Game Details</h3>
         <div>
@@ -265,7 +270,7 @@ const GameForm: React.FC<GameFormProps> = ({
                     <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
                     <SelectContent>
-                        {gameStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
+                        {AllGameStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ')}</SelectItem>)}
                     </SelectContent>
                     </Select>
                 )}
@@ -278,11 +283,11 @@ const GameForm: React.FC<GameFormProps> = ({
                 name="volatility"
                 control={control}
                 render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || undefined}>
                     <SelectTrigger><SelectValue placeholder="Select volatility" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="">None</SelectItem>
-                        {gameVolatilities.map(v => <SelectItem key={v} value={v}>{v.replace(/_/g, ' ')}</SelectItem>)}
+                        {AllGameVolatilities.map(v => <SelectItem key={v} value={v}>{v.replace(/_/g, ' ')}</SelectItem>)}
                     </SelectContent>
                     </Select>
                 )}
@@ -290,6 +295,7 @@ const GameForm: React.FC<GameFormProps> = ({
             {errors.volatility && <p className="text-sm text-destructive mt-1">{errors.volatility.message}</p>}
           </div>
         </div>
+        {/* ... keep existing code (lines, min_bet, max_bet, releaseDate) ... */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <Label htmlFor="lines">Lines (Optional)</Label>
@@ -314,7 +320,7 @@ const GameForm: React.FC<GameFormProps> = ({
         </div>
       </div>
 
-      {/* Tags, Features, Themes Section */}
+      {/* ... keep existing code (Tags, Features, Themes Section) ... */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Tags */}
         <div className="space-y-2 p-4 border rounded-md">
@@ -393,21 +399,33 @@ const GameForm: React.FC<GameFormProps> = ({
         </div>
       </div>
       
-      {/* Boolean Flags Section */}
+      {/* ... keep existing code (Boolean Flags Section and Submit/Delete buttons) ... */}
       <div className="space-y-4 p-4 border rounded-md">
         <h3 className="text-lg font-semibold">Flags</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {([
-            {name: 'is_featured', label: 'Featured'},
-            {name: 'isNew', label: 'New Game'},
-            {name: 'isPopular', label: 'Popular'},
-            {name: 'show_home', label: 'Show on Home'},
-            {name: 'only_demo', label: 'Demo Only'},
-            {name: 'only_real', label: 'Real Play Only'},
-          ] as {name: keyof GameFormValues, label: string}[]).map(flag => (
+          {(Object.keys(gameFormSchema.shape)
+            .filter(key => gameFormSchema.shape[key as keyof typeof gameFormSchema.shape] instanceof z.ZodBoolean)
+            .map(keyStr => {
+                const key = keyStr as keyof GameFormValues;
+                // Create a label from the key: is_featured -> Featured, isNew -> New
+                let label = key.replace(/^is_/, '').replace(/([A-Z])/g, ' $1');
+                label = label.charAt(0).toUpperCase() + label.slice(1);
+                if (key === "isNew") label = "New Game"; // Specific override if needed
+                if (key === "show_home") label = "Show on Home";
+                if (key === "only_demo") label = "Demo Only";
+                if (key === "only_real") label = "Real Play Only";
+                if (key === "is_featured") label = "Featured";
+                if (key === "isPopular") label = "Popular";
+
+
+                return { name: key, label };
+            }) as {name: keyof GameFormValues, label: string}[])
+            .filter(flag => typeof flag.name === 'string' && 
+              ['is_featured', 'isNew', 'isPopular', 'show_home', 'only_demo', 'only_real'].includes(flag.name))
+            .map(flag => (
             <div key={flag.name} className="flex items-center space-x-2">
               <Controller
-                name={flag.name as any} // Temp any due to complexity of Controller with boolean
+                name={flag.name}
                 control={control}
                 render={({ field }) => (
                     <Checkbox
@@ -428,7 +446,7 @@ const GameForm: React.FC<GameFormProps> = ({
           <Button
             type="button"
             variant="destructive"
-            onClick={() => onDelete(String(game.id))} // Ensure game.id is string
+            onClick={() => onDelete(String(game.id))} 
             disabled={isDeleting || isSubmitting}
           >
             {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}

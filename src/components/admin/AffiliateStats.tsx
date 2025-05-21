@@ -1,37 +1,60 @@
+
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client'; // Assuming supabase client is here
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, UserX, Link2, TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
-import { AffiliateStatSummary } from '@/types/affiliate'; // Ensure this type is correctly defined
+import { Users, UserCheck, UserX, Link2, DollarSign } from 'lucide-react';
+import { AffiliateStatSummary } from '@/types/affiliate';
 import { Skeleton } from '@/components/ui/skeleton';
 
-
 const fetchAffiliateStats = async (): Promise<AffiliateStatSummary> => {
-  // This is a placeholder. You'll need to implement actual Supabase queries
-  // to calculate these statistics from your 'affiliates', 'users', and 'transactions' tables.
-  // For example, count affiliates by status, sum commissions, count referred users.
+  // Fetch total affiliates (users with an inviter_code)
+  const { count: totalAffiliates, error: totalError } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .not('inviter_code', 'is', null);
 
-  // Example structure (replace with actual queries):
-  const { count: totalAffiliates, error: totalError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true });
-  const { count: activeAffiliates, error: activeError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('status', 'approved');
-  const { count: pendingAffiliates, error: pendingError } = await supabase.from('affiliates').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-  
-  // These are very simplified examples. You'd need more complex queries for referrals and commissions.
-  // For totalReferrals, you might need a join or a way to link users to their referring affiliate.
-  // For totalCommissionPaid, you'd sum up commission payments from a relevant table.
+  // Fetch active affiliates (status 'active' and have an inviter_code)
+  const { count: activeAffiliates, error: activeError } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .not('inviter_code', 'is', null)
+    .eq('status', 'active');
+
+  // Fetch pending affiliates (status 'pending' and have an inviter_code)
+  // Note: 'pending' might not be a standard status for users table unless customized.
+  // This query assumes 'pending' is a possible value in users.status for affiliates.
+  const { count: pendingAffiliates, error: pendingError } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .not('inviter_code', 'is', null)
+    .eq('status', 'pending'); // Or a more specific status like 'pending_affiliate_approval' if used
+
+  // Placeholder for total referrals (users who were invited by someone)
+  // const { count: totalReferrals, error: referralsError } = await supabase
+  //   .from('users')
+  //   .select('id', { count: 'exact', head: true })
+  //   .not('inviter_id', 'is', null);
+
+  // Placeholder for total commission paid (sum from affiliate_histories)
+  // const { data: commissionData, error: commissionError } = await supabase
+  //   .from('affiliate_histories')
+  //   .select('commission_paid')
+  //   .eq('status', true); // Assuming 'status: true' means commission was successfully paid
+  // const totalCommissionPaid = commissionData?.reduce((sum, record) => sum + (record.commission_paid || 0), 0) ?? 0;
+
 
   if (totalError || activeError || pendingError) {
-    console.error('Error fetching affiliate stats:', totalError || activeError || pendingError);
-    // throw totalError || activeError || pendingError;
+    console.error('Error fetching affiliate counts:', totalError || activeError || pendingError);
+    // Not throwing error to allow partial data or default to 0
   }
 
   return {
     totalAffiliates: totalAffiliates ?? 0,
     activeAffiliates: activeAffiliates ?? 0,
     pendingAffiliates: pendingAffiliates ?? 0,
-    totalReferrals: 0, // Placeholder - implement query
-    totalCommissionPaid: 0, // Placeholder - implement query
+    totalReferrals: 0, // Placeholder - implement query using 'inviter_id' from 'users'
+    totalCommissionPaid: 0, // Placeholder - implement query using 'commission_paid' from 'affiliate_histories'
   };
 };
 
@@ -58,8 +81,8 @@ const AffiliateStats: React.FC = () => {
     { title: 'Total Affiliates', value: stats.totalAffiliates, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Active Affiliates', value: stats.activeAffiliates, icon: <UserCheck className="h-5 w-5 text-muted-foreground" /> },
     { title: 'Pending Approvals', value: stats.pendingAffiliates, icon: <UserX className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Total Referrals', value: stats.totalReferrals, icon: <Link2 className="h-5 w-5 text-muted-foreground" /> }, // Assuming totalReferrals exists
-    { title: 'Total Commission Paid', value: stats.totalCommissionPaid, icon: <DollarSign className="h-5 w-5 text-muted-foreground" />, isCurrency: true }, // Corrected property
+    { title: 'Total Referrals', value: stats.totalReferrals, icon: <Link2 className="h-5 w-5 text-muted-foreground" /> },
+    { title: 'Total Commission Paid', value: `${stats.totalCommissionPaid.toFixed(2)}`, icon: <DollarSign className="h-5 w-5 text-muted-foreground" />, isCurrency: true },
   ];
 
 
@@ -73,7 +96,7 @@ const AffiliateStats: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {item.isCurrency ? `$${item.value.toFixed(2)}` : item.value}
+              {item.isCurrency ? `$${item.value}` : item.value}
             </div>
             {/* <p className="text-xs text-muted-foreground">+20.1% from last month</p> */}
           </CardContent>
