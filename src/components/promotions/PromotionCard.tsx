@@ -5,11 +5,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Info, ExternalLink } from 'lucide-react'; // Added ExternalLink
+import { CalendarDays, Info, ExternalLink } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface PromotionCardProps {
   promotion: Promotion;
-  onViewDetails?: (promotion: Promotion) => void; // Optional callback for modal
+  onViewDetails?: (promotion: Promotion) => void;
 }
 
 const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onViewDetails }) => {
@@ -18,34 +19,24 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onViewDetails 
   const handleCardAction = () => {
     if (onViewDetails) {
       onViewDetails(promotion);
-    } else if (promotion.link) {
-      if (promotion.link.startsWith('http')) {
-        window.open(promotion.link, '_blank');
+    } else if (promotion.terms_and_conditions_url) {
+      if (promotion.terms_and_conditions_url.startsWith('http')) {
+        window.open(promotion.terms_and_conditions_url, '_blank');
       } else {
-        navigate(promotion.link);
+        navigate(promotion.terms_and_conditions_url);
       }
     } else {
-      // Default to a promotion detail page if no link and no modal callback
+      // Default to a promotion detail page
       navigate(`/promotions/${promotion.id}`);
     }
   };
 
-  const formatDate = (dateInput: string | Date | undefined | null) => {
-    if (!dateInput) return 'Ongoing';
-    try {
-      return new Date(dateInput).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch (e) {
-      return String(dateInput); // Fallback if date is invalid
-    }
-  };
-
-
   return (
     <Card className="flex flex-col overflow-hidden h-full shadow-lg hover:shadow-primary/20 transition-shadow duration-300 bg-card border-border group">
-      {promotion.imageUrl && (
+      {promotion.image_url && (
         <div className="relative aspect-[16/9] overflow-hidden">
             <img 
-                src={promotion.imageUrl} 
+                src={promotion.image_url} 
                 alt={promotion.title} 
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 onError={(e) => (e.currentTarget.src = '/placeholder.svg')}
@@ -62,38 +53,26 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onViewDetails 
         {promotion.description && <CardDescription className="text-xs line-clamp-2 mt-1 text-muted-foreground">{promotion.description}</CardDescription>}
       </CardHeader>
       <CardContent className="flex-grow space-y-2 py-2 text-sm">
-        {(promotion.validFrom || promotion.validUntil) && (
+        {(promotion.start_date || promotion.end_date) && (
           <div className="text-xs text-muted-foreground flex items-center">
             <CalendarDays className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
             <span>
-              {formatDate(promotion.validFrom)}
-              {promotion.validUntil && promotion.validUntil !== promotion.validFrom ? ` - ${formatDate(promotion.validUntil)}` : ''}
+              {promotion.start_date && format(new Date(promotion.start_date), 'PP')}
+              {promotion.end_date && promotion.end_date !== promotion.start_date ? ` - ${format(new Date(promotion.end_date), 'PP')}` : ''}
             </span>
           </div>
         )}
-        {promotion.minDeposit && (
-            <p className="text-xs text-muted-foreground">Min. Deposit: {promotion.currency || '$'}{promotion.minDeposit}</p>
+        {promotion.details?.min_deposit && (
+            <p className="text-xs text-muted-foreground">Min. Deposit: {promotion.details?.min_deposit}</p>
         )}
-         {promotion.wageringRequirement && (
-            <p className="text-xs text-muted-foreground">Wagering: {promotion.wageringRequirement}x</p>
-        )}
-        {promotion.freeSpinsCount && (
-             <p className="text-xs text-muted-foreground">Free Spins: {promotion.freeSpinsCount}</p>
-        )}
-        {promotion.bonusPercentage && (
-             <p className="text-xs text-muted-foreground">Bonus: {promotion.bonusPercentage}% {promotion.maxBonusAmount ? `up to ${promotion.currency || '$'}${promotion.maxBonusAmount}` : ''}</p>
-        )}
-         {promotion.value && promotion.type === 'cashback' && (
-             <p className="text-xs text-muted-foreground">Cashback: {promotion.value}%</p>
-        )}
-         {promotion.value && promotion.type === 'tournament_prize' && (
-             <p className="text-xs text-muted-foreground">Prize Pool: {promotion.currency || '$'}{promotion.value}</p>
+        {promotion.details?.wagering_requirement && (
+            <p className="text-xs text-muted-foreground">Wagering: {promotion.details?.wagering_requirement}x</p>
         )}
       </CardContent>
       <CardFooter className="pt-3">
         <Button onClick={handleCardAction} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" size="sm">
-          {promotion.link && promotion.link.startsWith('http') ? <ExternalLink className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}
-          {promotion.ctaText || (onViewDetails ? 'View Details' : (promotion.link ? 'Learn More' : 'Details'))}
+          {promotion.terms_and_conditions_url && promotion.terms_and_conditions_url.startsWith('http') ? <ExternalLink className="mr-2 h-4 w-4" /> : <Info className="mr-2 h-4 w-4" />}
+          {promotion.target_audience ? 'View Details' : 'Learn More'}
         </Button>
       </CardFooter>
     </Card>

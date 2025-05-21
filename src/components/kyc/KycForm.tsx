@@ -6,33 +6,30 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// import { Textarea } from '@/components/ui/textarea'; // Not used currently
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { KycDocumentType, KycSubmission } from '@/types/kyc'; // KycSubmission might not be directly used by this form, but KycDocumentType is.
+import { KycDocumentTypeEnum } from '@/types/kyc';
 
 // Define the Zod schema for KYC form validation
 const kycFormSchema = z.object({
-  fullName: z.string().min(3, "Full name must be at least 3 characters"), // Will be split to first/last name later
+  fullName: z.string().min(3, "Full name must be at least 3 characters"),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD"),
   addressLine1: z.string().min(5, "Address is too short"),
   city: z.string().min(2, "City name is too short"),
   postalCode: z.string().min(3, "Postal code is too short"),
-  country: z.string().min(2, "Country name is too short"), // Consider mapping to country_code
-  documentType: z.nativeEnum(KycDocumentType),
-  documentNumber: z.string().min(5, "Document number is too short"), // Often stored with document, not KycRequest
+  country: z.string().min(2, "Country name is too short"),
+  documentType: z.nativeEnum(KycDocumentTypeEnum),
+  documentNumber: z.string().min(5, "Document number is too short"),
   documentFile: z.custom<FileList>().refine(files => files && files.length > 0, "Document file is required."),
-  // Optional fields for more comprehensive KYC
+  // Optional fields
   addressLine2: z.string().optional(),
   stateProvince: z.string().optional(),
-  // document_back_file and selfie_file could be added here if form supports multiple uploads
 });
 
 export type KycFormValues = z.infer<typeof kycFormSchema>;
 
 interface KycFormProps {
-  // The onSubmit will transform KycFormValues to KycSubmission format expected by the service
   onSubmit: (data: KycFormValues) => Promise<void>; 
   isLoading: boolean;
   initialData?: Partial<KycFormValues>;
@@ -41,15 +38,13 @@ interface KycFormProps {
 const KycForm: React.FC<KycFormProps> = ({ onSubmit, isLoading, initialData }) => {
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<KycFormValues>({
     resolver: zodResolver(kycFormSchema),
-    defaultValues: initialData || { documentType: KycDocumentType.ID_CARD },
+    defaultValues: initialData || { documentType: KycDocumentTypeEnum.PASSPORT },
   });
 
   const selectedFile = watch("documentFile");
 
   const handleFormSubmit: SubmitHandler<KycFormValues> = async (data) => {
     if (data.documentFile && data.documentFile.length > 0) {
-      // The parent component calling this form will handle the transformation 
-      // from KycFormValues and the File object to the KycSubmission structure.
       await onSubmit(data);
     } else {
       toast.error("Please select a document file to upload.");
@@ -97,8 +92,7 @@ const KycForm: React.FC<KycFormProps> = ({ onSubmit, isLoading, initialData }) =
                 {errors.postalCode && <p className="text-sm text-destructive mt-1">{errors.postalCode.message}</p>}
             </div>
             <div>
-                <Label htmlFor="country">Country</Label> 
-                {/* Consider a select for countries for better UX and standardized data (e.g., ISO codes) */}
+                <Label htmlFor="country">Country</Label>
                 <Input id="country" {...register("country")} className="bg-input" />
                 {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
             </div>
@@ -115,19 +109,19 @@ const KycForm: React.FC<KycFormProps> = ({ onSubmit, isLoading, initialData }) =
         <div>
           <Label htmlFor="documentType">Document Type</Label>
           <Select
-            onValueChange={(value) => setValue("documentType", value as KycDocumentType)}
-            defaultValue={initialData?.documentType || KycDocumentType.ID_CARD}
+            onValueChange={(value) => setValue("documentType", value as KycDocumentTypeEnum)}
+            defaultValue={initialData?.documentType || KycDocumentTypeEnum.PASSPORT}
           >
             <SelectTrigger className="bg-input">
               <SelectValue placeholder="Select document type" />
             </SelectTrigger>
             <SelectContent>
-              {Object.values(KycDocumentType).map(type => (
-                <SelectItem key={type} value={type}>{type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
+              {Object.entries(KycDocumentTypeEnum).map(([key, value]) => (
+                <SelectItem key={key} value={value}>{value.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {errors.documentType && <p className="text-sm text-destructive mt-1">{typeof errors.documentType.message === 'string' ? errors.documentType.message : "Invalid document type"}</p>}
+          {errors.documentType && <p className="text-sm text-destructive mt-1">{errors.documentType.message as string}</p>}
         </div>
         <div>
           <Label htmlFor="documentNumber">Document Number</Label>
@@ -138,9 +132,8 @@ const KycForm: React.FC<KycFormProps> = ({ onSubmit, isLoading, initialData }) =
           <Label htmlFor="documentFile">Upload Document (Front)</Label>
           <Input id="documentFile" type="file" {...register("documentFile")} className="bg-input file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" />
           {selectedFile && selectedFile.length > 0 && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile[0].name}</p>}
-          {errors.documentFile && <p className="text-sm text-destructive mt-1">{typeof errors.documentFile.message === 'string' ? errors.documentFile.message : "File is required"}</p>}
+          {errors.documentFile && <p className="text-sm text-destructive mt-1">{errors.documentFile.message as string}</p>}
         </div>
-        {/* Add inputs for document_back_file and selfie_file if needed */}
       </fieldset>
 
       <Button type="submit" className="w-full" disabled={isLoading}>

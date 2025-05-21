@@ -55,6 +55,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             tempFiltered = tempFiltered.filter(g => g.isNew);
             break;
           default:
+            // Make sure g.tags is an array before filtering
             tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag));
             break;
         }
@@ -79,7 +80,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
         navigate(`/casino/game/${game.slug || game.id}`);
       }
     } catch (e:any) {
-      toast.error(`Error launching game: ${(e as Error).message}`); // Type assertion
+      toast.error(`Error launching game: ${(e as Error).message}`);
       navigate(`/casino/game/${game.slug || game.id}`); 
     }
   };
@@ -144,4 +145,3 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
 };
 
 export default FeaturedGames;
-

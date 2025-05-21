@@ -37,7 +37,9 @@ const ProviderGameTab: React.FC<ProviderGameTabProps> = ({
           <GameCard
             key={String(game.id)}
             game={game}
-            onPlayClick={() => onGameClick(game)}
+            isFavorite={false}
+            onToggleFavorite={() => {}}
+            onPlay={() => onGameClick(game)}
           />
         ))}
       </div>

@@ -48,3 +48,4 @@ export interface KycFormValues {
   document_back?: FileList | null;
   selfie?: FileList | null;
 }
+
