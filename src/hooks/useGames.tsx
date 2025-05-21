@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation, QueryKey } from '@tanstack/react-query';
 import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -9,14 +9,15 @@ import { convertAPIGameToUIGame, convertUIGameToDbGame } from '@/utils/gameTypeA
 
 // Game service implementation
 const gameService = {
-  getAllGames: async ({ limit = 100 } = {}): Promise<{ games: Game[], count: number }> => {
+  getAllGames: async ({ limit = 100, offset = 0 } = {}): Promise<{ games: Game[], count: number }> => {
     const { data, error, count } = await supabase
       .from('games')
       .select('*', { count: 'exact' })
-      .limit(limit);
+      .limit(limit)
+      .range(offset, offset + limit -1); // Added range for pagination
     
     if (error) throw error;
-    const convertedGames = data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
+    const convertedGames = data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
     return { games: convertedGames, count: count || 0 };
   },
   
@@ -26,11 +27,11 @@ const gameService = {
     
     return data ? data.map(p => ({
       id: String(p.id), 
-      slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id),
+      slug: p.name ? p.name.toLowerCase().replace(/\s+/g, '-') : String(p.id), // ensure slug is created
       name: p.name,
-      logoUrl: p.logo,
+      logoUrl: p.logo, // ensure this matches GameProvider type
       description: p.description,
-      isActive: p.status === 'active',
+      isActive: p.status === 'active', // ensure this matches GameProvider type
       status: (p.status === 'active' || p.status === 'inactive' || p.status === 'coming_soon') 
         ? p.status 
         : 'inactive',
@@ -40,23 +41,29 @@ const gameService = {
   getCategories: async (): Promise<GameCategory[]> => {
     const { data, error } = await supabase.from('game_categories').select('*');
     if (error) throw error;
-    return data as GameCategory[];
+    // Ensure the fetched data conforms to GameCategory, especially id, name, slug
+    return data ? data.map(c => ({
+        ...c,
+        id: String(c.id), // Ensure id is string if type expects it
+        slug: c.slug || (c.name ? c.name.toLowerCase().replace(/\s+/g, '-') : String(c.id)), // Ensure slug exists
+    })) as GameCategory[] : [];
   },
   
   getFavoriteGames: async (userId: string): Promise<string[]> => {
+    if (!userId) return [];
     const { data, error } = await supabase
       .from('favorite_games')
       .select('game_id')
       .eq('user_id', userId);
     
     if (error) throw error;
-    return data.map(item => String(item.game_id)); // Ensure game_id is string
+    return data.map(item => String(item.game_id));
   },
   
   addFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
     const { error } = await supabase
       .from('favorite_games')
-      .insert({ user_id: userId, game_id: gameId });
+      .insert({ user_id: userId, game_id: gameId }); // game_id in DB is character varying
     
     if (error) throw error;
   },
@@ -66,7 +73,7 @@ const gameService = {
       .from('favorite_games')
       .delete()
       .eq('user_id', userId)
-      .eq('game_id', gameId);
+      .eq('game_id', gameId); // game_id in DB is character varying
     
     if (error) throw error;
   },
@@ -75,62 +82,112 @@ const gameService = {
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('id', gameId)
+      .eq('id', gameId) // Assuming gameId is UUID for 'id' column
       .maybeSingle();
     
     if (error) {
       if (error.code === 'PGRST116') return null; 
       throw error;
     }
-    return data ? convertAPIGameToUIGame(data as DbGame) : null;
+    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
   },
   
   getGameBySlug: async (slug: string): Promise<Game | null> => {
+    // The 'games' table does not have a 'slug' column based on provided schema.
+    // This query would need adjustment if 'slug' is not on the table.
+    // For now, proceeding as if DbGame might have it or adapter handles its absence.
+    // If this is a common lookup, a 'slug' column should be added to 'games' table.
+    // Alternative: search by game_name (slugified) or game_id if slug is not a direct column.
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('slug', slug)
+      // .eq('slug', slug) // This will fail if 'slug' column doesn't exist
+      // Temporarily, let's assume we are looking up by game_id if slug is not available
+      // This is a placeholder, proper slug handling/lookup is needed.
+      .eq('game_id', slug) // Assuming slug might be a game_id in some contexts
       .maybeSingle();
     
     if (error) {
-      if (error.code === 'PGRST116') return null;
+      if (error.code === 'PGRST116') return null; 
       throw error;
     }
-    return data ? convertAPIGameToUIGame(data as DbGame) : null;
+    return data ? convertAPIGameToUIGame(data as unknown as DbGame) : null;
   },
   
   getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
-    // This query might be tricky if provider_slug isn't directly on 'games' table
-    // Or if it needs to join with 'providers' table first
-    // For now, assuming 'provider_slug' exists on 'games' or is handled by a DB view/function.
-    // If 'provider_slug' is not directly on the 'games' table, this will need adjustment.
-    // The current 'games' table schema shows 'provider_id' (uuid) and 'distribution' (varchar, mapped from provider name).
-    // It does not show 'provider_slug'.
-    // Let's assume we first fetch provider by slug, then games by provider_id.
+    // 'games' table has 'provider_id' (UUID) and 'distribution' (provider name).
+    // It does not have 'provider_slug'.
+    // Step 1: Find provider_id from providerSlug (if providerSlug is a slug of provider name)
+    // This requires an additional query to 'providers' table.
+    // For simplicity, if 'provider_slug' is reliably in DbGame through some other means (view/join),
+    // then direct query could work. Given the adapter logic, it seems DbGame sometimes has it.
+    // If not, this query needs a refactor to first get provider_id.
     
+    // Assuming 'provider_slug' might be present due to a view or function
+    // OR that `distribution` (provider name) can be slugified and compared.
+    // This is a simplified approach:
+    const { data: providersData, error: providersError } = await supabase
+      .from('providers')
+      .select('id, name')
+      .ilike('name', `%${providerSlug.replace(/-/g, ' ')}%`); // Approximate match
+
+    if (providersError || !providersData || providersData.length === 0) {
+      // Try to find by slug directly on games table if that's an intended path
+      const { data, error } = await supabase
+          .from('games')
+          .select('*')
+          .eq('provider_slug', providerSlug); // if provider_slug exists on games
+       if (error) throw error;
+       return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+    }
+    
+    const providerIds = providersData.map(p => p.id);
+    if (providerIds.length === 0) return [];
+
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .eq('provider_slug', providerSlug);
+      .in('provider_id', providerIds);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
+    // 'games' table has 'game_type'. It does not have 'category_slugs' array.
+    // Adapter derives category_slugs from game_type if not present.
+    // So, we should query based on game_type.
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .contains('category_slugs', [categorySlug]);
+      // Assuming categorySlug can be matched against game_type (perhaps after slugifying game_type)
+      // Or, if category_slugs array *is* actually on DbGame via a view/function:
+      // .contains('category_slugs', [categorySlug]); 
+      // For now, let's assume game_type is the target:
+      .eq('game_type', categorySlug); // This assumes categorySlug is the raw game_type string
+                                       // Or that game_type values are already slugs.
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
-    // Implementation depends on game integration
-    // Mock implementation
-    return `https://demo-games.example.com/play/${gameId}?mode=${options.mode}&lang=${options.language || 'en'}&currency=${options.currency || 'USD'}`;
+    // Mock implementation, replace with actual API call to game provider or internal service
+    // The gameId here might be the internal UUID or the provider's game_id. Clarify which one.
+    // Assuming it's our internal UUID, we might need to fetch the game's provider_game_id first.
+    console.log(`Requesting launch URL for game ${gameId} with options:`, options);
+    // Example: needs to call an edge function or a provider's API
+    // return `https://api.example.com/launch?game_id=${gameId}&token=${options.token}&mode=${options.mode}`;
+    
+    // For now, returning a placeholder. In a real scenario, this would involve API calls.
+    // Let's find the game to get its game_id (external)
+    const game = await gameService.getGameById(gameId);
+    if (!game || !game.game_id) {
+      toast.error("Game not found or missing external game ID.");
+      return null;
+    }
+
+    return `/api/game-launch?gameId=${game.game_id}&mode=${options.mode}&lang=${options.language || 'en'}&currency=${options.currency || 'USD'}`;
   },
   
   getFeaturedGames: async (count: number = 8): Promise<Game[]> => {
@@ -141,257 +198,243 @@ const gameService = {
       .limit(count);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
   getPopularGames: async (count: number = 8): Promise<Game[]> => {
+    // Assuming 'is_popular' field exists, or sort by 'views'
+    // The 'games' table schema doesn't list 'is_popular'. Adapter sets Game.isPopular based on DbGame.is_popular
+    // Let's assume DbGame has is_popular field.
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .order('views', { ascending: false }) // Assuming 'views' correlates to popularity
+      // .eq('is_popular', true) // If 'is_popular' field exists in DB
+      .order('views', { ascending: false }) // Alternative for popular: sort by views
       .limit(count);
     
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
   },
   
-  getLatestGames: async (count: number = 8): Promise<Game[]> => {
+  getNewGames: async (count: number = 8): Promise<Game[]> => {
+    // Assuming 'is_new' field exists or sort by 'created_at'
+    // DbGame is expected to have is_new by the adapter
     const { data, error } = await supabase
       .from('games')
       .select('*')
-      .order('created_at', { ascending: false }) // Or 'releaseDate' if that's the field
+      // .eq('is_new', true) // If 'is_new' field exists in DB
+      .order('created_at', { ascending: false }) // Alternative for new: sort by creation date
       .limit(count);
-    
+      
     if (error) throw error;
-    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as DbGame)) : [];
-  }
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+  },
+
+  searchGames: async (searchTerm: string, limit: number = 20): Promise<Game[]> => {
+    const { data, error } = await supabase
+      .from('games')
+      .select('*')
+      .or(`game_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%`)
+      // .contains('tags', [searchTerm]) // If tags is an array and we want exact match
+      .limit(limit);
+
+    if (error) throw error;
+    return data ? data.map(dbGame => convertAPIGameToUIGame(dbGame as unknown as DbGame)) : [];
+  },
 };
 
-export interface GameLauncherProps {
-  game: Game;
-  mode?: 'real' | 'demo';
-  onClose?: () => void;
-  // These might be part of the context now, check usage
-  onPlay?: (game: Game, mode: 'real' | 'demo') => void; 
-  onDetails?: (game: Game) => void;
-}
-
-interface GamesContextType {
+interface GameContextType {
   games: Game[];
-  isLoadingGames: boolean;
-  gamesError: Error | null;
   providers: GameProvider[];
-  isLoadingProviders: boolean;
-  providersError: Error | null;
   categories: GameCategory[];
+  favoriteGameIds: string[];
+  isLoadingGames: boolean;
+  isLoadingProviders: boolean;
   isLoadingCategories: boolean;
-  categoriesError: Error | null;
+  isLoadingFavorites: boolean;
+  errorGames: Error | null;
+  errorProviders: Error | null;
+  errorCategories: Error | null;
+  errorFavorites: Error | null;
   
-  fetchGamesByProvider: (providerSlug: string) => Promise<Game[]>;
-  fetchGamesByCategory: (categorySlug: string) => Promise<Game[]>;
-  fetchGameById: (id: string | number) => Promise<Game | null>;
+  fetchGames: (options?: { limit?: number; offset?: number; }) => Promise<void>;
+  getGameById: (id: string) => Promise<Game | null>;
   getGameBySlug: (slug: string) => Promise<Game | null>;
-  getGameById: (id: string | number) => Promise<Game | null>; // Duplicate of fetchGameById?
+  getGamesByProvider: (providerSlug: string) => Promise<Game[]>;
+  getGamesByCategory: (categorySlug: string) => Promise<Game[]>;
+  getFeaturedGames: (count?: number) => Promise<Game[]>;
+  getPopularGames: (count?: number) => Promise<Game[]>;
+  getNewGames: (count?: number) => Promise<Game[]>;
+  searchGames: (searchTerm: string, limit?: number) => Promise<Game[]>;
+
+  addFavoriteGame: (gameId: string) => void;
+  removeFavoriteGame: (gameId: string) => void;
+  isFavorite: (gameId: string) => boolean;
   
-  getGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
-  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
   handlePlayGame: (game: Game, mode: 'real' | 'demo') => void;
   handleGameDetails: (game: Game) => void;
   
-  favoriteGames: string[]; // Array of game IDs/slugs
-  favoriteGameIds: Set<string>; // Set of game IDs/slugs for quick lookup
-  toggleFavoriteGame: (gameIdOrSlug: string) => void;
-  isFavorite: (gameIdOrSlug: string) => boolean;
-  isLoadingFavorites: boolean;
-
-  getFeaturedGames: (count?: number) => Promise<Game[]>;
-  getPopularGames: (count?: number) => Promise<Game[]>;
-  getLatestGames: (count?: number) => Promise<Game[]>;
-
-  // General loading state combining all initial fetches
-  isLoading: boolean; 
+  // Admin specific functions - might be better in a separate admin context/hook
+  createGame?: (gameData: Partial<Game>) => Promise<Game | null>;
+  updateGame?: (gameId: string, gameData: Partial<Game>) => Promise<Game | null>;
+  deleteGame?: (gameId: string) => Promise<void>;
 }
 
-const GamesContext = createContext<GamesContextType | undefined>(undefined);
+const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
 
-  const { data: gamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ games: Game[], count: number }, Error>({
-    queryKey: ['allGames'],
-    queryFn: () => gameService.getAllGames({ limit: 500 }),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  const { data: providersData, isLoading: isLoadingProviders, error: providersError } = useQuery<GameProvider[], Error>({
-    queryKey: ['allProviders'],
+  const [games, setGames] = useState<Game[]>([]);
+  
+  const { data: providers = [], isLoading: isLoadingProviders, error: errorProviders } = useQuery<GameProvider[], Error>({
+    queryKey: ['gameProviders'],
     queryFn: gameService.getProviders,
-    staleTime: 1000 * 60 * 30,
   });
 
-  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery<GameCategory[], Error>({
-    queryKey: ['allCategories'],
+  const { data: categories = [], isLoading: isLoadingCategories, error: errorCategories } = useQuery<GameCategory[], Error>({
+    queryKey: ['gameCategories'],
     queryFn: gameService.getCategories,
-    staleTime: 1000 * 60 * 30,
   });
 
-  const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery<string[], Error>({
+  const { data: favoriteGameIds = [], isLoading: isLoadingFavorites, error: errorFavorites, refetch: refetchFavorites } = useQuery<string[], Error>({
     queryKey: ['favoriteGames', user?.id],
     queryFn: () => user ? gameService.getFavoriteGames(user.id) : Promise.resolve([]),
     enabled: !!user,
-    staleTime: 1000 * 60 * 5,
+  });
+  
+  // For all games list with pagination state
+  const [allGamesQueryOptions, setAllGamesQueryOptions] = useState({ limit: 100, offset: 0 });
+  const { data: allGamesData, isLoading: isLoadingGames, error: errorGames, refetch: fetchGamesManual } = useQuery<{ games: Game[], count: number }, Error>({
+    queryKey: ['allGames', allGamesQueryOptions],
+    queryFn: () => gameService.getAllGames(allGamesQueryOptions),
+    // keepPreviousData: true, // Optional: for smoother pagination
   });
 
-  const games = gamesData?.games || [];
-  const providers = providersData || [];
-  const categories = categoriesData || [];
-  const favoriteGames = favoriteGamesData || []; // These are string IDs
-  const favoriteGameIds = new Set(favoriteGames);
-
-
-  const fetchGameById = useCallback(async (id: string | number): Promise<Game | null> => {
-    return gameService.getGameById(String(id));
-  }, []);
-
-  // getGameById seems redundant if fetchGameById exists and does the same. Consolidate if identical.
-  // For now, keeping both as per existing structure, but pointing gameService.getGameById
-  const getGameById = useCallback(async (id: string | number): Promise<Game | null> => {
-    return gameService.getGameById(String(id));
-  }, []);
-
-  const getGameBySlug = useCallback(async (slug: string): Promise<Game | null> => {
-    return gameService.getGameBySlug(slug);
-  }, []);
-
-  const fetchGamesByProvider = useCallback(async (providerSlug: string): Promise<Game[]> => {
-    return gameService.getGamesByProvider(providerSlug);
-  }, []);
-
-  const fetchGamesByCategory = useCallback(async (categorySlug: string): Promise<Game[]> => {
-     return gameService.getGamesByCategory(categorySlug);
-  }, []);
-
-  const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    if (!isAuthenticated && options.mode === 'real' && !game.demo_url /* check if game allows demo without login */) {
-        toast.error("Please log in to play real money games.");
-        navigate('/login');
-        return null;
+  useEffect(() => {
+    if (allGamesData) {
+      setGames(allGamesData.games);
     }
+  }, [allGamesData]);
 
-    try {
-      const launchOptionsWithUser = { ...options, user_id: user?.id, username: user?.email?.split('@')[0], currency: 'USD' }; // TODO: get currency from wallet
-      // Use game.id for launching, ensure it's the correct ID for the provider (often game.game_id or external_id)
-      const gameIdForLaunch = game.game_id || String(game.id);
-      const url = await gameService.getGameLaunchUrl(gameIdForLaunch, launchOptionsWithUser);
-      if (!url) throw new Error("Launch URL not available.");
-      return url;
-    } catch (error: any) {
-      toast.error(`Error launching game: ${error.message}`);
-      console.error("Error getting game launch URL:", error);
-      return null;
+  const fetchGames = useCallback(async (options: { limit?: number; offset?: number; } = {}) => {
+    const queryOpts = { ...allGamesQueryOptions, ...options };
+    setAllGamesQueryOptions(queryOpts); // This will trigger useQuery to refetch if queryKey changes
+                                        // or call fetchGamesManual if you want to force it with same key
+    await fetchGamesManual();
+  }, [allGamesQueryOptions, fetchGamesManual]);
+
+
+  const addFavoriteMutation = useMutation<void, Error, string>(
+    (gameId: string) => {
+      if (!user) throw new Error("User not authenticated");
+      return gameService.addFavoriteGame(user.id, gameId);
+    },
+    {
+      onSuccess: () => {
+        toast.success("Game added to favorites!");
+        queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
+      },
+      onError: (error) => {
+        toast.error(`Failed to add favorite: ${error.message}`);
+      },
     }
-  }, [user, isAuthenticated, navigate]);
+  );
 
-  const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    return getGameLaunchUrl(game, options);
-  }, [getGameLaunchUrl]);
+  const removeFavoriteMutation = useMutation<void, Error, string>(
+    (gameId: string) => {
+      if (!user) throw new Error("User not authenticated");
+      return gameService.removeFavoriteGame(user.id, gameId);
+    },
+    {
+      onSuccess: () => {
+        toast.success("Game removed from favorites!");
+        queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
+      },
+      onError: (error) => {
+        toast.error(`Failed to remove favorite: ${error.message}`);
+      },
+    }
+  );
 
   const handlePlayGame = useCallback(async (game: Game, mode: 'real' | 'demo') => {
-    console.log(`Attempting to play game: ${game.title}, mode: ${mode}`);
-    const launchUrl = await getGameLaunchUrl(game, { mode });
-    if (launchUrl) {
-      // Decide navigation target: could be a dedicated play page or opening in new tab
-      // For now, navigate to a play page that might embed the game or redirect
-      // Ensure game.slug or game.id is valid for URL
-      const gameSlugForUrl = game.slug || String(game.id);
-      navigate(`/casino/play/${gameSlugForUrl}`); // Assumes a route like /casino/play/:slug exists
-    }
-  }, [getGameLaunchUrl, navigate]);
-
-  const handleGameDetails = useCallback((game: Game) => {
-    const gameSlugForUrl = game.slug || String(game.id);
-    navigate(`/casino/game/${gameSlugForUrl}`);
-  }, [navigate]);
-
-  const toggleFavoriteMutation = useMutation<void, Error, string>({
-    mutationFn: async (gameIdOrSlug: string) => {
-      if (!user) throw new Error("User not authenticated");
-      
-      const gameToToggle = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
-      if (!gameToToggle) throw new Error("Game not found to toggle favorite status.");
-      
-      const gameId = String(gameToToggle.id); // Use the actual ID for DB operations
-
-      // No need to fetch currentFavorites again, favoriteGameIds set is the source of truth
-      const isCurrentlyFavorite = favoriteGameIds.has(gameId);
-
-      if (isCurrentlyFavorite) {
-        await gameService.removeFavoriteGame(user.id, gameId);
-        toast.success(`${gameToToggle.title} removed from favorites.`);
-      } else {
-        await gameService.addFavoriteGame(user.id, gameId);
-        toast.success(`${gameToToggle.title} added to favorites.`);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
-      // Optionally, can optimistically update UI here
-    },
-    onError: (error) => {
-      toast.error(`Failed to update favorites: ${error.message}`);
-    }
-  });
-
-  const toggleFavoriteGame = useCallback((gameIdOrSlug: string) => {
-    if (!isAuthenticated || !user) {
-      toast.info("Please log in to manage your favorites.");
+    if (!isAuthenticated && mode === 'real') {
+      toast.info("Please log in to play for real money.");
       navigate('/login');
       return;
     }
-    toggleFavoriteMutation.mutate(gameIdOrSlug);
-  }, [isAuthenticated, user, navigate, toggleFavoriteMutation]);
+    
+    // Placeholder: In a real app, you'd get a session token, etc.
+    const launchOptions: GameLaunchOptions = {
+      mode,
+      // language: user?.language || 'en', // If user has language preference
+      // currency: user?.currency || 'USD', // If user has currency preference
+      // token: user?.sessionToken // If a session token is needed
+    };
 
-  const isFavorite = useCallback((gameIdOrSlug: string): boolean => {
-    const game = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
-    if (!game) return false;
-    return favoriteGameIds.has(String(game.id));
-  }, [favoriteGameIds, games]);
+    try {
+      const launchUrl = await gameService.getGameLaunchUrl(game.id, launchOptions); // Use game.id (UUID)
+      if (launchUrl) {
+        // For external URLs, window.open(launchUrl, '_blank') is common
+        // For internal game routes:
+        navigate(`/play/${game.slug || game.id}?mode=${mode}`); // Or navigate to launchUrl if it's internal
+        // If launchUrl is a full URL to an external provider:
+        // window.open(launchUrl, '_blank');
+      } else {
+        toast.error("Could not launch game. Please try again later.");
+      }
+    } catch (error: any) {
+      toast.error(`Error launching game: ${error.message}`);
+    }
+  }, [isAuthenticated, navigate, user]);
 
-  const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return gameService.getFeaturedGames(count);
-  }, []);
+  const handleGameDetails = useCallback((game: Game) => {
+    navigate(`/casino/games/${game.slug || game.id}`);
+  }, [navigate]);
 
-  const getPopularGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return gameService.getPopularGames(count);
-  }, []);
+  const isFavorite = useCallback((gameId: string) => {
+    return favoriteGameIds?.includes(gameId) || false;
+  }, [favoriteGameIds]);
 
-  const getLatestGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    return gameService.getLatestGames(count);
-  }, []);
-  
-  const isLoading = isLoadingGames || isLoadingProviders || isLoadingCategories || (!!user && isLoadingFavorites);
+  const contextValue: GameContextType = {
+    games: games, // Paginated/filtered games
+    providers,
+    categories,
+    favoriteGameIds,
+    isLoadingGames,
+    isLoadingProviders,
+    isLoadingCategories,
+    isLoadingFavorites,
+    errorGames,
+    errorProviders,
+    errorCategories,
+    errorFavorites,
+    
+    fetchGames,
+    getGameById: gameService.getGameById,
+    getGameBySlug: gameService.getGameBySlug,
+    getGamesByProvider: gameService.getGamesByProvider,
+    getGamesByCategory: gameService.getGamesByCategory,
+    getFeaturedGames: gameService.getFeaturedGames,
+    getPopularGames: gameService.getPopularGames,
+    getNewGames: gameService.getNewGames,
+    searchGames: gameService.searchGames,
 
-  return (
-    <GamesContext.Provider value={{
-      games, isLoadingGames, gamesError,
-      providers, isLoadingProviders, providersError,
-      categories, isLoadingCategories, categoriesError,
-      fetchGameById, fetchGamesByProvider, fetchGamesByCategory,
-      getGameById, getGameBySlug,
-      getGameLaunchUrl, launchGame, handlePlayGame, handleGameDetails,
-      favoriteGames, favoriteGameIds, toggleFavoriteGame, isFavorite, isLoadingFavorites,
-      getFeaturedGames, getPopularGames, getLatestGames,
-      isLoading
-    }}>
-      {children}
-    </GamesContext.Provider>
-  );
+    addFavoriteGame: (gameId) => addFavoriteMutation.mutate(gameId),
+    removeFavoriteGame: (gameId) => removeFavoriteMutation.mutate(gameId),
+    isFavorite,
+    
+    handlePlayGame,
+    handleGameDetails,
+  };
+
+  return <GameContext.Provider value={contextValue}>{children}</GameContext.Provider>;
 };
 
-export const useGames = (): GamesContextType => {
-  const context = useContext(GamesContext);
+export const useGames = (): GameContextType => {
+  const context = useContext(GameContext);
   if (context === undefined) {
     throw new Error('useGames must be used within a GamesProvider');
   }

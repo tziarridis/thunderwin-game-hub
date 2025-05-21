@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,30 +5,32 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+// Checkbox not used, can remove
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User } from '@/types';
+import { User as GlobalUserType } from '@/types/user'; // Using global User type
 import { toast } from 'sonner';
-// import { userService } from '@/services/userService'; // Assuming you have a userService
 
+// This form schema defines the data structure for the form itself.
 const userFormSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
   username: z.string().min(3, { message: "Username must be at least 3 characters." }).optional(),
-  full_name: z.string().optional(),
-  avatar_url: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
-  role: z.string().optional(),
-  status: z.enum(['active', 'inactive', 'banned']).default('active'),
-  kyc_status: z.enum(['verified', 'pending', 'rejected', 'not_submitted']).default('not_submitted'),
-  currency: z.string().optional(),
-  language: z.string().optional(),
-  vip_level: z.coerce.number().int().min(0).optional(),
+  firstName: z.string().optional(), // was full_name
+  lastName: z.string().optional(), // new field
+  avatarUrl: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')), // was avatar_url
+  roles: z.array(z.string()).optional(), // Changed from role (string) to roles (string array)
+  status: z.enum(['active', 'inactive', 'banned', 'pending']).default('active'), // Added pending
+  // kyc_status: z.enum(['verified', 'pending', 'rejected', 'not_submitted']).default('not_submitted'), // Assuming this meta field is handled if needed
+  currency: z.string().optional(), // Assuming this meta field is handled if needed
+  language: z.string().optional(), // Assuming this meta field is handled if needed
+  vipLevel: z.coerce.number().int().min(0).optional(), // was vip_level
+  isActive: z.boolean().optional(), // for mapping to status
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
-  user?: User | null;
-  onSave: (data: UserFormValues, userId?: string) => Promise<void>;
+  user?: GlobalUserType | null; // Use the global User type
+  onSave: (data: Partial<GlobalUserType>, userId?: string) => Promise<void>; // Submitting subset of GlobalUserType
   isEditing?: boolean;
 }
 
@@ -38,15 +39,20 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       email: user?.email || '',
-      username: user?.user_metadata?.username || '',
-      full_name: user?.user_metadata?.full_name || '',
-      avatar_url: user?.user_metadata?.avatar_url || '',
-      role: user?.role || 'user', // default to 'user'
-      status: user?.status || 'active',
-      kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
-      currency: user?.user_metadata?.currency || 'USD',
-      language: user?.user_metadata?.language || 'en',
-      vip_level: user?.user_metadata?.vip_level || 0,
+      username: user?.username || '',
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      avatarUrl: user?.avatarUrl || '',
+      roles: user?.roles || ['user'], // Default to ['user']
+      isActive: user?.isActive === undefined ? true : user.isActive, // Default to true if undefined
+      // Map isActive to form 'status'
+      status: user?.isActive === false ? 'inactive' : 'active', 
+      // Fields like kyc_status, currency, language, vipLevel would be part of extended user profile/wallet
+      // For now, focusing on core User model fields
+      // kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
+      // currency: user?.user_metadata?.currency || 'USD',
+      // language: user?.user_metadata?.language || 'en',
+      // vipLevel: user?.user_metadata?.vip_level || 0,
     },
   });
 
@@ -54,22 +60,49 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
     if (user) {
       form.reset({
         email: user.email || '',
-        username: user.user_metadata?.username || '',
-        full_name: user.user_metadata?.full_name || '',
-        avatar_url: user.user_metadata?.avatar_url || '',
-        role: user.role || 'user',
-        status: user.status || 'active',
-        kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
-        currency: user.user_metadata?.currency || 'USD',
-        language: user.user_metadata?.language || 'en',
-        vip_level: user.user_metadata?.vip_level || 0,
+        username: user.username || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        avatarUrl: user.avatarUrl || '',
+        roles: user.roles || ['user'],
+        isActive: user.isActive === undefined ? true : user.isActive,
+        status: user.isActive === false ? 'inactive' : (user.isActive === true ? 'active' : 'pending'),
+        // kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
+        // currency: user.user_metadata?.currency || 'USD',
+        // language: user.user_metadata?.language || 'en',
+        // vipLevel: user.user_metadata?.vip_level || 0,
       });
+    } else {
+        form.reset({ // Default for new user
+            email: '',
+            username: '',
+            firstName: '',
+            lastName: '',
+            avatarUrl: '',
+            roles: ['user'],
+            isActive: true,
+            status: 'pending',
+        });
     }
   }, [user, form]);
 
   const onSubmit = async (data: UserFormValues) => {
     try {
-      await onSave(data, user?.id);
+      // Map form values to GlobalUserType structure for saving
+      const userPayload: Partial<GlobalUserType> = {
+        email: data.email,
+        username: data.username,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        avatarUrl: data.avatarUrl,
+        roles: data.roles,
+        isActive: data.status === 'active' || data.status === 'pending', // Map back
+        // Other fields like phone, inviterCode etc. from GlobalUserType could be added here
+      };
+      // Fields like kyc_status, currency, language, vipLevel would need separate handling
+      // if they are stored in a different table (e.g. user_profiles or wallets)
+
+      await onSave(userPayload, user?.id);
       toast.success(`User ${isEditing ? 'updated' : 'created'} successfully.`);
     } catch (error) {
       toast.error(`Failed to ${isEditing ? 'update' : 'create'} user.`);
@@ -90,21 +123,32 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
         {form.formState.errors.username && <p className="text-red-500 text-sm">{form.formState.errors.username.message}</p>}
       </div>
       <div>
-        <Label htmlFor="full_name">Full Name</Label>
-        <Input id="full_name" {...form.register('full_name')} />
+        <Label htmlFor="firstName">First Name</Label>
+        <Input id="firstName" {...form.register('firstName')} />
       </div>
       <div>
-        <Label htmlFor="avatar_url">Avatar URL</Label>
-        <Input id="avatar_url" {...form.register('avatar_url')} />
-        {form.formState.errors.avatar_url && <p className="text-red-500 text-sm">{form.formState.errors.avatar_url.message}</p>}
+        <Label htmlFor="lastName">Last Name</Label>
+        <Input id="lastName" {...form.register('lastName')} />
       </div>
       <div>
-        <Label htmlFor="role">Role</Label>
-        <Input id="role" {...form.register('role')} />
+        <Label htmlFor="avatarUrl">Avatar URL</Label>
+        <Input id="avatarUrl" {...form.register('avatarUrl')} />
+        {form.formState.errors.avatarUrl && <p className="text-red-500 text-sm">{form.formState.errors.avatarUrl.message}</p>}
+      </div>
+      <div>
+        <Label htmlFor="roles">Roles (comma separated, e.g., user,editor)</Label>
+        <Input 
+            id="roles" 
+            {...form.register('roles', { 
+                setValueAs: (value: string) => value ? value.split(',').map(s => s.trim()).filter(Boolean) : [],
+                valueAsString: true, // To get string from array for display
+            })} 
+            defaultValue={user?.roles?.join(',')}
+        />
       </div>
       <div>
         <Label htmlFor="status">Status</Label>
-        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned')} defaultValue={form.getValues('status')}>
+        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned' | 'pending')} defaultValue={form.getValues('status')}>
           <SelectTrigger>
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
@@ -112,36 +156,30 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
             <SelectItem value="banned">Banned</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
           </SelectContent>
         </Select>
       </div>
+      {/* KYC Status, Currency, Language, VIP Level are examples of extended profile data
+          These would require their own form fields and data handling if they are part of this form.
+          For now, they are commented out to focus on core User fields.
       <div>
         <Label htmlFor="kyc_status">KYC Status</Label>
-        <Select onValueChange={(value) => form.setValue('kyc_status', value as 'verified' | 'pending' | 'rejected' | 'not_submitted')} defaultValue={form.getValues('kyc_status')}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select KYC status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="not_submitted">Not Submitted</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="verified">Verified</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
+        ...
       </div>
       <div>
         <Label htmlFor="currency">Currency</Label>
-        <Input id="currency" {...form.register('currency')} />
+        ...
       </div>
        <div>
         <Label htmlFor="language">Language</Label>
-        <Input id="language" {...form.register('language')} />
+        ...
       </div>
       <div>
         <Label htmlFor="vip_level">VIP Level</Label>
-        <Input id="vip_level" type="number" {...form.register('vip_level')} />
-        {form.formState.errors.vip_level && <p className="text-red-500 text-sm">{form.formState.errors.vip_level.message}</p>}
-      </div>
+        ...
+      </div> 
+      */}
       
       <Button type="submit" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
@@ -151,4 +189,3 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
 };
 
 export default UserForm;
-

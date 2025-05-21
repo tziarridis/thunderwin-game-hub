@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -8,24 +9,23 @@ import { useAuth } from '@/contexts/AuthContext';
 import NavLinks from './NavLinks';
 import MobileNavBar from './MobileNavBar'; 
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu';
+import UserMenu from '@/components/user/UserMenu'; // UserMenu itself has internal errors I can't fix
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
 import { Wallet } from '@/types/wallet'; 
-import { AppUser } from '@/types/user';
+import { AppUser, User as AuthUserType } from '@/types/user'; // Renamed to avoid conflict
 
-interface WalletState extends Wallet {
-  // WalletState can be removed if AppWalletType is sufficient
-}
+// WalletState can be removed if AppWalletType is sufficient, using Wallet directly
+// interface WalletState extends Wallet {}
 
 const AppHeader = () => {
   const location = useLocation();
   const { theme, setTheme } = useTheme(); 
-  const { user: supabaseUser, isAuthenticated, signOut } = useAuth(); // user is Supabase User
+  const { user: supabaseUser, isAuthenticated, signOut } = useAuth(); // supabaseUser is Supabase User
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-  const [wallet, setWallet] = useState<WalletState | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(null); // Use Wallet type
   const [appUserForMenu, setAppUserForMenu] = useState<AppUser | null>(null);
 
 
@@ -34,10 +34,14 @@ const AppHeader = () => {
   useEffect(() => {
     if (isAuthenticated && supabaseUser) {
       // Transform Supabase User to AppUser for UserMenu
-      setAppUserForMenu({
+      // The UserMenu might expect a type compatible with AuthUserType from @/types/user.ts
+      // which needs created_at, updated_at. AppUser has createdAt, updatedAt.
+      // Let's try to construct an object that satisfies what UserMenu might expect,
+      // based on typical User properties.
+      const transformedUser: AppUser & { created_at?: string, updated_at?: string } = { // Explicitly add for clarity
         id: supabaseUser.id,
         email: supabaseUser.email,
-        // @ts-ignore supabaseUser.user_metadata might not be directly available or could be empty
+        // @ts-ignore user_metadata might not be directly on supabaseUser type from useAuth.
         username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0], 
         // @ts-ignore
         avatarUrl: supabaseUser.user_metadata?.avatar_url,
@@ -45,39 +49,43 @@ const AppHeader = () => {
         firstName: supabaseUser.user_metadata?.first_name,
         // @ts-ignore
         lastName: supabaseUser.user_metadata?.last_name,
-        isActive: true, // Assume active if authenticated
-        createdAt: supabaseUser.created_at,
-        updatedAt: supabaseUser.updated_at,
-        // roles and permissions would need to be fetched separately if needed
-      });
+        isActive: true, 
+        createdAt: supabaseUser.created_at, // AppUser field
+        updatedAt: supabaseUser.updated_at, // AppUser field
+        created_at: supabaseUser.created_at, // For compatibility if UserMenu needs this exact name
+        updated_at: supabaseUser.updated_at, // For compatibility
+        roles: supabaseUser.app_metadata?.roles || [], // Get roles from app_metadata
+        // permissions would need to be fetched separately if needed
+      };
+      setAppUserForMenu(transformedUser as AppUser); // Cast to AppUser for UserMenu prop
       
       const fetchWallet = async () => {
         try {
+          // The 'wallets' table uses 'user_id', 'vip_level', 'vip_points'.
+          // The Wallet type uses 'userId', 'vipLevel', 'vipPoints'.
           const { data, error } = await supabase
             .from('wallets')
             .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, updated_at') 
-            .eq('user_id', supabaseUser.id) // Use supabaseUser.id here
+            .eq('user_id', supabaseUser.id)
             .maybeSingle();
 
           if (error) {
             console.error("Error fetching wallet:", error.message);
             setWallet(null);
           } else if (data) {
-            // Map to WalletState ensuring all fields from AppWalletType are covered
             setWallet({
               id: data.id,
-              userId: data.user_id, // This should align with supabaseUser.id type if user_id in wallets is UUID
+              userId: data.user_id, // Map from user_id
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
-              vipLevel: data.vip_level ?? 0,
-              vipPoints: data.vip_points ?? 0,
+              vipLevel: data.vip_level ?? 0, // Map from vip_level
+              vipPoints: data.vip_points ?? 0, // Map from vip_points
               bonusBalance: data.balance_bonus ?? 0, 
               cryptoBalance: data.balance_cryptocurrency ?? 0, 
               demoBalance: data.balance_demo ?? 0, 
-              isActive: data.active ?? false, // from 'wallets' table 'active' column
+              isActive: data.active ?? false,
               lastTransactionDate: data.updated_at ? new Date(data.updated_at) : null,
-              // any other fields required by AppWalletType
             });
           } else {
             setWallet(null);
@@ -90,12 +98,18 @@ const AppHeader = () => {
 
       fetchWallet();
 
-      const fetchNotificationsStatus = async () => {
-        const unreadCount = 0; // Placeholder
+      // ... (fetchNotificationsStatus)
+       const fetchNotificationsStatus = async () => {
+        // Placeholder: Fetch actual unread count
+        // For example, from a 'notifications' table where 'user_id' = supabaseUser.id and 'is_read' = false
+        // const { count, error } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', supabaseUser.id).eq('is_read', false);
+        // setHasUnreadNotifications(count ? count > 0 : false);
+        const unreadCount = 0; 
         setHasUnreadNotifications(unreadCount > 0);
       };
 
       fetchNotificationsStatus();
+
     } else {
       setWallet(null);
       setAppUserForMenu(null);
@@ -110,6 +124,11 @@ const AppHeader = () => {
   const toggleMobileMenuHandler = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+
+  // UserMenu expects a `user` prop. The type error `Type 'AppUser' is missing... created_at, updated_at`
+  // suggests UserMenu internally expects a type matching the global `User` (AuthUserType).
+  // My transformedUser now includes created_at, updated_at.
+  // The internal UserMenu errors (user.role, user.user_metadata) are still an issue as UserMenu.tsx is not editable.
 
   return (
     <header className={cn(
@@ -146,10 +165,8 @@ const AppHeader = () => {
               <UserMenu 
                 user={appUserForMenu} // Pass the transformed AppUser object
                 onLogout={signOut}
-                // Pass wallet related props if UserMenu expects them explicitly
-                // For example, if UserMenu has props like:
-                // balance={wallet?.balance}
-                // currencySymbol={wallet?.symbol}
+                // Wallet props would be passed if UserMenu accepted them directly
+                // e.g. balance={wallet?.balance} currencySymbol={wallet?.symbol}
               />
             </>
           ) : (
