@@ -15,11 +15,13 @@ import {
 } from "@/components/ui/carousel";
 import { toast } from 'sonner'; 
 
+type GameTag = 'featured' | 'popular' | 'new' | string;
+
 interface FeaturedGamesProps {
   title?: string;
   count?: number; 
   categorySlug?: string; 
-  tag?: string; 
+  tag?: GameTag; 
 }
 
 const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 

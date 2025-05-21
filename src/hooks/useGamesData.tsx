@@ -48,7 +48,7 @@ export const useGamesData = ({
         latest,
       });
       
-      const fetchedGames = result.games;
+      const fetchedGames = result.games as unknown as Game[];
       const count = result.count;
 
       if (replace) {

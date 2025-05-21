@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
-import { Affiliate, AffiliateUser, AffiliateCommissionTier, AffiliateData } from '@/types/affiliate'; // Corrected imports
+import { supabase } from '@/integrations/supabase/client';
+import { Affiliate, AffiliateUser, AffiliateCommissionTier, AffiliateData } from '@/types/affiliate'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,11 +51,10 @@ const AffiliatesPage: React.FC = () => {
   });
 
   // Create or Update Affiliate Mutation
-  const affiliateMutation = useMutation<AffiliateUser, Error, Partial<AffiliateUser>>(
-    async (affiliateData) => {
+  const affiliateMutation = useMutation({
+    mutationFn: async (affiliateData: Partial<AffiliateUser>) => {
       // Here, decide if it's an insert or update based on affiliateData.id
       // This is a placeholder for actual Supabase insert/update logic.
-      // You'd typically call a service function.
       
       // const { data, error } = await supabase.from('affiliates')
       //   .upsert(affiliateData) // This assumes affiliateData matches your table structure
@@ -81,18 +80,16 @@ const AffiliatesPage: React.FC = () => {
       };
       return mockUpsertedData;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: [AFFILIATES_QUERY_KEY] });
-        setIsModalOpen(false);
-        setEditingAffiliate(null);
-        toast.success(`Affiliate ${editingAffiliate?.id ? 'updated' : 'created'} successfully.`);
-      },
-      onError: (error) => {
-        toast.error(`Error: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [AFFILIATES_QUERY_KEY] });
+      setIsModalOpen(false);
+      setEditingAffiliate(null);
+      toast.success(`Affiliate ${editingAffiliate?.id ? 'updated' : 'created'} successfully.`);
+    },
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
+    },
+  });
 
   const handleEdit = (affiliate: AffiliateData) => {
     const affiliateUserShape: Partial<AffiliateUser> = {
@@ -174,7 +171,6 @@ const AffiliatesPage: React.FC = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
-          icon={<Search className="h-4 w-4 text-muted-foreground" />}
         />
       </div>
 
@@ -279,8 +275,8 @@ const AffiliatesPage: React.FC = () => {
               
               <DialogFooter className="pt-4">
                 <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                <Button type="submit" disabled={affiliateMutation.isLoading}>
-                  {affiliateMutation.isLoading ? 'Saving...' : 'Save Affiliate'}
+                <Button type="submit" disabled={affiliateMutation.isPending}>
+                  {affiliateMutation.isPending ? 'Saving...' : 'Save Affiliate'}
                 </Button>
               </DialogFooter>
             </form>
