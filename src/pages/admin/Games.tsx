@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { Game, GameCategory, GameProvider, DbGame, GameStatusEnum } from '@/types/game';
@@ -7,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { convertDbGameToGame, convertGameToDbGame, slugify } from '@/utils/gameTypeAdapter';
+import { mapDbGameToGameAdapter, mapGameToDbGameAdapter } from '@/components/admin/GameAdapter';
 import { PlusCircle, Edit, Trash2, Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,22 +16,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 // Utility function to fetch games for admin view (includes all statuses)
 const fetchAdminGames = async (filters: { searchTerm?: string; providerSlug?: string; categorySlug?: string; status?: string }): Promise<DbGame[]> => {
   let query = supabase.from('games').select(`
-    *,
-    game_providers:providers!left(id, name, slug),
-    game_categories:game_categories!left(id, name, slug)
-  `); // Using DbGame which expects game_providers and game_categories
+    *
+  `); // Simplified select to avoid join errors
 
   if (filters.searchTerm) {
     query = query.ilike('title', `%${filters.searchTerm}%`);
   }
   if (filters.providerSlug) {
-    // This assumes 'games' table has 'provider_slug' or the join handles it.
-    // If 'games' has 'provider_id', you'd filter on that after fetching provider by slug.
-    // For simplicity, let's assume provider_slug exists on games table or is handled by DB view/function
-     query = query.eq('provider_slug', filters.providerSlug);
+    query = query.eq('provider_slug', filters.providerSlug);
   }
   if (filters.categorySlug) {
-    query = query.overlaps('category_slugs', [`{${filters.categorySlug}}`]);
+    query = query.filter('category_slugs', 'cs', `{${filters.categorySlug}}`);
   }
   if (filters.status) {
     query = query.eq('status', filters.status);
@@ -42,14 +38,34 @@ const fetchAdminGames = async (filters: { searchTerm?: string; providerSlug?: st
     toast.error('Failed to fetch games: ' + error.message);
     throw error;
   }
-  return (data as DbGame[]) || [];
+  return data as DbGame[];
 };
 
 // Utility function to fetch providers for filter dropdown
 const fetchAdminProviders = async (): Promise<GameProvider[]> => {
-  const { data, error } = await supabase.from('providers').select('id, name, slug, logo, is_active').eq('is_active', true);
-  if (error) throw error;
-  return (data as GameProvider[]) || []; // Cast to GameProvider from types/game.ts
+  try {
+    const { data, error } = await supabase
+      .from('providers')
+      .select('id, name, logo, is_active')
+      .eq('status', 'active');
+    
+    if (error) throw error;
+    
+    // Convert to expected GameProvider format with generated slug
+    const providers = (data || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      slug: p.name.toLowerCase().replace(/\s+/g, '-'), // Generate slug from name
+      logo: p.logo,
+      is_active: p.is_active
+    }));
+    
+    return providers;
+  } catch (error) {
+    console.error("Error fetching providers:", error);
+    toast.error("Failed to load providers");
+    return [];
+  }
 };
 
 // Utility function to fetch categories for filter dropdown
@@ -73,27 +89,27 @@ const AdminGamesPage: React.FC = () => {
 
   const queryKey: QueryKey = ['adminGames', { searchTerm, providerSlug: selectedProvider, categorySlug: selectedCategory, status: selectedStatus }];
 
-  const { data: games = [], isLoading: isLoadingGames } = useQuery<DbGame[], Error>({
+  const { data: games = [], isLoading: isLoadingGames } = useQuery({
     queryKey: queryKey,
     queryFn: () => fetchAdminGames({ searchTerm, providerSlug: selectedProvider, categorySlug: selectedCategory, status: selectedStatus }),
   });
 
-  const { data: providers = [], isLoading: isLoadingProviders } = useQuery<GameProvider[], Error>({
+  const { data: providers = [], isLoading: isLoadingProviders } = useQuery({
     queryKey: ['adminProviders'],
     queryFn: fetchAdminProviders,
   });
 
-  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<GameCategory[], Error>({
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['adminCategories'],
     queryFn: fetchAdminCategories,
   });
 
 
-  const upsertGameMutation = useMutation<DbGame, Error, DbGame>(
-    async (gameData) => {
+  const upsertGameMutation = useMutation({
+    mutationFn: async (gameData: DbGame) => {
       // Ensure slug is generated if not provided
       if (!gameData.slug && gameData.title) {
-        gameData.slug = slugify(gameData.title);
+        gameData.slug = gameData.title.toLowerCase().replace(/\s+/g, '-');
       }
       
       // Separate meta properties if they are part of gameData and need special handling
@@ -112,20 +128,6 @@ const AdminGamesPage: React.FC = () => {
             throw new Error(`Provider with slug ${gameData.provider_slug} not found.`);
         }
       }
-      
-      // Reconstruct the 'meta' field for the Game type if needed by game adapter or display logic
-      // For DbGame, we might store these directly or in a JSONB column.
-      // Assuming direct columns for now or that adapter handles it.
-      // If you have meta_demo_url, meta_real_url on DbGame table, they will be saved with restOfGameData.
-      // If they need to go into a `meta` JSONB field in the `games` table:
-      /*
-      if (meta_demo_url || meta_real_url) {
-        finalGameData.meta = []; // Assuming meta is an array of {key: string, value: string}
-        if (meta_demo_url) finalGameData.meta.push({ key: 'demo_url', value: meta_demo_url });
-        if (meta_real_url) finalGameData.meta.push({ key: 'real_url', value: meta_real_url });
-      }
-      */
-
 
       let response;
       if (finalGameData.id) {
@@ -141,34 +143,30 @@ const AdminGamesPage: React.FC = () => {
       }
       return response as DbGame;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-        toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully!`);
-        setIsFormOpen(false);
-        setEditingGame(undefined);
-      },
-      onError: (error) => {
-        toast.error(`Failed to save game: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully!`);
+      setIsFormOpen(false);
+      setEditingGame(undefined);
+    },
+    onError: (error) => {
+      toast.error(`Failed to save game: ${error.message}`);
+    },
+  });
 
-  const deleteGameMutation = useMutation<void, Error, string>(
-    async (gameId) => {
+  const deleteGameMutation = useMutation({
+    mutationFn: async (gameId: string) => {
       const { error } = await supabase.from('games').delete().eq('id', gameId);
       if (error) throw error;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-        toast.success('Game deleted successfully!');
-      },
-      onError: (error) => {
-        toast.error('Failed to delete game: ' + error.message);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      toast.success('Game deleted successfully!');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete game: ' + error.message);
+    },
+  });
 
   const handleEdit = (game: DbGame) => {
     setEditingGame(game);
@@ -181,7 +179,7 @@ const AdminGamesPage: React.FC = () => {
     }
   };
   
-  const displayedGames = useMemo(() => games.map(dbGame => convertDbGameToGame(dbGame)), [games]);
+  const displayedGames = useMemo(() => games.map(dbGame => mapDbGameToGameAdapter(dbGame)), [games]);
 
 
   return (
@@ -282,7 +280,7 @@ const AdminGamesPage: React.FC = () => {
                   </TableCell>
                   <TableCell>{game.is_featured ? 'Yes' : 'No'}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleEdit(games.find(g => g.id === game.id)!)}> {/* Find original DbGame for editing */}
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(games.find(g => g.id === game.id)!)}>
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive/80" onClick={() => handleDelete(game.id)}>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useQuery, QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -78,14 +79,14 @@ const PPTransactionLogger: React.FC = () => {
 
 
   const queryKey: QueryKey = ['ppTransactions', currentPage, filters, sortBy, sortOrder];
-  const { data, isLoading, error } = useQuery<{ data: Transaction[]; count: number }, Error>({
+  const { data: queryData, isLoading, error } = useQuery({
     queryKey,
     queryFn: () => fetchPPTransactions(currentPage, filters, sortBy, sortOrder),
-    keepPreviousData: true,
+    staleTime: 60000, // Replace keepPreviousData with appropriate modern options
   });
 
-  const transactions = data?.data || [];
-  const totalCount = data?.count || 0;
+  const transactions = queryData?.data || [];
+  const totalCount = queryData?.count || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {

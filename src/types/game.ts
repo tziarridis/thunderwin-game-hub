@@ -1,3 +1,4 @@
+
 export enum GameStatusEnum {
   ACTIVE = "active",
   INACTIVE = "inactive",
@@ -93,7 +94,7 @@ export interface Game {
   category?: string | null; 
 
   image?: string | null; // Main image, could be cover or thumbnail
-  // image_url removed to avoid confusion, use image or cover
+  image_url?: string | null; // Added to fix missing property errors
   cover?: string | null; // Typically a specific image for cards
   bannerUrl?: string | null; 
   banner?: string | null; 
@@ -147,6 +148,7 @@ export interface GameProvider {
   slug: string;
   name: string;
   logo?: string | null; // Changed from logo_url to match common DB field name
+  logo_url?: string | null; // Added to fix missing property errors
   description?: string | null;
   is_active?: boolean | null;
   created_at?: string | null;

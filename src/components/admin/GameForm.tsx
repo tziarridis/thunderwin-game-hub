@@ -11,8 +11,9 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Game, GameCategory, GameProvider, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, DbGame } from '@/types/game';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { convertDbGameToGame, convertGameToDbGame } from '@/utils/gameTypeAdapter';
+import { mapDbGameToGameAdapter, mapGameToDbGameAdapter } from './GameAdapter';
 
+// Define the schema outside the component to avoid regeneration
 const gameFormSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters."),
   slug: z.string().optional().refine(val => !val || /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(val), {
@@ -23,8 +24,8 @@ const gameFormSchema = z.object({
   category_slugs: z.array(z.string()).min(1, "At least one category is required."),
   description: z.string().optional(),
   rtp: z.coerce.number().min(0).max(100).optional().nullable(),
-  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(), // Use z.nativeEnum for TS enums
-  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.ACTIVE),
+  volatility: z.enum(AllGameVolatilities).optional().nullable(), // Use z.enum with the array
+  status: z.enum(AllGameStatuses).default(GameStatusEnum.ACTIVE), // Use z.enum with the array
   tags: z.string().optional().transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag) : []),
   features: z.string().optional().transform(val => val ? val.split(',').map(feat => feat.trim()).filter(feat => feat) : []),
   themes: z.string().optional().transform(val => val ? val.split(',').map(theme => theme.trim()).filter(theme => theme) : []),
@@ -52,7 +53,6 @@ interface GameFormProps {
 }
 
 const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCancel }) => {
-  // ... keep existing code (useState for categories and providers)
   const [categories, setCategories] = useState<GameCategory[]>([]);
   const [providers, setProviders] = useState<GameProvider[]>([]);
 
@@ -66,19 +66,34 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
       if (catError) toast.error("Failed to load categories: " + catError.message);
       else setCategories(catData || []);
 
-      // Fetch providers
-      const { data: provData, error: provError } = await supabase
-        .from('providers')
-        .select('id, name, slug') // Assuming providers table has a 'slug' column
-        .eq('is_active', true);
-      if (provError) toast.error("Failed to load providers: " + provError.message);
-      else setProviders(provData || []);
+      try {
+        // Fetch providers - use explicit type casting to fix the column issue
+        const { data: provData, error: provError } = await supabase
+          .from('providers')
+          .select('id, name')
+          .eq('status', 'active');
+        
+        if (provError) {
+          toast.error("Failed to load providers: " + provError.message);
+        } else {
+          // Convert to GameProvider[]
+          const mappedProviders = (provData || []).map(p => ({
+            id: p.id,
+            name: p.name,
+            slug: p.name.toLowerCase().replace(/\s+/g, '-'), // Generate slug from name
+          }));
+          setProviders(mappedProviders);
+        }
+      } catch (err) {
+        console.error("Error fetching providers:", err);
+        toast.error("Failed to load providers data");
+      }
     };
     fetchDropdownData();
   }, []);
 
   // Convert initialGameData (Game or DbGame) to GameFormValues
-  const defaultValues = React.useMemo(() => {
+  const defaultValues = React.useMemo<GameFormValues>(() => {
     if (!initialGameData) {
       return {
         title: '',
@@ -90,9 +105,9 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
         rtp: undefined,
         volatility: undefined,
         status: GameStatusEnum.ACTIVE,
-        tags: [],
-        features: [],
-        themes: [],
+        tags: '',
+        features: '',
+        themes: '',
         image_url: '',
         cover: '',
         banner_url: '',
@@ -111,7 +126,7 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
     // If initialGameData is Game, convert to DbGame-like structure for form
     // Or, if it's already DbGame, use it.
     // The key is to map to GameFormValues
-    const gameForForm = 'providerName' in initialGameData ? convertGameToDbGame(initialGameData as Game) : initialGameData as DbGame;
+    const gameForForm = 'providerName' in initialGameData ? mapGameToDbGameAdapter(initialGameData as Game) : initialGameData as DbGame;
 
     return {
       title: gameForForm.title || '',
@@ -121,7 +136,7 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
       category_slugs: gameForForm.category_slugs || [],
       description: gameForForm.description || '',
       rtp: gameForForm.rtp ?? undefined,
-      volatility: gameForForm.volatility ?? undefined,
+      volatility: gameForForm.volatility as GameVolatilityEnum || undefined,
       status: gameForForm.status || GameStatusEnum.ACTIVE,
       tags: Array.isArray(gameForForm.tags) ? gameForForm.tags.join(', ') : (gameForForm.tags || ''),
       features: Array.isArray(gameForForm.features) ? gameForForm.features.join(', ') : (gameForForm.features || ''),
@@ -143,8 +158,7 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
     };
   }, [initialGameData]);
 
-
-  const form = useForm<GameFormValues>({
+  const form = useForm<z.infer<typeof gameFormSchema>>({
     resolver: zodResolver(gameFormSchema),
     defaultValues,
   });
@@ -238,7 +252,7 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
                     </FormControl>
                     <SelectContent>
                     {providers.map(p => (
-                        <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>
+                        <SelectItem key={p.id?.toString() || p.slug} value={p.slug}>{p.name}</SelectItem>
                     ))}
                     </SelectContent>
                 </Select>
@@ -257,20 +271,6 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
                             name="category_slugs"
                             render={({ field: controllerField }) => (
                                 <Select
-                                    // Shadcn Select doesn't directly support multi-select in the typical dropdown way.
-                                    // For multi-select, you'd typically use multiple Checkbox components or a custom multi-select component.
-                                    // This is a simplified single-select version for now, or you might use a checklist.
-                                    // This is a simplified single-select version for now, or you might use a checklist.
-                                    // To implement multi-select with checkboxes:
-                                    // {categories.map(c => <Checkbox key={c.slug} onCheckedChange={(checked) => handleCategoryMultiSelect(c.slug, checked)}>{c.name}</Checkbox>)}
-                                    // For now, if category_slugs is an array, this Select needs to be a multi-select component.
-                                    // Or, we change category_slugs to be a single string for simplicity here.
-                                    // Let's keep it as is and assume the parent form handles the array from a multi-select primitive if available
-                                    // For this example, I will make it a single select for the primary category for simplicity of this component
-                                    // To make it multi-select, you'd use checkboxes or a specialized multi-select component.
-                                    // This simplified example will just pick the first category if multiple are set.
-                                    // To make it multi-select, you'd use checkboxes or a specialized multi-select component.
-                                    // This simplified example will just pick the first category if multiple are set.
                                     onValueChange={(value) => controllerField.onChange([value])} // Simplified: sets as array with one item
                                     defaultValue={controllerField.value?.[0]} // Simplified: takes first item
                                 >
@@ -329,13 +329,17 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Volatility</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value ?? undefined}>
+                <Select 
+                  onValueChange={field.onChange} 
+                  defaultValue={field.value || undefined}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select volatility" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
+                    <SelectItem value="">Not Specified</SelectItem>
                     {AllGameVolatilities.map(vol => (
                       <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>
                     ))}
@@ -358,8 +362,8 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {AllGameStatuses.map(stat => (
-                      <SelectItem key={stat} value={stat}>{stat.charAt(0).toUpperCase() + stat.slice(1)}</SelectItem>
+                    {AllGameStatuses.map(status => (
+                      <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -368,164 +372,240 @@ const GameForm: React.FC<GameFormProps> = ({ game: initialGameData, onSave, onCa
             )}
           />
         </div>
-        
-        {/* ... keep existing code for tags, features, themes, image_url, cover, banner_url ... */}
-        <FormField
-            control={form.control}
-            name="tags"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Tags (comma-separated)</FormLabel>
-                <FormControl>
-                    {/* The Zod transform handles string -> string[]. For display, join back or use a tag input component. */}
-                    <Input placeholder="e.g., popular, new, hot" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-         <FormField
-            control={form.control}
-            name="features"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Features (comma-separated)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g., freespins, bonus-buy" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-         <FormField
-            control={form.control}
-            name="themes"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Themes (comma-separated)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g., adventure, mythology" {...field} value={Array.isArray(field.value) ? field.value.join(', ') : field.value} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
 
+        {/* Image URLs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <FormField
-                control={form.control}
-                name="image_url"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Image URL</FormLabel>
-                    <FormControl>
-                    <Input type="url" placeholder="https://example.com/image.png" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="cover"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Cover URL</FormLabel>
-                    <FormControl>
-                    <Input type="url" placeholder="https://example.com/cover.png" {...field} value={field.value ?? ''}/>
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="banner_url"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Banner URL</FormLabel>
-                    <FormControl>
-                    <Input type="url" placeholder="https://example.com/banner.png" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        </div>
-        
-        {/* Meta URLs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-                control={form.control}
-                name="meta_demo_url"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Demo URL (Optional)</FormLabel>
-                    <FormControl>
-                    <Input type="url" placeholder="https://example.com/demo" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-            <FormField
-                control={form.control}
-                name="meta_real_url"
-                render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Real Play URL (Optional)</FormLabel>
-                    <FormControl>
-                    <Input type="url" placeholder="https://example.com/real" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                </FormItem>
-                )}
-            />
-        </div>
-
-
-        {/* Boolean flags */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {(['is_featured', 'is_popular', 'is_new', 'show_home', 'only_demo', 'only_real'] as const).map(flagName => (
-              <FormField
-                key={flagName}
-                control={form.control}
-                name={flagName}
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>{flagName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            ))}
-          </div>
-        </div>
-        
-        <FormField
+          <FormField
             control={form.control}
-            name="release_date"
+            name="image_url"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Release Date (Optional)</FormLabel>
+                <FormLabel>Main Image URL</FormLabel>
                 <FormControl>
-                  {/* Consider using a DatePicker component here for better UX */}
-                  <Input type="date" {...field} value={field.value ?? ''} />
+                  <Input placeholder="https://example.com/image.jpg" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="cover"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cover Image URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://example.com/cover.jpg" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="banner_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Banner Image URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://example.com/banner.jpg" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
+        {/* Tags, Features, Themes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <FormField
+            control={form.control}
+            name="tags"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tags (comma separated)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., popular, new, exclusive" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="features"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Features (comma separated)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., wilds, bonus rounds, free spins" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="themes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Themes (comma separated)</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g., adventure, fantasy, sports" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
+        {/* Checkboxes */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6">
+          <FormField
+            control={form.control}
+            name="is_featured"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">Featured</FormLabel>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="is_popular"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">Popular</FormLabel>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="is_new"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">New</FormLabel>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="show_home"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">Show Home</FormLabel>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="only_demo"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">Demo Only</FormLabel>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="only_real"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox 
+                    checked={field.value} 
+                    onCheckedChange={field.onChange} 
+                  />
+                </FormControl>
+                <FormLabel className="font-normal">Real Only</FormLabel>
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Game Launch URLs */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="meta_demo_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Demo Launch URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://example.com/demo" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="meta_real_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Real Money Launch URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://example.com/real" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Release Date */}
+        <FormField
+          control={form.control}
+          name="release_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Release Date</FormLabel>
+              <FormControl>
+                <Input type="date" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Submit & Cancel Buttons */}
         <div className="flex justify-end space-x-4">
-          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
-          <Button type="submit">Save Game</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">
+            {initialGameData ? 'Update Game' : 'Add Game'}
+          </Button>
         </div>
       </form>
     </Form>

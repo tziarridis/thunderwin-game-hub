@@ -13,7 +13,7 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
 
   const parseGameVolatility = (volStr: string | null | undefined): GameVolatility | undefined => {
     if (volStr && Object.values(GameVolatilityEnum).includes(volStr as GameVolatilityEnum)) {
-      return volStr as GameVolatilityEnum;
+      return volStr as GameVolatility;
     }
     return undefined;
   };
@@ -44,7 +44,7 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     // categoryNames would be resolved similarly to providerName
 
     image: dbGame.cover || dbGame.image_url || undefined, 
-    image_url: dbGame.image_url || dbGame.cover || undefined,
+    image_url: dbGame.image_url || undefined, // Use existing image_url
     cover: dbGame.cover || dbGame.image_url || undefined,
     bannerUrl: dbGame.banner_url || dbGame.cover || undefined, 
     
@@ -104,8 +104,8 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   }
   
   if (game.image) dbGame.image_url = game.image; 
+  if (game.image_url) dbGame.image_url = game.image_url; // Use image_url if available 
   if (game.cover && !dbGame.image_url) dbGame.image_url = game.cover; // Prioritize image, then cover
-  if (game.image_url) dbGame.image_url = game.image_url; // Explicit image_url
   if (game.cover) dbGame.cover = game.cover; // Explicit cover
   if (game.bannerUrl) dbGame.banner_url = game.bannerUrl;
 

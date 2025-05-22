@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameLaunchOptions, GameCategory, GameProvider, DbGame, GameStatusEnum, GameContextType, GameStatus } from '@/types/game'; // GameContextType from game.ts
+import { Game, GameLaunchOptions, GameCategory, GameProvider, DbGame, GameStatusEnum, GameContextType, GameStatus } from '@/types/game';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { convertDbGameToGame } from '@/utils/gameTypeAdapter'; // Assuming convertGameToDbGame and slugify are also here
+import { mapDbGameToGameAdapter, mapGameToDbGameAdapter } from '@/components/admin/GameAdapter';
 
 // Create the context with the updated GameContextType from src/types/game.ts
 const GamesContext = createContext<GameContextType | undefined>(undefined);
@@ -29,15 +29,12 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoadingGames(true);
     console.log('fetchGames called with filters:', filters, 'page:', page, 'limit:', limit);
     try {
+      // Fix: Specify correct columns in the select
       let query = supabase.from('games').select(`
         *,
-        game_providers:providers!inner(id, name, slug, logo, is_active), 
-        game_categories:game_categories!inner(id, name, slug, image)
+        game_providers:provider_id(id, name),
+        game_categories:category_slugs(id, name)
       `, { count: 'exact' });
-      // Note: Using !inner will filter out games that don't have a matching provider/category. 
-      // Use !left if you want to include games even if their provider/category is missing/inactive.
-      // For now, assuming `providers` table has `slug`, `logo`, `is_active`.
-      // And `game_categories` table has `slug`, `image`.
 
       if (filters.provider_slug) query = query.eq('provider_slug', filters.provider_slug);
       
@@ -67,7 +64,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         return { games: [], totalCount: 0 };
       }
       
-      const fetchedGames = rawGames ? rawGames.map(g => convertDbGameToGame(g as unknown as DbGame)) : [];
+      const fetchedGames = rawGames ? rawGames.map(g => mapDbGameToGameAdapter(g as DbGame)) : [];
       console.log('Fetched games raw:', rawGames);
       console.log('Fetched games converted:', fetchedGames);
       
@@ -102,12 +99,13 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchGameBySlug = async (slug: string): Promise<Game | null> => {
     setIsLoadingGames(true);
     try {
+      // Fix: Specify correct columns in the select
       const { data, error } = await supabase
         .from('games')
         .select(`
           *,
-          game_providers:providers!left(id, name, slug, logo, is_active),
-          game_categories:game_categories!left(id, name, slug, image)
+          game_providers:provider_id(id, name),
+          game_categories:category_slugs(id, name)
         `)
         .eq('slug', slug)
         .maybeSingle(); 
@@ -117,7 +115,7 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
         toast.error(`Error fetching game ${slug}: ${error.message}`);
         return null;
       }
-      return data ? convertDbGameToGame(data as unknown as DbGame) : null;
+      return data ? mapDbGameToGameAdapter(data as DbGame) : null;
     } catch (error: any) {
       toast.error(`Error fetching game ${slug}: ${error.message}`);
       return null;
@@ -130,9 +128,16 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoadingCategories(true);
     try {
       // Assuming 'game_categories' table has 'slug' and 'image' (not image_url)
-      const { data, error } = await supabase.from('game_categories').select('id, name, slug, image, icon, status').eq('status', 'active');
+      const { data, error } = await supabase
+        .from('game_categories')
+        .select('id, name, slug, image, icon, status')
+        .eq('status', 'active');
+      
       if (error) throw error;
-      setCategories((data as GameCategory[]) || []);
+      
+      // Cast the data to match the expected type
+      const categoriesData = data as GameCategory[];
+      setCategories(categoriesData || []);
     } catch (error: any) {
       toast.error("Failed to load game categories: " + error.message);
       setCategories([]); // Set to empty array on error
@@ -144,10 +149,24 @@ export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchProviders = async () => {
     setIsLoadingProviders(true);
     try {
-      // Assuming 'providers' table has 'slug', 'logo' (not logo_url), and 'is_active'
-      const { data, error } = await supabase.from('providers').select('id, name, slug, logo, is_active').eq('is_active', true);
+      // Fix: Only select existing columns
+      const { data, error } = await supabase
+        .from('providers')
+        .select('id, name, logo, is_active')
+        .eq('status', 'active');
+      
       if (error) throw error;
-      setProviders((data as GameProvider[]) || []);
+      
+      // Convert to GameProvider[] with generated slug
+      const providersData = (data || []).map(p => ({
+        id: p.id,
+        name: p.name, 
+        slug: p.name.toLowerCase().replace(/\s+/g, '-'), // Generate slug from name
+        logo: p.logo,
+        is_active: p.is_active
+      }));
+      
+      setProviders(providersData);
     } catch (error: any) {
       toast.error("Failed to load game providers: " + error.message);
       setProviders([]); // Set to empty array on error
@@ -335,8 +354,8 @@ export const useGames = () => {
 // fetchInitialSiteData remains largely the same, but ensure select statements are correct
 export const fetchInitialSiteData = async () => {
     try {
-        // Ensure these select statements match your actual DB columns and desired types
-        const providersPromise = supabase.from('providers').select('id, name, slug, logo, is_active').eq('is_active', true);
+        // Fix: Only select existing columns
+        const providersPromise = supabase.from('providers').select('id, name, logo, is_active').eq('status', 'active');
         const categoriesPromise = supabase.from('game_categories').select('id, name, slug, image, icon, status').eq('status', 'active');
         
         const [{data: providersData, error: providersError}, {data: categoriesData, error: categoriesError}] = await Promise.all([providersPromise, categoriesPromise]);
@@ -344,10 +363,18 @@ export const fetchInitialSiteData = async () => {
         if (providersError) throw providersError;
         if (categoriesError) throw categoriesError;
 
-        return {
-            providers: (providersData as GameProvider[]) || [],
-            categories: (categoriesData as GameCategory[]) || [],
-        };
+        // Convert to the expected types with proper slug handling
+        const providers = (providersData || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          slug: p.name.toLowerCase().replace(/\s+/g, '-'), // Generate slug
+          logo: p.logo,
+          is_active: p.is_active
+        })) as GameProvider[];
+        
+        const categories = categoriesData as GameCategory[];
+
+        return { providers, categories };
     } catch (error: any) {
         console.error("Error fetching initial site data:", error);
         toast.error("Could not load essential site data: " + error.message);

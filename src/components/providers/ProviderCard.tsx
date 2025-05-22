@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { GameProvider } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,9 +33,9 @@ const ProviderCard: React.FC<ProviderCardProps> = ({ provider, onSelectProvider,
     >
       <CardContent className="p-4 flex flex-col items-center text-center">
         <div className="w-20 h-20 mb-4 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors flex items-center justify-center bg-muted">
-          {provider.logo_url ? (
+          {(provider.logo_url || provider.logo) ? (
             <img 
-              src={provider.logo_url} 
+              src={provider.logo_url || provider.logo} 
               alt={`${provider.name} logo`} 
               className="w-full h-full object-contain"
               onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails
