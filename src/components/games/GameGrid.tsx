@@ -1,10 +1,9 @@
-
 // This is components/games/GameGrid.tsx, distinct from casino/GameGrid.tsx
 // This one is used by CasinoMain.tsx
 import React from 'react';
 import GameCard from '@/components/games/GameCard'; 
 import { Game } from '@/types';
-import { useGames } from "@/hooks/useGames";
+import { useGamesData } from "@/hooks/useGames";
 import { useNavigate } from 'react-router-dom'; // For navigation
 import { toast } from 'sonner';
 
@@ -14,7 +13,7 @@ interface GameGridProps {
 }
 
 const GameGrid: React.FC<GameGridProps> = ({ games }) => {
-  const { favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
+  const { toggleFavoriteGame, launchGame, isFavorite } = useGamesData(); // Use context functions
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -27,7 +26,7 @@ const GameGrid: React.FC<GameGridProps> = ({ games }) => {
 
   const handlePlayGame = async (gameToPlay: Game) => {
     try {
-      const launchUrl = await launchGame(gameToPlay, { mode: 'real' });
+      const launchUrl = await launchGame(gameToPlay, { mode: 'real' }); // Call context function
       if (launchUrl) {
         window.open(launchUrl, '_blank');
       } else {
@@ -47,8 +46,7 @@ const GameGrid: React.FC<GameGridProps> = ({ games }) => {
         <GameCard
           key={String(game.id)} // Ensure key is string
           game={game}
-          isFavorite={favoriteGameIds.has(String(game.id))}
-          onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
+          // isFavorite and onToggleFavorite are handled by GameCard internally
           onPlay={() => handlePlayGame(game)} 
         />
       ))}

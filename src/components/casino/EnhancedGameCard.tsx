@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Game } from '@/types/game';
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Heart, PlayCircle, Info } from 'lucide-react';
-import { useGames } from '@/hooks/useGames';
+import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -24,9 +23,9 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({
   className 
 }) => {
   const { isAuthenticated } = useAuth();
-  const { favoriteGameIds, toggleFavoriteGame } = useGames();
+  const { toggleFavoriteGame, isFavorite: isGameFavorite } = useGamesData(); // Use context functions
 
-  const isFavorite = favoriteGameIds?.has(String(game.id));
+  const isFavorite = isGameFavorite(String(game.id));
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -36,7 +35,7 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({
       return;
     }
     
-    toggleFavoriteGame(String(game.id));
+    toggleFavoriteGame(String(game.id)); // Call context function
   };
 
   const handlePlayClick = (e: React.MouseEvent, mode: 'real' | 'demo') => {

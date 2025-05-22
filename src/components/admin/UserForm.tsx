@@ -1,190 +1,229 @@
-import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// Checkbox not used, can remove
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User as GlobalUserType } from '@/types/user'; // Using global User type
-import { toast } from 'sonner';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, Controller } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { User } from "@/types/user"; // Assuming you have a User type
+import { toast } from "sonner";
 
-// This form schema defines the data structure for the form itself.
+// Define your form schema using Zod
 const userFormSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
-  username: z.string().min(3, { message: "Username must be at least 3 characters." }).optional(),
-  firstName: z.string().optional(), // was full_name
-  lastName: z.string().optional(), // new field
-  avatarUrl: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')), // was avatar_url
-  roles: z.array(z.string()).optional(), // Changed from role (string) to roles (string array)
-  status: z.enum(['active', 'inactive', 'banned', 'pending']).default('active'), // Added pending
-  // kyc_status: z.enum(['verified', 'pending', 'rejected', 'not_submitted']).default('not_submitted'), // Assuming this meta field is handled if needed
-  currency: z.string().optional(), // Assuming this meta field is handled if needed
-  language: z.string().optional(), // Assuming this meta field is handled if needed
-  vipLevel: z.coerce.number().int().min(0).optional(), // was vip_level
-  isActive: z.boolean().optional(), // for mapping to status
+  username: z.string().min(2, "Username must be at least 2 characters."),
+  email: z.string().email("Invalid email address."),
+  status: z.enum(["active", "inactive", "banned", "pending"]).optional(), // Example statuses
+  roles: z.array(z.string()).optional(), // Assuming roles are an array of strings (e.g., role names or IDs)
+  vipLevel: z.number().min(0).optional(),
+  currency: z.string().optional(),
+  language: z.string().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  avatarUrl: z.string().url().optional().or(z.literal('')),
+  isActive: z.boolean().optional(), // Example, if you have a general active status
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
-  user?: GlobalUserType | null; // Use the global User type
-  onSave: (data: Partial<GlobalUserType>, userId?: string) => Promise<void>; // Submitting subset of GlobalUserType
-  isEditing?: boolean;
+  user?: User | null; // Make user prop optional for creating new users
+  onSubmit: (values: UserFormValues) => Promise<void>;
+  onCancel?: () => void;
+  isLoading?: boolean;
 }
 
-const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) => {
+const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading }) => {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      email: user?.email || '',
-      username: user?.username || '',
-      firstName: user?.firstName || '',
-      lastName: user?.lastName || '',
-      avatarUrl: user?.avatarUrl || '',
-      roles: user?.roles || ['user'], // Default to ['user']
-      isActive: user?.isActive === undefined ? true : user.isActive, // Default to true if undefined
-      // Map isActive to form 'status'
-      status: user?.isActive === false ? 'inactive' : 'active', 
-      // Fields like kyc_status, currency, language, vipLevel would be part of extended user profile/wallet
-      // For now, focusing on core User model fields
-      // kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
-      // currency: user?.user_metadata?.currency || 'USD',
-      // language: user?.user_metadata?.language || 'en',
-      // vipLevel: user?.user_metadata?.vip_level || 0,
+      username: user?.username || "",
+      email: user?.email || "",
+      status: user?.status || "pending",
+      roles: user?.roles || [], // Assuming user object has roles
+      vipLevel: user?.vipLevel || 0,
+      currency: user?.currency || "USD",
+      language: user?.language || "en",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      avatarUrl: user?.avatarUrl || "",
+      isActive: user?.isActive !== undefined ? user.isActive : true,
     },
   });
 
-  useEffect(() => {
-    if (user) {
-      form.reset({
-        email: user.email || '',
-        username: user.username || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        avatarUrl: user.avatarUrl || '',
-        roles: user.roles || ['user'],
-        isActive: user.isActive === undefined ? true : user.isActive,
-        status: user.isActive === false ? 'inactive' : (user.isActive === true ? 'active' : 'pending'),
-        // kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
-        // currency: user.user_metadata?.currency || 'USD',
-        // language: user.user_metadata?.language || 'en',
-        // vipLevel: user.user_metadata?.vip_level || 0,
-      });
-    } else {
-        form.reset({ // Default for new user
-            email: '',
-            username: '',
-            firstName: '',
-            lastName: '',
-            avatarUrl: '',
-            roles: ['user'],
-            isActive: true,
-            status: 'pending',
-        });
-    }
-  }, [user, form]);
-
-  const onSubmit = async (data: UserFormValues) => {
+  const handleSubmit = async (values: UserFormValues) => {
     try {
-      // Map form values to GlobalUserType structure for saving
-      const userPayload: Partial<GlobalUserType> = {
-        email: data.email,
-        username: data.username,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        avatarUrl: data.avatarUrl,
-        roles: data.roles,
-        isActive: data.status === 'active' || data.status === 'pending', // Map back
-        // Other fields like phone, inviterCode etc. from GlobalUserType could be added here
-      };
-      // Fields like kyc_status, currency, language, vipLevel would need separate handling
-      // if they are stored in a different table (e.g. user_profiles or wallets)
-
-      await onSave(userPayload, user?.id);
-      toast.success(`User ${isEditing ? 'updated' : 'created'} successfully.`);
+      await onSubmit(values);
+      toast.success(user ? "User updated successfully!" : "User created successfully!");
     } catch (error) {
-      toast.error(`Failed to ${isEditing ? 'update' : 'create'} user.`);
-      console.error(error);
+      toast.error(`Error: ${(error as Error).message}`);
     }
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" {...form.register('email')} />
-        {form.formState.errors.email && <p className="text-red-500 text-sm">{form.formState.errors.email.message}</p>}
-      </div>
-      <div>
-        <Label htmlFor="username">Username</Label>
-        <Input id="username" {...form.register('username')} />
-        {form.formState.errors.username && <p className="text-red-500 text-sm">{form.formState.errors.username.message}</p>}
-      </div>
-      <div>
-        <Label htmlFor="firstName">First Name</Label>
-        <Input id="firstName" {...form.register('firstName')} />
-      </div>
-      <div>
-        <Label htmlFor="lastName">Last Name</Label>
-        <Input id="lastName" {...form.register('lastName')} />
-      </div>
-      <div>
-        <Label htmlFor="avatarUrl">Avatar URL</Label>
-        <Input id="avatarUrl" {...form.register('avatarUrl')} />
-        {form.formState.errors.avatarUrl && <p className="text-red-500 text-sm">{form.formState.errors.avatarUrl.message}</p>}
-      </div>
-      <div>
-        <Label htmlFor="roles">Roles (comma separated, e.g., user,editor)</Label>
-        <Input 
-            id="roles" 
-            {...form.register('roles', { 
-                setValueAs: (value: string) => value ? value.split(',').map(s => s.trim()).filter(Boolean) : [],
-                valueAsString: true, // To get string from array for display
-            })} 
-            defaultValue={user?.roles?.join(',')}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="username"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Username</FormLabel>
+                <FormControl>
+                  <Input placeholder="johndoe" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input type="email" placeholder="m@example.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>First Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="John" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Last Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Doe" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select user status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="banned">Banned</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+        {/* Example for roles - this would be more complex for multi-select or tag input */}
+        <FormField
+          control={form.control}
+          name="roles"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Roles (comma-separated)</FormLabel>
+              <FormControl>
+                <Input 
+                  placeholder="admin,editor" 
+                  {...field} 
+                  value={Array.isArray(field.value) ? field.value.join(',') : ''} 
+                  onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                />
+              </FormControl>
+              <FormDescription>Assign roles to the user.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div>
-        <Label htmlFor="status">Status</Label>
-        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned' | 'pending')} defaultValue={form.getValues('status')}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="banned">Banned</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      {/* KYC Status, Currency, Language, VIP Level are examples of extended profile data
-          These would require their own form fields and data handling if they are part of this form.
-          For now, they are commented out to focus on core User fields.
-      <div>
-        <Label htmlFor="kyc_status">KYC Status</Label>
-        ...
-      </div>
-      <div>
-        <Label htmlFor="currency">Currency</Label>
-        ...
-      </div>
-       <div>
-        <Label htmlFor="language">Language</Label>
-        ...
-      </div>
-      <div>
-        <Label htmlFor="vip_level">VIP Level</Label>
-        ...
-      </div> 
-      */}
-      
-      <Button type="submit" disabled={form.formState.isSubmitting}>
-        {form.formState.isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
-      </Button>
-    </form>
+        
+        <FormField
+            control={form.control}
+            name="avatarUrl"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Avatar URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="https://example.com/avatar.png" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+        <div className="flex items-center space-x-2">
+            <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-2">
+                        <div className="space-y-0.5">
+                            <FormLabel>Is Active</FormLabel>
+                            <FormDescription>
+                                Controls if the user account is generally active.
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                    </FormItem>
+                )}
+            />
+        </div>
+
+
+        <div className="flex justify-end space-x-4">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+              Cancel
+            </Button>
+          )}
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (user ? "Updating..." : "Creating...") : (user ? "Update User" : "Create User")}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };
 

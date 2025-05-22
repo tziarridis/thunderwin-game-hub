@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Game, GameLaunchOptions } from '@/types/game';
-import { useGames } from '@/hooks/useGames';
+import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
 import { Button } from '@/components/ui/button';
 import { X, ExternalLink, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -17,7 +16,7 @@ interface GameLauncherProps {
 }
 
 const GameLauncher: React.FC<GameLauncherProps> = ({ game, mode = 'demo', isOpen, onClose }) => {
-  const { getGameLaunchUrl } = useGames();
+  const { getGameLaunchUrl } = useGamesData(); // Use context function
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
@@ -35,18 +34,14 @@ const GameLauncher: React.FC<GameLauncherProps> = ({ game, mode = 'demo', isOpen
         toast.error("Please log in to play with real money.");
         setError("Please log in to play with real money.");
         setIsLoading(false);
-        // Optionally navigate to login or show login prompt
-        // navigate('/login'); 
-        // onClose(); // Close launcher if login required
         return;
       }
 
       const launchOptions: GameLaunchOptions = {
         mode: effectiveMode,
-        // platform: 'desktop', // Or detect dynamically
       };
 
-      getGameLaunchUrl(game, launchOptions)
+      getGameLaunchUrl(game, launchOptions) // Call context function
         .then(url => {
           if (isMounted) {
             if (url) {
@@ -68,7 +63,6 @@ const GameLauncher: React.FC<GameLauncherProps> = ({ game, mode = 'demo', isOpen
           }
         });
     } else {
-      // Reset state if dialog is closed or game changes
       setLaunchUrl(null);
       setError(null);
       setIsLoading(false);

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Game } from '@/types';
-import GameCard from './GameCard'; 
-import { useGames } from '@/hooks/useGames';
-import { useNavigate } from 'react-router-dom'; 
-import { toast } from 'sonner'; // For notifications
+import GameCard from './GameCard';
+import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface GameListProps {
   games: Game[];
@@ -11,7 +11,7 @@ interface GameListProps {
 }
 
 const GameList: React.FC<GameListProps> = ({ games, title }) => {
-  const { favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
+  const { launchGame } = useGamesData(); // GameCard will use context for favorites
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -20,16 +20,14 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
 
   const handlePlayGame = async (gameToPlay: Game) => {
     try {
-      const launchUrl = await launchGame(gameToPlay, { mode: 'real' });
+      const launchUrl = await launchGame(gameToPlay, { mode: 'real' }); // Call context function
       if (launchUrl) {
         window.open(launchUrl, '_blank');
       } else {
-        // Fallback to details page if no launch URL
         navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
       }
     } catch (error: any) {
       toast.error(`Could not launch game: ${error.message}`);
-      // Fallback to details page on error
       navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
     }
   };
@@ -40,10 +38,9 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
           <GameCard
-            key={String(game.id)} // Ensure key is unique and string
+            key={String(game.id)}
             game={game}
-            isFavorite={favoriteGameIds.has(String(game.id))}
-            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
+            // isFavorite and onToggleFavorite are handled by GameCard internally
             onPlay={() => handlePlayGame(game)}
           />
         ))}

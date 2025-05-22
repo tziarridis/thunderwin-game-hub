@@ -1,11 +1,12 @@
+
 import React, { useEffect, useState } from 'react';
-import { useGames } from '@/hooks/useGames';
-import EnhancedGameCard from './EnhancedGameCard'; // Assuming this is the correct path
-import { Game } from '@/types/game';
+import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import EnhancedGameCard from './EnhancedGameCard';
+import { Game } from '@/types/game'; // Ensure this is the correct type path
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom'; // Changed from useRouter
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import GameCardLoadingSkeleton from '@/components/skeletons/GameCardLoadingSkeleton'; // Corrected typo here
+import GameCardLoadingSkeleton from '@/components/skeletons/GameCardLoadingSkeleton';
 
 interface FeaturedGamesProps {
   count?: number;
@@ -20,35 +21,31 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   showViewAllButton = true,
   viewAllLink = "/casino/main?filter=featured"
 }) => {
-  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingGamesContext } = useGames();
-  const navigate = useNavigate(); // Changed from useRouter
+  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingContext } = useGamesData(); // Use context
+  const navigate = useNavigate();
   const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingGamesHook, setIsLoadingGamesHook] = useState(true); // Renamed to avoid conflict
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchGames = async () => {
-      setIsLoading(true);
+      setIsLoadingGamesHook(true);
       setError(null);
       try {
-        if (getFeaturedGames) { // Check if function exists
-          const games = await getFeaturedGames(count);
-          setFeaturedGames(games);
-        } else {
-          setError("Could not load featured games functionality.");
-        }
+        const games = await getFeaturedGames(count); // Call context function
+        setFeaturedGames(games);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch featured games');
         console.error("Error fetching featured games:", err);
       } finally {
-        setIsLoading(false);
+        setIsLoadingGamesHook(false);
       }
     };
 
     fetchGames();
   }, [count, getFeaturedGames]);
 
-  const isLoadingState = isLoading || isLoadingGamesContext;
+  const isLoadingState = isLoadingGamesHook || isLoadingContext;
 
 
   if (error) {
@@ -80,8 +77,8 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
               <EnhancedGameCard
                 key={game.id || game.slug}
                 game={game}
-                onPlay={(selectedGame, mode) => handlePlayGame && handlePlayGame(selectedGame, mode)}
-                onDetails={(selectedGame) => handleGameDetails && handleGameDetails(selectedGame)}
+                onPlay={(selectedGame, mode) => handlePlayGame(selectedGame, mode)} // Use context function
+                onDetails={(selectedGame) => handleGameDetails(selectedGame)} // Use context function
               />
             ))}
           </div>

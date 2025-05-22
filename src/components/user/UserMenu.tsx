@@ -1,6 +1,4 @@
 
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,86 +6,80 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User as UserIcon, LogOut, Settings, ShieldCheck, DollarSign, UserCog } from 'lucide-react'; // Added UserCog for admin
-import { User } from '@/types'; // User type from your types
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { User as LucideUser, LogOut, Settings, LayoutDashboard, ShieldCheck } from "lucide-react"; // Added ShieldCheck for admin
+import { User } from "@supabase/supabase-js"; // Use Supabase User type
 
-interface UserMenuProps {
-  user: User;
-  onLogout: () => void;
-}
+// Helper function to get initials
+const getInitials = (name?: string | null) => {
+  if (!name) return "NN"; // No Name
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+};
 
-const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
+export function UserMenu() {
+  const { user, signOut, roles } = useAuth(); // Assuming roles are fetched in AuthContext
   const navigate = useNavigate();
-  const isAdmin = user.role === 'admin'; // Example check for admin role
 
-  const getInitials = (name?: string, email?: string) => {
-    if (name) {
-      const parts = name.split(' ');
-      if (parts.length > 1) {
-        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-      }
-      return name.substring(0, 2).toUpperCase();
-    }
-    if (email) {
-      return email.substring(0, 2).toUpperCase();
-    }
-    return 'U';
-  };
-  
-  const userDisplayName = user.user_metadata?.full_name || user.user_metadata?.username || user.email;
+  if (!user) {
+    return (
+      <Button onClick={() => navigate("/login")}>
+        <LucideUser className="mr-2 h-4 w-4" /> Login
+      </Button>
+    );
+  }
+
+  const userName = user.user_metadata?.full_name || user.email;
+  const userAvatar = user.user_metadata?.avatar_url;
+  const isAdmin = roles?.includes('admin'); // Check if user has admin role
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user.user_metadata?.avatar_url || undefined} alt={userDisplayName || 'User Avatar'} />
-            <AvatarFallback>{getInitials(userDisplayName, user.email)}</AvatarFallback>
+            <AvatarImage src={userAvatar} alt={userName || "User"} />
+            <AvatarFallback>{getInitials(userName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56 bg-card border-border text-white" align="end" forceMount>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none truncate">{userDisplayName}</p>
-            <p className="text-xs leading-none text-muted-foreground truncate">{user.email}</p>
+            <p className="text-sm font-medium leading-none">{userName}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user.email}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => navigate('/user/dashboard')} className="cursor-pointer">
-          <UserIcon className="mr-2 h-4 w-4" />
-          <span>Dashboard</span>
+        <DropdownMenuItem onClick={() => navigate("/profile/dashboard")}>
+          <LayoutDashboard className="mr-2 h-4 w-4" />
+          Dashboard
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/user/profile')} className="cursor-pointer">
+        <DropdownMenuItem onClick={() => navigate("/profile/settings")}>
           <Settings className="mr-2 h-4 w-4" />
-          <span>Profile Settings</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/user/wallet')} className="cursor-pointer">
-          <DollarSign className="mr-2 h-4 w-4" />
-          <span>My Wallet</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate('/user/kyc')} className="cursor-pointer">
-          <ShieldCheck className="mr-2 h-4 w-4" />
-          <span>KYC Verification</span>
+          Settings
         </DropdownMenuItem>
         {isAdmin && (
-           <DropdownMenuItem onClick={() => navigate('/admin/dashboard')} className="cursor-pointer text-primary hover:!text-primary">
-            <UserCog className="mr-2 h-4 w-4" />
-            <span>Admin Panel</span>
+          <DropdownMenuItem onClick={() => navigate("/admin/dashboard")}>
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Admin Panel
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout} className="cursor-pointer text-red-500 hover:!text-red-400 focus:text-red-500">
+        <DropdownMenuItem onClick={signOut}>
           <LogOut className="mr-2 h-4 w-4" />
-          <span>Log out</span>
+          Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
-};
-
-export default UserMenu;
-
+}

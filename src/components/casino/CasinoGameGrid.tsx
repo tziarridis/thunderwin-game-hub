@@ -1,20 +1,19 @@
-
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useGames } from '@/hooks/useGames';
+import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData if that's the exported hook name
 
 interface CasinoGameGridProps {
   games: Game[];
-  onGameClick?: (game: Game) => void; // Primary click handler (play/details)
+  onGameClick?: (game: Game) => void;
   showEmptyMessage?: boolean;
 }
 
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { isAuthenticated } = useAuth();
-  const { favoriteGameIds, toggleFavoriteGame: toggleFavoriteContext, launchGame } = useGames();
+  const { favoriteGameIds, toggleFavoriteGame, launchGame, isFavorite } = useGamesData(); // Use destructured functions
   
   const handleToggleFavorite = async (gameId: string) => {
     if (!isAuthenticated) {
@@ -25,20 +24,20 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         toast.error("Game ID is missing for favorite toggle.");
         return;
     }
-    await toggleFavoriteContext(gameId);
+    await toggleFavoriteGame(gameId); // Call context function
   };
 
   const handlePlayAction = (game: Game) => {
     if (onGameClick) {
         onGameClick(game); 
-    } else if (game.game_id && (game.provider_slug || game.providerName)) { // Use provider_slug or providerName
+    } else if (game.game_id && (game.provider_slug || game.providerName)) {
         console.log("Direct play from CasinoGameGrid for:", game.title);
-        launchGame(game, {mode: 'real'})
+        launchGame(game, {mode: 'real'}) // Call context function
             .then(url => {
                 if (url) window.open(url, '_blank');
                 else toast.error("Could not get game URL.");
             })
-            .catch(err => toast.error(`Launch error: ${(err as Error).message}`)); // Type assertion for error
+            .catch(err => toast.error(`Launch error: ${(err as Error).message}`));
     } else {
         toast.error("Cannot launch game: missing details or play action.");
     }
@@ -58,7 +57,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
         <GameCard 
           key={String(game.id)}
           game={game}
-          isFavorite={favoriteGameIds.has(String(game.id))}
+          isFavorite={isFavorite(String(game.id))} // Use context function
           onToggleFavorite={() => handleToggleFavorite(String(game.id))}
           onPlay={() => handlePlayAction(game)} 
         />
@@ -68,4 +67,3 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
 };
 
 export default CasinoGameGrid;
-

@@ -1,282 +1,285 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient'; // Assuming this is the correct path for supabase client
-import { Game, GameProvider, GameCategory, GameStatus, GameVolatility, DbGame } from '@/types'; // Ensure DbGame is imported if used
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Game, DbGame, GameProvider, GameCategory, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import GameForm from '@/components/admin/GameForm';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Image as ImageIcon, Tags, DollarSign, BarChart, CalendarDays, Info } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { convertAPIGameToUIGame, convertUIGameToDbGame } from '@/utils/gameTypeAdapter';
+import { PlusCircle, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+import { convertAPIGameToUIGame, convertDbGameToGame, convertGameToDbGame } from '@/utils/gameTypeAdapter';
 
-const GameManagementPage: React.FC = () => {
-  const { gameId } = useParams<{ gameId: string }>();
-  const navigate = useNavigate();
+const fetchAdminGames = async (searchTerm: string = ''): Promise<DbGame[]> => {
+  let query = supabase.from('games').select('*').order('title', { ascending: true });
+  if (searchTerm) {
+    query = query.or(`title.ilike.%${searchTerm}%,slug.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
+  }
+  const { data, error } = await query;
+  if (error) {
+    console.error("Error fetching games:", error);
+    throw new Error('Failed to fetch games');
+  }
+  return data as DbGame[];
+};
+
+// Updated to select id and name, and map id to slug for GameForm compatibility
+const fetchProvidersForForm = async (): Promise<{ slug: string; name: string }[]> => {
+    // Assuming 'game_providers' is the correct table name and has 'id' and 'name'
+    // If the table is 'providers' use that. For now, using 'game_providers' as in original code.
+    const { data, error } = await supabase.from('game_providers').select('id, name').eq('is_active', true);
+    if (error) throw error;
+    return (data || []).map(p => ({ slug: String(p.id), name: p.name })); // Map id to slug
+};
+
+const fetchCategoriesForForm = async (): Promise<{ slug: string; name: string }[]> => {
+    const { data, error } = await supabase.from('game_categories').select('slug, name');
+    if (error) throw error;
+    return data || [];
+};
+
+
+const GamesManagement: React.FC = () => {
   const queryClient = useQueryClient();
-  const isNewGame = gameId === 'new';
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [gameToDelete, setGameToDelete] = useState<DbGame | null>(null);
 
-  const [gameData, setGameData] = useState<Partial<Game>>({
-    title: '',
-    slug: '',
-    game_id: '', 
-    provider_slug: '',
-    category_slugs: [],
-    status: 'pending',
-    is_featured: false,
-    isNew: true,
-    tags: [],
-    releaseDate: new Date().toISOString().split('T')[0], // Default to today for new games
+  const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery<DbGame[], Error>({
+    queryKey: ['adminGames', searchTerm],
+    queryFn: () => fetchAdminGames(searchTerm),
+    staleTime: 1000 * 60 * 1,
   });
 
-  const { data: existingGameData, isLoading: isLoadingGame } = useQuery<DbGame | null, Error>({
-    queryKey: ['admin_single_game_db', gameId],
-    queryFn: async () => {
-      if (isNewGame || !gameId) return null;
-      const { data, error } = await supabase
-        .from('games')
-        .select('*')
-        .or(`id.eq.${gameId},slug.eq.${gameId},game_id.eq.${gameId}`) 
-        .maybeSingle();
-      if (error) throw error;
-      return data as DbGame | null;
-    },
-    enabled: !isNewGame && !!gameId,
+  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery<{ slug: string; name: string }[], Error>({
+    queryKey: ['formProviders'],
+    queryFn: fetchProvidersForForm,
+    staleTime: Infinity,
   });
 
-  useEffect(() => {
-    if (existingGameData) {
-      const uiGame = convertAPIGameToUIGame(existingGameData);
-      setGameData({
-        ...uiGame,
-        // Ensure tags are string array for the input if needed, adapter should handle it
-        tags: Array.isArray(uiGame.tags) ? uiGame.tags : [],
-        releaseDate: uiGame.releaseDate ? new Date(uiGame.releaseDate).toISOString().split('T')[0] : undefined,
-      });
-    } else if (isNewGame) {
-       setGameData({ // Reset for new game form
-            title: '',
-            slug: '',
-            game_id: '', 
-            provider_slug: '',
-            category_slugs: [],
-            status: 'pending',
-            is_featured: false,
-            isNew: true,
-            tags: [],
-            releaseDate: new Date().toISOString().split('T')[0],
-      });
-    }
-  }, [existingGameData, isNewGame]);
-
-  const { data: providers = [] } = useQuery<GameProvider[], Error>({
-    queryKey: ['admin_game_providers_form'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('providers').select('id, name, slug');
-      if (error) throw error;
-      return data.map(p => ({...p, id: String(p.id), slug: p.slug || String(p.id) })) as GameProvider[];
-    },
+  const { data: categoriesForForm = [], isLoading: isLoadingCategories } = useQuery<{ slug: string; name: string }[], Error>({
+    queryKey: ['formCategories'],
+    queryFn: fetchCategoriesForForm,
+    staleTime: Infinity,
   });
-
-  const { data: categories = [] } = useQuery<GameCategory[], Error>({
-    queryKey: ['admin_game_categories_form'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('game_categories').select('id, name, slug');
-      if (error) throw error;
-      return data.map(c => ({...c, id: String(c.id)})) as GameCategory[];
-    },
-  });
-
-  const mutation = useMutation<Game, Error, Partial<Game>>(
-    async (uiPayload) => {
-      const dbPayload = convertUIGameToDbGame(uiPayload);
+  
+  const addOrUpdateGameMutation = useMutation<DbGame, Error, Partial<DbGame>>({
+    mutationFn: async (gameData: Partial<DbGame>): Promise<DbGame> => {
+      const dbPayload = editingGame 
+        ? { ...convertGameToDbGame(convertDbGameToGame(editingGame)), ...gameData } // Ensure full structure for update
+        : convertGameToDbGame(gameData as Game); // Assuming gameData is Game-like for new
       
-      // Ensure required fields for DB are present
-      if (!dbPayload.game_id && !dbPayload.id) { // game_id is often used as a natural key
-        throw new Error("Game ID or internal ID is required for saving.");
+      if (editingGame && editingGame.id) {
+        const { data, error } = await supabase.from('games').update(dbPayload).eq('id', editingGame.id).select().single();
+        if (error) throw error;
+        return data as DbGame;
+      } else {
+        const { data, error } = await supabase.from('games').insert(dbPayload).select().single();
+        if (error) throw error;
+        return data as DbGame;
       }
-      if (!dbPayload.game_name) {
-        throw new Error("Game name (title) is required.");
-      }
-      
-      // Upsert logic:
-      // If gameData has an 'id' (meaning it's an existing game being edited), use it for update.
-      // Otherwise, it's a new game (insert). Supabase upsert handles this based on conflict target.
-      // Make sure onConflict is set correctly. 'game_id' is good if it's unique.
-      // If 'id' (UUID) is the primary key, ensure it's included for updates, and omitted or null for inserts
-      // if it's auto-generated by the DB.
-
-      let query;
-      const conflictColumn = 'game_id'; // Or 'id' if that's the PK for upsert
-
-      if (dbPayload.id && !isNewGame) { // Existing game, use ID for upsert on conflict of game_id
-         query = supabase
-          .from('games')
-          .update(dbPayload as any) // Type assertion needed if DbGame has more fields
-          .eq('id', dbPayload.id)
-          .select()
-          .single();
-      } else { // New game or upserting
-         query = supabase
-          .from('games')
-          .upsert(dbPayload as any, { onConflict: conflictColumn })
-          .select()
-          .single();
-      }
-
-      const { data, error } = await query;
-      
-      if (error) throw error;
-      return convertAPIGameToUIGame(data as unknown as DbGame); // Convert back to UI type
     },
-    {
-      onSuccess: (data) => {
-        toast.success(`Game ${gameData.id ? 'updated' : 'created'} successfully!`);
-        queryClient.invalidateQueries({ queryKey: ['admin_games'] });
-        queryClient.invalidateQueries({ queryKey: ['admin_single_game_db', gameId] }); // original key
-        queryClient.invalidateQueries({ queryKey: ['admin_single_game_db', data.id] }); // new key if ID changed
-        queryClient.invalidateQueries({ queryKey: ['admin_single_game_db', data.slug]});
+    onSuccess: (data) => {
+      toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully: ${data.title || data.game_name}`);
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['allGames'] });
+      handleFormSuccess();
+    },
+    onError: (error) => {
+      toast.error(`Failed to save game: ${error.message}`);
+    },
+  });
 
-        if (!gameData.id && data.id) { // If it was a new game
-          navigate(`/admin/games/manage/${data.slug || data.id}`);
-        }
-      },
-      onError: (error) => {
-        toast.error(`Failed to save game: ${error.message}`);
-      },
-    }
-  );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gameData.title || !gameData.game_id ) { // provider_slug is also important
-        toast.error("Please fill in all required fields: Title, Game ID. Provider slug is also recommended.");
-        return;
-    }
-    // Auto-generate slug from title if empty
-    const payload = { ...gameData };
-    if (!payload.slug && payload.title) {
-        payload.slug = payload.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-    }
-    mutation.mutate(payload);
+  const deleteGameMutation = useMutation<void, Error, string>({
+    mutationFn: async (gameId: string) => {
+      const { error } = await supabase.from('games').delete().eq('id', gameId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Game deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+      queryClient.invalidateQueries({ queryKey: ['allGames'] });
+      setShowDeleteConfirm(false);
+      setGameToDelete(null);
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete game: ${error.message}`);
+      setShowDeleteConfirm(false);
+      setGameToDelete(null);
+    },
+  });
+
+  const handleAddNewGame = () => {
+    setEditingGame(null);
+    setIsFormOpen(true);
   };
 
-  const handleInputChange = (field: keyof Game, value: any) => {
-    setGameData(prev => ({ ...prev, [field]: value }));
+  const handleEditGame = (game: DbGame) => {
+    setEditingGame(game);
+    setIsFormOpen(true);
   };
 
-  const handleCheckboxChange = (field: keyof Game, checked: boolean) => {
-    setGameData(prev => ({ ...prev, [field]: checked }));
+  const handleDeleteGame = (game: DbGame) => {
+    setGameToDelete(game);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteGame = () => {
+    if (gameToDelete) {
+      deleteGameMutation.mutate(gameToDelete.id);
+    }
+  };
+
+  const handleFormSuccess = () => {
+    setIsFormOpen(false);
+    setEditingGame(null);
+    // refetchGames(); // refetch is implicitly handled by invalidateQueries
   };
   
-  const handleTagsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const tagsArray = e.target.value.split(',').map(tag => tag.trim()).filter(Boolean);
-    setGameData(prev => ({ ...prev, tags: tagsArray }));
+  const toggleGameStatusMutation = useMutation<void, Error, { gameId: string; newStatus: GameStatusEnum }>({
+    mutationFn: async ({ gameId, newStatus }) => {
+      const { error } = await supabase.from('games').update({ status: newStatus }).eq('id', gameId);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      toast.success(`Game status updated to ${variables.newStatus}`);
+      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update game status: ${error.message}`);
+    },
+  });
+
+  const handleToggleStatus = (game: DbGame) => {
+    const newStatus = game.status === GameStatusEnum.ACTIVE ? GameStatusEnum.INACTIVE : GameStatusEnum.ACTIVE;
+    toggleGameStatusMutation.mutate({ gameId: game.id, newStatus });
   };
-
-  if (isLoadingGame && !isNewGame) return <p className="text-center py-10">Loading game data...</p>;
-
-  const gameStatuses: GameStatus[] = ["active", "inactive", "pending", "blocked"];
-  const volatilities: GameVolatility[] = ["low", "low-medium", "medium", "medium-high", "high"];
+  
+  const transformedEditingGame = React.useMemo(() => {
+    if (!editingGame) return null;
+    // Assuming convertDbGameToGame adapts DbGame to the shape GameForm expects (which might be closer to UI Game type)
+    return convertDbGameToGame(editingGame);
+  }, [editingGame]);
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Button variant="outline" onClick={() => navigate('/admin/games')} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Games List
-      </Button>
-
-      <form onSubmit={handleSubmit}>
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center"><Info className="mr-2 h-5 w-5 text-primary" /> Basic Information</CardTitle>
-            <CardDescription>Core details identifying the game.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div><Label htmlFor="title">Title*</Label><Input id="title" value={gameData.title || ''} onChange={(e) => handleInputChange('title', e.target.value)} required /></div>
-            <div><Label htmlFor="slug">Slug (auto-generated if empty)</Label><Input id="slug" value={gameData.slug || ''} onChange={(e) => handleInputChange('slug', e.target.value)} /></div>
-            <div><Label htmlFor="game_id">External Game ID*</Label><Input id="game_id" value={gameData.game_id || ''} onChange={(e) => handleInputChange('game_id', e.target.value)} required /></div>
-            <div>
-              <Label htmlFor="provider_slug">Provider*</Label>
-              <Select value={gameData.provider_slug || ''} onValueChange={(val) => handleInputChange('provider_slug', val)} required>
-                <SelectTrigger><SelectValue placeholder="Select Provider" /></SelectTrigger>
-                <SelectContent>{providers.map(p => <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="category_slugs">Category Slugs (comma-separated)</Label>
-              <Input id="category_slugs" value={(gameData.category_slugs || []).join(',')} onChange={(e) => handleInputChange('category_slugs', e.target.value.split(',').map(s=>s.trim()).filter(Boolean))} />
-            </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select value={gameData.status || 'pending'} onValueChange={(val) => handleInputChange('status', val as GameStatus)}>
-                <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-                <SelectContent>{gameStatuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <Card>
-            <CardHeader><CardTitle className="flex items-center"><ImageIcon className="mr-2 h-5 w-5 text-primary" /> Visuals & Description</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div><Label htmlFor="cover">Cover Image URL</Label><Input id="cover" value={gameData.cover || ''} onChange={(e) => handleInputChange('cover', e.target.value)} /></div>
-              <div><Label htmlFor="banner">Banner Image URL</Label><Input id="banner" value={gameData.banner || ''} onChange={(e) => handleInputChange('banner', e.target.value)} /></div>
-              <div><Label htmlFor="description">Description</Label><Textarea id="description" value={gameData.description || ''} onChange={(e) => handleInputChange('description', e.target.value)} rows={4} /></div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="flex items-center"><BarChart className="mr-2 h-5 w-5 text-primary" /> Gameplay Details</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div><Label htmlFor="rtp">RTP (%)</Label><Input id="rtp" type="number" step="0.01" value={gameData.rtp || ''} onChange={(e) => handleInputChange('rtp', parseFloat(e.target.value))} /></div>
-              <div>
-                <Label htmlFor="volatility">Volatility</Label>
-                <Select value={gameData.volatility || ''} onValueChange={(val) => handleInputChange('volatility', val as GameVolatility | undefined)}>
-                  <SelectTrigger><SelectValue placeholder="Select Volatility" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">N/A</SelectItem>
-                    {volatilities.map(v => <SelectItem key={v} value={v}>{v.split('-').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label htmlFor="lines">Lines</Label><Input id="lines" type="number" value={gameData.lines || ''} onChange={(e) => handleInputChange('lines', parseInt(e.target.value))} /></div>
-              <div><Label htmlFor="min_bet">Min Bet</Label><Input id="min_bet" type="number" step="0.01" value={gameData.min_bet || ''} onChange={(e) => handleInputChange('min_bet', parseFloat(e.target.value))} /></div>
-              <div><Label htmlFor="max_bet">Max Bet</Label><Input id="max_bet" type="number" step="0.01" value={gameData.max_bet || ''} onChange={(e) => handleInputChange('max_bet', parseFloat(e.target.value))} /></div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="mb-6">
-          <CardHeader><CardTitle className="flex items-center"><Tags className="mr-2 h-5 w-5 text-primary" /> Tags & Flags</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-                <Label htmlFor="tags">Tags (comma-separated)</Label>
-                <Input id="tags" value={Array.isArray(gameData.tags) ? gameData.tags.join(',') : ''} onChange={handleTagsChange} />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
-              <div className="flex items-center space-x-2"><Checkbox id="is_featured" checked={!!gameData.is_featured} onCheckedChange={(c) => handleCheckboxChange('is_featured', !!c)} /><Label htmlFor="is_featured">Featured</Label></div>
-              <div className="flex items-center space-x-2"><Checkbox id="isNew" checked={!!gameData.isNew} onCheckedChange={(c) => handleCheckboxChange('isNew', !!c)} /><Label htmlFor="isNew">New Game</Label></div>
-              <div className="flex items-center space-x-2"><Checkbox id="only_real" checked={!!gameData.only_real} onCheckedChange={(c) => handleCheckboxChange('only_real', !!c)} /><Label htmlFor="only_real">Real Play Only</Label></div>
-              <div className="flex items-center space-x-2"><Checkbox id="only_demo" checked={!!gameData.only_demo} onCheckedChange={(c) => handleCheckboxChange('only_demo', !!c)} /><Label htmlFor="only_demo">Demo Play Only</Label></div>
-              <div className="flex items-center space-x-2"><Checkbox id="has_freespins" checked={!!gameData.has_freespins} onCheckedChange={(c) => handleCheckboxChange('has_freespins', !!c)} /><Label htmlFor="has_freespins">Has Freespins</Label></div>
-            </div>
-             <div><Label htmlFor="releaseDate">Release Date</Label><Input id="releaseDate" type="date" value={gameData.releaseDate || ''} onChange={(e) => handleInputChange('releaseDate', e.target.value)} /></div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end space-x-3">
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/games')}>Cancel</Button>
-          <Button type="submit" disabled={mutation.isLoading}>
-            <Save className="mr-2 h-4 w-4" /> {mutation.isLoading ? 'Saving...' : (gameData.id ? 'Save Changes' : 'Create Game')}
+    <div className="p-6">
+      <CMSPageHeader
+        title="Games Management"
+        description="Add, edit, and manage all casino games."
+        actionButton={
+          <Button onClick={handleAddNewGame}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
           </Button>
+        }
+      />
+
+      <div className="my-6">
+        <div className="relative">
+          <Input
+            placeholder="Search games by title, slug, provider..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         </div>
-      </form>
+      </div>
+
+      {isLoadingGames || isLoadingProviders || isLoadingCategories ? (
+        <p>Loading game data...</p>
+      ) : (
+        <div className="bg-card p-4 rounded-lg shadow">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Categories</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {games.map((game) => (
+                <TableRow key={game.id}>
+                  <TableCell className="font-medium">{game.title || game.game_name}</TableCell>
+                  <TableCell>{game.provider_slug}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {game.category_slugs?.map(slug => <Badge key={slug} variant="secondary">{slug}</Badge>)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={game.status === GameStatusEnum.ACTIVE ? 'default' : 'outline'}
+                      className={game.status === GameStatusEnum.ACTIVE ? 'bg-green-500 text-white' : 'border-gray-500'}
+                    >
+                      {game.status ? game.status.toString().charAt(0).toUpperCase() + game.status.toString().slice(1) : 'Unknown'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                     <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleToggleStatus(game)}
+                        title={game.status === GameStatusEnum.ACTIVE ? "Deactivate" : "Activate"}
+                        className="mr-2 hover:text-primary"
+                        disabled={toggleGameStatusMutation.isPending && toggleGameStatusMutation.variables?.gameId === game.id}
+                      >
+                        {game.status === GameStatusEnum.ACTIVE ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleEditGame(game)} className="mr-2 hover:text-blue-500">
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteGame(game)} className="hover:text-red-500" disabled={deleteGameMutation.isPending && gameToDelete?.id === game.id}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+           {games.length === 0 && <p className="text-center py-4 text-muted-foreground">No games found.</p>}
+        </div>
+      )}
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[800px] md:max-w-[1000px] lg:max-w-[1200px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingGame ? 'Edit Game' : 'Add New Game'}</DialogTitle>
+          </DialogHeader>
+          { (isLoadingProviders || isLoadingCategories) && !isFormOpen ? <p>Loading form dependencies...</p> :
+            <GameForm
+                game={transformedEditingGame} // Use transformed game
+                onSubmit={(values) => addOrUpdateGameMutation.mutate(values)}
+                onCancel={() => setIsFormOpen(false)}
+                providers={providersForForm} // These now have slug:id, name
+                categories={categoriesForForm}
+                isLoading={addOrUpdateGameMutation.isPending}
+            />
+          }
+        </DialogContent>
+      </Dialog>
+      
+      <ConfirmationDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteGame}
+        title="Confirm Deletion"
+        description={`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        isDestructive
+        isLoading={deleteGameMutation.isPending}
+      />
+
     </div>
   );
 };
 
-export default GameManagementPage;
+export default GamesManagement;
