@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, DbGame, GameProvider, GameCategory, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import { Game, DbGame, GameProvider, GameCategory, GameStatusEnum, GameVolatilityEnum, GameStatus } from '@/types/game';
 import GameForm from '@/components/admin/GameForm';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'; // Removed DialogTrigger, DialogFooter, DialogClose as form handles submission/cancel
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -12,32 +12,34 @@ import { PlusCircle, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
-import { convertAPIGameToUIGame, convertDbGameToGame, convertGameToDbGame } from '@/utils/gameTypeAdapter';
+// Removed convertAPIGameToUIGame, convertDbGameToGame, convertGameToDbGame as we use mapDbGameToGameAdapter and mapGameToDbGameAdapter
+import { mapDbGameToGameAdapter, mapGameToDbGameAdapter } from '@/components/admin/GameAdapter';
+
 
 const fetchAdminGames = async (searchTerm: string = ''): Promise<DbGame[]> => {
   let query = supabase.from('games').select('*').order('title', { ascending: true });
   if (searchTerm) {
-    query = query.or(`title.ilike.%${searchTerm}%,slug.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
+    // Ensure search covers relevant fields like title, game_name, slug, provider_slug
+    query = query.or(`title.ilike.%${searchTerm}%,game_name.ilike.%${searchTerm}%,slug.ilike.%${searchTerm}%,provider_slug.ilike.%${searchTerm}%`);
   }
   const { data, error } = await query;
   if (error) {
     console.error("Error fetching games:", error);
     throw new Error('Failed to fetch games');
   }
-  return data as DbGame[];
+  return (data || []) as DbGame[];
 };
 
-// Updated to select id and name, and map id to slug for GameForm compatibility
-const fetchProvidersForForm = async (): Promise<{ slug: string; name: string }[]> => {
-    // Assuming 'game_providers' is the correct table name and has 'id' and 'name'
-    // If the table is 'providers' use that. For now, using 'game_providers' as in original code.
-    const { data, error } = await supabase.from('game_providers').select('id, name').eq('is_active', true);
+const fetchProvidersForForm = async (): Promise<{ slug: string; name: string; id: string }[]> => {
+    // Assuming 'game_providers' table has 'slug' and 'name', and 'id' (UUID or int)
+    const { data, error } = await supabase.from('game_providers').select('id, name, slug').eq('is_active', true);
     if (error) throw error;
-    return (data || []).map(p => ({ slug: String(p.id), name: p.name })); // Map id to slug
+    // Ensure 'id' is string for consistency if GameForm's provider_id expects string
+    return (data || []).map(p => ({ slug: p.slug, name: p.name, id: String(p.id) }));
 };
 
 const fetchCategoriesForForm = async (): Promise<{ slug: string; name: string }[]> => {
-    const { data, error } = await supabase.from('game_categories').select('slug, name');
+    const { data, error } = await supabase.from('game_categories').select('slug, name').eq('status', 'active'); // Assuming active categories
     if (error) throw error;
     return data || [];
 };
@@ -46,7 +48,7 @@ const fetchCategoriesForForm = async (): Promise<{ slug: string; name: string }[
 const GamesManagement: React.FC = () => {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingGame, setEditingGame] = useState<DbGame | null>(null);
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null); // Store DbGame for editing
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [gameToDelete, setGameToDelete] = useState<DbGame | null>(null);
@@ -54,10 +56,9 @@ const GamesManagement: React.FC = () => {
   const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery<DbGame[], Error>({
     queryKey: ['adminGames', searchTerm],
     queryFn: () => fetchAdminGames(searchTerm),
-    staleTime: 1000 * 60 * 1,
   });
 
-  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery<{ slug: string; name: string }[], Error>({
+  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery<{ slug: string; name: string; id: string }[], Error>({
     queryKey: ['formProviders'],
     queryFn: fetchProvidersForForm,
     staleTime: Infinity,
@@ -71,16 +72,28 @@ const GamesManagement: React.FC = () => {
   
   const addOrUpdateGameMutation = useMutation<DbGame, Error, Partial<DbGame>>({
     mutationFn: async (gameData: Partial<DbGame>): Promise<DbGame> => {
-      const dbPayload = editingGame 
-        ? { ...convertGameToDbGame(convertDbGameToGame(editingGame)), ...gameData } // Ensure full structure for update
-        : convertGameToDbGame(gameData as Game); // Assuming gameData is Game-like for new
-      
+      // gameData is already expected to be Partial<DbGame> by GameForm's onSubmit
+      const payload = { ...gameData };
+      // Remove id from payload if it's for an insert, Supabase handles ID generation or it's part of game_id
+      if (!editingGame && payload.id) {
+          // If it's a new game, ensure 'id' is not part of the insert payload unless it's a specific UUID you want to use
+          // delete payload.id; // Or ensure your DB handles this. For now, assume payload.id from gameData is for updates.
+      }
+
+
       if (editingGame && editingGame.id) {
-        const { data, error } = await supabase.from('games').update(dbPayload).eq('id', editingGame.id).select().single();
+        // For updates, ensure no `id` in the payload itself, use `eq('id', editingGame.id)`
+        const updatePayload = { ...payload };
+        delete updatePayload.id; // remove id from the object to update
+        const { data, error } = await supabase.from('games').update(updatePayload).eq('id', editingGame.id).select().single();
         if (error) throw error;
         return data as DbGame;
       } else {
-        const { data, error } = await supabase.from('games').insert(dbPayload).select().single();
+        // For inserts, Supabase typically generates the id or it's provided
+        const insertPayload = { ...payload };
+        // If your DB auto-generates UUIDs for 'id', you might not need to provide it.
+        // If 'id' is manually set (e.g. from game_id), ensure it's in payload.
+        const { data, error } = await supabase.from('games').insert(insertPayload).select().single();
         if (error) throw error;
         return data as DbGame;
       }
@@ -88,14 +101,14 @@ const GamesManagement: React.FC = () => {
     onSuccess: (data) => {
       toast.success(`Game ${editingGame ? 'updated' : 'added'} successfully: ${data.title || data.game_name}`);
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      queryClient.invalidateQueries({ queryKey: ['allGames'] });
+      queryClient.invalidateQueries({ queryKey: ['allGames'] }); // Assuming this query key is used elsewhere
+      queryClient.invalidateQueries({ queryKey: ['adminGamesList'] }); // If you have another list page
       handleFormSuccess();
     },
     onError: (error) => {
       toast.error(`Failed to save game: ${error.message}`);
     },
   });
-
 
   const deleteGameMutation = useMutation<void, Error, string>({
     mutationFn: async (gameId: string) => {
@@ -106,6 +119,7 @@ const GamesManagement: React.FC = () => {
       toast.success('Game deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
       queryClient.invalidateQueries({ queryKey: ['allGames'] });
+      queryClient.invalidateQueries({ queryKey: ['adminGamesList'] });
       setShowDeleteConfirm(false);
       setGameToDelete(null);
     },
@@ -122,7 +136,7 @@ const GamesManagement: React.FC = () => {
   };
 
   const handleEditGame = (game: DbGame) => {
-    setEditingGame(game);
+    setEditingGame(game); // GameForm will adapt this DbGame
     setIsFormOpen(true);
   };
 
@@ -132,7 +146,7 @@ const GamesManagement: React.FC = () => {
   };
 
   const confirmDeleteGame = () => {
-    if (gameToDelete) {
+    if (gameToDelete?.id) { // Ensure gameToDelete and its id are valid
       deleteGameMutation.mutate(gameToDelete.id);
     }
   };
@@ -140,7 +154,6 @@ const GamesManagement: React.FC = () => {
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setEditingGame(null);
-    // refetchGames(); // refetch is implicitly handled by invalidateQueries
   };
   
   const toggleGameStatusMutation = useMutation<void, Error, { gameId: string; newStatus: GameStatusEnum }>({
@@ -159,14 +172,18 @@ const GamesManagement: React.FC = () => {
 
   const handleToggleStatus = (game: DbGame) => {
     const newStatus = game.status === GameStatusEnum.ACTIVE ? GameStatusEnum.INACTIVE : GameStatusEnum.ACTIVE;
-    toggleGameStatusMutation.mutate({ gameId: game.id, newStatus });
+    if (game.id) {
+      toggleGameStatusMutation.mutate({ gameId: game.id, newStatus });
+    }
   };
   
-  const transformedEditingGame = React.useMemo(() => {
-    if (!editingGame) return null;
-    // Assuming convertDbGameToGame adapts DbGame to the shape GameForm expects (which might be closer to UI Game type)
-    return convertDbGameToGame(editingGame);
-  }, [editingGame]);
+  // GameForm now directly accepts DbGame or Game and its onSubmit expects DbGame compatible data.
+  // No need for explicit transformation here if GameForm handles it.
+  // const transformedEditingGame = useMemo(() => {
+  //   if (!editingGame) return null;
+  //   return mapDbGameToGameAdapter(editingGame); // GameForm expects Game, so adapt DbGame
+  // }, [editingGame]);
+  // GameForm's `game` prop can take DbGame directly and map it internally.
 
   return (
     <div className="p-6">
@@ -192,7 +209,7 @@ const GamesManagement: React.FC = () => {
         </div>
       </div>
 
-      {isLoadingGames || isLoadingProviders || isLoadingCategories ? (
+      {isLoadingGames ? ( // Removed isLoadingProviders, isLoadingCategories from main loader check
         <p>Loading game data...</p>
       ) : (
         <div className="bg-card p-4 rounded-lg shadow">
@@ -210,7 +227,7 @@ const GamesManagement: React.FC = () => {
               {games.map((game) => (
                 <TableRow key={game.id}>
                   <TableCell className="font-medium">{game.title || game.game_name}</TableCell>
-                  <TableCell>{game.provider_slug}</TableCell>
+                  <TableCell>{game.provider_slug || game.distribution}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {game.category_slugs?.map(slug => <Badge key={slug} variant="secondary">{slug}</Badge>)}
@@ -256,10 +273,12 @@ const GamesManagement: React.FC = () => {
           </DialogHeader>
           { (isLoadingProviders || isLoadingCategories) && !isFormOpen ? <p>Loading form dependencies...</p> :
             <GameForm
-                game={transformedEditingGame} // Use transformed game
-                onSubmit={(values) => addOrUpdateGameMutation.mutate(values)}
+                game={editingGame} // Pass DbGame directly
+                onSubmit={(values) => { // values here is Partial<DbGame>
+                    addOrUpdateGameMutation.mutate(values);
+                }}
                 onCancel={() => setIsFormOpen(false)}
-                providers={providersForForm} // These now have slug:id, name
+                providers={providersForForm} 
                 categories={categoriesForForm}
                 isLoading={addOrUpdateGameMutation.isPending}
             />

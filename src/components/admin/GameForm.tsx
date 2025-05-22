@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,20 +8,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Game, DbGame, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, GameStatus, GameVolatility, GameTag } from '@/types/game';
+import { Game, DbGame, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllGameVolatilities, GameStatus, GameVolatility, GameTag } from '@/types/game'; // GameTag might need to be string if that's what your form handles
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { XIcon, PlusCircleIcon } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client'; // Added import
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added import
-import { Badge } from '@/components/ui/badge'; // Added import
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 // Zod schema for form validation
 const gameFormSchema = z.object({
-  game_id: z.string().optional(), // External game ID from provider
+  game_id: z.string().optional().nullable(), // External game ID from provider
   title: z.string().min(1, "Title is required"),
   slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
   provider_slug: z.string().min(1, "Provider slug is required"),
+  provider_id: z.string().optional().nullable(), // Added provider_id
   category_slugs: z.array(z.string()).min(1, "At least one category is required"),
   rtp: z.number().min(0).max(100).optional().nullable(),
   image: z.string().url("Must be a valid URL").optional().nullable(), // Cover image
@@ -34,7 +34,7 @@ const gameFormSchema = z.object({
   min_bet: z.number().positive().optional().nullable(),
   max_bet: z.number().positive().optional().nullable(),
   features: z.array(z.string()).optional().nullable(),
-  tags: z.array(z.string()).optional().nullable(),
+  tags: z.array(z.string()).optional().nullable(), // Assuming tags are strings for simplicity in form
   themes: z.array(z.string()).optional().nullable(),
   is_popular: z.boolean().default(false).optional(),
   is_new: z.boolean().default(false).optional(),
@@ -42,122 +42,85 @@ const gameFormSchema = z.object({
   show_home: z.boolean().default(false).optional(),
   release_date: z.string().optional().nullable(), // Consider using a date picker
   has_freespins: z.boolean().default(false).optional(),
-  has_jackpot: z.boolean().default(false).optional(), // This field is in the schema, but not in DbGame
+  has_jackpot: z.boolean().default(false).optional(), // This field is in the schema, but not in DbGame by default
   game_code: z.string().optional().nullable(), // Alternative game identifier
+  only_demo: z.boolean().default(false).optional(),
+  only_real: z.boolean().default(false).optional(),
+  mobile_friendly: z.boolean().default(true).optional(),
 });
 
 type GameFormData = z.infer<typeof gameFormSchema>;
 
 interface GameFormProps {
-  game?: DbGame | Game | null;
-  onSubmitSuccess?: (savedGame: DbGame) => void;
+  game?: Partial<DbGame> | Partial<Game> | null; // Accept DbGame or Game for editing
+  onSubmit: (values: Partial<DbGame>) => void; // Submit DbGame compatible structure
   onCancel?: () => void;
-  providers: { slug: string; name: string }[];
+  providers: { slug: string; name: string; id?: string | number }[]; // provider can have id
   categories: { slug: string; name: string }[];
+  isLoading?: boolean;
 }
 
-const mapStringToGameStatusEnum = (statusStr?: GameStatus | string | null): GameStatusEnum => {
-  if (statusStr && Object.values(GameStatusEnum).includes(statusStr as GameStatusEnum)) {
-    return statusStr as GameStatusEnum;
-  }
-  return GameStatusEnum.DRAFT;
+// Helper to map various game type inputs to a consistent GameFormData structure
+const mapGameToFormDefaults = (game?: Partial<DbGame> | Partial<Game> | null): GameFormData => {
+  const defaults: GameFormData = {
+    game_id: game?.game_id || '',
+    title: game?.title || (game as DbGame)?.game_name || '',
+    slug: game?.slug || '',
+    provider_slug: game?.provider_slug || (game as DbGame)?.distribution || '',
+    provider_id: (game as Game)?.provider_id || (game as DbGame)?.provider_id || undefined,
+    category_slugs: game?.category_slugs || [],
+    rtp: typeof game?.rtp === 'string' ? parseFloat(game.rtp) : (typeof game?.rtp === 'number' ? game.rtp : undefined),
+    image: (game as Game)?.image || (game as DbGame)?.cover || (game as DbGame)?.image_url || '',
+    bannerUrl: (game as Game)?.bannerUrl || (game as DbGame)?.banner_url || '',
+    description: game?.description || '',
+    status: game?.status ? (game.status as GameStatusEnum) : GameStatusEnum.DRAFT,
+    volatility: game?.volatility ? (game.volatility as GameVolatilityEnum) : null,
+    lines: typeof game?.lines === 'number' ? game.lines : undefined,
+    min_bet: typeof game?.min_bet === 'number' ? game.min_bet : undefined,
+    max_bet: typeof game?.max_bet === 'number' ? game.max_bet : undefined,
+    features: Array.isArray(game?.features) ? game.features.map(String) : [],
+    tags: Array.isArray(game?.tags) ? game.tags.map(t => typeof t === 'string' ? t : (t as GameTag).name) : [],
+    themes: Array.isArray(game?.themes) ? game.themes.map(String) : [],
+    is_popular: (game as Game)?.is_popular ?? (game as DbGame)?.is_popular ?? false,
+    is_new: (game as Game)?.is_new ?? (game as DbGame)?.is_new ?? false,
+    is_featured: game?.is_featured || false,
+    show_home: game?.show_home || false,
+    release_date: game?.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
+    has_freespins: game?.has_freespins || false,
+    has_jackpot: (game as Game)?.has_jackpot || false,
+    game_code: game?.game_code || '',
+    only_demo: game?.only_demo || false,
+    only_real: (game as Game)?.only_real || (game as DbGame)?.only_real || false,
+    mobile_friendly: (game as Game)?.mobile_friendly ?? (game as DbGame)?.is_mobile ?? true,
+  };
+  return defaults;
 };
 
-const mapStringToGameVolatilityEnum = (volatilityStr?: GameVolatility | string | null): GameVolatilityEnum | null => {
-  if (volatilityStr && Object.values(GameVolatilityEnum).includes(volatilityStr as GameVolatilityEnum)) {
-    return volatilityStr as GameVolatilityEnum;
-  }
-  return null;
-};
 
-const mapTagsToStringArray = (tags?: string[] | GameTag[] | null): string[] => {
-  if (!tags) return [];
-  return tags.map(tag => (typeof tag === 'string' ? tag : tag.name));
-};
-
-const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, providers, categories }) => {
+const GameForm: React.FC<GameFormProps> = ({ game, onSubmit: handleFormSubmit, onCancel, providers, categories, isLoading }) => {
   const queryClient = useQueryClient();
   
-  const initialFeatures = game?.features ? mapTagsToStringArray(game.features) : [];
-  const initialTags = game?.tags ? mapTagsToStringArray(game.tags) : [];
-  const initialThemes = game?.themes ? mapTagsToStringArray(game.themes) : [];
+  const defaultValues = mapGameToFormDefaults(game);
 
-  const [currentFeatures, setCurrentFeatures] = useState<string[]>(initialFeatures);
+  const [currentFeatures, setCurrentFeatures] = useState<string[]>(defaultValues.features || []);
   const [featureInput, setFeatureInput] = useState('');
-  const [currentTags, setCurrentTags] = useState<string[]>(initialTags);
+  const [currentTags, setCurrentTags] = useState<string[]>(defaultValues.tags || []);
   const [tagInput, setTagInput] = useState('');
-  const [currentThemes, setCurrentThemes] = useState<string[]>(initialThemes);
+  const [currentThemes, setCurrentThemes] = useState<string[]>(defaultValues.themes || []);
   const [themeInput, setThemeInput] = useState('');
 
 
   const form = useForm<GameFormData>({
     resolver: zodResolver(gameFormSchema),
-    defaultValues: {
-      game_id: game?.game_id || '',
-      title: game?.title || game?.game_name || '',
-      slug: game?.slug || '',
-      provider_slug: game?.provider_slug || (game as DbGame)?.providers?.slug || '',
-      category_slugs: game?.category_slugs || [],
-      rtp: typeof game?.rtp === 'string' ? parseFloat(game.rtp) : (typeof game?.rtp === 'number' ? game.rtp : undefined),
-      image: game?.cover || game?.image_url || '',
-      bannerUrl: game?.banner || game?.banner_url || '',
-      description: game?.description || '',
-      status: game ? mapStringToGameStatusEnum(game.status) : GameStatusEnum.DRAFT,
-      volatility: game ? mapStringToGameVolatilityEnum(game.volatility) : null,
-      lines: typeof game?.lines === 'number' ? game.lines : undefined,
-      min_bet: typeof game?.min_bet === 'number' ? game.min_bet : undefined,
-      max_bet: typeof game?.max_bet === 'number' ? game.max_bet : undefined,
-      features: initialFeatures,
-      tags: initialTags,
-      themes: initialThemes,
-      is_popular: game?.is_popular || false,
-      is_new: game?.is_new || false,
-      is_featured: game?.is_featured || false,
-      show_home: game?.show_home || false,
-      release_date: game?.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
-      has_freespins: game?.has_freespins || false,
-      has_jackpot: (game as Game)?.has_jackpot || false, // Safely access, not in DbGame
-      game_code: game?.game_code || '',
-    },
+    defaultValues: defaultValues,
   });
 
   useEffect(() => {
-    if (game) {
-      const gameFeatures = game.features ? mapTagsToStringArray(game.features) : [];
-      const gameTags = game.tags ? mapTagsToStringArray(game.tags) : [];
-      const gameThemes = game.themes ? mapTagsToStringArray(game.themes) : [];
-      
-      form.reset({
-        game_id: game.game_id || '',
-        title: game.title || game.game_name || '',
-        slug: game.slug || '',
-        provider_slug: game.provider_slug || (game as DbGame).providers?.slug || '',
-        category_slugs: game.category_slugs || [],
-        rtp: typeof game.rtp === 'string' ? parseFloat(game.rtp) : (typeof game.rtp === 'number' ? game.rtp : undefined),
-        image: game.cover || game.image_url || '',
-        bannerUrl: game.banner || game.banner_url || '',
-        description: game.description || '',
-        status: mapStringToGameStatusEnum(game.status),
-        volatility: mapStringToGameVolatilityEnum(game.volatility),
-        lines: typeof game.lines === 'number' ? game.lines : undefined,
-        min_bet: typeof game.min_bet === 'number' ? game.min_bet : undefined,
-        max_bet: typeof game.max_bet === 'number' ? game.max_bet : undefined,
-        features: gameFeatures,
-        tags: gameTags,
-        themes: gameThemes,
-        is_popular: game.is_popular || false,
-        is_new: game.is_new || false,
-        is_featured: game.is_featured || false,
-        show_home: game.show_home || false,
-        release_date: game.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
-        has_freespins: game.has_freespins || false,
-        has_jackpot: (game as Game).has_jackpot || false, // Safely access
-        game_code: game.game_code || '',
-      });
-      setCurrentFeatures(gameFeatures);
-      setCurrentTags(gameTags);
-      setCurrentThemes(gameThemes);
-    }
+    const newDefaults = mapGameToFormDefaults(game);
+    form.reset(newDefaults);
+    setCurrentFeatures(newDefaults.features || []);
+    setCurrentTags(newDefaults.tags || []);
+    setCurrentThemes(newDefaults.themes || []);
   }, [game, form]);
 
   const handleAddItem = (
@@ -165,12 +128,12 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
     setItemInput: React.Dispatch<React.SetStateAction<string>>,
     currentItems: string[],
     setCurrentItems: React.Dispatch<React.SetStateAction<string[]>>,
-    fieldName: keyof GameFormData // This should be 'features', 'tags', or 'themes' which are string[]
+    fieldName: keyof Pick<GameFormData, 'features' | 'tags' | 'themes'>
   ) => {
     if (itemInput.trim() && !currentItems.includes(itemInput.trim())) {
       const updatedItems = [...currentItems, itemInput.trim()];
       setCurrentItems(updatedItems);
-      form.setValue(fieldName, updatedItems);
+      form.setValue(fieldName, updatedItems as any); // Type assertion needed due to generic fieldName
       setItemInput('');
     }
   };
@@ -179,78 +142,63 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
     itemToRemove: string,
     currentItems: string[],
     setCurrentItems: React.Dispatch<React.SetStateAction<string[]>>,
-    fieldName: keyof GameFormData // This should be 'features', 'tags', or 'themes' which are string[]
+    fieldName: keyof Pick<GameFormData, 'features' | 'tags' | 'themes'>
   ) => {
     const updatedItems = currentItems.filter(item => item !== itemToRemove);
     setCurrentItems(updatedItems);
-    form.setValue(fieldName, updatedItems);
+    form.setValue(fieldName, updatedItems as any); // Type assertion
   };
 
 
   const onSubmit: SubmitHandler<GameFormData> = async (data) => {
-    try {
-      // We need to ensure types are correct for the database
-      const gameDataToSave: any = {
-        // id: game?.id, // ID is used for update condition, not in data object itself for insert/update typically unless part of the type
+    // Map form data to DbGame structure before submitting
+    const dbGameData: Partial<DbGame> = {
+        id: game?.id ? String(game.id) : undefined, // Include ID if editing
         game_id: data.game_id || null,
-        game_name: data.title, 
         title: data.title,
+        game_name: data.title, // Ensure game_name is also populated
         slug: data.slug,
         provider_slug: data.provider_slug,
+        provider_id: data.provider_id || providers.find(p => p.slug === data.provider_slug)?.id as string || null,
         category_slugs: data.category_slugs,
-        rtp: data.rtp !== null ? data.rtp : null, // Ensure numeric type
-        cover: data.image || null,
-        image_url: data.image || null,
-        banner: data.bannerUrl || null,
+        rtp: data.rtp,
+        image_url: data.image || null, // map image to image_url
+        cover: data.image || null, // also map to cover
         banner_url: data.bannerUrl || null,
         description: data.description || null,
         status: data.status,
-        volatility: data.volatility || null,
-        lines: data.lines !== null ? data.lines : null,
-        min_bet: data.min_bet !== null ? data.min_bet : null,
-        max_bet: data.max_bet !== null ? data.max_bet : null,
+        volatility: data.volatility,
+        lines: data.lines,
+        min_bet: data.min_bet,
+        max_bet: data.max_bet,
         features: data.features || [],
         tags: data.tags || [],
         themes: data.themes || [],
-        is_popular: data.is_popular || false,
-        is_new: data.is_new || false,
-        is_featured: data.is_featured || false,
-        show_home: data.show_home || false,
+        is_popular: data.is_popular,
+        is_new: data.is_new,
+        is_featured: data.is_featured,
+        show_home: data.show_home,
         release_date: data.release_date ? new Date(data.release_date).toISOString() : null,
-        has_freespins: data.has_freespins || false,
+        has_freespins: data.has_freespins,
+        // 'has_jackpot' is not in DbGame, so we omit it or handle it based on actual schema
         game_code: data.game_code || null,
-        distribution: game?.distribution || 'internal', // Provide a default value
-      };
+        only_demo: data.only_demo,
+        only_real: data.only_real,
+        is_mobile: data.mobile_friendly, // Map mobile_friendly to is_mobile for DbGame
+        distribution: data.provider_slug, // Ensure distribution is set
+    };
 
-      let savedGame: DbGame;
-      if (game?.id) {
-        const { data: updatedGame, error } = await supabase.from('games').update(gameDataToSave).eq('id', game.id as string).select().single();
-        if (error) throw error;
-        savedGame = updatedGame as DbGame;
-        toast.success('Game updated successfully!');
-      } else {
-        const { data: newGame, error } = await supabase.from('games').insert(gameDataToSave).select().single();
-        if (error) throw error;
-        savedGame = newGame as DbGame;
-        toast.success('Game created successfully!');
-      }
-      
-      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      queryClient.invalidateQueries({ queryKey: ['allGames'] }); // Ensure this key is used elsewhere
-      if (onSubmitSuccess) {
-        onSubmitSuccess(savedGame);
-      }
-      form.reset(); 
-      setCurrentFeatures([]);
-      setCurrentTags([]);
-      setCurrentThemes([]);
-
-    } catch (error: any) {
-      console.error("Error saving game:", error);
-      toast.error(`Failed to save game: ${error.message || 'Unknown error'}`);
-    }
+    // Remove undefined properties before submitting
+    Object.keys(dbGameData).forEach(key => {
+        const k = key as keyof DbGame;
+        if (dbGameData[k] === undefined) {
+        delete dbGameData[k];
+        }
+    });
+    
+    handleFormSubmit(dbGameData);
   };
-
+// ... keep existing code (JSX for the form)
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -318,13 +266,29 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provider</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const selectedProvider = providers.find(p => p.slug === value);
+                        form.setValue('provider_id', selectedProvider?.id ? String(selectedProvider.id) : null);
+                      }} 
+                      defaultValue={field.value}
+                    >
                       <FormControl><SelectTrigger><SelectValue placeholder="Select provider" /></SelectTrigger></FormControl>
                       <SelectContent>
                         {providers.map(p => <SelectItem key={p.slug} value={p.slug}>{p.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="provider_id"
+                render={({ field }) => (
+                  <FormItem className="hidden"> {/* Hidden field, managed by provider_slug selection */}
+                    <FormControl><Input {...field} value={field.value || ''} readOnly /></FormControl>
                   </FormItem>
                 )}
               />
@@ -338,7 +302,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                         control={form.control}
                         name="category_slugs"
                         render={({ field: controllerField }) => (
-                            <div className="space-y-2">
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
                             {categories.map(cat => (
                                 <FormItem key={cat.slug} className="flex flex-row items-start space-x-3 space-y-0">
                                 <FormControl>
@@ -405,7 +369,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Description (Optional)</FormLabel>
-                    <FormControl><Textarea placeholder="Game description..." {...field} value={field.value || ''} /></FormControl>
+                    <FormControl><Textarea placeholder="Game description..." {...field} value={field.value || ''} rows={3} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -533,7 +497,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                   />
                   <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(featureInput, setFeatureInput, currentFeatures, setCurrentFeatures, 'features')}><PlusCircleIcon className="h-4 w-4"/></Button>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                   {currentFeatures.map(feature => (
                     <Badge key={feature} variant="secondary" className="flex items-center">
                       {feature}
@@ -559,7 +523,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                   />
                   <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(tagInput, setTagInput, currentTags, setCurrentTags, 'tags')}><PlusCircleIcon className="h-4 w-4"/></Button>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                   {currentTags.map(tag => (
                     <Badge key={tag} variant="secondary" className="flex items-center">
                       {tag}
@@ -585,7 +549,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                   />
                   <Button type="button" variant="outline" size="icon" onClick={() => handleAddItem(themeInput, setThemeInput, currentThemes, setCurrentThemes, 'themes')}><PlusCircleIcon className="h-4 w-4"/></Button>
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                   {currentThemes.map(theme => (
                     <Badge key={theme} variant="secondary" className="flex items-center">
                       {theme}
@@ -610,7 +574,10 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                 { name: "is_featured", label: "Featured" },
                 { name: "show_home", label: "Show on Home Page" },
                 { name: "has_freespins", label: "Has Freespins" },
-                { name: "has_jackpot", label: "Has Jackpot" }, // Still in form for UI if Game type is used
+                { name: "has_jackpot", label: "Has Jackpot" },
+                { name: "only_demo", label: "Demo Only" },
+                { name: "only_real", label: "Real Play Only" },
+                { name: "mobile_friendly", label: "Mobile Friendly" },
               ].map(flag => (
                 <FormField
                   key={flag.name}
@@ -637,8 +604,8 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
 
         <div className="flex justify-end space-x-2 pt-4">
           {onCancel && <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>}
-          <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isValid && form.formState.isSubmitted}>
-            {form.formState.isSubmitting ? (game?.id ? 'Updating...' : 'Creating...') : (game?.id ? 'Save Changes' : 'Create Game')}
+          <Button type="submit" disabled={isLoading || (form.formState.isSubmitted && !form.formState.isValid)}>
+            {isLoading ? (game?.id ? 'Updating...' : 'Creating...') : (game?.id ? 'Save Changes' : 'Create Game')}
           </Button>
         </div>
       </form>

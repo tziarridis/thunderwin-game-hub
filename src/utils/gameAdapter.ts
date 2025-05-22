@@ -1,137 +1,98 @@
+// This file might be redundant if src/components/admin/GameAdapter.tsx covers all needs.
+// For now, let's assume it's for more general UI conversion, if any.
+// It's critical that types here (UIGame, APIGame, UIDbGame) are consistent with src/types/game.ts
 
-import { Game as UIGame, GameProvider as UIGameProvider, DbGame as UIDbGame } from '@/types'; // Use UIDbGame for clarity
-// APIGame refers to external aggregator types if they were different.
-// For now, assuming APIGame/APIGameProvider are similar to UIGame/UIGameProvider from @/types
-// if no distinct external API structure is defined.
-// Let's assume APIGame and APIGameProvider are equivalent to UIGame and UIGameProvider from @/types for now.
-type APIGame = UIGame; 
-type APIGameProvider = UIGameProvider;
+import { Game as UIGame, GameProvider as UIGameProvider, DbGame as UIDbGame, GameStatusEnum, GameVolatilityEnum, GameTag } from '@/types';
 
+// APIGame can be an external API's game structure, or just UIGame if no external API.
+// For this example, let's assume APIGame is similar to UIGame from an external source.
+type APIGame = Partial<UIGame> & { id: string | number, game_name?: string, distribution?: string, game_type?: string, cover?: string }; // Example APIGame
 
-export const adaptGameForUI = (apiGame: APIGame): UIGame => {
-  // This adapter assumes apiGame structure is similar to UIGame from @/types
-  // or it's a generic object that needs mapping to UIGame.
-  // The fields like game_name, distribution, game_type, cover, rtp, etc.
-  // are from the `games` table schema (DbGame).
+// This adapter would map an APIGame (e.g. from an aggregator) to our UIGame format
+export const adaptAPIGameToUIGame = (apiGame: APIGame): UIGame => {
   return {
-    id: String(apiGame.id || apiGame.game_id || ''), // Ensure id is a string
-    game_id: String(apiGame.game_id || apiGame.id || ''), // Ensure game_id is a string
-    title: apiGame.title || apiGame.game_name || '',
-    slug: apiGame.slug || String(apiGame.id || apiGame.game_id || ''),
-    description: apiGame.description || '',
-    
-    providerName: apiGame.providerName || apiGame.provider_slug || apiGame.distribution, // Use existing Game fields
-    provider_slug: apiGame.provider_slug || apiGame.distribution,
-
-    categoryName: apiGame.categoryName || apiGame.game_type || 'slots',
-    category_slugs: Array.isArray(apiGame.category_slugs) ? apiGame.category_slugs : (apiGame.category_slugs ? [apiGame.category_slugs] : []),
-
+    id: String(apiGame.id),
+    game_id: String(apiGame.game_id || apiGame.id),
+    title: apiGame.title || apiGame.game_name || 'Unknown Title',
+    slug: apiGame.slug || String(apiGame.id),
+    provider_slug: apiGame.provider_slug || apiGame.distribution || 'unknown-provider',
+    providerName: apiGame.providerName || apiGame.provider_slug || apiGame.distribution,
+    category_slugs: apiGame.category_slugs || (apiGame.game_type ? [apiGame.game_type.toLowerCase().replace(/\s+/g, '-')] : []),
+    categoryNames: apiGame.categoryNames || (apiGame.game_type ? [apiGame.game_type] : []),
     image: apiGame.image || apiGame.cover || apiGame.image_url,
-    cover: apiGame.cover || apiGame.image || apiGame.image_url,
     image_url: apiGame.image_url || apiGame.cover || apiGame.image,
-    bannerUrl: apiGame.bannerUrl || apiGame.cover, // Use cover as fallback for banner
-
-    rtp: apiGame.rtp || 96, // Default RTP
-    volatility: apiGame.volatility || 'medium', // Default volatility
-    
-    min_bet: apiGame.min_bet ?? 0.1, // Use ?? for default if null/undefined
-    max_bet: apiGame.max_bet ?? 100,
-    
-    isPopular: apiGame.isPopular ?? apiGame.is_featured ?? false,
-    isNew: apiGame.isNew ?? apiGame.show_home ?? false,
+    cover: apiGame.cover || apiGame.image || apiGame.image_url,
+    bannerUrl: apiGame.bannerUrl || apiGame.cover,
+    description: apiGame.description || '',
+    rtp: typeof apiGame.rtp === 'number' ? apiGame.rtp : undefined,
+    volatility: apiGame.volatility || undefined,
+    tags: (apiGame.tags || []).map(tag => typeof tag === 'string' ? {name: tag, slug: tag.toLowerCase().replace(/\s+/g, '-')} : tag) as GameTag[],
+    features: apiGame.features || [],
+    themes: apiGame.themes || [],
+    status: apiGame.status || GameStatusEnum.ACTIVE,
+    releaseDate: apiGame.releaseDate || apiGame.created_at,
+    is_popular: apiGame.is_popular ?? false,
+    is_new: apiGame.is_new ?? false,
     is_featured: apiGame.is_featured ?? false,
     show_home: apiGame.show_home ?? false,
-
-    releaseDate: apiGame.releaseDate || apiGame.created_at || new Date().toISOString(),
-    tags: Array.isArray(apiGame.tags) ? apiGame.tags : [],
-    features: Array.isArray(apiGame.features) ? apiGame.features : [],
-    themes: Array.isArray(apiGame.themes) ? apiGame.themes : [],
-    
-    status: apiGame.status || 'active',
-    game_code: apiGame.game_code || String(apiGame.game_id || apiGame.id || ''),
-    
-    // Add other fields from UIGame with defaults if not in apiGame
+    mobile_friendly: apiGame.mobile_friendly ?? true,
+    lines: apiGame.lines,
+    min_bet: apiGame.min_bet,
+    max_bet: apiGame.max_bet,
     only_demo: apiGame.only_demo ?? false,
     only_real: apiGame.only_real ?? false,
-    views: apiGame.views ?? 0,
-    lines: apiGame.lines ?? null,
-    reels: apiGame.reels ?? null,
-    default_bet: apiGame.default_bet ?? null,
-    currencies_accepted: apiGame.currencies_accepted ?? null,
-    languages_supported: apiGame.languages_supported ?? null,
-    technology: apiGame.technology ?? 'html5',
-    is_mobile_compatible: apiGame.is_mobile_compatible ?? true,
-    launch_url_template: apiGame.launch_url_template ?? null,
-    api_integration_type: apiGame.api_integration_type ?? null,
-    created_at: apiGame.created_at ?? new Date().toISOString(),
-    updated_at: apiGame.updated_at ?? new Date().toISOString(),
-    aggregator_game_id: apiGame.aggregator_game_id ?? undefined,
-    aggregator_provider_id: apiGame.aggregator_provider_id ?? undefined,
-    // isFavorite is a UI state, not from API typically
+    game_code: apiGame.game_code,
+    // other UIGame fields
   };
 };
 
-// This adapter maps UIGame (frontend) to APIGame (structure for external API or a more raw DB format like DbGame)
-// If APIGame is intended to be DbGame for Supabase, then map to DbGame fields.
-export const adaptGameForAPI = (uiGame: UIGame): Partial<UIDbGame> => { // Output type changed to Partial<UIDbGame>
-  // This should map to the fields of `DbGame` if target is Supabase `games` table
+// This adapter maps UIGame (frontend) to UIDbGame (Supabase 'games' table structure)
+export const adaptUIGameToDbGame = (uiGame: Partial<UIGame>): Partial<UIDbGame> => {
   const dbData: Partial<UIDbGame> = {
-    id: String(uiGame.id), // PK for 'games' table
-    game_id: String(uiGame.game_id || uiGame.id), // Provider's game ID
-    game_name: uiGame.title || '',
-    game_code: uiGame.game_code || String(uiGame.game_id || uiGame.id),
-    game_type: uiGame.categoryName || (Array.isArray(uiGame.category_slugs) && uiGame.category_slugs.length > 0 ? uiGame.category_slugs[0] : 'slots'),
-    description: uiGame.description || '',
-    cover: uiGame.image || uiGame.cover || '',
-    status: uiGame.status || 'active',
-    technology: uiGame.technology || 'HTML5',
-    // has_lobby, is_mobile, has_freespins, has_tables are from `games` table
-    has_lobby: uiGame.has_lobby ?? false,
-    is_mobile: uiGame.is_mobile_compatible ?? true, // map is_mobile_compatible to is_mobile
-    has_freespins: uiGame.has_freespins ?? (uiGame.categoryName === 'slots'),
-    has_tables: uiGame.has_tables ?? (uiGame.categoryName === 'table-games'), // Example mapping
-    only_demo: uiGame.only_demo ?? false,
-    rtp: uiGame.rtp ?? 96,
-    distribution: uiGame.provider_slug || uiGame.providerName, // Maps to `games.distribution`
-    views: uiGame.views ?? Math.floor(Math.random() * 1000),
-    is_featured: uiGame.is_featured ?? false,
-    show_home: uiGame.show_home ?? false,
-    created_at: uiGame.created_at || uiGame.releaseDate || new Date().toISOString(),
-    updated_at: uiGame.updated_at || new Date().toISOString(),
-    // These fields from UIGame might not directly map to DbGame or need transformation
-    // provider_id: uiGame.provider_id, // If you have a separate providers table and this is the FK
-    // slug: uiGame.slug, // slug is in DbGame type, map it
-    // lines, reels, features, themes, min_bet, max_bet, etc. are not in base `games` table schema from Supabase.
-    // If added to `games` table, they can be mapped here.
+    // id: String(uiGame.id), // Usually not set directly for insert, or used in .eq() for update
+    game_id: uiGame.game_id ? String(uiGame.game_id) : undefined,
+    title: uiGame.title,
+    game_name: uiGame.title, // Keep game_name consistent
+    slug: uiGame.slug,
+    provider_slug: uiGame.provider_slug,
+    provider_id: uiGame.provider_id ? String(uiGame.provider_id) : undefined,
+    category_slugs: uiGame.category_slugs,
+    game_type: uiGame.category_slugs && uiGame.category_slugs.length > 0 ? uiGame.category_slugs[0] : uiGame.categoryName, // Example: use first category as game_type
+    image_url: uiGame.image_url || uiGame.image || uiGame.cover,
+    cover: uiGame.cover || uiGame.image || uiGame.image_url,
+    banner_url: uiGame.bannerUrl,
+    description: uiGame.description,
+    rtp: uiGame.rtp,
+    volatility: uiGame.volatility,
+    tags: Array.isArray(uiGame.tags) ? uiGame.tags.map(t => typeof t === 'string' ? t : (t as GameTag).name) : [],
+    features: uiGame.features,
+    themes: uiGame.themes,
+    status: uiGame.status,
+    release_date: uiGame.releaseDate,
+    is_popular: uiGame.is_popular,
+    is_new: uiGame.is_new,
+    is_featured: uiGame.is_featured,
+    show_home: uiGame.show_home,
+    is_mobile: uiGame.mobile_friendly, // Map UIGame.mobile_friendly to DbGame.is_mobile
+    lines: uiGame.lines,
+    min_bet: uiGame.min_bet,
+    max_bet: uiGame.max_bet,
+    only_demo: uiGame.only_demo,
+    only_real: uiGame.only_real,
+    has_freespins: uiGame.has_freespins,
+    game_code: uiGame.game_code,
+    distribution: uiGame.provider_slug, // map provider_slug to distribution
+    // Ensure all other relevant DbGame fields are mapped from UIGame
   };
-  if (uiGame.slug) dbData.slug = uiGame.slug;
-  if (uiGame.provider_id) dbData.provider_id = uiGame.provider_id;
-  if (uiGame.min_bet !== undefined) dbData.min_bet = uiGame.min_bet;
-  if (uiGame.max_bet !== undefined) dbData.max_bet = uiGame.max_bet;
-  // ... map other relevant fields ...
-  
+  if (uiGame.id) dbData.id = String(uiGame.id); // Add id if present (for updates)
+
   Object.keys(dbData).forEach(key => (dbData as any)[key] === undefined && delete (dbData as any)[key]);
   return dbData;
 };
 
-export const adaptGamesForUI = (apiGames: APIGame[]): UIGame[] => {
-  return apiGames.map(adaptGameForUI);
-};
 
-export const adaptProviderForUI = (apiProvider: APIGameProvider): UIGameProvider => {
-  return {
-    id: String(apiProvider.id || ''), // Ensure id is string
-    name: apiProvider.name || '',
-    slug: apiProvider.slug || '', // Add slug
-    logoUrl: apiProvider.logoUrl || '', // Use logoUrl
-    description: apiProvider.description || '',
-    isActive: apiProvider.isActive ?? true,
-    game_ids: apiProvider.game_ids || [],
-    // gamesCount: 0, // This typically comes from an aggregation or separate calculation
-    // isPopular: false // This is a UI state or derived
-  };
-};
-
-export const adaptProvidersForUI = (apiProviders: APIGameProvider[]): UIGameProvider[] => {
-  return apiProviders.map(adaptProviderForUI);
-};
+// Removed adaptGameForUI, adaptGameForAPI, adaptGamesForUI, adaptProviderForUI, adaptProvidersForUI
+// as they are largely superseded by mapDbGameToGameAdapter and mapGameToDbGameAdapter,
+// or specific adapters like adaptAPIGameToUIGame if dealing with external APIs.
+// If these are still needed for other parts of the app, they should be updated for consistency with src/types/game.ts.
+// For now, focusing on fixing admin panel errors.
