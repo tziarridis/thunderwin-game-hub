@@ -1,24 +1,32 @@
-
 import React, { useEffect, useState } from 'react';
 import { Game } from '@/types/game';
-import { useGames } from '@/hooks/useGames'; // Corrected: useGames for context
-import CasinoGameGrid from './CasinoGameGrid'; // Assuming this is the correct path
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { useGames } from '@/hooks/useGames';
+import CasinoGameGrid from './CasinoGameGrid';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import SectionTitle from '@/components/shared/SectionTitle'; // Assuming this component exists
+import SectionTitle from '@/components/shared/SectionTitle';
+import { Button } from '@/components/ui/button'; // For View All button
+import { Link } from 'react-router-dom'; // For View All button
 
 interface FeaturedGamesProps {
   count?: number;
   title?: string;
+  showViewAllButton?: boolean; // Added
+  viewAllLink?: string; // Added
 }
 
-const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 6, title = "Featured Games" }) => {
-  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoadingGames } = useGames();
+const FeaturedGames: React.FC<FeaturedGamesProps> = ({ 
+  count = 6, 
+  title = "Featured Games",
+  showViewAllButton = false,
+  viewAllLink = "/casino/main" 
+}) => {
+  const { getFeaturedGames, handleGameDetails, isLoadingGames } = useGames();
   const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
 
   useEffect(() => {
     const fetchFeatured = async () => {
-      if (getFeaturedGames) { // Check if function exists on context
+      if (getFeaturedGames) {
         try {
           const games = await getFeaturedGames(count);
           setFeaturedGames(games);
@@ -32,13 +40,10 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 6, title = "Featu
     fetchFeatured();
   }, [getFeaturedGames, count]);
 
-  // Fallback handlers if context doesn't provide them
   const onGameClick = handleGameDetails || ((game: Game) => {
     console.log("Game details clicked (fallback):", game.title);
-    // Potentially navigate to a game detail page: navigate(`/casino/game/${game.slug || game.id}`);
     toast.info(`More details for ${game.title}`);
   });
-
 
   if (isLoadingGames && featuredGames.length === 0) {
     return (
@@ -57,17 +62,23 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({ count = 6, title = "Featu
     );
   }
 
-  if (!featuredGames.length) {
-    return null; // Don't render section if no games and not loading
+  if (!featuredGames.length && !isLoadingGames) { // check isLoadingGames here too
+    return null;
   }
 
   return (
     <div className="py-8">
-      {title && <SectionTitle title={title} />}
+      <div className="flex justify-between items-center mb-4">
+        {title && <SectionTitle title={title} className="mb-0" />}
+        {showViewAllButton && viewAllLink && (
+          <Button asChild variant="outline">
+            <Link to={viewAllLink}>View All</Link>
+          </Button>
+        )}
+      </div>
       <CasinoGameGrid games={featuredGames} onGameClick={onGameClick} showEmptyMessage={false} />
     </div>
   );
 };
 
 export default FeaturedGames;
-

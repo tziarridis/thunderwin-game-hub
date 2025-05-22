@@ -33,11 +33,11 @@ export interface DbGame {
   title?: string | null; 
   slug?: string | null;
   provider_slug?: string | null; 
-  provider_id?: string | null; 
+  provider_id?: string | null; // This would be the UUID foreign key to providers table
   category_slugs?: string[] | null; 
   game_type?: string | null; 
-  image_url?: string | null; 
-  cover?: string | null; 
+  image_url?: string | null; // This might be the raw image path
+  cover?: string | null; // Often same as image_url or a specific crop
   banner_url?: string | null; 
   description?: string | null;
   rtp?: number | null;
@@ -69,8 +69,9 @@ export interface DbGame {
   min_bet?: number | null;
   max_bet?: number | null;
 
-  game_providers?: { id: string; name: string; slug: string; logo_url?: string | null; is_active?: boolean | null; } | null; 
-  game_categories?: { id: string; name: string; slug: string; }[] | { id: string; name: string; slug: string; } | null; // Can be array or single from joins
+  // Joined data
+  game_providers?: { id: string; name: string; slug: string; logo?: string | null; logo_url?: string | null; is_active?: boolean | null; } | null; 
+  game_categories?: { id: string; name: string; slug: string; image?: string | null; }[] | { id: string; name: string; slug: string; image?: string | null; } | null;
 
   [key: string]: any;
 }
@@ -84,16 +85,16 @@ export interface Game {
   provider_slug?: string; 
   providerName?: string | null; 
   provider_id?: string | null; 
-  provider?: { id: string; name: string; slug: string } | null; 
+  provider?: { id: string; name: string; slug: string; logo?: string | null; } | null; 
 
   category_slugs?: string[] | null;
   categoryNames?: string[] | null; 
   categoryName?: string | null; 
   category?: string | null; 
 
-  image?: string | null; 
-  image_url?: string | null;
-  cover?: string | null;
+  image?: string | null; // Main image, could be cover or thumbnail
+  // image_url removed to avoid confusion, use image or cover
+  cover?: string | null; // Typically a specific image for cards
   bannerUrl?: string | null; 
   banner?: string | null; 
 
@@ -137,7 +138,7 @@ export interface Game {
   
   created_at?: string;
   updated_at?: string;
-  meta?: { key: string, value: string }[]; // Added for demo_url, real_url
+  meta?: { key: string, value: string }[]; 
   extra_properties?: Record<string, any>;
 }
 
@@ -145,7 +146,7 @@ export interface GameProvider {
   id?: string | number; 
   slug: string;
   name: string;
-  logo_url?: string | null;
+  logo?: string | null; // Changed from logo_url to match common DB field name
   description?: string | null;
   is_active?: boolean | null;
   created_at?: string | null;
@@ -160,7 +161,7 @@ export interface GameCategory {
   slug: string;
   name: string;
   description?: string | null;
-  image_url?: string | null;
+  image?: string | null; // Changed from image_url
   icon?: string | null; 
   status?: string | null; 
   created_at?: string | null;
@@ -174,8 +175,8 @@ export interface GameLaunchOptions {
   [key: string]: any; 
 }
 
+// Simplified GameContextType
 export interface GameContextType {
-  // Properties from useGames hook
   games: Game[];
   categories: GameCategory[];
   providers: GameProvider[];
@@ -183,14 +184,15 @@ export interface GameContextType {
   isLoadingGames: boolean;
   isLoadingCategories: boolean;
   isLoadingProviders: boolean;
+  isAuthenticated: boolean; // Added
   hasMoreGames?: boolean;
 
-  // Methods from useGames hook
   fetchGames: (filters?: any, page?: number, limit?: number) => Promise<{ games: Game[], totalCount: number }>;
   fetchGameBySlug: (slug: string) => Promise<Game | null>;
   fetchCategories: () => Promise<void>;
   fetchProviders: () => Promise<void>;
   launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
+  getGameLaunchUrl: (game: Game, options: GameLaunchOptions) => Promise<string | null>; // Added
   toggleFavoriteGame: (gameId: string) => Promise<void>;
   isFavorite: (gameId: string) => boolean;
   getGamesByCategory: (categorySlug: string) => Game[];
@@ -198,16 +200,18 @@ export interface GameContextType {
   loadMoreGames?: () => void;
   searchGames: (searchTerm: string) => Promise<Game[]>;
   getFeaturedGames: (count?: number) => Promise<Game[]>;
-  getGameById?: (id: string) => Game | undefined; // Optional, if implemented
+  getGameById?: (id: string) => Game | undefined;
+  
+  handleGameDetails?: (game: Game) => void; // Added
+  handlePlayGame?: (game: Game, mode: 'real' | 'demo') => void; // Added
+  
+  // Optional admin methods, consider moving to a separate AdminGamesContext if they grow
+  addGame?: (gameData: Partial<DbGame>) => Promise<DbGame | null>;
+  updateGame?: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>;
+  deleteGame?: (gameId: string) => Promise<void>;
+  uploadGameImage?: (file: File) => Promise<string | null>;
 
-  // Placeholder for other methods that might be part of a more comprehensive context
-  // These were in the original GameContextType but might not all be implemented in useGames.tsx
-  // For now, keep them optional or remove if not used.
-  filteredGames?: Game[]; // If filtering logic is moved to context
-  isLoading?: boolean; // General loading state
-  isLoadingMore?: boolean;
-  hasMore?: boolean; // General hasMore state
-  error?: Error | null;
+  // Fields for active filtering state, if managed by context
   activeFilters?: {
     searchTerm: string;
     provider: string;
@@ -218,14 +222,4 @@ export interface GameContextType {
   setProviderFilter?: (providerSlug: string) => void;
   setCategoryFilter?: (categorySlug: string) => void;
   setSortBy?: (sortBy: string) => void;
-  getGameLaunchUrl?: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
-  fetchGameDetails?: (gameIdOrSlug: string) => Promise<Game | null>;
-  handleGameDetails?: (game: Game) => void;
-  handlePlayGame?: (game: Game, mode: 'real' | 'demo') => void;
-  
-  // Admin specific methods - likely better in a separate admin context
-  addGame?: (gameData: Partial<DbGame>) => Promise<DbGame | null>;
-  updateGame?: (gameId: string, gameData: Partial<DbGame>) => Promise<DbGame | null>;
-  deleteGame?: (gameId: string) => Promise<void>;
-  uploadGameImage?: (file: File) => Promise<string | null>;
 }

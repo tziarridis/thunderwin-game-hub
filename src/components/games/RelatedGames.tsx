@@ -1,8 +1,10 @@
 import React from 'react';
 import { Game } from '@/types/game';
-import { useGames } from '@/hooks/useGames'; // Corrected: useGames for context
+import { useGames } from '@/hooks/useGames';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import GameCard from './GameCard';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface RelatedGamesProps {
   game: Game;
@@ -10,7 +12,9 @@ interface RelatedGamesProps {
 }
 
 const RelatedGames: React.FC<RelatedGamesProps> = ({ game, count = 4 }) => {
-  const { games, getGamesByCategory, launchGame, isFavorite, toggleFavoriteGame, isAuthenticated } = useGames();
+  const { games, getGamesByCategory, launchGame, isFavorite, toggleFavoriteGame } = useGames();
+  const { isAuthenticated } = useAuth(); // Get isAuthenticated from useAuth
+  const navigate = useNavigate();
 
   const relatedGames = React.useMemo(() => {
     if (!game || !game.category_slugs || !getGamesByCategory) return [];
@@ -33,21 +37,33 @@ const RelatedGames: React.FC<RelatedGamesProps> = ({ game, count = 4 }) => {
   const handleToggleFavorite = async (gameId: string) => {
     if (!isAuthenticated) {
       toast.error("Please log in to add favorites");
+      // Optionally, redirect to login: navigate('/login', { state: { from: location } });
       return;
     }
     await toggleFavoriteGame(gameId);
   };
 
-  const handlePlayAction = (game: Game) => {
-    if (game.game_id && (game.provider_slug || game.providerName)) {
-      launchGame(game, { mode: 'real' })
-        .then(url => {
-          if (url) window.open(url, '_blank');
-          else toast.error("Could not get game URL.");
-        })
-        .catch(err => toast.error(`Launch error: ${(err as Error).message}`));
+  const handlePlayAction = async (gameToPlay: Game) => { // Renamed from game to gameToPlay
+    if (gameToPlay.game_id && (gameToPlay.provider_slug || gameToPlay.providerName)) {
+      try {
+        const url = await launchGame(gameToPlay, { mode: 'real' });
+        if (url) {
+          // For related games, maybe navigate to seamless launch or open in new tab
+          // navigate(`/casino/seamless`, { state: { gameUrl: url, gameTitle: gameToPlay.title } });
+          window.open(url, '_blank');
+        } else {
+          toast.error("Could not get game URL. Please try again later.");
+          // Fallback: navigate to game details page if launch fails
+          navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
+        }
+      } catch (err) {
+        toast.error(`Launch error: ${(err as Error).message}`);
+        navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
+      }
     } else {
       toast.error("Cannot launch game: missing details or play action.");
+      // Fallback to game details page
+      navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
     }
   };
 
