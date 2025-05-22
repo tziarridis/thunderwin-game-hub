@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Game } from '@/types';
 import GameCard from './GameCard';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGamesData } from '@/hooks/useGames';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -11,7 +12,7 @@ interface GameListProps {
 }
 
 const GameList: React.FC<GameListProps> = ({ games, title }) => {
-  const { launchGame } = useGamesData(); // GameCard will use context for favorites
+  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData();
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -20,7 +21,7 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
 
   const handlePlayGame = async (gameToPlay: Game) => {
     try {
-      const launchUrl = await launchGame(gameToPlay, { mode: 'real' }); // Call context function
+      const launchUrl = await launchGame(gameToPlay, { mode: 'real' });
       if (launchUrl) {
         window.open(launchUrl, '_blank');
       } else {
@@ -40,7 +41,8 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
           <GameCard
             key={String(game.id)}
             game={game}
-            // isFavorite and onToggleFavorite are handled by GameCard internally
+            isFavorite={isFavorite(String(game.id))}
+            onToggleFavorite={toggleFavoriteGame}
             onPlay={() => handlePlayGame(game)}
           />
         ))}
@@ -50,3 +52,4 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
 };
 
 export default GameList;
+

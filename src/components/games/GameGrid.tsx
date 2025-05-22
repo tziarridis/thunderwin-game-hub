@@ -1,3 +1,4 @@
+
 // This is components/games/GameGrid.tsx, distinct from casino/GameGrid.tsx
 // This one is used by CasinoMain.tsx
 import React from 'react';
@@ -9,33 +10,30 @@ import { toast } from 'sonner';
 
 interface GameGridProps {
   games: Game[];
-  // onGameClick might be handled by GameCard's onPlay or its own navigation
 }
 
 const GameGrid: React.FC<GameGridProps> = ({ games }) => {
-  const { toggleFavoriteGame, launchGame, isFavorite } = useGamesData(); // Use context functions
+  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData(); 
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-white/70">No games available</p>
+        <p className="text-muted-foreground">No games available</p> {/* Changed text color for better visibility */}
       </div>
     );
   }
 
   const handlePlayGame = async (gameToPlay: Game) => {
     try {
-      const launchUrl = await launchGame(gameToPlay, { mode: 'real' }); // Call context function
+      const launchUrl = await launchGame(gameToPlay, { mode: 'real' });
       if (launchUrl) {
         window.open(launchUrl, '_blank');
       } else {
-        // Fallback to details page if no launch URL
         navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
       }
     } catch (error: any) {
       toast.error(`Could not launch game: ${error.message}`);
-       // Fallback to details page on error
       navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
     }
   };
@@ -44,9 +42,10 @@ const GameGrid: React.FC<GameGridProps> = ({ games }) => {
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
       {games.map((game) => (
         <GameCard
-          key={String(game.id)} // Ensure key is string
+          key={String(game.id)}
           game={game}
-          // isFavorite and onToggleFavorite are handled by GameCard internally
+          isFavorite={isFavorite(String(game.id))}
+          onToggleFavorite={toggleFavoriteGame}
           onPlay={() => handlePlayGame(game)} 
         />
       ))}
@@ -55,3 +54,4 @@ const GameGrid: React.FC<GameGridProps> = ({ games }) => {
 };
 
 export default GameGrid;
+

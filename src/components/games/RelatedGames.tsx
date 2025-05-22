@@ -1,16 +1,17 @@
+
 import React from 'react';
 import { Game } from '@/types';
 import GameCard from './GameCard';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGamesData } from '@/hooks/useGames';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner'; // Added toast import
+import { toast } from 'sonner';
 
 interface RelatedGamesProps {
   games: Game[];
 }
 
 const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
-  const { launchGame } = useGamesData(); // GameCard will use context for favorites
+  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData();
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -18,14 +19,11 @@ const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
   }
   
   const handleGamePlayOrDetails = (game: Game) => {
-    if (game.game_id && (game.provider_slug || game.providerName) ) { // Added providerName check
-        launchGame(game, { mode: 'real' }) // Call context function
+    if (game.game_id && (game.provider_slug || game.providerName) ) {
+        launchGame(game, { mode: 'real' })
             .then(launchUrl => {
                 if (launchUrl) {
                     window.open(launchUrl, '_blank');
-                } else {
-                    // Error handled by launchGame
-                    // toast.error("Could not launch related game."); 
                 }
             });
     } else if (game.slug) {
@@ -46,7 +44,8 @@ const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
           <GameCard
             key={String(game.id)}
             game={game}
-            // isFavorite and onToggleFavorite handled by GameCard internally
+            isFavorite={isFavorite(String(game.id))}
+            onToggleFavorite={toggleFavoriteGame}
             onPlay={() => handleGamePlayOrDetails(game)}
           />
         ))}
@@ -56,3 +55,4 @@ const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
 };
 
 export default RelatedGames;
+

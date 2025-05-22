@@ -54,7 +54,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
     onToggleFavorite(gameIdStr); 
   };
 
-  const providerDisplay = game.providerName || game.provider_slug || ''; // Use providerName or provider_slug
+  const providerDisplay = game.providerName || game.provider_slug || '';
 
   return (
     <div 
@@ -87,7 +87,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
             </Button>
         )}
         <div className="absolute top-2 left-2 z-20 space-y-1">
-            {game.isNew && <Badge variant="destructive" className="text-xs">New</Badge>}
+            {game.is_new && <Badge variant="destructive" className="text-xs">New</Badge>} {/* Corrected: game.is_new */}
             {game.is_featured && <Badge variant="secondary" className="text-xs bg-amber-500 text-black">Featured</Badge>}
         </div>
         

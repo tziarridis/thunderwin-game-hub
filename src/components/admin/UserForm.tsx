@@ -14,28 +14,28 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User } from "@/types/user"; // Assuming you have a User type
+import { User as AppUser } from "@/types/user"; // Use AppUser or a more specific AdminUser type
 import { toast } from "sonner";
 
 // Define your form schema using Zod
 const userFormSchema = z.object({
   username: z.string().min(2, "Username must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
-  status: z.enum(["active", "inactive", "banned", "pending"]).optional(), // Example statuses
-  roles: z.array(z.string()).optional(), // Assuming roles are an array of strings (e.g., role names or IDs)
+  status: z.enum(["active", "inactive", "banned", "pending"]).optional(),
+  roles: z.array(z.string()).optional(), 
   vipLevel: z.number().min(0).optional(),
   currency: z.string().optional(),
   language: z.string().optional(),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   avatarUrl: z.string().url().optional().or(z.literal('')),
-  isActive: z.boolean().optional(), // Example, if you have a general active status
+  isActive: z.boolean().optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
-  user?: User | null; // Make user prop optional for creating new users
+  user?: AppUser | null; // Use AppUser consistently
   onSubmit: (values: UserFormValues) => Promise<void>;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -47,11 +47,11 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
     defaultValues: {
       username: user?.username || "",
       email: user?.email || "",
-      status: user?.status || "pending",
-      roles: user?.roles || [], // Assuming user object has roles
-      vipLevel: user?.vipLevel || 0,
-      currency: user?.currency || "USD",
-      language: user?.language || "en",
+      status: user?.status || "pending", // Assuming AppUser has status
+      roles: user?.roles || [], 
+      vipLevel: user?.vipLevel || 0, // Assuming AppUser has vipLevel
+      currency: user?.currency || "USD", // Assuming AppUser has currency
+      language: user?.language || "en", // Assuming AppUser has language
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       avatarUrl: user?.avatarUrl || "",
@@ -153,7 +153,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
             )}
           />
 
-        {/* Example for roles - this would be more complex for multi-select or tag input */}
         <FormField
           control={form.control}
           name="roles"
@@ -202,7 +201,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
                         </div>
                         <FormControl>
                             <Switch
-                            checked={field.value}
+                            checked={field.value ?? true} // Provide a default if field.value is undefined
                             onCheckedChange={field.onChange}
                             />
                         </FormControl>
@@ -210,7 +209,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
                 )}
             />
         </div>
-
 
         <div className="flex justify-end space-x-4">
           {onCancel && (

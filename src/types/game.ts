@@ -1,4 +1,3 @@
-
 export enum GameStatusEnum {
   ACTIVE = "active",
   INACTIVE = "inactive",
@@ -34,7 +33,7 @@ export interface DbGame {
   game_name?: string | null; // often used as title
   title?: string | null; // explicit title field
   slug?: string | null;
-  provider_slug: string; // From 'distribution' column or linked provider
+  provider_slug?: string | null; // From 'distribution' column or linked provider. Made optional.
   provider_id?: string | null; // FK to a providers table if you have one
   category_slugs?: string[] | null; // Array of category slugs
   game_type?: string | null; // Single primary category, if applicable
@@ -57,26 +56,25 @@ export interface DbGame {
   has_freespins?: boolean | null;
   has_tables?: boolean | null;
   only_demo?: boolean | null;
-  only_real?: boolean | null; // Added from previous definition
+  only_real?: boolean | null; 
   views?: number | null;
   is_featured?: boolean | null;
-  is_popular?: boolean | null; // Added from GameForm/Adapter usage
-  is_new?: boolean | null; // Added from GameForm/Adapter usage
+  is_popular?: boolean | null; 
+  is_new?: boolean | null; 
   show_home?: boolean | null;
   technology?: string | null;
   distribution?: string | null; // This is often the provider slug
   game_server_url?: string | null;
   game_code?: string | null; // Alternative internal game code
   release_date?: string | null; // Release date of the game
-  lines?: number | null; // Paylines
+  lines?: number | null; 
   min_bet?: number | null;
   max_bet?: number | null;
 
   // For joined data, e.g. from 'game_providers' or 'game_categories'
-  // These are typically not part of DbGame itself unless your query explicitly joins and renames them.
-  // It's often better to handle these in the 'Game' (UI) type.
   // provider_name?: string | null; 
   // category_names?: string[] | null;
+  providers?: { id: string; name: string; slug: string } | null; // For joined provider data
 
   // Allow any other properties that might come from the DB or API
   [key: string]: any;
@@ -92,15 +90,18 @@ export interface Game {
   provider_slug: string;
   providerName?: string | null; // Display name of the provider
   provider_id?: string | null; // FK to a providers table
+  provider?: { id: string; name: string; slug: string } | null; // Keep for consistency if used
 
   category_slugs?: string[] | null;
   categoryNames?: string[] | null; // Display names of categories
   categoryName?: string | null; // Primary category display name (used in gameAdapter)
+  category?: string | null; // from original type in gameTypeAdapter
 
   image?: string | null; // Main visual (could be image_url or cover)
   image_url?: string | null;
   cover?: string | null;
   bannerUrl?: string | null; // For banners/promotions
+  banner?: string | null; // from original type in gameTypeAdapter
 
   description?: string | null;
   rtp?: number | null;
@@ -114,7 +115,7 @@ export interface Game {
   releaseDate?: string | null; // Formatted release date for display
 
   is_popular?: boolean | null;
-  is_new?: boolean | null;
+  is_new?: boolean | null; // Changed from isNew
   is_featured?: boolean | null;
   show_home?: boolean | null; // Whether to show on homepage
 
@@ -157,7 +158,7 @@ export interface GameProvider {
   updated_at?: string | null;
   // UI specific fields
   gamesCount?: number;
-  isPopular?: boolean;
+  isPopular?: boolean; // Keep this if used, or align with is_popular
   game_ids?: string[]; // from original type
 }
 
@@ -167,6 +168,7 @@ export interface GameCategory {
   name: string;
   description?: string | null;
   image_url?: string | null;
+  icon?: string | null; // Added icon property
   status?: string | null; // e.g., 'active', 'inactive'
   created_at?: string | null;
   updated_at?: string | null;
