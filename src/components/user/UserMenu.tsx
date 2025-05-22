@@ -25,7 +25,7 @@ const getInitials = (name?: string | null) => {
 };
 
 export function UserMenu() {
-  const { user, signOut, roles } = useAuth(); // Assuming roles are fetched in AuthContext
+  const { user, signOut } = useAuth(); // Remove roles as it's not in AuthContextType
   const navigate = useNavigate();
 
   if (!user) {
@@ -38,7 +38,8 @@ export function UserMenu() {
 
   const userName = user.user_metadata?.full_name || user.email;
   const userAvatar = user.user_metadata?.avatar_url;
-  const isAdmin = roles?.includes('admin'); // Check if user has admin role
+  // Check if user has admin role from app_metadata instead
+  const isAdmin = user.app_metadata?.roles?.includes('admin'); 
 
   return (
     <DropdownMenu>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -8,7 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import NavLinks from './NavLinks';
 import MobileNavMenu from './MobileNavMenu'; // Changed to MobileNavMenu
 import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu';
+import { UserMenu } from '@/components/user/UserMenu'; // Changed to named import
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
