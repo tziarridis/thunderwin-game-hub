@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@/types/user'; // Using your custom User type
+import { User as UserType, UserRole } from '@/types/user'; // Ensure User is UserType from your definitions
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,38 +17,37 @@ import { format } from 'date-fns';
 const ITEMS_PER_PAGE = 10;
 
 const AdminUsers: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [showFormDialog, setShowFormDialog] = useState(false); // For add/edit
   const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserType | null>(null);
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [sortColumn, setSortColumn] = useState<keyof User | 'email' | null>('created_at'); // Allow sorting by email from auth
+  const [sortColumn, setSortColumn] = useState<keyof UserType | 'email' | null>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async (page: number, search: string, sortCol: keyof User | 'email' | null, sortDir: 'asc' | 'desc') => {
+
+  const fetchUsers = useCallback(async (page: number, search: string, sortCol: keyof UserType | 'email' | null, sortDir: 'asc' | 'desc') => {
     setIsLoading(true);
     try {
-      // Fetch from your public.users table
       let query = supabase
-        .from('users') // Assuming your custom users table is named 'users'
+        .from('users')
         .select('*', { count: 'exact' });
 
       if (search) {
-        // Search in username, email, or other relevant fields in your 'users' table
         query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%,id.ilike.%${search}%`);
       }
       
       if (sortCol) {
-         query = query.order(sortCol as keyof User, { ascending: sortDir === 'asc' }); // Cast needed if sortCol includes 'email' which might not be on User type directly
+         query = query.order(sortCol as string, { ascending: sortDir === 'asc' }); // Cast sortCol to string
       } else {
-        query = query.order('created_at', { ascending: false }); // Default sort
+        query = query.order('created_at', { ascending: false }); 
       }
 
       const from = (page - 1) * ITEMS_PER_PAGE;
@@ -57,7 +56,7 @@ const AdminUsers: React.FC = () => {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      setUsers(data || []);
+      setUsers((data as UserType[]) || []); // Cast data to UserType[]
       setTotalUsers(count || 0);
     } catch (error: any) {
       toast.error(`Failed to fetch users: ${error.message}`);
@@ -72,25 +71,27 @@ const AdminUsers: React.FC = () => {
 
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!editingUser && !showFormDialog) return; // Should not happen if dialog is for add
+    if (!editingUser && !showFormDialog) return; 
     
     const formData = new FormData(event.currentTarget);
-    const userData: Partial<User> = {
+    const userData: Partial<UserType> = {
       username: formData.get('username') as string,
-      email: formData.get('email') as string, // Email updates are complex with Supabase Auth, usually handle separately
-      role: formData.get('role') as User['role'],
-      is_verified: formData.get('is_verified') === 'on',
-      is_banned: formData.get('is_banned') === 'on',
-      // Add other fields from your 'users' table that are editable
+      email: formData.get('email') as string,
+      role: formData.get('role') as UserRole, // Use UserRole type
+      // is_verified: formData.get('is_verified') === 'on', // is_verified might come from auth, handle carefully
+      // is_banned: formData.get('is_banned') === 'on',
       first_name: formData.get('first_name') as string || undefined,
       last_name: formData.get('last_name') as string || undefined,
       avatar_url: formData.get('avatar_url') as string || undefined,
+      status: editingUser?.status || 'active', // Keep existing or default
+      // map checkbox values correctly
+      is_verified: (formData.get('is_verified') as string) === 'on',
+      is_banned: (formData.get('is_banned') as string) === 'on',
     };
 
     setIsLoading(true);
     try {
       if (editingUser) {
-        // Update in your 'users' table
         const { error } = await supabase
           .from('users')
           .update(userData)
@@ -98,18 +99,14 @@ const AdminUsers: React.FC = () => {
         if (error) throw error;
         toast.success('User updated successfully!');
       } else {
-        // Adding a new user directly to 'users' table might bypass Supabase Auth.
-        // This is typically handled via Supabase Auth signUp.
-        // For admin creation, you might have a different flow or a server-side function.
-        // For this example, let's assume direct insert is possible for admin purposes.
-        // WARNING: This does NOT create a Supabase Auth user.
+        // This needs proper handling for creating auth user as well
         const { data: newUser, error } = await supabase.from('users').insert(userData).select().single();
         if (error) throw error;
-        toast.success(`User ${newUser?.username || newUser?.email} created (manual admin add). Auth user not created.`);
+        toast.success(`User ${newUser?.username || newUser?.email} created. Auth user NOT created.`);
       }
       setShowFormDialog(false);
       setEditingUser(null);
-      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
+      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection);
     } catch (error: any) {
       toast.error(`Operation failed: ${error.message}`);
     } finally {
@@ -117,7 +114,7 @@ const AdminUsers: React.FC = () => {
     }
   };
 
-  const openDeleteDialog = (user: User) => {
+  const openDeleteDialog = (user: UserType) => {
     setUserToDelete(user);
     setShowConfirmDeleteDialog(true);
   };
@@ -126,13 +123,12 @@ const AdminUsers: React.FC = () => {
     if (!userToDelete) return;
     setIsLoading(true);
     try {
-      // Deleting from 'users' table. Supabase Auth user deletion is separate & more complex (admin API).
       const { error } = await supabase.from('users').delete().eq('id', userToDelete.id);
       if (error) throw error;
       toast.success('User data deleted successfully! (Auth user may still exist)');
       setShowConfirmDeleteDialog(false);
       setUserToDelete(null);
-      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection); // Refresh list
+      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection);
     } catch (error: any) {
       toast.error(`Failed to delete user: ${error.message}`);
     } finally {
@@ -140,25 +136,25 @@ const AdminUsers: React.FC = () => {
     }
   };
   
-  const toggleUserBan = async (user: User) => {
+  const toggleUserBan = async (user: UserType) => {
     setIsLoading(true);
     try {
-      const newBanStatus = !user.is_banned;
+      const newBanStatus = !user.is_banned; // Assuming is_banned exists on UserType
       const { error } = await supabase
         .from('users')
-        .update({ is_banned: newBanStatus, updated_at: new Date().toISOString() })
+        .update({ is_banned: newBanStatus, updated_at: new Date().toISOString(), status: newBanStatus ? 'banned' : 'active' })
         .eq('id', user.id);
       if (error) throw error;
       toast.success(`User ${newBanStatus ? 'banned' : 'unbanned'} successfully.`);
-      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection); // Refresh
+      fetchUsers(currentPage, searchTerm, sortColumn, sortDirection);
     } catch (error:any) {
       toast.error(`Failed to ${user.is_banned ? 'unban' : 'ban'} user: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const handleSort = (column: keyof User | 'email') => {
+
+  const handleSort = (column: keyof UserType | 'email') => {
     if (sortColumn === column) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -167,7 +163,7 @@ const AdminUsers: React.FC = () => {
     }
   };
   
-  const SortIndicator = ({ column }: { column: keyof User | 'email' }) => {
+  const SortIndicator = ({ column }: { column: keyof UserType | 'email' }) => {
     if (sortColumn === column) {
       return sortDirection === 'asc' ? <ChevronUp className="inline h-4 w-4" /> : <ChevronDown className="inline h-4 w-4" />;
     }
@@ -252,8 +248,7 @@ const AdminUsers: React.FC = () => {
          <p className="text-center text-muted-foreground py-6">No users found matching your criteria.</p>
        )}
 
-
-       {totalPages > 1 && (
+      {totalPages > 1 && (
         <div className="flex justify-between items-center mt-4">
             <Button 
                 onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
@@ -331,7 +326,7 @@ const AdminUsers: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         title="Delete User"
         description={`Are you sure you want to delete user "${userToDelete?.username || userToDelete?.email}"? This action might be irreversible.`}
-        confirmButtonText="Delete"
+        confirmText="Delete" // Changed from confirmButtonText
         isLoading={isLoading}
       />
     </div>

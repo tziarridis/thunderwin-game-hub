@@ -8,9 +8,19 @@ export type AppUser = {
   firstName?: string;
   lastName?: string;
   avatar?: string;
-  isActive?: boolean;
+  isActive: boolean; // Changed to required
   createdAt?: string;
   updatedAt?: string;
+  // Add any other fields that might be part of your user object from Supabase auth
+  app_metadata?: {
+    provider?: string;
+    providers?: string[];
+    [key: string]: any;
+  };
+  user_metadata?: {
+    [key: string]: any;
+  };
+  role?: string; // From Supabase Auth user
 };
 
 interface AppContextValue {

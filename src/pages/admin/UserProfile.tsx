@@ -4,29 +4,35 @@ import { supabase } from '@/integrations/supabase/client';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+// ... keep existing code (Input, Textarea, Select imports)
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from 'sonner';
-import { Loader2, User, ArrowLeft, Save, Edit, Ban, UserCheck } from 'lucide-react';
-import { User as AuthUser } from '@supabase/supabase-js'; // Supabase Auth User type
-import { User as AppUser, UserRole } from '@/types/user'; // Your application's User type
-import UserInfoForm from '@/components/admin/UserInfoForm'; // Assuming this exists
-// import UserTransactionsTable from '@/components/admin/UserTransactionsTable'; // Placeholder
-// import UserActivityLog from '@/components/admin/UserActivityLog'; // Placeholder
+import { Loader2, User as UserIcon, ArrowLeft, Save, Edit, Ban, UserCheck } from 'lucide-react'; // Renamed User to UserIcon
+import { User as AuthUser } from '@supabase/supabase-js'; 
+import { User as AppUserType, UserRole } from '@/types/user'; // Changed AppUser to AppUserType to avoid conflict
+import UserInfoForm from '@/components/admin/UserInfoForm'; 
+import { Badge } from '@/components/ui/badge'; // Added Badge import
 
-type CombinedUser = AppUser & Partial<AuthUser>; // Combine for easier state management
+// ... keep existing code (UserTransactionsTable, UserActivityLog placeholders)
+
+type CombinedUser = AppUserType & Partial<AuthUser> & { 
+  avatar_url?: string | null; 
+  user_metadata?: { avatar_url?: string; [key:string]: any; };
+  status?: string; // ensure status is part of CombinedUser
+  banned?: boolean; // ensure banned is part of CombinedUser
+};
 
 const AdminUserProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
   const [user, setUser] = useState<CombinedUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // const [isEditing, setIsEditing] = useState(false);
-  // const [formData, setFormData] = useState<Partial<CombinedUser>>({});
 
   const fetchUserProfile = useCallback(async () => {
+    // ... keep existing code (fetchUserProfile logic)
     if (!userId) {
         toast.error("User ID is missing.");
         setIsLoading(false);
@@ -34,7 +40,6 @@ const AdminUserProfilePage = () => {
     }
     setIsLoading(true);
     try {
-      // Fetch from your public 'users' table
       const { data: appUser, error: appUserError } = await supabase
         .from('users')
         .select('*')
@@ -43,25 +48,18 @@ const AdminUserProfilePage = () => {
 
       if (appUserError) throw appUserError;
       if (!appUser) throw new Error("User not found in application database.");
-
-      // Optionally, fetch Auth user details if needed (e.g., last sign-in)
-      // This requires admin privileges for Supabase client
-      // const { data: { user: authUser }, error: authUserError } = await supabase.auth.admin.getUserById(userId); // This might be incorrect if 'userId' is from 'users' table not 'auth.users'
-      // For now, we'll rely on data from 'users' table and assume it's synced or sufficient.
       
       setUser({
-        ...appUser, // Spread fields from your 'users' table
-        // id: authUser?.id || appUser.id, // Prefer auth.users ID if different, but usually they are linked by one ID
-        email: appUser.email, // from 'users' table
-        // aud: authUser?.aud || '', // from authUser if fetched
-        // role: authUser?.role || '', // from authUser if fetched
-        // app_metadata: authUser?.app_metadata || {},
-        user_metadata: (appUser as any).user_metadata || {}, // from 'users' if it has a user_metadata jsonb
-        created_at: appUser.created_at,
-        updated_at: appUser.updated_at,
-        // last_sign_in_at: authUser?.last_sign_in_at,
-        // Add other merged fields as necessary
-      } as CombinedUser); // Ensure mapping matches CombinedUser type
+        ...(appUser as AppUserType), // Spread fields from your 'users' table
+        email: appUser.email!, 
+        user_metadata: (appUser as any).user_metadata || {},
+        created_at: appUser.created_at!,
+        updated_at: appUser.updated_at!,
+        // Ensure all required fields from AppUserType are present or optional
+        isActive: appUser.status === 'active', // Example mapping for isActive
+        banned: (appUser as any).banned || false,
+        status: (appUser as any).status || 'unknown',
+      } as CombinedUser);
 
     } catch (error: any) {
       toast.error("Failed to fetch user profile: " + error.message);
@@ -75,26 +73,24 @@ const AdminUserProfilePage = () => {
     fetchUserProfile();
   }, [fetchUserProfile]);
 
-  const handleUpdateUser = async (updatedData: Partial<AppUser>) => {
+  const handleUpdateUser = async (updatedData: Partial<AppUserType>) => {
+    // ... keep existing code (handleUpdateUser logic)
     if (!user) return;
     setIsLoading(true);
     try {
-      // Separating metadata from other fields
       const { user_metadata, email, username, status, role, ...otherFields } = updatedData;
       
       const payload: Record<string, any> = { ...otherFields };
-      if (email) payload.email = email; // Only if email is being updated, which might require special handling
+      if (email) payload.email = email; 
       if (username) payload.username = username;
       if (status) payload.status = status;
-      if (role) payload.role_id = role; // Assuming role maps to role_id
+      // Assuming role in updatedData is UserRole, and db expects role string or role_id
+      if (role) payload.role = role; 
       
-      // If user_metadata is being updated:
       if (user_metadata && typeof user_metadata === 'object') {
-        // Merge with existing metadata if necessary
         const existingMetadata = (user as any).user_metadata || {};
         payload.user_metadata = {...existingMetadata, ...user_metadata};
       }
-
 
       const { error } = await supabase
         .from('users')
@@ -103,7 +99,7 @@ const AdminUserProfilePage = () => {
 
       if (error) throw error;
       toast.success("User profile updated successfully.");
-      fetchUserProfile(); // Refresh data
+      fetchUserProfile(); 
     } catch (error: any) {
       toast.error("Failed to update user profile: " + error.message);
     } finally {
@@ -112,8 +108,9 @@ const AdminUserProfilePage = () => {
   };
   
   const handleBanToggle = async () => {
+    // ... keep existing code (handleBanToggle logic)
     if (!user) return;
-    const newBanStatus = !user.banned;
+    const newBanStatus = !(user.banned || (user as any).is_banned); // Check both from CombinedUser and direct property
     if (!window.confirm(`Are you sure you want to ${newBanStatus ? 'ban' : 'unban'} this user?`)) return;
 
     setIsLoading(true);
@@ -133,7 +130,7 @@ const AdminUserProfilePage = () => {
     }
   };
 
-
+  // ... keep existing code (loading and not found states)
   if (isLoading && !user) {
     return (
       <AdminPageLayout title="User Profile">
@@ -156,7 +153,7 @@ const AdminUserProfilePage = () => {
       </AdminPageLayout>
     );
   }
-  // ... keep existing code (JSX for profile display and tabs)
+
   return (
     <AdminPageLayout title={`User Profile: ${user.username || user.email}`}>
       <div className="mb-4">
@@ -176,17 +173,26 @@ const AdminUserProfilePage = () => {
           </CardHeader>
           <CardContent className="text-center">
             <Avatar className="w-24 h-24 mx-auto mb-4 border-2 border-primary">
-              <AvatarImage src={user.avatar_url || user.user_metadata?.avatar_url} alt={user.username} />
+              <AvatarImage src={user.avatar_url || user.user_metadata?.avatar_url} alt={user.username || user.email} />
               <AvatarFallback className="text-3xl bg-muted">
-                {user.username ? user.username[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : <User />)}
+                {user.username ? user.username[0].toUpperCase() : (user.email ? user.email[0].toUpperCase() : <UserIcon />)}
               </AvatarFallback>
             </Avatar>
             <h2 className="text-xl font-semibold">{user.username || 'N/A'}</h2>
             <p className="text-sm text-muted-foreground">{user.email}</p>
             <p className="text-xs text-muted-foreground mt-1">ID: {user.id}</p>
-            <Badge variant={user.status === 'active' ? 'success' : user.status === 'banned' ? 'destructive' : 'secondary'} className="mt-2 capitalize">
+            {user.status && (
+              <Badge 
+                variant={
+                  user.status === 'active' ? 'success' : 
+                  user.status === 'banned' ? 'destructive' : 
+                  'secondary'
+                } 
+                className="mt-2 capitalize"
+              >
                 {user.status}
-            </Badge>
+              </Badge>
+            )}
              <p className="text-xs text-muted-foreground mt-2">Joined: {new Date(user.created_at).toLocaleDateString()}</p>
              {/* {user.last_sign_in_at && <p className="text-xs text-muted-foreground">Last Login: {new Date(user.last_sign_in_at).toLocaleString()}</p>} */}
           </CardContent>
@@ -194,26 +200,21 @@ const AdminUserProfilePage = () => {
 
         <div className="md:col-span-2">
           <Tabs defaultValue="details" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-2"> {/* Adjust as needed */}
+            <TabsList className="grid w-full grid-cols-3 mb-2">
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
-              {/* <TabsTrigger value="permissions">Permissions</TabsTrigger> */}
-              {/* <TabsTrigger value="notes">Notes</TabsTrigger> */}
             </TabsList>
             
             <TabsContent value="details">
-                <UserInfoForm user={user} onSave={handleUpdateUser} isLoading={isLoading} />
+                <UserInfoForm user={user as AppUserType} onSave={handleUpdateUser} isLoading={isLoading} />
             </TabsContent>
             <TabsContent value="transactions">
-              {/* <UserTransactionsTable userId={user.id} /> */}
               <p>User transactions table placeholder.</p>
             </TabsContent>
             <TabsContent value="activity">
-              {/* <UserActivityLog userId={user.id} /> */}
               <p>User activity log placeholder.</p>
             </TabsContent>
-            {/* Add other tabs content here */}
           </Tabs>
         </div>
       </div>

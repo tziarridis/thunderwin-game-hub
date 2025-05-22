@@ -2,17 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { VipLevel, Bonus } from '@/types'; // Ensure VipLevel and Bonus are exported from types
-import VipLevelManager from '@/components/admin/VipLevelManager'; // Assuming this component exists
+import { VipLevel } from '@/types/vip'; // Corrected import
+import { Bonus } from '@/types/bonus'; // Corrected import
+import VipLevelManager from '@/components/admin/VipLevelManager'; 
 import { toast } from 'sonner';
+
 // Mock service, replace with actual service calls
 const mockVipService = {
   getVipLevels: async (): Promise<VipLevel[]> => {
-    // Simulate API call
     return new Promise(resolve => setTimeout(() => resolve([
-      { id: 1, level: 1, name: 'Bronze', min_points: 0, cashback_percentage: 1, bonus_percentage: 5, benefits_description: "Basic benefits" },
-      { id: 2, level: 2, name: 'Silver', min_points: 1000, cashback_percentage: 2, bonus_percentage: 10, benefits_description: "Better benefits" },
-      { id: 3, level: 3, name: 'Gold', min_points: 5000, cashback_percentage: 3, bonus_percentage: 15, benefits_description: "Premium benefits" },
+      { id: "1", level: 1, name: 'Bronze', min_points: 0, cashback_percentage: 1, bonus_percentage: 5, benefits_description: "Basic benefits" },
+      { id: "2", level: 2, name: 'Silver', min_points: 1000, cashback_percentage: 2, bonus_percentage: 10, benefits_description: "Better benefits" },
+      { id: "3", level: 3, name: 'Gold', min_points: 5000, cashback_percentage: 3, bonus_percentage: 15, benefits_description: "Premium benefits" },
     ]), 500));
   },
   updateVipLevel: async (level: VipLevel): Promise<VipLevel> => {
@@ -21,7 +22,7 @@ const mockVipService = {
     return level;
   },
   addVipLevel: async (levelData: Omit<VipLevel, 'id' | 'created_at' | 'updated_at'>): Promise<VipLevel> => {
-    const newLevel = { ...levelData, id: Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VipLevel;
+    const newLevel = { ...levelData, id: String(Date.now()), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as VipLevel;
     console.log("Adding VIP Level:", newLevel);
     toast.success(`VIP Level ${newLevel.name} added (mock).`);
     return newLevel;
@@ -32,11 +33,10 @@ const mockBonusService = {
   getBonusesForVipLevel: async (levelId: string | number): Promise<Bonus[]> => {
     console.log("Fetching bonuses for VIP level:", levelId)
     return new Promise(resolve => setTimeout(() => resolve([
-      { id: 1, name: 'Bronze Welcome Bonus', description: 'Get 50 free spins', type: 'free_spins', status: 'active', vip_level_required: 1 },
-      { id: 2, name: 'Silver Reload Bonus', description: '10% reload up to $50', type: 'deposit', amount: 50, percentage: 10, status: 'active', vip_level_required: 2 },
-    ].filter(b => b.vip_level_required === levelId || (typeof levelId === 'number' && b.vip_level_required === levelId))), 500));
+      { id: "b1", name: 'Bronze Welcome Bonus', description: 'Get 50 free spins', type: 'free_spins', status: 'active', vip_level_required: "1", free_spins_count: 50 },
+      { id: "b2", name: 'Silver Reload Bonus', description: '10% reload up to $50', type: 'deposit', amount: 50, percentage: 10, status: 'active', vip_level_required: "2", max_bonus_amount: 50 },
+    ].filter(b => b.vip_level_required === levelId)), 500));
   },
-  // Add updateBonus, addBonus etc.
 };
 
 
@@ -48,7 +48,6 @@ const VipBonusManagement = () => {
   const [isLoadingBonuses, setIsLoadingBonuses] = useState(false);
   const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
   const [editingLevel, setEditingLevel] = useState<VipLevel | null>(null);
-
 
   useEffect(() => {
     const fetchLevels = async () => {
@@ -99,15 +98,15 @@ const VipBonusManagement = () => {
       }
       setIsLevelModalOpen(false);
       setEditingLevel(null);
-    } catch (error) {
-      toast.error("Failed to save VIP level.");
+    } catch (error:any) {
+      toast.error(`Failed to save VIP level: ${error.message}`);
     } finally {
       setIsLoadingLevels(false);
     }
   };
   
   const openAddLevelModal = () => {
-    setEditingLevel(null); // Clear any editing state
+    setEditingLevel(null); 
     setIsLevelModalOpen(true);
   };
 
@@ -115,7 +114,6 @@ const VipBonusManagement = () => {
     setEditingLevel(level);
     setIsLevelModalOpen(true);
   };
-
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -159,7 +157,6 @@ const VipBonusManagement = () => {
                     <TableCell>{level.bonus_percentage ?? 'N/A'}%</TableCell>
                     <TableCell>
                       <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openEditLevelModal(level); }}>Edit</Button>
-                       {/* Add Delete button here if needed */}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -202,7 +199,6 @@ const VipBonusManagement = () => {
                       <TableCell className="capitalize">{bonus.status}</TableCell>
                       <TableCell>
                         <Button variant="outline" size="sm" onClick={() => alert(`Edit bonus: ${bonus.name}`)}>Edit</Button>
-                         {/* Add Delete button here */}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -213,9 +209,17 @@ const VipBonusManagement = () => {
         </Card>
       )}
       
-      {isLevelModalOpen && (
+      {isLevelModalOpen && editingLevel !== undefined && ( // ensure editingLevel is not undefined for the prop
         <VipLevelManager
-          level={editingLevel}
+          level={editingLevel} // Pass VipLevel | null
+          onSave={handleSaveVipLevel}
+          onClose={() => { setIsLevelModalOpen(false); setEditingLevel(null); }}
+          isLoading={isLoadingLevels}
+        />
+      )}
+       {isLevelModalOpen && editingLevel === null && ( // For adding new level
+        <VipLevelManager
+          level={null}
           onSave={handleSaveVipLevel}
           onClose={() => { setIsLevelModalOpen(false); setEditingLevel(null); }}
           isLoading={isLoadingLevels}

@@ -1,10 +1,13 @@
+
 export * from './user';
-export * from './game'; // Game type, DbGame, GameLaunchOptions are now primarily defined and exported from game.ts
-export * from './transaction'; // Ensure this exports TransactionStatus from transaction.ts
+export * from './game';
+export * from './transaction';
 export * from './wallet';
 export * from './affiliate';
 export * from './promotion';
-export * from './kyc'; // Added KYC export
+export * from './kyc';
+export * from './vip'; // Added VIP export
+export * from './bonus'; // Added Bonus export
 
 // General API response type
 export interface ApiResponse<T> {
@@ -23,14 +26,23 @@ export interface DisplayGame extends Game { // Game is now imported from './game
 }
 
 // WalletType to be used in AppHeader (ensure this is defined or imported if used)
-// It seems WalletType might be locally defined in AppHeader or should be moved to wallet.ts
-export interface WalletType { // This was defined here, ensure it matches usage or move to wallet.ts
-  balance: number | null;
+export interface WalletType {
+  id: string; // Added from AppHeader's WalletState
+  userId: string; // Added from AppHeader's WalletState
+  balance: number;
   currency: string;
-  vipLevel?: number;
-  vipPoints?: number;
-  // other wallet properties
+  symbol: string; // Added from AppHeader's WalletState
+  vipLevel: number;
+  vipPoints: number;
+  bonusBalance: number; // Added from AppHeader's WalletState
+  cryptoBalance: number; // Added from AppHeader's WalletState
+  demoBalance: number; // Added from AppHeader's WalletState
+  isActive: boolean; // Added from AppHeader's WalletState
+  lastTransactionDate: Date | null; // Added from AppHeader's WalletState
+  hide_balance: boolean; // Added from AppHeader's WalletState
+  active: boolean; // Added from AppHeader's WalletState
+  total_bet: number; // Added from AppHeader's WalletState
+  total_won: number; // Added from AppHeader's WalletState
+  total_lose: number; // Added from AppHeader's WalletState
+  user_id: string; // Added from AppHeader's WalletState
 }
-
-// The DbGame interface that was here is removed.
-// The authoritative DbGame is in src/types/game.ts and re-exported via `export * from './game';`

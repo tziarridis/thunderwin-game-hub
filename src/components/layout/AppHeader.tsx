@@ -14,6 +14,7 @@ import NotificationsDropdown from '@/components/notifications/NotificationsDropd
 import { supabase } from '@/integrations/supabase/client';
 import { Wallet } from '@/types/wallet';
 import { AppUser } from '@/contexts/AppContext';
+import { User } from '@/types/user'; // Import your User type
 
 interface WalletState {
   id: string;
@@ -149,7 +150,7 @@ const AppHeader = () => {
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
               <UserMenu 
-                user={user as AppUser} 
+                user={user as User} // Cast AppUser from AuthContext to User type for UserMenu
                 onLogout={signOut}
               />
             </>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -76,11 +75,11 @@ const GamesManagement: React.FC = () => {
     onSuccess: () => {
       toast.success('Game deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      queryClient.invalidateQueries({ queryKey: ['allGames'] }); // Also invalidate public games list
+      queryClient.invalidateQueries({ queryKey: ['allGames'] });
       setShowDeleteConfirm(false);
       setGameToDelete(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Failed to delete game: ${error.message}`);
       setShowDeleteConfirm(false);
       setGameToDelete(null);
@@ -111,7 +110,7 @@ const GamesManagement: React.FC = () => {
   const handleFormSuccess = () => {
     setIsFormOpen(false);
     setEditingGame(null);
-    refetchGames(); // Refetch games list after add/edit
+    refetchGames(); 
   };
   
   const toggleGameStatusMutation = useMutation({
@@ -123,7 +122,7 @@ const GamesManagement: React.FC = () => {
       toast.success(`Game status updated to ${variables.newStatus}`);
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast.error(`Failed to update game status: ${error.message}`);
     },
   });
@@ -138,8 +137,15 @@ const GamesManagement: React.FC = () => {
       <CMSPageHeader
         title="Games Management"
         description="Add, edit, and manage all casino games."
+        // Changed actionButton to actions
+        actions={
+          <Button onClick={handleAddNewGame}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
+          </Button>
+        }
       />
 
+      {/* ... keep existing code (search input, add button) */}
       <div className="my-6">
         <div className="relative">
           <Input
@@ -153,14 +159,14 @@ const GamesManagement: React.FC = () => {
       </div>
 
       <div className="flex justify-end mb-4">
-        <Button onClick={handleAddNewGame}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
-        </Button>
+        {/* Action button moved to CMSPageHeader, can be removed from here if duplicated */}
       </div>
+
 
       {isLoadingGames || isLoadingProviders || isLoadingCategories ? (
         <p>Loading game data...</p>
       ) : (
+        // ... keep existing code (table rendering)
         <div className="bg-card p-4 rounded-lg shadow">
           <Table>
             <TableHeader>
@@ -214,6 +220,7 @@ const GamesManagement: React.FC = () => {
         </div>
       )}
 
+      {/* ... keep existing code (Dialog for GameForm) */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[800px] md:max-w-[1000px] lg:max-w-[1200px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -237,7 +244,8 @@ const GamesManagement: React.FC = () => {
         onConfirm={confirmDeleteGame}
         title="Confirm Deletion"
         description={`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`}
-        confirmText="Delete"
+        confirmText="Delete" // Changed from confirmButtonText
+        // isDestructive prop removed as it's not in the component definition (based on error)
         isLoading={deleteGameMutation.isPending}
       />
 
