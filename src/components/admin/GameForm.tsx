@@ -266,12 +266,18 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
           </div>
           <div>
             <Label htmlFor="tags">Tags (comma-separated)</Label>
-            <Input 
-              id="tags" 
+            <Input
+              id="tags"
               placeholder="e.g. popular, new, bonus-buy"
-              {...register('tags', { setValueAs: (value: string | string[]) => typeof value === 'string' ? value.split(',').map(tag => tag.trim()).filter(Boolean) : value })} 
+              {...register('tags', { setValueAs: (value: string | string[]) => typeof value === 'string' ? value.split(',').map(tag => tag.trim()).filter(Boolean) : value })}
             />
-            {errors.tags && <p className="text-red-500 text-sm">{Array.isArray(errors.tags) ? errors.tags.map(e => e?.message).join(', ') : errors.tags.message}</p>}
+            {errors.tags && (
+              <p className="text-red-500 text-sm">
+                {Array.isArray(errors.tags)
+                  ? errors.tags.map(e => e?.message).filter(Boolean).join(', ')
+                  : errors.tags.message}
+              </p>
+            )}
           </div>
            <div>
             <Label htmlFor="game_id">External Game ID (from provider)</Label>
@@ -357,7 +363,6 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
             {errors.max_bet && <p className="text-red-500 text-sm">{errors.max_bet.message}</p>}
           </div>
       </div>
-
 
       <div className="flex justify-end space-x-2 pt-6 border-t mt-6">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
