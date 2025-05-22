@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { User as LucideUser, LogOut, Settings, LayoutDashboard, ShieldCheck } from "lucide-react"; // Added ShieldCheck for admin
 import { User } from "@supabase/supabase-js"; // Use Supabase User type
+import { AppUser } from "@/types/user";
 
 // Helper function to get initials
 const getInitials = (name?: string | null) => {
@@ -24,11 +25,20 @@ const getInitials = (name?: string | null) => {
     .toUpperCase();
 };
 
-export function UserMenu() {
-  const { user, signOut } = useAuth(); // Remove roles as it's not in AuthContextType
-  const navigate = useNavigate();
+interface UserMenuProps {
+  user?: User | AppUser | null;
+  onLogout?: () => void;
+}
 
-  if (!user) {
+export function UserMenu({ user, onLogout }: UserMenuProps) {
+  const authContext = useAuth(); // Get auth context for fallback
+  const navigate = useNavigate();
+  
+  // Use props if provided, otherwise fall back to auth context
+  const currentUser = user || authContext.user;
+  const signOutHandler = onLogout || authContext.signOut;
+
+  if (!currentUser) {
     return (
       <Button onClick={() => navigate("/login")}>
         <LucideUser className="mr-2 h-4 w-4" /> Login
@@ -36,10 +46,22 @@ export function UserMenu() {
     );
   }
 
-  const userName = user.user_metadata?.full_name || user.email;
-  const userAvatar = user.user_metadata?.avatar_url;
-  // Check if user has admin role from app_metadata instead
-  const isAdmin = user.app_metadata?.roles?.includes('admin'); 
+  // Handle both User and AppUser types
+  const userName = 
+    'user_metadata' in currentUser 
+      ? currentUser.user_metadata?.full_name || currentUser.email 
+      : (currentUser as AppUser).firstName || (currentUser as AppUser).email;
+  
+  const userAvatar = 
+    'user_metadata' in currentUser 
+      ? currentUser.user_metadata?.avatar_url 
+      : (currentUser as AppUser).avatarUrl;
+  
+  // Check if user has admin role from app_metadata
+  const isAdmin = 
+    'app_metadata' in currentUser 
+      ? currentUser.app_metadata?.roles?.includes('admin')
+      : (currentUser as AppUser).roles?.includes('admin');
 
   return (
     <DropdownMenu>
@@ -47,7 +69,7 @@ export function UserMenu() {
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
             <AvatarImage src={userAvatar} alt={userName || "User"} />
-            <AvatarFallback>{getInitials(userName)}</AvatarFallback>
+            <AvatarFallback>{getInitials(userName as string)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -56,7 +78,7 @@ export function UserMenu() {
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {'email' in currentUser ? currentUser.email : ''}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -76,7 +98,7 @@ export function UserMenu() {
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut}>
+        <DropdownMenuItem onClick={signOutHandler}>
           <LogOut className="mr-2 h-4 w-4" />
           Log out
         </DropdownMenuItem>

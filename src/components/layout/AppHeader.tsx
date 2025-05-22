@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Moon, Sun } from 'lucide-react';
@@ -147,14 +146,14 @@ const AppHeader = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          {isAuthenticated && appUserForMenu ? ( 
+          {isAuthenticated && supabaseUser ? ( 
             <>
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
               <UserMenu 
-                user={appUserForMenu as any} /* Temporary type cast to fix build */
+                user={supabaseUser}
                 onLogout={signOut}
               />
             </>
@@ -175,7 +174,6 @@ const AppHeader = () => {
         </div>
       </div>
       
-      {/* Replace MobileNavBar with MobileNavMenu - this was likely part of the duplication issue */}
       {isMobileMenuOpen && (
         <MobileNavMenu
           isOpen={isMobileMenuOpen}
