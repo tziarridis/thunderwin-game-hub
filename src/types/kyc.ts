@@ -6,6 +6,7 @@ export enum KycStatusEnum {
   APPROVED = "approved",
   REJECTED = "rejected",
   RESUBMIT = "resubmit", // A status to ask the user to resubmit documents
+  NOT_SUBMITTED = "not_submitted", // Added for clarity and usage in Settings page
 }
 export type KycStatus = `${KycStatusEnum}`;
 
