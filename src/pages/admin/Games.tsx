@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, GameProvider, GameCategory, GameStatusEnum, DbGame, GameStatus } from '@/types/game'; // Use GameStatus
+import { Game, GameProvider, GameCategory, GameStatusEnum, DbGame, GameStatus, GameTag } from '@/types/game'; // Use GameStatus
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
@@ -10,14 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Filter, PlusCircle, Edit2, Trash2, Eye, EyeOff, ExternalLink, Search, ListFilter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+import CMSPageHeader, { CMSPageHeaderProps } from '@/components/admin/cms/CMSPageHeader'; // Import props type
+import ConfirmationDialog, { ConfirmationDialogProps } from '@/components/admin/shared/ConfirmationDialog'; // Import props type
 // Use mapDbGameToGameAdapter from the centralized GameAdapter component
 import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter'; 
 
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -33,9 +32,8 @@ const fetchAdminGamesList = async (page: number, filters: any, searchTerm: strin
 
   let query = supabase
     .from('games')
-    // Select fields from 'games' table directly. 
-    // If provider/category names are needed, they should be joined or fetched separately and mapped.
-    .select('*, provider:game_providers(name, slug), categories:game_categories(name, slug)', { count: 'exact' })
+    // Explicitly list fields for game_providers to avoid ambiguity and ensure correct data structure
+    .select('*, game_providers!left(name, slug), game_categories!left(name, slug)', { count: 'exact' }) // Using left join for providers and categories
     .range(from, to)
     .order('created_at', { ascending: false });
 
@@ -45,6 +43,9 @@ const fetchAdminGamesList = async (page: number, filters: any, searchTerm: strin
   if (filters.status) {
     query = query.eq('status', filters.status);
   }
+  // For provider filtering, ensure 'provider_slug' exists on the 'games' table.
+  // If 'provider_slug' is on 'game_providers', the join and filter need care.
+  // Assuming 'provider_slug' is directly on 'games' table:
   if (filters.provider) {
     query = query.eq('provider_slug', filters.provider); 
   }
@@ -52,19 +53,29 @@ const fetchAdminGamesList = async (page: number, filters: any, searchTerm: strin
      query = query.contains('category_slugs', [filters.category]);
   }
 
-  const { data: dbGames, error, count } = await query;
-  if (error) throw error;
-
-  // Map DbGame to Game for UI consistency
-  const games: Game[] = (dbGames || []).map(dbGame => {
-      const mappedGame = mapDbGameToGameAdapter(dbGame as DbGame);
-      // Enhance with joined data if available (as done in original query)
-      if ((dbGame as any).provider) {
-          mappedGame.providerName = (dbGame as any).provider.name || mappedGame.provider_slug;
+  const { data: rawDbGames, error, count } = await query;
+  if (error) {
+    console.error("Error fetching admin games list:", error);
+    throw error;
+  }
+  
+  const games: Game[] = (rawDbGames || []).map(dbGameAny => {
+      const dbGame = dbGameAny as DbGame & { game_providers: any, game_categories: any[] }; // Type assertion for joined data
+      // The mapDbGameToGameAdapter needs to correctly interpret dbGame.game_providers (if it's an object or array)
+      // and dbGame.game_categories
+      const mappedGame = mapDbGameToGameAdapter(dbGame);
+      
+      // Enhance with joined data if the adapter doesn't fully handle it
+      if (dbGame.game_providers && typeof dbGame.game_providers === 'object' && dbGame.game_providers.name) {
+          mappedGame.providerName = dbGame.game_providers.name;
+          if (!mappedGame.provider_slug && dbGame.game_providers.slug) {
+            mappedGame.provider_slug = dbGame.game_providers.slug;
+          }
       }
-      if ((dbGame as any).categories) {
-          mappedGame.categoryNames = (dbGame as any).categories.map((c: any) => c.name);
-      }
+      // if (dbGame.game_categories && Array.isArray(dbGame.game_categories)) {
+      //     mappedGame.categoryNames = dbGame.game_categories.map((c: any) => c.name);
+      //     // mappedGame.category_slugs might already be populated by adapter from dbGame.category_slugs
+      // }
       return mappedGame;
   });
   return { games, totalCount: count || 0 };
@@ -83,28 +94,36 @@ const GamesPage: React.FC = () => {
   });
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [gameToDelete, setGameToDelete] = useState<Game | null>(null); // Game type for UI interaction
+  const [gameToDelete, setGameToDelete] = useState<Game | null>(null);
 
-  const { data: gamesData, isLoading, error } = useQuery( // removed refetch as it's not used directly
-    ['adminGamesList', currentPage, filters, searchTerm],
-    () => fetchAdminGamesList(currentPage, filters, searchTerm),
-    { keepPreviousData: true, staleTime: 5 * 60 * 1000 }
+  const { data: gamesData, isLoading, error } = useQuery<{ games: Game[], totalCount: number }, Error>(
+    {
+      queryKey: ['adminGamesList', currentPage, filters, searchTerm],
+      queryFn: () => fetchAdminGamesList(currentPage, filters, searchTerm),
+      keepPreviousData: true, 
+      staleTime: 5 * 60 * 1000
+    }
   );
 
   const games = gamesData?.games || [];
   const totalCount = gamesData?.totalCount || 0;
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
   
-  const { data: providers = [] } = useQuery<GameProvider[], Error>({queryKey: ['allGameProviders'], queryFn: async () => {
+  // Fetching from 'game_providers' table
+  const { data: providers = [] } = useQuery<GameProvider[], Error>({
+    queryKey: ['allGameProvidersForAdminList'], // Unique queryKey
+    queryFn: async () => {
     const { data, error } = await supabase.from('game_providers').select('id, name, slug').eq('is_active', true);
     if (error) throw error;
-    return (data || []).map(p => ({...p, id: String(p.id)} as GameProvider)); // Ensure id is string
+    return (data || []).map(p => ({...p, id: String(p.id), logo_url: '', is_active: true } as GameProvider));
   }});
 
-  const { data: categories = [] } = useQuery<GameCategory[], Error>({queryKey:['allGameCategories'], queryFn: async () => {
+  const { data: categories = [] } = useQuery<GameCategory[], Error>({
+    queryKey:['allGameCategoriesForAdminList'], // Unique queryKey
+    queryFn: async () => {
     const { data, error } = await supabase.from('game_categories').select('id, name, slug').eq('status', 'active');
     if (error) throw error;
-    return (data || []).map(c => ({...c, id: String(c.id)} as GameCategory)); // Ensure id is string
+    return (data || []).map(c => ({...c, id: String(c.id), icon: '', image_url: '' } as GameCategory)); 
   }});
 
   const deleteGameMutation = useMutation<void, Error, string>({
@@ -168,19 +187,32 @@ const GamesPage: React.FC = () => {
 
 
   if (error) return <p className="text-red-500 p-4">Error loading games: {error.message}</p>;
+  
+  const headerProps: CMSPageHeaderProps = { // Explicitly type props
+    title: "Manage Games",
+    description: "Browse, filter, and manage all games in the casino.",
+    actionButton: (
+        <Button onClick={() => navigate('/admin/games-management')}> 
+        <PlusCircle className="mr-2 h-4 w-4" /> Add/Edit Games Detailed
+        </Button>
+    )
+  };
+
+  const deleteDialogProps: ConfirmationDialogProps = { // Explicitly type props
+    isOpen: showDeleteConfirm,
+    onClose: () => setShowDeleteConfirm(false),
+    onConfirm: confirmDelete,
+    title: "Confirm Delete Game",
+    description: `Are you sure you want to delete "${gameToDelete?.title}"? This action cannot be undone.`,
+    isLoading: deleteGameMutation.isPending,
+    confirmButtonVariant: "destructive", // Ensure this prop matches ConfirmationDialog definition
+    confirmText: "Delete"
+  };
+
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      <CMSPageHeader
-        title="Manage Games"
-        description="Browse, filter, and manage all games in the casino."
-        actionButton={
-          // Navigate to the GameManagement page which uses GameForm for adding/editing
-          <Button onClick={() => navigate('/admin/games-management')}> 
-            <PlusCircle className="mr-2 h-4 w-4" /> Add/Edit Games Detailed
-          </Button>
-        }
-      />
+      <CMSPageHeader {...headerProps} />
 
     <div className="space-y-4 p-4 border rounded-lg bg-card shadow">
         <div className="flex flex-col md:flex-row gap-4 items-center">
@@ -232,7 +264,6 @@ const GamesPage: React.FC = () => {
         </div>
       </div>
 
-
       {isLoading && <div className="flex justify-center py-8"><ListFilter className="h-8 w-8 animate-spin text-primary" /> <span className="ml-2">Loading games...</span></div>}
       {!isLoading && games.length === 0 && (
         <p className="text-center text-muted-foreground py-8">No games found matching your criteria.</p>
@@ -265,7 +296,8 @@ const GamesPage: React.FC = () => {
                   <TableCell>{game.providerName || game.provider_slug}</TableCell>
                   <TableCell className="max-w-xs">
                     <div className="flex flex-wrap gap-1">
-                      {game.category_slugs?.slice(0,3).map(slug => {
+                      {/* Ensure category_slugs is an array of strings before slicing */}
+                      {(game.category_slugs || []).slice(0,3).map(slug => {
                         const category = categories?.find(c=>c.slug===slug);
                         return <Badge key={slug} variant="secondary" className="text-xs">{category?.name || slug}</Badge>
                       })}
@@ -324,16 +356,7 @@ const GamesPage: React.FC = () => {
         </div>
       )}
       
-      <ConfirmationDialog
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDelete}
-        title="Confirm Delete Game"
-        description={`Are you sure you want to delete "${gameToDelete?.title}"? This action cannot be undone.`}
-        isLoading={deleteGameMutation.isPending}
-        isDestructive
-        confirmText="Delete" // Added confirmText
-      />
+      <ConfirmationDialog {...deleteDialogProps} />
     </div>
   );
 };

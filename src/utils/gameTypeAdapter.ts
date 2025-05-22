@@ -1,30 +1,37 @@
-import { Game, DbGame, GameTag, GameStatusEnum, GameVolatilityEnum, GameProvider } from '@/types/game'; // Added GameProvider
+import { Game, DbGame, GameTag, GameStatusEnum, GameVolatilityEnum, GameProvider, GameVolatility } from '@/types/game';
 
-// Helper to create a simple slug
-export const slugify = (text: string): string => { // Added export
+export const slugify = (text: string): string => {
   if (!text) return '';
   return text
     .toString()
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-') // Replace spaces with -
-    .replace(/[^\w-]+/g, '') // Remove all non-word chars
-    .replace(/--+/g, '-'); // Replace multiple - with single -
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 };
 
-// Converts a database game object (DbGame) to the UI game type (Game)
 export const convertDbGameToGame = (dbGame: DbGame): Game => {
-  const providerName = dbGame.providers?.name || dbGame.distribution || dbGame.provider_slug || 'Unknown Provider';
-  const providerSlug = dbGame.providers?.slug || dbGame.provider_slug || slugify(providerName);
-
+  // The provider data might be directly on dbGame if not joined, or inside dbGame.game_providers if joined.
+  const joinedProviderData = dbGame.game_providers; // This field name must match the alias in Supabase select
+  
+  let providerName: string | undefined;
+  let providerSlug: string | undefined;
   let providerData: GameProvider | undefined = undefined;
-  // Robust handling of dbGame.providers
-  if (dbGame.providers && typeof dbGame.providers === 'object' && 'id' in dbGame.providers && 'name' in dbGame.providers && 'slug' in dbGame.providers) {
+
+  if (joinedProviderData && typeof joinedProviderData === 'object' && 'name' in joinedProviderData && 'slug' in joinedProviderData) {
+    providerName = joinedProviderData.name || 'Unknown Provider';
+    providerSlug = joinedProviderData.slug || slugify(providerName);
     providerData = {
-      id: String(dbGame.providers.id) || '', // Ensure id is string
-      name: dbGame.providers.name || '',
-      slug: dbGame.providers.slug || ''
+      id: String(joinedProviderData.id) || undefined, // Ensure id is string or undefined
+      name: joinedProviderData.name || '',
+      slug: joinedProviderData.slug || ''
     };
+  } else {
+    // Fallback if no joined data or it's not in expected structure
+    providerName = dbGame.provider_slug ? dbGame.provider_slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Unknown Provider';
+    providerSlug = dbGame.provider_slug || slugify(dbGame.distribution || 'unknown-provider');
+    // providerData would be minimal here or based on dbGame.provider_id if available to fetch separately
   }
 
 
@@ -37,9 +44,16 @@ export const convertDbGameToGame = (dbGame: DbGame): Game => {
     categorySlugs = [slugify(dbGame.game_type)];
   }
 
-  let tags: GameTag[] | string[] = [];
+  let tags: GameTag[] = []; // Ensure tags are always GameTag[]
   if (Array.isArray(dbGame.tags)) {
-    tags = dbGame.tags.map(tag => (typeof tag === 'string' ? { name: tag, slug: slugify(tag) } : tag));
+    tags = dbGame.tags.map(tag => {
+      if (typeof tag === 'string') return { name: tag, slug: slugify(tag) };
+      // If it's already a GameTag-like object, ensure it has name and slug
+      if (typeof tag === 'object' && tag !== null && 'name' in tag) {
+        return { name: tag.name, slug: (tag as GameTag).slug || slugify(tag.name) };
+      }
+      return { name: 'unknown', slug: 'unknown'}; // Fallback for malformed tags
+    }).filter(tag => tag.name !== 'unknown');
   } else if (typeof dbGame.tags === 'string') { 
     tags = dbGame.tags.split(',').map(t => {
       const trimmed = t.trim();
@@ -59,12 +73,12 @@ export const convertDbGameToGame = (dbGame: DbGame): Game => {
     id: dbGame.id?.toString() || '',
     title: dbGame.title || dbGame.game_name || 'N/A',
     slug: gameSlug,
-    game_id: dbGame.game_id || String(dbGame.id),
+    game_id: dbGame.game_id || String(dbGame.id), // Ensure game_id is string
     
-    provider_id: dbGame.provider_id?.toString(),
+    provider_id: String(dbGame.provider_id) || undefined, // Ensure provider_id is string or undefined
     provider_slug: providerSlug,
     providerName: providerName,
-    provider: providerData, // Use the robustly mapped providerData
+    provider: providerData,
 
     category: dbGame.game_type || undefined,
     categoryName: dbGame.game_type || undefined,
@@ -86,7 +100,7 @@ export const convertDbGameToGame = (dbGame: DbGame): Game => {
     is_new: !!dbGame.is_new,
     is_popular: !!dbGame.is_popular,
     
-    tags: tags,
+    tags: tags, // Now consistently GameTag[]
     volatility: gameVolatility,
     lines: dbGame.lines ?? undefined,
     min_bet: dbGame.min_bet ?? undefined,
@@ -105,18 +119,17 @@ export const convertDbGameToGame = (dbGame: DbGame): Game => {
   };
 };
 
-// Convert from UI Game type (Game) to Database Game type (DbGame) for saving
+// Make sure convertGameToDbGame correctly handles GameVolatility type for dbGame.volatility
 export const convertGameToDbGame = (game: Partial<Game>): Partial<DbGame> => {
   const dbGame: Partial<DbGame> = {
-    id: game.id?.toString(),
-    game_id: game.game_id || undefined,
+    id: game.id?.toString(), // Ensure ID is string
+    game_id: game.game_id || undefined, // Ensure game_id is string
     title: game.title,
     game_name: game.title, 
     slug: game.slug || slugify(game.title || ''),
-    provider_id: game.provider_id?.toString(),
+    provider_id: game.provider_id?.toString(), // Ensure provider_id is string
     provider_slug: game.provider_slug,
-    // Ensure distribution is set if provider_slug is available, as it's NOT NULL in DB
-    distribution: game.provider_slug || slugify(game.providerName || ''), // Fallback for distribution
+    distribution: game.provider_slug || slugify(game.providerName || game.provider_slug || 'unknown'),
     game_type: game.categoryName || (game.category_slugs && game.category_slugs.length > 0 ? game.category_slugs[0] : undefined),
     category_slugs: game.category_slugs,
     description: game.description,
@@ -127,11 +140,11 @@ export const convertGameToDbGame = (game: Partial<Game>): Partial<DbGame> => {
     is_featured: game.is_featured,
     is_new: game.is_new,
     is_popular: game.is_popular,
-    tags: Array.isArray(game.tags) 
+    tags: Array.isArray(game.tags)
       ? game.tags.map(tag => (typeof tag === 'string' ? tag : tag.name)).filter(Boolean) as string[]
-      : [],
+      : (typeof game.tags === 'string' ? [game.tags] : []), // Handle if tags is a single string
     rtp: game.rtp,
-    volatility: game.volatility,
+    volatility: game.volatility, // This should be GameVolatility type, which is compatible with DbGame.volatility
     lines: game.lines,
     min_bet: game.min_bet,
     max_bet: game.max_bet,
@@ -145,15 +158,9 @@ export const convertGameToDbGame = (game: Partial<Game>): Partial<DbGame> => {
     views: game.views,
   };
 
-  // Ensure distribution is not undefined if provider_slug was not present
-  if (!dbGame.distribution && dbGame.provider_slug) {
-    dbGame.distribution = dbGame.provider_slug;
-  } else if (!dbGame.distribution && game.title) { // As a last resort, slugify title if nothing else
-     dbGame.distribution = slugify(game.title);
-  } else if (!dbGame.distribution) {
-    dbGame.distribution = 'unknown-provider'; // Should not happen due to form validation
+  if (!dbGame.distribution) {
+    dbGame.distribution = 'unknown-provider';
   }
-
 
   Object.keys(dbGame).forEach(key => {
     if ((dbGame as any)[key] === undefined) {

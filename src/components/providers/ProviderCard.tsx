@@ -1,61 +1,60 @@
-
 import React from 'react';
 import { GameProvider } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ProviderCardProps {
   provider: GameProvider;
+  onSelectProvider?: (provider: GameProvider) => void;
   className?: string;
-  onSelectProvider?: (slug: string) => void;
 }
 
-const ProviderCard: React.FC<ProviderCardProps> = ({ provider, className, onSelectProvider }) => {
+const ProviderCard: React.FC<ProviderCardProps> = ({ provider, onSelectProvider, className }) => {
   const navigate = useNavigate();
 
-  const handleClick = () => {
+  const handleCardClick = () => {
     if (onSelectProvider) {
-      onSelectProvider(provider.slug);
+      onSelectProvider(provider);
     } else {
-      navigate(`/casino/provider/${provider.slug}`);
+      // Fallback navigation if no handler is provided
+      navigate(`/casino/providers/${provider.slug}`);
     }
   };
 
   return (
     <Card 
-      className={`overflow-hidden shadow-lg hover:shadow-primary/20 transition-all duration-300 group ${className} cursor-pointer`}
-      onClick={handleClick}
+      className={cn(
+        "overflow-hidden shadow-lg hover:shadow-primary/30 transition-all duration-300 group cursor-pointer bg-card",
+        className
+      )}
+      onClick={handleCardClick}
     >
-      <CardHeader className="p-0">
-        <div className="aspect-[2/1] bg-slate-800 flex items-center justify-center overflow-hidden">
-          {provider.logoUrl ? (
+      <CardContent className="p-4 flex flex-col items-center text-center">
+        <div className="w-20 h-20 mb-4 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors flex items-center justify-center bg-muted">
+          {provider.logo_url ? (
             <img 
-              src={provider.logoUrl} 
+              src={provider.logo_url} 
               alt={`${provider.name} logo`} 
-              className="max-h-full max-w-full object-contain p-4 transition-transform duration-300 group-hover:scale-110" 
+              className="w-full h-full object-contain"
+              onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails
             />
           ) : (
-            <span className="text-2xl font-bold text-white/70 group-hover:text-white">{provider.name}</span>
+            <span className="text-2xl font-bold text-muted-foreground">
+              {provider.name.substring(0, 2).toUpperCase()}
+            </span>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="p-3 md:p-4">
-        <CardTitle className="text-base font-semibold truncate group-hover:text-primary transition-colors">
+        <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate w-full" title={provider.name}>
           {provider.name}
-        </CardTitle>
-        {/* Removed game_count as it's not on the type */}
-        {/* provider.game_count !== undefined && (
-          <p className="text-xs text-muted-foreground">{provider.game_count} games</p>
-        )*/}
-        <Button variant="link" className="p-0 h-auto text-xs text-primary mt-1 group-hover:underline">
-          View Games <ChevronRight className="ml-1 h-3 w-3" />
-        </Button>
+        </h3>
+        {/* Optional: Display game count if available */}
+        {provider.gamesCount !== undefined && (
+          <p className="text-sm text-muted-foreground">{provider.gamesCount} games</p>
+        )}
       </CardContent>
     </Card>
   );
 };
 
 export default ProviderCard;
-

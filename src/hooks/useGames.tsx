@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'; // Removed unused QueryFunction type
+import React, { useState, useEffect, useCallback, useMemo, createContext, useContext, ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Game, DbGame, GameProvider, GameCategory, GameLaunchOptions, GameContextType, GameStatusEnum } from '@/types/game';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import { convertDbGameToGame, convertGameToDbGame, slugify } from '@/utils/gameTypeAdapter'; // Added slugify import
+import { convertDbGameToGame, slugify } from '@/utils/gameTypeAdapter';
 
 const GAMES_PER_PAGE = 20;
 
@@ -26,6 +26,7 @@ export const defaultGamesContextValue: GameContextType = {
   },
   favoriteGameIds: new Set<string>(),
   getGameById: () => undefined,
+  getGameBySlug: () => undefined,
   fetchGames: async () => {},
   setSearchTerm: () => {},
   setProviderFilter: () => {},
@@ -41,15 +42,16 @@ export const defaultGamesContextValue: GameContextType = {
   loadMoreGames: () => {},
 };
 
+const GamesContext = createContext<GameContextType>(defaultGamesContextValue);
 
-export const useGamesData = (): GameContextType => {
+export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   const [allGames, setAllGames] = useState<Game[]>([]);
-  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
+  const [filteredGamesState, setFilteredGamesState] = useState<Game[]>([]); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreState, setHasMoreState] = useState(true); // Renamed to avoid conflict with RQ hasMore
+  const [hasMoreState, setHasMoreState] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const [activeFilters, setActiveFilters] = useState({
@@ -61,10 +63,21 @@ export const useGamesData = (): GameContextType => {
 
   const fetchGamesQueryFn = async ({ queryKey }: { queryKey: QueryKey }) => {
     const page = queryKey[1] as number;
+    // const filters = queryKey[2] as typeof activeFilters; // Use activeFilters from state
     const from = (page - 1) * GAMES_PER_PAGE;
     const to = from + GAMES_PER_PAGE - 1;
     
-    let query = supabase.from('games').select('*, providers(id, name, slug)', { count: 'exact' })
+    // Correctly join with 'game_providers' table using its alias 'game_providers'
+    // The foreign key relationship should be defined in Supabase for this to work smoothly.
+    // Assuming 'provider_id' in 'games' links to 'id' in 'game_providers'.
+    // Or if 'provider_slug' in 'games' links to 'slug' in 'game_providers'.
+    // Let's assume games.provider_id -> game_providers.id
+    let query = supabase
+      .from('games')
+      .select(`
+        *,
+        game_providers (id, name, slug)
+      `, { count: 'exact' })
       .eq('status', GameStatusEnum.ACTIVE)
       .range(from, to);
 
@@ -72,49 +85,63 @@ export const useGamesData = (): GameContextType => {
     if (activeFilters.sortBy === 'name_asc') query = query.order('title', { ascending: true });
     if (activeFilters.sortBy === 'name_desc') query = query.order('title', { ascending: false });
     if (activeFilters.sortBy === 'newest') query = query.order('created_at', { ascending: false });
+    // Add filtering based on activeFilters.provider and activeFilters.category if necessary here in the DB query
+    if (activeFilters.provider) {
+        query = query.eq('provider_slug', activeFilters.provider);
+    }
+    if (activeFilters.category) {
+        query = query.contains('category_slugs', [activeFilters.category]);
+    }
+
 
     const { data, error, count } = await query;
-    if (error) throw error;
-    // Explicitly cast to DbGame[] after checking data
-    const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
+    if (error) {
+        console.error("Error fetching games:", error);
+        throw error;
+    }
+    const dbGames: DbGame[] = (data || []).map(g => {
+        // The join 'game_providers (id, name, slug)' might put the provider data inside a `game_providers` property.
+        // The convertDbGameToGame adapter needs to know how to find this.
+        // Let's ensure the adapter can handle this structure.
+        // For now, we assume the adapter expects `g.game_providers` if joined.
+        return g as DbGame;
+    });
     return { data: dbGames, count: count || 0 };
   };
   
 
-  const { data: fetchedGamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ data: DbGame[], count: number }, Error>({
-    queryKey: ['allGames', currentPage, activeFilters.sortBy],
+  const { data: fetchedGamesData, isLoading: isLoadingGamesHook, error: gamesError } = useQuery<{ data: DbGame[], count: number }, Error>({
+    queryKey: ['allGames', currentPage, activeFilters], // Include all activeFilters in queryKey
     queryFn: fetchGamesQueryFn,
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    keepPreviousData: true,
   });
 
   useEffect(() => {
     if (fetchedGamesData?.data) {
       const newGames = fetchedGamesData.data.map(convertDbGameToGame);
       setAllGames(prev => currentPage === 1 ? newGames : [...prev, ...newGames]);
-      // Use a different name for hasMore state to avoid conflict with RQ's hasMore
       setHasMoreState( (currentPage * GAMES_PER_PAGE) < (fetchedGamesData.count ?? 0) );
     }
   }, [fetchedGamesData, currentPage]);
 
-
-  const { data: providers = [], isLoading: isLoadingProviders } = useQuery<GameProvider[], Error>({
-    queryKey: ['gameProvidersList'], // Changed queryKey to avoid conflicts
+  // Fetch providers from 'game_providers' table
+  const { data: providersData = [], isLoading: isLoadingProvidersHook } = useQuery<GameProvider[], Error>({
+    queryKey: ['gameProvidersList'], 
     queryFn: async () => {
-      // Assuming 'providers' is the correct table for general provider info
-      // And it has 'name' and 'logo' (or 'logo_url')
-      // 'slug' is often derived or part of another table like 'game_providers'
       const { data, error } = await supabase
-        .from('providers') // Changed from 'game_providers'
-        .select('id, name, logo'); // Select specific fields. 'logo' is used in schema
+        .from('game_providers') 
+        .select('id, name, slug, logo_url, is_active') // Assuming logo_url and is_active exist
+        .eq('is_active', true); // Filter for active providers
       
       if (error) throw error;
 
       return (data || []).map(p => ({
         id: String(p.id),
         name: p.name,
-        slug: slugify(p.name), // Derive slug from name as 'providers' table lacks it
-        logo_url: p.logo, // Map 'logo' to 'logo_url'
-        is_active: true, // Assuming active if fetched, or add status column to 'providers'
+        slug: p.slug,
+        logo_url: p.logo_url, 
+        is_active: p.is_active,
       }));
     },
     staleTime: Infinity,
@@ -200,39 +227,65 @@ export const useGamesData = (): GameContextType => {
   }, [favoriteGameIds]);
 
   useEffect(() => {
+    // This useEffect handles client-side filtering if searchTerm is used after initial load
+    // If provider/category filters are applied in DB query, this might mostly be for searchTerm
     let tempGames = [...allGames];
     if (activeFilters.searchTerm) {
-      tempGames = tempGames.filter(game => game.title.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()));
+      tempGames = tempGames.filter(game => 
+        game.title.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()) ||
+        (game.providerName && game.providerName.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()))
+      );
     }
-    if (activeFilters.provider && activeFilters.provider !== '') {
-      tempGames = tempGames.filter(game => game.provider_slug === activeFilters.provider);
-    }
-    if (activeFilters.category && activeFilters.category !== '') {
-      tempGames = tempGames.filter(game => game.category_slugs?.includes(activeFilters.category));
-    }
-    setFilteredGames(tempGames);
+    // If provider/category filters are NOT handled by the DB query, they would be applied here:
+    // if (activeFilters.provider && activeFilters.provider !== '') {
+    //   tempGames = tempGames.filter(game => game.provider_slug === activeFilters.provider);
+    // }
+    // if (activeFilters.category && activeFilters.category !== '') {
+    //   tempGames = tempGames.filter(game => game.category_slugs?.includes(activeFilters.category));
+    // }
+    setFilteredGamesState(tempGames);
   }, [allGames, activeFilters]);
-
 
   const fetchGamesCb = useCallback(async (page = 1) => {
     setCurrentPage(page);
-    queryClient.invalidateQueries({ queryKey: ['allGames'] });
-  }, [queryClient]);
+    // No direct invalidation, as activeFilters in queryKey will trigger refetch
+  }, []);
   
   const loadMoreGames = useCallback(() => {
-    if (hasMoreState && !isLoadingGames && !isLoadingMore) { // Use hasMoreState
+    if (hasMoreState && !isLoadingGamesHook && !isLoadingMore) {
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
-      queryClient.prefetchQuery({
-        queryKey: ['allGames', nextPage, activeFilters.sortBy],
-        queryFn: fetchGamesQueryFn,
-      }).finally(() => setIsLoadingMore(false));
+      // `prefetchQuery` is fine, but `fetchQuery` or just changing `currentPage` (which is in queryKey) works too.
+      // TanStack Query v5 handles this more smoothly with `keepPreviousData`.
+      // Just updating currentPage should trigger a new fetch due to queryKey change.
+      setCurrentPage(nextPage); 
+      // To ensure loadingMore state is reset:
+      // queryClient.fetchQuery({
+      //   queryKey: ['allGames', nextPage, activeFilters],
+      //   queryFn: fetchGamesQueryFn,
+      // }).finally(() => setIsLoadingMore(false));
+      // Simpler: rely on isLoadingGamesHook from useQuery.
+      // We need a way to know when the *next page specific* load finishes.
+      // For now, we'll manually set isLoadingMore false after a delay or when data changes for next page.
+      // This part can be tricky with RQ's automatic fetching.
+      // The isLoadingMore state might need to be derived from isLoading and currentPage changes.
+      // Let's simplify: isLoadingMore will be true when we increment page, and rely on isLoadingGamesHook.
+    }, [hasMoreState, isLoadingGamesHook, isLoadingMore, currentPage /*, activeFilters, queryClient, fetchGamesQueryFn*/]);
+
+  // Reset isLoadingMore when isLoadingGamesHook becomes false after a page change
+  useEffect(() => {
+    if (!isLoadingGamesHook) {
+      setIsLoadingMore(false);
     }
-  }, [hasMoreState, isLoadingGames, isLoadingMore, currentPage, activeFilters.sortBy, queryClient, fetchGamesQueryFn]);
+  }, [isLoadingGamesHook]);
+
 
   const getGameById = useCallback((id: string): Game | undefined => {
-    return allGames.find(game => String(game.id) === id);
+    return allGames.find(game => String(game.id) === id || String(game.game_id) === id);
+  }, [allGames]);
+
+  const getGameBySlug = useCallback((slug: string): Game | undefined => {
+    return allGames.find(game => game.slug === slug);
   }, [allGames]);
 
   const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
@@ -263,7 +316,7 @@ export const useGamesData = (): GameContextType => {
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*, providers(id, name, slug)')
+      .select('*, game_providers(id, name, slug)') // Ensure join syntax is correct
       .eq('status', GameStatusEnum.ACTIVE)
       .eq('is_featured', true)
       .limit(count)
@@ -273,7 +326,6 @@ export const useGamesData = (): GameContextType => {
       console.error('Error fetching featured games:', error);
       return [];
     }
-    // Ensure data is DbGame[] before mapping
     const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
     return dbGames.map(convertDbGameToGame);
   }, []);
@@ -291,35 +343,47 @@ export const useGamesData = (): GameContextType => {
     });
   };
 
-  const setSearchTerm = (searchTerm: string) => setActiveFilters(prev => ({ ...prev, searchTerm }));
+  const setSearchTerm = (searchTerm: string) => {
+    // For search, we might want to reset to page 1 if it's a new search
+    // And clear provider/category unless we want combined filtering.
+    // For now, just update searchTerm and let client-side filter.
+    // If search is to be DB-side, then page reset & queryKey update needed.
+    setActiveFilters(prev => ({ ...prev, searchTerm }));
+    // If search implies resetting other filters and page:
+    // setCurrentPage(1);
+    // setAllGames([]); // if DB based search
+    // setActiveFilters(prev => ({ ...defaultGamesContextValue.activeFilters, searchTerm, sortBy: prev.sortBy }));
+  };
+
   const setProviderFilter = (provider: string) => {
     setCurrentPage(1); 
-    setAllGames([]); // Clear games to ensure fresh load for new filter
-    setActiveFilters(prev => ({ ...prev, provider, searchTerm: '' })); 
+    // setAllGames([]); // Cleared by useEffect on fetchedGamesData if currentPage resets to 1
+    setActiveFilters(prev => ({ ...prev, provider, searchTerm: '', category: '' })); 
   };
   const setCategoryFilter = (category: string) => {
     setCurrentPage(1); 
-    setAllGames([]); // Clear games
-    setActiveFilters(prev => ({ ...prev, category, searchTerm: '' })); 
+    // setAllGames([]);
+    setActiveFilters(prev => ({ ...prev, category, searchTerm: '', provider: '' })); 
   };
   const setSortBy = (sortBy: string) => {
     setCurrentPage(1); 
-    setAllGames([]); // Clear games
+    // setAllGames([]); 
     setActiveFilters(prev => ({ ...prev, sortBy }));
   };
 
-  return {
+  const contextValue: GameContextType = {
     games: allGames,
-    filteredGames, 
-    providers,
-    categories,
-    isLoading: isLoadingGames || isLoadingProviders || isLoadingCategories,
-    isLoadingMore,
-    hasMore: hasMoreState, // Use renamed state variable
+    filteredGames: filteredGamesState, 
+    providers: providersData,
+    categories: categories, // categoriesData is already named categories
+    isLoading: isLoadingGamesHook || isLoadingProvidersHook || isLoadingCategories, // isLoadingCategories from original
+    isLoadingMore, // This is our manual isLoadingMore
+    hasMore: hasMoreState,
     error: gamesError || null,
     activeFilters,
     favoriteGameIds,
     getGameById,
+    getGameBySlug,
     fetchGames: fetchGamesCb,
     setSearchTerm,
     setProviderFilter,
@@ -334,4 +398,14 @@ export const useGamesData = (): GameContextType => {
     handlePlayGame,
     loadMoreGames,
   };
+
+  return <GamesContext.Provider value={contextValue}>{children}</GamesContext.Provider>;
+};
+
+export const useGames = (): GameContextType => {
+  const context = useContext(GamesContext);
+  if (context === undefined) {
+    throw new Error('useGames must be used within a GamesProvider');
+  }
+  return context;
 };

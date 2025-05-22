@@ -1,312 +1,256 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption, TableFooter } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Search, Download, RefreshCw, AlertCircle } from 'lucide-react';
-import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
-import Papa from 'papaparse'; // Import papaparse
-import { Transaction } from '@/types/transaction'; 
-import { DatePickerWithRange } from '@/components/ui/date-range-picker';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Search } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+import { cn } from "@/lib/utils";
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
-const ITEMS_PER_PAGE = 20;
+interface Transaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: string;
+  status: string;
+  date: string;
+  [key: string]: any;
+}
 
-const PPTransactionLogger = () => {
+interface PPTransactionLoggerProps { }
+
+const PPTransactionLogger: React.FC<PPTransactionLoggerProps> = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalTransactions, setTotalTransactions] = useState(0);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-
-  const fetchTransactions = useCallback(async (page = 1) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      let query = supabase
-        .from('transactions') 
-        .select('*', { count: 'exact' });
-
-      if (searchTerm) {
-        // Ensure search terms are appropriate for columns being searched
-        // Using player_id as it is in the Transaction type and Supabase table
-        query = query.or(`player_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,provider_transaction_id.ilike.%${searchTerm}%`);
-      }
-      if (filterType !== 'all') {
-        query = query.eq('type', filterType);
-      }
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
-      }
-      if (dateRange?.from) {
-        query = query.gte('created_at', dateRange.from.toISOString());
-      }
-      if (dateRange?.to) {
-        const toDate = new Date(dateRange.to);
-        toDate.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', toDate.toISOString());
-      }
-
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-      query = query.range(from, to).order('created_at', { ascending: false });
-
-      const { data, error: dbError, count } = await query;
-
-      if (dbError) throw dbError;
-      
-      setTransactions(data as Transaction[]); 
-      setTotalTransactions(count || 0);
-      setCurrentPage(page);
-
-    } catch (err: any) {
-      console.error("Error fetching transactions:", err);
-      setError(`Failed to fetch transactions: ${err.message}`);
-      toast.error(`Failed to fetch transactions: ${err.message}`);
-      setTransactions([]);
-      setTotalTransactions(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchTerm, filterType, filterStatus, dateRange]);
+  const [page, setPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [sortBy, setSortBy] = useState('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
-    fetchTransactions(1);
-  }, [fetchTransactions]);
+    fetchTransactions();
+  }, [searchTerm, page, itemsPerPage, sortBy, sortOrder, statusFilter]);
 
-  const handleRefresh = () => {
-    fetchTransactions(currentPage);
-  };
+  const fetchTransactions = async () => {
+    let query = supabase
+      .from('transactions')
+      .select('*', { count: 'exact' })
+      .ilike('user_id', `%${searchTerm}%`)
+      .range((page - 1) * itemsPerPage, page * itemsPerPage - 1)
+      .order(sortBy, { ascending: sortOrder === 'asc' });
 
-  const handleDateChange = (newRange: DateRange | undefined) => {
-    setDateRange(newRange);
-    // fetchTransactions(1); // Optionally fetch on date change, or rely on "Apply Filters"
-  };
-  
-  const handleDownloadCSV = () => {
-    if (transactions.length === 0) {
-      toast.info("No transactions to download.");
-      return;
+    if (statusFilter) {
+      query = query.eq('status', statusFilter);
     }
-    // Ensure all fields are strings for CSV, handle null/undefined
-    const csvReadyTransactions = transactions.map(tx => {
-      const { ...restOfTx } = tx; // Destructure to omit metadata if it was ever there
-      return {
-        ...restOfTx,
-        amount: tx.amount.toString(),
-        balance_before: tx.balance_before?.toString() ?? '',
-        balance_after: tx.balance_after?.toString() ?? '',
-        // metadata: tx.metadata ? JSON.stringify(tx.metadata) : '', // Removed metadata
-      };
-    });
-    const csv = Papa.unparse(csvReadyTransactions);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `transactions_${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Transactions CSV downloaded.");
-  };
 
-  const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
+    const { data, error, count } = await query;
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      fetchTransactions(currentPage + 1);
+    if (error) {
+      console.error('Error fetching transactions:', error);
+    } else {
+      setTransactions(data as Transaction[]);
+      setTotalItems(count || 0);
     }
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      fetchTransactions(currentPage - 1);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setPage(1);
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(parseInt(value));
+    setPage(1);
+  };
+
+  const handleSort = (field: string) => {
+    if (field === sortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
     }
   };
 
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+    setPage(1);
+  };
+
+  const renderSortArrow = (field: string) => {
+    if (sortBy === field) {
+      return sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-1" /> : <ArrowDown className="h-4 w-4 ml-1" />;
+    }
+    return null;
+  };
+
+  const renderTransactionRow = (transaction: Transaction) => (
+    <TableRow key={transaction.id}>
+      <TableCell className="font-medium">{transaction.id}</TableCell>
+      <TableCell>{transaction.user_id}</TableCell>
+      <TableCell>${transaction.amount.toFixed(2)}</TableCell>
+      <TableCell className="capitalize">{transaction.type}</TableCell>
+      <TableCell>
+        <Badge
+          variant={
+            transaction.status === 'approved'
+              ? 'success'
+              : transaction.status === 'processing'
+                ? 'secondary'
+                : transaction.status === 'rejected'
+                  ? 'destructive'
+                  : ['failed', 'cancelled', 'expired'].includes(transaction.status)
+                    ? 'destructive'
+                    : transaction.status === 'pending'
+                      ? 'outline'
+                      : 'default'
+          }
+          className="capitalize"
+        >
+          {transaction.status}
+        </Badge>
+      </TableCell>
+      <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+    </TableRow>
+  );
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-2xl font-bold">Transaction Logger</h1>
-        <div className="flex items-center gap-2">
-           <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
-          <Button onClick={handleDownloadCSV} variant="outline" size="sm" disabled={transactions.length === 0}>
-            <Download className="mr-2 h-4 w-4" /> CSV
-          </Button>
-          <Button onClick={handleRefresh} variant="outline" size="icon" title="Refresh transactions">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </Button>
+    <div className="container mx-auto py-10">
+      <h1 className="text-3xl font-bold mb-5">Transactions</h1>
+
+      <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-3 mb-5">
+        <div className="relative flex-1">
+          <Input
+            type="text"
+            placeholder="Search by User ID..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         </div>
+
+        <Select onValueChange={handleItemsPerPageChange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Items per page" />
+          </SelectTrigger>
+          <SelectContent>
+            {[10, 20, 30, 50].map((num) => (
+              <SelectItem key={num} value={num.toString()}>
+                {num}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="ml-auto">
+              Filter by Status
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuLabel>Status</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {['pending', 'approved', 'processing', 'rejected', 'failed', 'cancelled', 'expired', 'refunded'].map((status) => (
+              <DropdownMenuItem key={status} onClick={() => handleStatusFilterChange(status)} className="capitalize">
+                {status}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleStatusFilterChange('')}>Clear Filter</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-card rounded-lg shadow">
-        <div>
-          <label htmlFor="search-transactions" className="block text-sm font-medium text-muted-foreground mb-1">Search</label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="search-transactions"
-              type="search"
-              placeholder="Player ID, Game ID, Tx ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 w-full"
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>ID</TableHead>
+              <TableHead>User ID</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead
+                onClick={() => handleSort('date')}
+                className="cursor-pointer"
+              >
+                Date {renderSortArrow('date')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {transactions.map(renderTransactionRow)}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Pagination className="mt-5">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              href="#"
+              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+              disabled={page === 1}
             />
-          </div>
-        </div>
-        <div>
-          <label htmlFor="filter-type" className="block text-sm font-medium text-muted-foreground mb-1">Type</label>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger id="filter-type">
-              <SelectValue placeholder="All Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="deposit">Deposit</SelectItem>
-              <SelectItem value="withdrawal">Withdrawal</SelectItem>
-              <SelectItem value="bet">Bet</SelectItem>
-              <SelectItem value="win">Win</SelectItem>
-              <SelectItem value="bonus">Bonus</SelectItem>
-              <SelectItem value="refund">Refund</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label htmlFor="filter-status" className="block text-sm font-medium text-muted-foreground mb-1">Status</label>
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger id="filter-status">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              {/* Added other statuses from TransactionStatus type */}
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={() => fetchTransactions(1)} className="self-end">Apply Filters</Button>
-      </div>
-
-      {isLoading && transactions.length === 0 && (
-        <div className="flex justify-center items-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Loading transactions...</p>
-        </div>
-      )}
-
-      {error && !isLoading && (
-        <div className="flex flex-col items-center justify-center py-10 bg-destructive/10 text-destructive border border-destructive rounded-lg p-4">
-          <AlertCircle className="h-8 w-8 mb-2" />
-          <p className="font-semibold">Error loading transactions</p>
-          <p className="text-sm">{error}</p>
-          <Button onClick={() => fetchTransactions(1)} variant="outline" className="mt-4">Try Again</Button>
-        </div>
-      )}
-
-      {!isLoading && !error && transactions.length === 0 && (
-        <div className="text-center py-10 text-muted-foreground">
-          <p>No transactions found matching your criteria.</p>
-        </div>
-      )}
-
-      {transactions.length > 0 && (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableCaption>
-              Displaying {transactions.length} of {totalTransactions} transactions. 
-              Page {currentPage} of {totalPages}.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Player ID</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Provider</TableHead> {/* Added from Transaction type */}
-                <TableHead>Game ID</TableHead>
-                <TableHead>Round ID</TableHead> {/* Added from Transaction type */}
-                <TableHead>Provider Tx ID</TableHead> {/* Changed from Tx Hash */}
-                <TableHead>Created At</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="font-medium text-xs" title={tx.id}>{tx.id.substring(0, 8)}...</TableCell>
-                  <TableCell title={tx.player_id}>{tx.player_id?.substring(0,8)}...</TableCell> {/* Uses player_id */}
-                  <TableCell>{tx.type}</TableCell>
-                  <TableCell className="text-right">{tx.amount.toFixed(2)}</TableCell>
-                  <TableCell>{tx.currency}</TableCell>
-                  <TableCell>
-                     <span className={`px-2 py-1 text-xs rounded-full ${
-                        tx.status === 'completed' || tx.status === 'approved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300' :
-                        tx.status === 'pending' || tx.status === 'processing' ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-300' :
-                        tx.status === 'failed' || tx.status === 'rejected' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-300' :
-                        tx.status === 'cancelled' ? 'bg-orange-500/20 text-orange-700 dark:bg-orange-500/30 dark:text-orange-300' :
-                        'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-300'
-                      }`}>
-                      {tx.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{tx.provider || 'N/A'}</TableCell>
-                  <TableCell>{tx.game_id || 'N/A'}</TableCell>
-                  <TableCell>{tx.round_id || 'N/A'}</TableCell>
-                  <TableCell title={tx.provider_transaction_id || ''}>{tx.provider_transaction_id?.substring(0,8) || 'N/A'}...</TableCell>
-                  <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={11}> {/* Adjusted colSpan */}
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalTransactions)} of {totalTransactions} transactions
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 1 || isLoading}
-                      >
-                        Previous
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={currentPage === totalPages || isLoading}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </div>
-      )}
+          </PaginationItem>
+          {/* Display page numbers - this is a simplified version */}
+          {Array.from({ length: Math.min(5, Math.ceil(totalItems / itemsPerPage)) }, (_, i) => page <= 3 ? i + 1 : page - 2 + i).map(pageNumber => (
+            <PaginationItem key={pageNumber}>
+              {pageNumber === page ? (
+                <PaginationLink href="#" className="font-semibold">
+                  {pageNumber}
+                </PaginationLink>
+              ) : (
+                <PaginationLink href="#" onClick={() => setPage(pageNumber)}>
+                  {pageNumber}
+                </PaginationLink>
+              )}
+            </PaginationItem>
+          ))}
+          <PaginationItem>
+            <PaginationNext
+              href="#"
+              onClick={() => setPage((prev) => Math.min(prev + 1, Math.ceil(totalItems / itemsPerPage)))}
+              disabled={page >= Math.ceil(totalItems / itemsPerPage)}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 };

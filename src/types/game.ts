@@ -72,9 +72,8 @@ export interface DbGame {
   max_bet?: number | null;
 
   // For joined data, e.g. from 'game_providers' or 'game_categories'
-  // provider_name?: string | null; 
-  // category_names?: string[] | null;
-  providers?: { id: string; name: string; slug: string } | null; // For joined provider data
+  // This should match the actual structure returned by Supabase joins
+  game_providers?: { id: string; name: string; slug: string } | null; // Corrected from 'providers' to 'game_providers'
 
   // Allow any other properties that might come from the DB or API
   [key: string]: any;
@@ -87,7 +86,7 @@ export interface Game {
   title: string;
   slug?: string | null;
   
-  provider_slug: string;
+  provider_slug?: string; // Made optional to align with DbGame and adapter
   providerName?: string | null; // Display name of the provider
   provider_id?: string | null; // FK to a providers table
   provider?: { id: string; name: string; slug: string } | null; // Keep for consistency if used
@@ -200,6 +199,7 @@ export interface GameContextType {
   };
   favoriteGameIds: Set<string>;
   getGameById: (id: string) => Game | undefined;
+  getGameBySlug: (slug: string) => Game | undefined; // Added this
   fetchGames: (page?: number) => Promise<void>;
   setSearchTerm: (searchTerm: string) => void;
   setProviderFilter: (providerSlug: string) => void;

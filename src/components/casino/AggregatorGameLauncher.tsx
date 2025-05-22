@@ -1,8 +1,7 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Game, GameLaunchOptions } from '@/types'; // Corrected import
-import { useGames } from '@/hooks/useGames';
+import { Game, GameLaunchOptions, GameStatusEnum } from '@/types';
+import { useGames } from '@/hooks/useGames'; // Corrected import: useGames instead of useGamesData
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import ResponsiveEmbed from '@/components/ResponsiveEmbed';
@@ -15,32 +14,44 @@ const AggregatorGameLauncher: React.FC = () => {
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getGameBySlug, getGameById } = useGames(); // Or some method to fetch game details by provider/code
+// ... keep existing code (useState, useParams, useAuth)
+  const { getGameBySlug, getGameById } = useGames(); // Use the hook correctly
   const [gameDetails, setGameDetails] = useState<Game | null>(null);
 
   useEffect(() => {
     const fetchGameDetailsAndLaunch = async () => {
-      if (!provider || !gameCode) {
-        setError("Provider or game code missing.");
-        setLoading(false);
-        return;
-      }
+// ... keep existing code (check for provider and gameCode)
 
       try {
         // Attempt to find the game in our DB first for metadata.
-        // This might require a specific service method, e.g., gameService.getGameByProviderAndCode(provider, gameCode)
-        // For now, trying by slug or ID if gameCode could be either
-        let game = await getGameBySlug(gameCode);
-        if (!game) game = await getGameById(gameCode);
-        setGameDetails(game); // Store fetched game details
+        let game: Game | undefined = undefined;
+        if (gameCode) { // ensure gameCode is defined
+            game = await getGameBySlug(gameCode) || await getGameById(gameCode);
+        }
+        
+        if (game) {
+            setGameDetails(game);
+        } else {
+            // Fallback if game not in local DB, still attempt to launch
+            // but set a minimal game detail for title etc.
+            setGameDetails({ 
+                id: gameCode || 'unknown', 
+                title: gameCode || 'Game', 
+                slug: gameCode, 
+                provider_slug: provider || 'unknown', 
+                status: GameStatusEnum.ACTIVE 
+            } as Game); // Cast to Game, acknowledge missing fields
+            console.warn(`Game with code/slug ${gameCode} not found in local DB. Proceeding with launch.`);
+        }
+        
 
         const options: GameLaunchOptions = {
           mode: isAuthenticated ? 'real' : 'demo',
-          user_id: user?.id,
-          username: user?.user_metadata?.username,
-          currency: user?.user_metadata?.currency || 'USD',
-          language: user?.user_metadata?.language || 'en',
-          platform: 'web',
+          // user_id: user?.id, // This needs to be Supabase auth user ID, not your custom user table ID if different.
+          // username: user?.user_metadata?.username,
+          // currency: user?.user_metadata?.currency || 'USD',
+          // language: user?.user_metadata?.language || 'en',
+          // platform: 'web',
         };
         
         // This is where you'd call your aggregator service
@@ -50,9 +61,10 @@ const AggregatorGameLauncher: React.FC = () => {
         // In a real scenario, gameAggregatorService.launchGame would be used.
         // setLaunchUrl(url); 
         setLaunchUrl(demoUrl); // Placeholder
-        toast.info(`Attempting to launch ${gameCode} from ${provider}.`);
+        toast.info(`Attempting to launch ${gameCode || 'game'} from ${provider || 'provider'}.`);
 
       } catch (err: any) {
+// ... keep existing code (error handling and finally block)
         console.error("Error launching aggregator game:", err);
         setError(err.message || "Failed to launch game via aggregator.");
         toast.error(err.message || "Failed to launch game.");
@@ -61,9 +73,17 @@ const AggregatorGameLauncher: React.FC = () => {
       }
     };
 
-    fetchGameDetailsAndLaunch();
+    if (provider && gameCode) { // Ensure they are defined before fetching
+        fetchGameDetailsAndLaunch();
+    } else {
+        setError("Provider or game code missing in URL parameters.");
+        setLoading(false);
+        toast.error("Cannot launch game: critical information missing.");
+    }
+
   }, [provider, gameCode, user, isAuthenticated, getGameBySlug, getGameById]);
 
+// ... keep existing code (loading, error, and launchUrl checks and return JSX)
   if (loading) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /> <p className="ml-4 text-lg">Loading game...</p></div>;
   }
@@ -85,4 +105,3 @@ const AggregatorGameLauncher: React.FC = () => {
 };
 
 export default AggregatorGameLauncher;
-
