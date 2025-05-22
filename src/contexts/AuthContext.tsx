@@ -25,6 +25,7 @@ export interface AuthContextType {
   updateUserPassword: (password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>; // Standardized to 'signOut'
   refreshUser: () => Promise<void>;
+  refreshWalletBalance?: () => Promise<void>; // Added for wallet refresh
   // updateUserMetadata: (metadata: object) => Promise<{ data: { user: SupabaseUser | null }, error: any }>; // For app_metadata
   // updateProfile: (profileData: Partial<ProfileType>) => Promise<void>; // Example for profile updates
 }
@@ -50,8 +51,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', supabaseUser.id) 
         .single();
 
-      if (publicUserError && publicUserError.code !== 'PGRST116') { 
-        console.error("Error fetching public user data:", publicUserError);
+      if (publicUserError) {
+        if (publicUserError.code !== 'PGRST116') { // Not found error
+          console.error("Error fetching public user data:", publicUserError);
+        }
       } else if (publicUserData) {
         appUser.username = publicUserData.username;
         // Example: appUser.role = mapRoleIdToName(publicUserData.role_id); 
@@ -62,10 +65,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from('profiles')
         .select('first_name, last_name, avatar_url')
         .eq('id', supabaseUser.id) 
-        .single();
+        .maybeSingle();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error("Error fetching profile data:", profileError);
+      if (profileError) {
+        if (profileError.code !== 'PGRST116') { // Not found error
+          console.error("Error fetching profile data:", profileError);
+        }
       } else if (profileData) {
         appUser.firstName = profileData.first_name;
         appUser.lastName = profileData.last_name;
@@ -93,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
+    // Setup auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, currentSession: Session | null) => { // Renamed to avoid conflict
         setLoading(true);
@@ -104,6 +110,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    // Cleanup subscription on unmount
     return () => {
       authListener.subscription.unsubscribe();
     };
@@ -154,6 +161,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
+  // New function to refresh wallet balance
+  const refreshWalletBalance = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('balance, currency, vip_level, vip_points')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching wallet balance:", error);
+        return;
+      }
+      
+      if (data) {
+        // Just refresh the data, no need to update state
+        toast.success("Wallet balance refreshed");
+      }
+    } catch (error) {
+      console.error("Error in refreshWalletBalance:", error);
+    }
+  };
+
   const value = {
     user,
     session,
@@ -163,6 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserPassword,
     signOut, // Standardized function name
     refreshUser,
+    refreshWalletBalance,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -175,4 +208,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

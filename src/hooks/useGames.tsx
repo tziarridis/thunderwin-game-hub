@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame, GameTag } from '@/types/game';
@@ -106,31 +105,56 @@ const gameService = {
   },
   
   getFavoriteGames: async (userId: string): Promise<string[]> => {
-    const { data, error } = await supabase
-      .from('favorite_games')
-      .select('game_id')
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    return (data || []).map(item => item.game_id);
+    try {
+      const { data, error } = await supabase
+        .from('favorite_games')
+        .select('game_id')
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error fetching favorites:', error);
+        throw error;
+      }
+      
+      return (data || []).map(item => item.game_id);
+    } catch (err) {
+      console.error('Error in getFavoriteGames:', err);
+      return [];
+    }
   },
   
   addFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
-    const { error } = await supabase
-      .from('favorite_games')
-      .insert({ user_id: userId, game_id: gameId });
-    
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('favorite_games')
+        .insert({ user_id: userId, game_id: gameId });
+      
+      if (error) {
+        console.error('Error adding favorite game:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Error in addFavoriteGame:', err);
+      throw err;
+    }
   },
   
   removeFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
-    const { error } = await supabase
-      .from('favorite_games')
-      .delete()
-      .eq('user_id', userId)
-      .eq('game_id', gameId);
-    
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('favorite_games')
+        .delete()
+        .eq('user_id', userId)
+        .eq('game_id', gameId);
+      
+      if (error) {
+        console.error('Error removing favorite game:', error);
+        throw error;
+      }
+    } catch (err) {
+      console.error('Error in removeFavoriteGame:', err);
+      throw err;
+    }
   },
   
   getGameById: async (gameId: string): Promise<Game | null> => {
@@ -269,6 +293,8 @@ interface GamesContextType {
   getLatestGames: (count?: number) => Promise<Game[]>;
 
   isLoading: boolean; 
+  getFavoriteGames: () => Promise<Game[]>;
+  isLoadingFavorites: boolean;
 }
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
@@ -298,9 +324,13 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery({
     queryKey: ['favoriteGames', user?.id],
-    queryFn: () => user ? gameService.getFavoriteGames(user.id) : Promise.resolve([]),
-    enabled: !!user,
+    queryFn: () => user?.id ? gameService.getFavoriteGames(user.id) : Promise.resolve([]),
+    enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
+    retry: false,
+    onError: (error) => {
+      console.error('Error fetching favoriteGames:', error);
+    }
   });
 
   const games = gamesData?.games || [];
@@ -308,6 +338,42 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const categories = categoriesData || [];
   const favoriteGames = favoriteGamesData || [];
   const favoriteGameIds = new Set(favoriteGames);
+
+  // Function to fetch favorite games with details
+  const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
+    if (!user?.id) {
+      return [];
+    }
+    
+    try {
+      const favoriteIds = await gameService.getFavoriteGames(user.id);
+      
+      if (!favoriteIds.length) {
+        return [];
+      }
+      
+      // If we already have all games loaded, filter from local data
+      if (games.length) {
+        return games.filter(game => favoriteIds.includes(String(game.id)));
+      }
+      
+      // Otherwise query specifically for these games
+      const { data, error } = await supabase
+        .from('games')
+        .select('*, providers:provider_id(*)')
+        .in('game_id', favoriteIds);
+      
+      if (error) {
+        console.error('Error fetching favorite games details:', error);
+        return [];
+      }
+      
+      return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
+    } catch (error) {
+      console.error('Error in getFavoriteGames:', error);
+      return [];
+    }
+  }, [user, games]);
 
   const fetchGameById = useCallback(async (id: string | number): Promise<Game | null> => {
     try {
@@ -391,27 +457,39 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: async (gameIdOrSlug: string) => {
-      if (!user) throw new Error("User not authenticated");
+      if (!user?.id) {
+        throw new Error("User not authenticated");
+      }
       
-      const gameToToggle = games.find(g => g.id === gameIdOrSlug || g.slug === gameIdOrSlug);
-      if (!gameToToggle) throw new Error("Game not found");
+      // Find the game from our loaded games or fetch it if needed
+      let gameId = gameIdOrSlug;
+      const gameToToggle = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
+      
+      if (gameToToggle) {
+        gameId = String(gameToToggle.id);
+      }
       
       const currentFavorites = await gameService.getFavoriteGames(user.id);
-      const isCurrentlyFavorite = currentFavorites.includes(gameToToggle.id.toString());
+      const isCurrentlyFavorite = currentFavorites.includes(gameId);
 
       if (isCurrentlyFavorite) {
-        await gameService.removeFavoriteGame(user.id, gameToToggle.id.toString());
-        toast.success(`${gameToToggle.title} removed from favorites.`);
+        await gameService.removeFavoriteGame(user.id, gameId);
+        return { success: true, added: false, gameTitle: gameToToggle?.title || 'Game' };
       } else {
-        await gameService.addFavoriteGame(user.id, gameToToggle.id.toString());
-        toast.success(`${gameToToggle.title} added to favorites.`);
+        await gameService.addFavoriteGame(user.id, gameId);
+        return { success: true, added: true, gameTitle: gameToToggle?.title || 'Game' };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
+      if (result.added) {
+        toast.success(`${result.gameTitle} added to favorites.`);
+      } else {
+        toast.success(`${result.gameTitle} removed from favorites.`);
+      }
     },
     onError: (error) => {
-      toast.error(`Failed to update favorites: ${error.message}`);
+      toast.error(`Failed to update favorites: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   });
 
@@ -454,7 +532,8 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       getGameLaunchUrl, launchGame, handlePlayGame, handleGameDetails,
       favoriteGames, favoriteGameIds, toggleFavoriteGame, isFavorite, isLoadingFavorites,
       getFeaturedGames, getPopularGames, getLatestGames,
-      isLoading
+      isLoading,
+      getFavoriteGames
     }}>
       {children}
     </GamesContext.Provider>

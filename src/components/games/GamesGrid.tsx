@@ -1,3 +1,4 @@
+
 import { Game } from '@/types';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
@@ -25,19 +26,19 @@ const GamesGrid = ({
 }: GamesGridProps) => {
   const { favoriteGameIds, toggleFavoriteGame } = useGames();
 
-  if (loading && games.length === 0) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
   
-  if (!loading && games.length === 0) {
+  if (!loading && (!games || games.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <FilterX className="h-12 w-12 text-white/20 mb-4" />
-        <p className="text-white/60">{emptyMessage}</p>
+        <FilterX className="h-12 w-12 text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">{emptyMessage}</p>
       </div>
     );
   }

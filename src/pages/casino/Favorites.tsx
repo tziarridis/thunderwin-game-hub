@@ -2,30 +2,33 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Game } from '@/types';
 import { useGames } from '@/hooks/useGames';
-import GamesGrid from '@/components/games/GamesGrid'; // Changed from GameList to GamesGrid
+import GamesGrid from '@/components/games/GamesGrid';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react'; // Removed RefreshCw as it's handled in MobileWalletSummary
+import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import MobileWalletSummary from '@/components/user/MobileWalletSummary';
+import { toast } from 'sonner';
 
 const FavoritesPage = () => {
   const { user, isAuthenticated, refreshWalletBalance } = useAuth();
   const { getFavoriteGames, isLoading: gamesLoadingContext, favoriteGameIds, toggleFavoriteGame } = useGames();
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchFavorites = useCallback(async () => {
     if (isAuthenticated && user) {
       setLoadingFavorites(true);
+      setError(null);
       try {
-        // getFavoriteGames already maps DbGame to Game if necessary internally
-        const favs = await getFavoriteGames(); 
+        const favs = await getFavoriteGames();
         setFavoriteGames(favs);
-      } catch (error) {
-        console.error("Failed to fetch favorite games:", error);
-        // Handle error (e.g., show toast)
+      } catch (err) {
+        console.error("Failed to fetch favorite games:", err);
+        setError("Could not load favorite games. Please try again later.");
+        toast.error("Failed to load favorite games");
       } finally {
         setLoadingFavorites(false);
       }
@@ -44,19 +47,22 @@ const FavoritesPage = () => {
       await refreshWalletBalance();
     }
   };
+  
+  const handlePlayGame = useCallback((game: Game) => {
+    navigate(`/casino/game/${game.slug || game.id}`);
+  }, [navigate]);
 
   if (!isAuthenticated) {
     return (
       <div className="container mx-auto py-8 px-4 text-center">
         <h1 className="text-3xl font-bold mb-4">My Favorite Games</h1>
         <p className="text-muted-foreground mb-6">Please log in to see your favorite games.</p>
-        <Button onClick={() => navigate('/auth/login')}>Go to Login</Button>
+        <Button onClick={() => navigate('/login')}>Go to Login</Button>
       </div>
     );
   }
 
   const isLoading = gamesLoadingContext || loadingFavorites;
-
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -66,26 +72,29 @@ const FavoritesPage = () => {
       <h1 className="text-3xl font-bold mb-2">My Favorite Games</h1>
       <p className="text-muted-foreground mb-6">Here are the games you've marked as favorites.</p>
 
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p>{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchFavorites} className="mt-2">
+            Retry
+          </Button>
+        </div>
+      )}
+
       <div className="md:hidden mb-6">
         <MobileWalletSummary 
           user={user}
           showRefresh={true} 
-          onRefresh={handleRefreshWallet} // onRefresh is handled by MobileWalletSummary now or uses context
+          onRefresh={handleRefreshWallet}
         />
       </div>
       
       <GamesGrid
         games={favoriteGames}
         loading={isLoading}
+        onGameClick={handlePlayGame}
         emptyMessage="You haven't added any games to your favorites yet. Explore our games and click the heart icon to save them here!"
       />
-      {/* Custom empty state message handled by GamesGrid, but if more complex UI needed: */}
-      {!isLoading && favoriteGames.length === 0 && (
-         <div className="text-center py-10">
-          {/* This part is somewhat redundant if GamesGrid handles emptyMessage well */}
-          <Button onClick={() => navigate('/casino/main')} className="mt-4">Explore Games</Button>
-        </div>
-      )}
     </div>
   );
 };

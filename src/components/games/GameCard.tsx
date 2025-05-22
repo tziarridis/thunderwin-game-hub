@@ -135,4 +135,3 @@ const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite,
 };
 
 export default GameCard;
-
