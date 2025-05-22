@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Game, GameLaunchOptions } from '@/types/game';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGames } from '@/hooks/useGames'; // Fixed import
 import { Button } from '@/components/ui/button';
 import { X, ExternalLink, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -16,7 +17,7 @@ interface GameLauncherProps {
 }
 
 const GameLauncher: React.FC<GameLauncherProps> = ({ game, mode = 'demo', isOpen, onClose }) => {
-  const { getGameLaunchUrl } = useGamesData(); // Use context function
+  const { getGameLaunchUrl } = useGames();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [launchUrl, setLaunchUrl] = useState<string | null>(null);
@@ -41,7 +42,7 @@ const GameLauncher: React.FC<GameLauncherProps> = ({ game, mode = 'demo', isOpen
         mode: effectiveMode,
       };
 
-      getGameLaunchUrl(game, launchOptions) // Call context function
+      getGameLaunchUrl(game, launchOptions)
         .then(url => {
           if (isMounted) {
             if (url) {

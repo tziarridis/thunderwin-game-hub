@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import { slugify } from '@/utils/gameTypeAdapter'; // Assuming this is correctly exported
 import { convertGameToDbGame, convertDbGameToGame } from '@/utils/gameTypeAdapter';
 
-
 const MAX_FILE_SIZE_MB = 5;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 
@@ -66,7 +65,7 @@ interface GameFormProps {
   isLoading?: boolean;
 }
 
-// Fixed the syntax error in the component declaration
+// Fixed the component declaration to avoid syntax error
 const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLoading }: GameFormProps) => {
   // const [imagePreview, setImagePreview] = useState<string | null>(game?.cover || game?.image_url || null);
   // const [bannerPreview, setBannerPreview] = useState<string | null>(game?.banner_url || null);
@@ -102,7 +101,6 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
     release_date: gameForForm?.releaseDate ? new Date(gameForForm.releaseDate).toISOString().split('T')[0] : '', // Format for date input
     game_code: gameForForm?.game_code || '',
   };
-
 
   const { register, handleSubmit, control, formState: { errors }, watch, setValue } = useForm<GameFormValues>({
     resolver: zodResolver(gameFormSchema),
@@ -224,7 +222,8 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
                   <SelectContent>
                     <SelectItem value="">None</SelectItem>
                     {Object.values(GameVolatilityEnum).map(vol => (
-                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>))}
+                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               )}

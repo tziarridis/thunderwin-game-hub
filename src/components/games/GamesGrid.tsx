@@ -3,7 +3,7 @@ import { Game } from '@/types';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
 import { Loader2, FilterX } from 'lucide-react';
-import { useGamesData } from '@/hooks/useGames';
+import { useGames } from '@/hooks/useGames'; // Fixed import
 
 interface GamesGridProps {
   games: Game[];
@@ -24,7 +24,7 @@ const GamesGrid = ({
   hasMore = false,
   loadingMore = false
 }: GamesGridProps) => {
-  const { isFavorite, toggleFavoriteGame } = useGamesData(); 
+  const { isFavorite, toggleFavoriteGame } = useGames();
 
   if (loading && games.length === 0) {
     return (
@@ -81,4 +81,3 @@ const GamesGrid = ({
 };
 
 export default GamesGrid;
-

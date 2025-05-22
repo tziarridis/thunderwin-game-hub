@@ -4,7 +4,7 @@
 import React from 'react';
 import GameCard from '@/components/games/GameCard'; 
 import { Game } from '@/types';
-import { useGamesData } from "@/hooks/useGames";
+import { useGames } from "@/hooks/useGames"; // Fixed import
 import { useNavigate } from 'react-router-dom'; // For navigation
 import { toast } from 'sonner';
 
@@ -13,7 +13,7 @@ interface GameGridProps {
 }
 
 const GameGrid: React.FC<GameGridProps> = ({ games }) => {
-  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData(); 
+  const { launchGame, isFavorite, toggleFavoriteGame } = useGames();
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -54,4 +54,3 @@ const GameGrid: React.FC<GameGridProps> = ({ games }) => {
 };
 
 export default GameGrid;
-

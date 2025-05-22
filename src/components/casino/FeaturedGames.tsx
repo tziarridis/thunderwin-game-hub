@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGames } from '@/hooks/useGames'; // Fixed import
 import EnhancedGameCard from './EnhancedGameCard';
-import { Game } from '@/types/game'; // Ensure this is the correct type path
+import { Game } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
@@ -21,10 +21,10 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   showViewAllButton = true,
   viewAllLink = "/casino/main?filter=featured"
 }) => {
-  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingContext } = useGamesData(); // Use context
+  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingContext } = useGames();
   const navigate = useNavigate();
   const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
-  const [isLoadingGamesHook, setIsLoadingGamesHook] = useState(true); // Renamed to avoid conflict
+  const [isLoadingGamesHook, setIsLoadingGamesHook] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       setIsLoadingGamesHook(true);
       setError(null);
       try {
-        const games = await getFeaturedGames(count); // Call context function
+        const games = await getFeaturedGames(count);
         setFeaturedGames(games);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch featured games');
@@ -46,7 +46,6 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   }, [count, getFeaturedGames]);
 
   const isLoadingState = isLoadingGamesHook || isLoadingContext;
-
 
   if (error) {
     return <div className="text-red-500 py-4">Error loading featured games: {error}</div>;
@@ -77,8 +76,8 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
               <EnhancedGameCard
                 key={game.id || game.slug}
                 game={game}
-                onPlay={(selectedGame, mode) => handlePlayGame(selectedGame, mode)} // Use context function
-                onDetails={(selectedGame) => handleGameDetails(selectedGame)} // Use context function
+                onPlay={(selectedGame, mode) => handlePlayGame(selectedGame, mode)}
+                onDetails={(selectedGame) => handleGameDetails(selectedGame)}
               />
             ))}
           </div>

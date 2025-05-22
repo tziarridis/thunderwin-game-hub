@@ -2,7 +2,7 @@
 import React from 'react';
 import { Game } from '@/types';
 import GameCard from './GameCard';
-import { useGamesData } from '@/hooks/useGames';
+import { useGames } from '@/hooks/useGames'; // Fixed import
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -12,7 +12,7 @@ interface GameListProps {
 }
 
 const GameList: React.FC<GameListProps> = ({ games, title }) => {
-  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData();
+  const { launchGame, isFavorite, toggleFavoriteGame } = useGames();
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -52,4 +52,3 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
 };
 
 export default GameList;
-

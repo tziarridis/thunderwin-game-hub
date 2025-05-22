@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, createContext, useContext, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -90,7 +91,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error fetching games:", error);
         throw error;
     }
-    const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
+    const dbGames: DbGame[] = (data || []) as DbGame[];
     return { data: dbGames, count: count || 0 };
   };
   
@@ -98,14 +99,13 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
     queryKey: ['allGames', currentPage, activeFilters],
     queryFn: fetchGamesQueryFn,
     staleTime: 1000 * 60 * 5,
-    keepPreviousData: true,
   });
 
   useEffect(() => {
     if (fetchedGamesData?.data) {
       const newGames = fetchedGamesData.data.map(convertDbGameToGame);
       setAllGames(prev => currentPage === 1 ? newGames : [...prev, ...newGames]);
-      setHasMoreState( (currentPage * GAMES_PER_PAGE) < (fetchedGamesData.count ?? 0) );
+      setHasMoreState((currentPage * GAMES_PER_PAGE) < (fetchedGamesData.count ?? 0));
     }
   }, [fetchedGamesData, currentPage]);
 
@@ -220,10 +220,9 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const loadMoreGames = useCallback(() => {
     if (hasMoreState && !isLoadingGamesHook && !isLoadingMore) {
       setIsLoadingMore(true);
-      const nextPage = currentPage + 1;
-      setCurrentPage(nextPage);
+      setCurrentPage(prevPage => prevPage + 1);
     }
-  }, [hasMoreState, isLoadingGamesHook, isLoadingMore, currentPage]);
+  }, [hasMoreState, isLoadingGamesHook, isLoadingMore]);
 
   const getGameById = useCallback((id: string): Game | undefined => {
     return allGames.find(game => String(game.id) === id || String(game.game_id) === id);
@@ -261,7 +260,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*, game_providers(id, name, slug)')
+      .select('*')
       .eq('status', GameStatusEnum.ACTIVE)
       .eq('is_featured', true)
       .limit(count)
@@ -271,39 +270,41 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching featured games:', error);
       return [];
     }
-    const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
+    const dbGames: DbGame[] = (data || []) as DbGame[];
     return dbGames.map(convertDbGameToGame);
   }, []);
   
-  const handleGameDetails = (game: Game) => {
+  const handleGameDetails = useCallback((game: Game) => {
     navigate(`/casino/game/${game.slug || game.id}`);
-  };
+  }, [navigate]);
 
-  const handlePlayGame = (game: Game, mode: 'real' | 'demo') => {
+  const handlePlayGame = useCallback((game: Game, mode: 'real' | 'demo') => {
     console.log("Request to play game:", game.title, "in mode:", mode);
     launchGame(game, { mode }).then(url => {
       if (url) {
          window.open(url, '_blank', 'noopener,noreferrer');
       }
     });
-  };
+  }, [launchGame]);
 
-  const setSearchTerm = (searchTerm: string) => {
+  const setSearchTerm = useCallback((searchTerm: string) => {
     setActiveFilters(prev => ({ ...prev, searchTerm }));
-  };
+  }, []);
 
-  const setProviderFilter = (provider: string) => {
+  const setProviderFilter = useCallback((provider: string) => {
     setCurrentPage(1); 
     setActiveFilters(prev => ({ ...prev, provider, searchTerm: '', category: '' })); 
-  };
-  const setCategoryFilter = (category: string) => {
+  }, []);
+  
+  const setCategoryFilter = useCallback((category: string) => {
     setCurrentPage(1); 
     setActiveFilters(prev => ({ ...prev, category, searchTerm: '', provider: '' })); 
-  };
-  const setSortBy = (sortBy: string) => {
+  }, []);
+  
+  const setSortBy = useCallback((sortBy: string) => {
     setCurrentPage(1); 
     setActiveFilters(prev => ({ ...prev, sortBy }));
-  };
+  }, []);
 
   const contextValue: GameContextType = {
     games: allGames,
@@ -336,6 +337,7 @@ export const GamesProvider = ({ children }: { children: ReactNode }) => {
   return <GamesContext.Provider value={contextValue}>{children}</GamesContext.Provider>;
 };
 
+// Export both the hook and renamed alias for backward compatibility
 export const useGames = (): GameContextType => {
   const context = useContext(GamesContext);
   if (context === undefined) {
@@ -343,3 +345,6 @@ export const useGames = (): GameContextType => {
   }
   return context;
 };
+
+// Alias for backward compatibility with existing component imports
+export const useGamesData = useGames;

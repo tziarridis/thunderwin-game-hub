@@ -1,9 +1,10 @@
+
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData if that's the exported hook name
+import { useGames } from '@/hooks/useGames'; // Fixed import to use the main hook
 
 interface CasinoGameGridProps {
   games: Game[];
@@ -13,7 +14,7 @@ interface CasinoGameGridProps {
 
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { isAuthenticated } = useAuth();
-  const { favoriteGameIds, toggleFavoriteGame, launchGame, isFavorite } = useGamesData(); // Use destructured functions
+  const { favoriteGameIds, toggleFavoriteGame, launchGame, isFavorite } = useGames(); 
   
   const handleToggleFavorite = async (gameId: string) => {
     if (!isAuthenticated) {
