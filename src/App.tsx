@@ -1,7 +1,6 @@
-
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import AppLayout from "./components/layout/AppLayout"; // Using AppLayout consistently
+import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./components/layout/AdminLayout";
 import CasinoMain from "./pages/casino/CasinoMain";
 import LiveCasino from "./pages/casino/LiveCasino";
@@ -83,6 +82,7 @@ function App() {
             <Route path="seamless" element={<Seamless />} />
             <Route path="crash" element={<Crash />} />
           </Route>
+
           {/* Sports Routes */}
           <Route path="sports">
             <Route index element={<Sports />} />
@@ -92,17 +92,22 @@ function App() {
             <Route path="hockey" element={<Hockey />} />
             <Route path="esports" element={<Esports />} />
           </Route>
+
           {/* Promotions */}
           <Route path="promotions" element={<Promotions />} />
+
           {/* Bonus Hub */}
           <Route path="bonuses" element={<BonusHub />} />
+
           {/* VIP */}
           <Route path="vip" element={<VIP />} />
+
           {/* User Profile */}
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="settings" element={<UserSettings />} />
           <Route path="transactions" element={<Transactions />} />
           <Route path="kyc" element={<KycStatus />} />
+
           {/* Support */}
           <Route path="support">
             <Route path="help" element={<Help />} />
@@ -110,11 +115,13 @@ function App() {
             <Route path="faq" element={<Faq />} />
             <Route path="responsible-gaming" element={<ResponsibleGaming />} />
           </Route>
+
           {/* Legal */}
           <Route path="legal">
             <Route path="terms" element={<Terms />} />
             <Route path="privacy" element={<Privacy />} />
           </Route>
+
           {/* Auth */}
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
