@@ -1,5 +1,6 @@
+
 export type UserStatus = 'active' | 'pending_verification' | 'suspended' | 'banned' | 'deleted';
-export type UserRole = 'user' | 'admin' | 'moderator' | 'agent' | 'vip_manager'; // Example roles
+export type UserRole = 'user' | 'admin' | 'moderator' | 'agent' | 'vip_manager'; // Example roles - EXPORTED
 
 export interface User {
   id: string; // Typically UUID from Supabase auth.users.id
@@ -15,8 +16,8 @@ export interface User {
   is_verified?: boolean; // Email verification status
   is_banned?: boolean;
   
-  created_at: string; // ISO date string
-  updated_at: string; // ISO date string
+  created_at: string; // ISO date string - ensure this matches what AppUser provides
+  updated_at: string; // ISO date string - ensure this matches what AppUser provides
   last_sign_in_at?: string | null; // ISO date string, from Supabase auth
 
   // Wallet related summary (optional, could be fetched separately)
@@ -40,4 +41,19 @@ export interface User {
   // For AdminUserProfile page, if these are properties of your 'users' table:
   banned?: boolean; // This seems to be a specific field in your 'users' table
   // role_id might be how you store roles, if so, map it to 'role'
+
+  // Adding missing fields from src/types/user.ts to reduce conversion errors
+  // These may or may not be present on SupabaseUser directly, adjust AppUser enrichment
+  name?: string; // Often username or combination of first/last
+  avatar?: string; // often avatar_url
+  joined?: string; // often created_at
+  phone?: string;
+  lastLogin?: string; // often last_sign_in_at
+  favoriteGames?: string[]; // Custom app data
+  profile?: any; // From src/types/user.ts UserProfile, define more strictly if possible
+  isStaff?: boolean; // Custom app data
+  isAdmin?: boolean; // Custom app data, or derived from role
+  roles?: string[]; // Custom app data
+  kycStatus?: any; // Import KycStatus if needed
 }
+

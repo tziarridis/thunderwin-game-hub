@@ -1,9 +1,7 @@
-
-
 export * from './user';
 export * from './game';
 export * from './transaction';
-export * from './wallet';
+export * from './wallet'; // WalletType will be exported from here
 export * from './affiliate';
 export * from './promotion';
 export * from './kyc';
@@ -26,6 +24,5 @@ export interface DisplayGame extends Game { // Game is now imported from './game
   isFavorite?: boolean; 
 }
 
-// WalletType has been moved to src/types/wallet.ts
+// WalletType is now exported from src/types/wallet.ts and re-exported above
 // Ensure components import it from there or via re-export from src/types/index.ts
-

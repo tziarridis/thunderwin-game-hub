@@ -2,6 +2,10 @@ import React, { createContext, useState, useEffect, useContext, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+// Use User type from user.d.ts for broader compatibility if it's more comprehensive
+// For now, ensuring AppUser has camelCase date fields
+// import { User as AppUserTypeDefinition } from '@/types/user.d.ts';
+
 
 // Define a more specific User type for your application context if needed
 // This might include fields from your public.users or public.profiles table
@@ -14,6 +18,10 @@ export interface AppUser extends SupabaseUser {
   role?: string; // Example: 'admin', 'user', 'affiliate' (from app_metadata or custom table)
   isActive: boolean; // Added to match User type for components like UserMenu
   // Add other app-specific user properties here
+
+  // Ensure camelCase versions for compatibility with other User types
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthContextType {
@@ -44,14 +52,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Initialize AppUser with SupabaseUser fields and isActive
     let appUser: AppUser = { 
       ...supabaseUser, 
-      isActive: true // Default to true, can be refined with actual user status from DB
+      isActive: true, // Default to true, can be refined with actual user status from DB
+      createdAt: supabaseUser.created_at, // Map to camelCase
+      updatedAt: supabaseUser.updated_at, // Map to camelCase
     };
 
     try {
       // 1. Fetch from public.users table
       const { data: publicUserData, error: publicUserError } = await supabase
         .from('users')
-        .select('username, role_id, status') // Assuming 'status' field exists for isActive
+        .select('username, role_id, status, first_name, last_name, avatar_url') // Added more fields, assuming 'profiles' data might be here too
         .eq('id', supabaseUser.id) 
         .single();
 
@@ -60,7 +70,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error("Error fetching public user data:", publicUserError);
         }
       } else if (publicUserData) {
-        appUser.username = publicUserData.username;
+        appUser.username = publicUserData.username || appUser.username;
+        appUser.firstName = publicUserData.first_name || appUser.firstName;
+        appUser.lastName = publicUserData.last_name || appUser.lastName;
+        appUser.avatarUrl = publicUserData.avatar_url || appUser.avatarUrl;
         // Example: appUser.role = mapRoleIdToName(publicUserData.role_id); 
         // Set isActive based on database status if available
         if (publicUserData.status) {
@@ -68,22 +81,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // 2. Fetch from public.profiles table
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, avatar_url')
-        .eq('id', supabaseUser.id) // Assuming profiles.id links to auth.users.id
-        .maybeSingle();
+      // 2. Fetch from public.profiles table (if separate and still needed)
+      // This might be redundant if 'users' table now contains profile fields
+      // const { data: profileData, error: profileError } = await supabase
+      //   .from('profiles')
+      //   .select('first_name, last_name, avatar_url')
+      //   .eq('id', supabaseUser.id) // Assuming profiles.id links to auth.users.id
+      //   .maybeSingle();
 
-      if (profileError) {
-        if (profileError.code !== 'PGRST116') { // Not found error
-          console.error("Error fetching profile data:", profileError);
-        }
-      } else if (profileData) {
-        appUser.firstName = profileData.first_name;
-        appUser.lastName = profileData.last_name;
-        appUser.avatarUrl = profileData.avatar_url;
-      }
+      // if (profileError) {
+      //   if (profileError.code !== 'PGRST116') { // Not found error
+      //     console.error("Error fetching profile data:", profileError);
+      //   }
+      // } else if (profileData) {
+      //   appUser.firstName = profileData.first_name || appUser.firstName;
+      //   appUser.lastName = profileData.last_name || appUser.lastName;
+      //   appUser.avatarUrl = profileData.avatar_url || appUser.avatarUrl;
+      // }
       
       // 3. Get role from app_metadata
       appUser.role = supabaseUser.app_metadata?.role || appUser.role; 
