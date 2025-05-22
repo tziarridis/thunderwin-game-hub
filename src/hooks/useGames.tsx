@@ -1,344 +1,331 @@
-
-import React, { useState, useEffect, useCallback, useMemo, createContext, useContext, ReactNode } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
+import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, DbGame, GameProvider, GameCategory, GameLaunchOptions, GameContextType, GameStatusEnum } from '@/types/game';
+import { Game, GameLaunchOptions, GameCategory, GameProvider, DbGame, GameTag, GameStatusEnum } from '@/types/game';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import { convertDbGameToGame, slugify } from '@/utils/gameTypeAdapter';
+import { convertDbGameToGame, convertGameToDbGame } from '@/utils/gameTypeAdapter'; // Ensure these are robust
+import {游戏Provider} from "@/services/gameService"; //This import seems to have a typo "游戏Provider"
 
-const GAMES_PER_PAGE = 20;
+// Define the shape of the context
+interface GamesContextType {
+  games: Game[];
+  categories: GameCategory[];
+  providers: GameProvider[];
+  favoriteGameIds: string[];
+  fetchGames: (filters?: any, page?: number, limit?: number) => Promise<{ games: Game[], totalCount: number }>;
+  fetchGameBySlug: (slug: string) => Promise<Game | null>;
+  fetchCategories: () => Promise<void>;
+  fetchProviders: () => Promise<void>;
+  launchGame: (game: Game, options: GameLaunchOptions) => Promise<string | null>;
+  toggleFavoriteGame: (gameId: string) => Promise<void>;
+  isFavorite: (gameId: string) => boolean;
+  isLoadingGames: boolean;
+  isLoadingCategories: boolean;
+  isLoadingProviders: boolean;
+  getGamesByCategory: (categorySlug: string) => Game[];
+  getGamesByProvider: (providerSlug: string) => Game[];
+  loadMoreGames?: () => void;
+  hasMoreGames?: boolean;
+  searchGames: (searchTerm: string) => Promise<Game[]>;
+}
 
-export const defaultGamesContextValue: GameContextType = {
-  games: [],
-  filteredGames: [],
-  providers: [],
-  categories: [],
-  isLoading: true,
-  isLoadingMore: false,
-  hasMore: false,
-  error: null,
-  activeFilters: {
-    searchTerm: '',
-    provider: '',
-    category: '',
-    sortBy: 'popularity',
-  },
-  favoriteGameIds: new Set<string>(),
-  getGameById: () => undefined,
-  getGameBySlug: () => undefined,
-  fetchGames: async () => {},
-  setSearchTerm: () => {},
-  setProviderFilter: () => {},
-  setCategoryFilter: () => {},
-  setSortBy: () => {},
-  toggleFavoriteGame: async () => {},
-  isFavorite: () => false,
-  launchGame: async () => null,
-  getGameLaunchUrl: async () => null,
-  getFeaturedGames: async () => [],
-  handleGameDetails: () => {},
-  handlePlayGame: () => {},
-  loadMoreGames: () => {},
-};
+// Create the context
+const GamesContext = createContext<GamesContextType | undefined>(undefined);
 
-const GamesContext = createContext<GameContextType>(defaultGamesContextValue);
-
-export const GamesProvider = ({ children }: { children: ReactNode }) => {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-
-  const [allGames, setAllGames] = useState<Game[]>([]);
-  const [filteredGamesState, setFilteredGamesState] = useState<Game[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreState, setHasMoreState] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+// Create a provider component
+export const GamesProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user, isAuthenticated } = useAuth();
+  const [games, setGames] = useState<Game[]>([]);
+  const [categories, setCategories] = useState<GameCategory[]>([]);
+  const [providers, setProviders] = useState<GameProvider[]>([]);
+  const [favoriteGameIds, setFavoriteGameIds] = useState<string[]>([]);
   
-  const [activeFilters, setActiveFilters] = useState({
-    searchTerm: '',
-    provider: '',
-    category: '',
-    sortBy: 'popularity',
-  });
+  const [isLoadingGames, setIsLoadingGames] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [isLoadingProviders, setIsLoadingProviders] = useState(false);
 
-  const fetchGamesQueryFn = async ({ queryKey }: { queryKey: QueryKey }) => {
-    const page = queryKey[1] as number;
-    const from = (page - 1) * GAMES_PER_PAGE;
-    const to = from + GAMES_PER_PAGE - 1;
-    
-    let query = supabase
-      .from('games')
-      .select(`
+  // Pagination and load more state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [gamesPerPage] = useState(20); // Configurable
+  const [totalGamesCount, setTotalGamesCount] = useState(0);
+  const [currentFilters, setCurrentFilters] = useState<any>({});
+
+
+  const fetchGames = useCallback(async (filters: any = {}, page: number = 1, limit: number = gamesPerPage) => {
+    setIsLoadingGames(true);
+    console.log('fetchGames called with filters:', filters, 'page:', page, 'limit:', limit);
+    try {
+      let query = supabase.from('games').select(`
         *,
-        game_providers (id, name, slug)
-      `, { count: 'exact' })
-      .eq('status', GameStatusEnum.ACTIVE)
-      .range(from, to);
+        game_providers:providers!inner(id, name, slug, logo_url, is_active),
+        game_categories:categories!inner(id, name, slug)
+      `, { count: 'exact' });
 
-    if (activeFilters.sortBy === 'popularity') query = query.order('views', { ascending: false });
-    if (activeFilters.sortBy === 'name_asc') query = query.order('title', { ascending: true });
-    if (activeFilters.sortBy === 'name_desc') query = query.order('title', { ascending: false });
-    if (activeFilters.sortBy === 'newest') query = query.order('created_at', { ascending: false });
-    if (activeFilters.provider) {
-        query = query.eq('provider_slug', activeFilters.provider);
-    }
-    if (activeFilters.category) {
-        query = query.contains('category_slugs', [activeFilters.category]);
-    }
+      if (filters.provider_slug) query = query.eq('provider_slug', filters.provider_slug);
+      if (filters.category_slug) query = query.eq('category_slugs', filters.category_slug); // This needs to be an array containment check: cs.{slug}
+      if (filters.searchTerm) query = query.ilike('title', `%${filters.searchTerm}%`);
+      if (filters.is_featured) query = query.is('is_featured', true);
+      if (filters.status) query = query.eq('status', filters.status);
+      else query = query.eq('status', GameStatusEnum.ACTIVE); // Default to active games
 
-    const { data, error, count } = await query;
-    if (error) {
-        console.error("Error fetching games:", error);
+
+      const offset = (page - 1) * limit;
+      query = query.range(offset, offset + limit - 1);
+      query = query.order('title', { ascending: true }); // Default order
+
+      const { data: rawGames, error, count } = await query;
+
+      if (error) {
+        console.error('Error fetching games:', error);
+        toast.error(`Failed to load games: ${error.message}`);
+        return { games: [], totalCount: 0 };
+      }
+      
+      const fetchedGames = rawGames ? rawGames.map(convertDbGameToGame) : [];
+      console.log('Fetched games raw:', rawGames);
+      console.log('Fetched games converted:', fetchedGames);
+      
+      // For pagination and load more
+      if (page === 1) {
+        setGames(fetchedGames);
+      } else {
+        setGames(prev => [...prev, ...fetchedGames]);
+      }
+      setTotalGamesCount(count || 0);
+      setCurrentPage(page);
+      setCurrentFilters(filters);
+
+      return { games: fetchedGames, totalCount: count || 0 };
+
+    } catch (err: any) {
+      console.error("Error in fetchGames:", err);
+      toast.error("An unexpected error occurred while fetching games.");
+      return { games: [], totalCount: 0 };
+    } finally {
+      setIsLoadingGames(false);
+    }
+  }, [gamesPerPage]);
+
+  const loadMoreGames = useCallback(async () => {
+    if (isLoadingGames || games.length >= totalGamesCount) return;
+    await fetchGames(currentFilters, currentPage + 1, gamesPerPage);
+  }, [isLoadingGames, games.length, totalGamesCount, fetchGames, currentFilters, currentPage, gamesPerPage]);
+
+
+  const fetchGameBySlug = async (slug: string): Promise<Game | null> => {
+    setIsLoadingGames(true);
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select(`
+          *,
+          game_providers:providers!inner(id, name, slug, logo_url, is_active),
+          game_categories:categories!inner(id, name, slug)
+        `)
+        .eq('slug', slug)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') { // Not found
+          toast.info(`Game with slug "${slug}" not found.`);
+          return null;
+        }
         throw error;
+      }
+      return data ? convertDbGameToGame(data as DbGame) : null;
+    } catch (error: any) {
+      toast.error(`Error fetching game ${slug}: ${error.message}`);
+      return null;
+    } finally {
+      setIsLoadingGames(false);
     }
-    const dbGames: DbGame[] = (data || []) as DbGame[];
-    return { data: dbGames, count: count || 0 };
   };
   
-  const { data: fetchedGamesData, isLoading: isLoadingGamesHook, error: gamesError } = useQuery<{ data: DbGame[], count: number }, Error>({
-    queryKey: ['allGames', currentPage, activeFilters],
-    queryFn: fetchGamesQueryFn,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  useEffect(() => {
-    if (fetchedGamesData?.data) {
-      const newGames = fetchedGamesData.data.map(convertDbGameToGame);
-      setAllGames(prev => currentPage === 1 ? newGames : [...prev, ...newGames]);
-      setHasMoreState((currentPage * GAMES_PER_PAGE) < (fetchedGamesData.count ?? 0));
-    }
-  }, [fetchedGamesData, currentPage]);
-
-  const { data: providersData = [], isLoading: isLoadingProvidersHook } = useQuery<GameProvider[], Error>({
-    queryKey: ['gameProvidersList'], 
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('game_providers') 
-        .select('id, name, slug, logo_url, is_active')
-        .eq('is_active', true);
-      
-      if (error) throw error;
-
-      return (data || []).map(p => ({
-        id: String(p.id),
-        name: p.name,
-        slug: p.slug,
-        logo_url: p.logo_url, 
-        is_active: p.is_active,
-      }));
-    },
-    staleTime: Infinity,
-  });
-
-  const { data: categories = [], isLoading: isLoadingCategories } = useQuery<GameCategory[], Error>({
-    queryKey: ['gameCategories'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('game_categories').select('*').eq('status', 'active');
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: Infinity,
-  });
-
-  const { data: favoriteGameRows } = useQuery<Array<{ game_id: string }>, Error>({
-    queryKey: ['favoriteGames'],
-    queryFn: async () => {
-      return []; // Placeholder, requires user context
-    },
-  });
-
-  const favoriteGameIds = useMemo(() => {
-    return new Set(favoriteGameRows?.map(fav => fav.game_id) || []);
-  }, [favoriteGameRows]);
-
-  const addFavoriteMutation = useMutation<void, Error, string>({
-    mutationFn: async (gameId: string) => {
-      console.warn("Add favorite needs user context. Simulating success for gameId:", gameId);
-      await new Promise(res => setTimeout(res, 300)); 
-    },
-    onSuccess: (_, gameId) => {
-      queryClient.invalidateQueries({ queryKey: ['favoriteGames'] });
-      toast.success(`Game added to favorites!`);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to add favorite: ${error.message}`);
-    },
-  });
-
-  const removeFavoriteMutation = useMutation<void, Error, string>({
-    mutationFn: async (gameId: string) => {
-      console.warn("Remove favorite needs user context. Simulating success for gameId:", gameId);
-      await new Promise(res => setTimeout(res, 300));
-    },
-    onSuccess: (_, gameId) => {
-      queryClient.invalidateQueries({ queryKey: ['favoriteGames'] });
-      toast.info(`Game removed from favorites.`);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to remove favorite: ${error.message}`);
-    },
-  });
-
-  const toggleFavoriteGame = useCallback(async (gameId: string) => {
-    if (!gameId) {
-      toast.error("Game ID is missing.");
-      return;
-    }
-    if (favoriteGameIds.has(gameId)) {
-      await removeFavoriteMutation.mutateAsync(gameId);
-    } else {
-      await addFavoriteMutation.mutateAsync(gameId);
-    }
-  }, [favoriteGameIds, addFavoriteMutation, removeFavoriteMutation]);
-
-  const isFavorite = useCallback((gameId: string) => {
-    return favoriteGameIds.has(gameId);
-  }, [favoriteGameIds]);
-
-  useEffect(() => {
-    let tempGames = [...allGames];
-    if (activeFilters.searchTerm) {
-      tempGames = tempGames.filter(game => 
-        game.title.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()) ||
-        (game.providerName && game.providerName.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()))
-      );
-    }
-    setFilteredGamesState(tempGames);
-  }, [allGames, activeFilters]);
-
-  const fetchGamesCb = useCallback(async (page = 1) => {
-    setCurrentPage(page);
-  }, []);
-  
-  // Reset isLoadingMore when isLoadingGamesHook becomes false after a page change
-  useEffect(() => {
-    if (!isLoadingGamesHook) {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingGamesHook]);
-
-  const loadMoreGames = useCallback(() => {
-    if (hasMoreState && !isLoadingGamesHook && !isLoadingMore) {
-      setIsLoadingMore(true);
-      setCurrentPage(prevPage => prevPage + 1);
-    }
-  }, [hasMoreState, isLoadingGamesHook, isLoadingMore]);
-
-  const getGameById = useCallback((id: string): Game | undefined => {
-    return allGames.find(game => String(game.id) === id || String(game.game_id) === id);
-  }, [allGames]);
-
-  const getGameBySlug = useCallback((slug: string): Game | undefined => {
-    return allGames.find(game => game.slug === slug);
-  }, [allGames]);
-
-  const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
-    console.log(`Requesting launch URL for ${game.title} with options:`, options);
-    await new Promise(resolve => setTimeout(resolve, 500)); 
-    if (game.slug) {
-      return `/mock-game-frame/${game.slug}?mode=${options.mode}&lang=${options.language || 'en'}`;
-    }
-    toast.error("Game launch URL not available.");
-    return null;
-  }, []);
-
-  const launchGame = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
     try {
-      const url = await getGameLaunchUrl(game, options);
-      if (url) {
-        return url;
+      const { data, error } = await supabase.from('categories').select('*').eq('is_active', true);
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load game categories: " + error.message);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  const fetchProviders = async () => {
+    setIsLoadingProviders(true);
+    try {
+      // Corrected table name from 'game_providers' to 'providers'
+      const { data, error } = await supabase.from('providers').select('*').eq('is_active', true);
+      if (error) throw error;
+      // Assuming the data structure matches GameProvider type
+      setProviders((data as GameProvider[]) || []);
+    } catch (error: any) {
+      toast.error("Failed to load game providers: " + error.message);
+    } finally {
+      setIsLoadingProviders(false);
+    }
+  };
+  
+  const launchGame = async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
+    console.log(`Attempting to launch game: ${game.title} with options:`, options);
+    if (!isAuthenticated && options.mode === 'real') {
+      toast.error("Please log in to play for real money.");
+      return null;
+    }
+    
+    // This is a placeholder. Integration with a game aggregator or provider API is needed.
+    // For example, call a Supabase Edge Function that handles game launching.
+    try {
+      // const { data, error } = await supabase.functions.invoke('launch-game', {
+      //   body: { gameId: game.id, mode: options.mode, playerId: user?.id }
+      // });
+      // if (error) throw error;
+      // return data.launchUrl;
+      
+      // Mock launch URL for now
+      const demoUrl = game.meta?.find(m => m.key === 'demo_url')?.value;
+      const realUrl = game.meta?.find(m => m.key === 'real_url')?.value; // Or construct from game_code/provider
+      let launchUrl = options.mode === 'demo' ? demoUrl : realUrl;
+
+      if (!launchUrl && game.game_id && game.provider_slug) {
+          // Fallback or default launch mechanism if specific URLs aren't in meta
+          // This might involve calling a service like PragmaticPlayService or a generic aggregator service
+          // For demonstration, constructing a placeholder URL:
+          launchUrl = `/api/games/launch?game_id=${game.game_id}&provider=${game.provider_slug}&mode=${options.mode}${user?.id ? `&player_id=${user.id}` : ''}`;
+          console.warn(`Using constructed launch URL for ${game.title}: ${launchUrl}`);
+      }
+
+
+      if (launchUrl) {
+        toast.success(`Launching ${game.title}...`);
+        return launchUrl;
       } else {
-        toast.error('Could not launch game: No URL received.');
+        toast.error(`Could not find launch URL for ${game.title} in ${options.mode} mode.`);
+        // Try navigating to game detail page as fallback
+        // navigate(`/casino/game/${game.slug || game.id}`);
         return null;
       }
     } catch (error: any) {
-      toast.error(`Failed to launch game: ${error.message}`);
+      toast.error(`Failed to launch game ${game.title}: ${error.message}`);
       return null;
     }
-  }, [getGameLaunchUrl]);
-
-  const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
-    const { data, error } = await supabase
-      .from('games')
-      .select('*')
-      .eq('status', GameStatusEnum.ACTIVE)
-      .eq('is_featured', true)
-      .limit(count)
-      .order('views', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching featured games:', error);
-      return [];
-    }
-    const dbGames: DbGame[] = (data || []) as DbGame[];
-    return dbGames.map(convertDbGameToGame);
-  }, []);
-  
-  const handleGameDetails = useCallback((game: Game) => {
-    navigate(`/casino/game/${game.slug || game.id}`);
-  }, [navigate]);
-
-  const handlePlayGame = useCallback((game: Game, mode: 'real' | 'demo') => {
-    console.log("Request to play game:", game.title, "in mode:", mode);
-    launchGame(game, { mode }).then(url => {
-      if (url) {
-         window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    });
-  }, [launchGame]);
-
-  const setSearchTerm = useCallback((searchTerm: string) => {
-    setActiveFilters(prev => ({ ...prev, searchTerm }));
-  }, []);
-
-  const setProviderFilter = useCallback((provider: string) => {
-    setCurrentPage(1); 
-    setActiveFilters(prev => ({ ...prev, provider, searchTerm: '', category: '' })); 
-  }, []);
-  
-  const setCategoryFilter = useCallback((category: string) => {
-    setCurrentPage(1); 
-    setActiveFilters(prev => ({ ...prev, category, searchTerm: '', provider: '' })); 
-  }, []);
-  
-  const setSortBy = useCallback((sortBy: string) => {
-    setCurrentPage(1); 
-    setActiveFilters(prev => ({ ...prev, sortBy }));
-  }, []);
-
-  const contextValue: GameContextType = {
-    games: allGames,
-    filteredGames: filteredGamesState, 
-    providers: providersData,
-    categories: categories,
-    isLoading: isLoadingGamesHook || isLoadingProvidersHook || isLoadingCategories,
-    isLoadingMore,
-    hasMore: hasMoreState,
-    error: gamesError || null,
-    activeFilters,
-    favoriteGameIds,
-    getGameById,
-    getGameBySlug,
-    fetchGames: fetchGamesCb,
-    setSearchTerm,
-    setProviderFilter,
-    setCategoryFilter,
-    setSortBy,
-    toggleFavoriteGame,
-    isFavorite,
-    launchGame,
-    getGameLaunchUrl,
-    getFeaturedGames,
-    handleGameDetails,
-    handlePlayGame,
-    loadMoreGames,
   };
 
-  return <GamesContext.Provider value={contextValue}>{children}</GamesContext.Provider>;
+  const toggleFavoriteGame = async (gameId: string) => {
+    if (!isAuthenticated || !user) {
+      toast.error("Please log in to manage favorites.");
+      return;
+    }
+    const isCurrentlyFavorite = favoriteGameIds.includes(gameId);
+    if (isCurrentlyFavorite) {
+      // Remove from favorites
+      const { error } = await supabase
+        .from('favorite_games')
+        .delete()
+        .match({ user_id: user.id, game_id: gameId });
+      if (error) {
+        toast.error("Failed to remove from favorites: " + error.message);
+      } else {
+        setFavoriteGameIds(prev => prev.filter(id => id !== gameId));
+        toast.success("Removed from favorites.");
+      }
+    } else {
+      // Add to favorites
+      const { error } = await supabase
+        .from('favorite_games')
+        .insert({ user_id: user.id, game_id: gameId });
+      if (error) {
+        toast.error("Failed to add to favorites: " + error.message);
+      } else {
+        setFavoriteGameIds(prev => [...prev, gameId]);
+        toast.success("Added to favorites!");
+      }
+    }
+  };
+
+  const isFavorite = (gameId: string) => favoriteGameIds.includes(gameId);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const fetchFavorites = async () => {
+        const { data, error } = await supabase
+          .from('favorite_games')
+          .select('game_id')
+          .eq('user_id', user.id);
+        if (error) {
+          console.error("Error fetching favorites:", error);
+        } else {
+          setFavoriteGameIds(data.map(fav => fav.game_id));
+        }
+      };
+      fetchFavorites();
+    } else {
+      setFavoriteGameIds([]); // Clear favorites if user logs out
+    }
+  }, [isAuthenticated, user]);
+  
+  const getGamesByCategory = (categorySlug: string): Game[] => {
+    return games.filter(game => game.category_slugs?.includes(categorySlug));
+  };
+
+  const getGamesByProvider = (providerSlug: string): Game[] => {
+    return games.filter(game => game.provider_slug === providerSlug);
+  };
+
+  const searchGames = async (searchTerm: string): Promise<Game[]> => {
+    if (!searchTerm.trim()) return games; // Return all if search is empty, or an empty array
+    
+    setIsLoadingGames(true);
+    try {
+        const { data, error } = await supabase
+            .from('games')
+            .select(`*, game_providers:providers!inner(*), game_categories:categories!inner(*)`) // Adjust select as needed
+            .ilike('title', `%${searchTerm}%`)
+            // Add other search fields if necessary: .or(`description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
+            .eq('status', GameStatusEnum.ACTIVE) 
+            .limit(50); // Limit search results
+
+        if (error) throw error;
+        return data ? data.map(g => convertDbGameToGame(g as DbGame)) : [];
+    } catch (err: any) {
+        toast.error(`Search failed: ${err.message}`);
+        return [];
+    } finally {
+        setIsLoadingGames(false);
+    }
+  };
+
+
+  const value = {
+    games,
+    categories,
+    providers,
+    favoriteGameIds,
+    fetchGames,
+    fetchGameBySlug,
+    fetchCategories,
+    fetchProviders,
+    launchGame,
+    toggleFavoriteGame,
+    isFavorite,
+    isLoadingGames,
+    isLoadingCategories,
+    isLoadingProviders,
+    getGamesByCategory,
+    getGamesByProvider,
+    loadMoreGames,
+    hasMoreGames: games.length < totalGamesCount,
+    searchGames,
+  };
+
+  return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>;
 };
 
-// Export both the hook and renamed alias for backward compatibility
-export const useGames = (): GameContextType => {
+// Create a custom hook to use the context
+export const useGames = () => {
   const context = useContext(GamesContext);
   if (context === undefined) {
     throw new Error('useGames must be used within a GamesProvider');
@@ -346,5 +333,27 @@ export const useGames = (): GameContextType => {
   return context;
 };
 
-// Alias for backward compatibility with existing component imports
-export const useGamesData = useGames;
+// Helper function for initial data load or specific scenarios
+export const fetchInitialSiteData = async () => {
+    // This is an example; adapt it to your needs for fetching essential data on app load
+    // It's often better to fetch data within components using useQuery or the context's fetch methods
+    try {
+        const providersPromise = supabase.from('providers').select('*').eq('is_active', true);
+        const categoriesPromise = supabase.from('categories').select('*').eq('is_active', true);
+        // Potentially featured games, etc.
+
+        const [{data: providersData, error: providersError}, {data: categoriesData, error: categoriesError}] = await Promise.all([providersPromise, categoriesPromise]);
+
+        if (providersError) throw providersError;
+        if (categoriesError) throw categoriesError;
+
+        return {
+            providers: (providersData as GameProvider[]) || [],
+            categories: (categoriesData as GameCategory[]) || [],
+        };
+    } catch (error: any) {
+        console.error("Error fetching initial site data:", error);
+        toast.error("Could not load essential site data: " + error.message);
+        return { providers: [], categories: [] };
+    }
+};

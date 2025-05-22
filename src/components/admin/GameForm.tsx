@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, DbGame, GameProvider as FormGameProvider, GameCategory as FormGameCategory, GameStatusEnum, GameVolatilityEnum, GameTag, GameVolatility } from '@/types/game'; // Use GameVolatility
+import { Game, DbGame, GameProvider as FormGameProvider, GameCategory as FormGameCategory, GameStatusEnum, GameVolatilityEnum, GameTag, GameVolatility } from '@/types/game';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -12,8 +11,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { slugify } from '@/utils/gameTypeAdapter'; // Assuming this is correctly exported
+import { slugify } from '@/utils/gameTypeAdapter';
 import { convertGameToDbGame, convertDbGameToGame } from '@/utils/gameTypeAdapter';
+
 
 const MAX_FILE_SIZE_MB = 5;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
@@ -23,13 +23,14 @@ const gameFormSchema = z.object({
   slug: z.string().optional(),
   game_id: z.string().optional().nullable(),
   provider_slug: z.string().min(1, "Provider is required"),
-  // provider_id: z.string().optional().nullable(), // Assuming provider_slug is primary key from game_providers
   category_slugs: z.array(z.string()).optional().default([]),
   description: z.string().optional().nullable(),
   rtp: z.coerce.number().min(0).max(100).optional().nullable(),
-  volatility: z.enum(Object.values(GameVolatilityEnum) as [GameVolatility, ...GameVolatility[]]).optional().nullable(), // Corrected enum usage
-  tags: z.array(z.string()).optional().default([]), // Storing as string array, convert to GameTag[] if needed on display
-  status: z.enum(Object.values(GameStatusEnum) as [GameStatusEnum, ...GameStatusEnum[]]).default(GameStatusEnum.ACTIVE),
+  // Using z.nativeEnum for TypeScript enums
+  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(),
+  tags: z.array(z.string()).optional().default([]),
+  // Using z.nativeEnum for TypeScript enums
+  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.ACTIVE),
   
   image_url: z.string().url().optional().nullable(),
   cover: z.string().url().optional().nullable(),
@@ -47,30 +48,24 @@ const gameFormSchema = z.object({
   only_demo: z.boolean().default(false),
   only_real: z.boolean().default(false),
   has_freespins: z.boolean().default(false),
-  mobile_friendly: z.boolean().default(true), // is_mobile in DB
+  mobile_friendly: z.boolean().default(true),
   
-  release_date: z.string().optional().nullable(), // Consider z.date() if using a date picker
-  game_code: z.string().optional().nullable(), // Internal game code from provider or for aggregator
-  // Removed `providers` and `categories` from schema as they are for select options, not form fields
+  release_date: z.string().optional().nullable(),
+  game_code: z.string().optional().nullable(),
 });
 
 type GameFormValues = z.infer<typeof gameFormSchema>;
 
 interface GameFormProps {
-  game?: DbGame | null; // Accept DbGame for editing
+  game?: DbGame | null;
   onSubmitSuccess: () => void;
   onCancel: () => void;
-  providers: FormGameProvider[]; // For select options
-  categories: FormGameCategory[]; // For select options
+  providers: FormGameProvider[];
+  categories: FormGameCategory[];
   isLoading?: boolean;
 }
 
-// Fixed the component declaration to avoid syntax error
-const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLoading }: GameFormProps) => {
-  // const [imagePreview, setImagePreview] = useState<string | null>(game?.cover || game?.image_url || null);
-  // const [bannerPreview, setBannerPreview] = useState<string | null>(game?.banner_url || null);
-  // Image handling can be complex, simplified for now by using URL inputs. File upload would require more logic.
-
+const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, providers, categories, isLoading }) => {
   const gameForForm = game ? convertDbGameToGame(game) : null;
 
   const defaultValues: Partial<GameFormValues> = {
@@ -80,25 +75,25 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
     provider_slug: gameForForm?.provider_slug || '',
     category_slugs: gameForForm?.category_slugs || [],
     description: gameForForm?.description || '',
-    rtp: gameForForm?.rtp || undefined,
-    volatility: gameForForm?.volatility || undefined,
+    rtp: gameForForm?.rtp ?? undefined, // Use ?? for undefined
+    volatility: gameForForm?.volatility ?? undefined,
     tags: Array.isArray(gameForForm?.tags) ? gameForForm.tags.map(tag => typeof tag === 'string' ? tag : tag.name) : [],
-    status: gameForForm?.status || GameStatusEnum.ACTIVE,
+    status: gameForForm?.status ?? GameStatusEnum.ACTIVE, // Use ?? for undefined
     image_url: gameForForm?.image_url || '',
     cover: gameForForm?.cover || '',
-    banner_url: gameForForm?.bannerUrl || '',
+    banner_url: gameForForm?.bannerUrl || '', // Assuming bannerUrl from Game type
     is_featured: gameForForm?.is_featured || false,
     is_new: gameForForm?.is_new || false,
     is_popular: gameForForm?.is_popular || false,
     show_home: gameForForm?.show_home || false,
-    lines: gameForForm?.lines || undefined,
-    min_bet: gameForForm?.min_bet || undefined,
-    max_bet: gameForForm?.max_bet || undefined,
+    lines: gameForForm?.lines ?? undefined,
+    min_bet: gameForForm?.min_bet ?? undefined,
+    max_bet: gameForForm?.max_bet ?? undefined,
     only_demo: gameForForm?.only_demo || false,
     only_real: gameForForm?.only_real || false,
     has_freespins: gameForForm?.has_freespins || false,
     mobile_friendly: gameForForm?.mobile_friendly === undefined ? true : gameForForm.mobile_friendly,
-    release_date: gameForForm?.releaseDate ? new Date(gameForForm.releaseDate).toISOString().split('T')[0] : '', // Format for date input
+    release_date: gameForForm?.releaseDate ? new Date(gameForForm.releaseDate).toISOString().split('T')[0] : '',
     game_code: gameForForm?.game_code || '',
   };
 
@@ -109,47 +104,47 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
 
   const watchedTitle = watch('title');
   useEffect(() => {
-    if (watchedTitle && !gameForForm?.slug) { // Only auto-slugify if not editing or slug is empty
+    if (watchedTitle && !gameForForm?.slug) { 
       setValue('slug', slugify(watchedTitle));
     }
   }, [watchedTitle, setValue, gameForForm?.slug]);
 
   const onSubmit = async (data: GameFormValues) => {
     try {
-      const gameDataToSave: Partial<Game> = { // Map form values to Game type
+      const gameDataToSave: Partial<Game> = { 
         ...data,
-        // Ensure specific type conversions if needed, e.g., tags
         tags: data.tags?.map(tagName => ({ name: tagName, slug: slugify(tagName) })),
-        // Volatility is already GameVolatility | undefined from schema
       };
       
-      const dbGamePayload = convertGameToDbGame(gameDataToSave);
+      // Ensure that nullable fields that are empty strings are converted to null for Supabase
+      const validatedData = gameFormSchema.parse(data); // Re-validate to get coerced values
       
-      // The ID handling needs to be careful:
-      // For new games, 'id' should usually be generated by Supabase or be based on game_id if it's unique.
-      // For existing games, game.id (from DbGame) is the UUID to update.
-      // convertGameToDbGame might set `id` based on `gameDataToSave.id`.
-      // If `gameDataToSave.id` is not set, it won't be in `dbGamePayload`.
+      const dbGamePayload = convertGameToDbGame({
+        ...gameForForm, // spread existing game data if editing
+        ...validatedData, // spread validated form data
+        // Map specific fields if necessary, e.g. if Game and DbGame types differ significantly beyond convertGameToDbGame
+         // Ensure tags are correctly formatted if convertGameToDbGame doesn't handle it fully
+        tags: validatedData.tags?.map(tagName => ({ name: tagName, slug: slugify(tagName) })) || [],
+      } as Game); // Cast as Game because convertGameToDbGame expects Game
 
       let result;
-      if (game?.id) { // Editing existing game
+      if (game?.id) { 
         const { data: updatedGame, error } = await supabase
           .from('games')
-          .update(dbGamePayload as any) // Cast to any to bypass strict Partial<DbGame> checks if needed
+          .update(dbGamePayload as any) 
           .eq('id', game.id)
           .select()
           .single();
         if (error) throw error;
         result = updatedGame;
         toast.success('Game updated successfully!');
-      } else { // Adding new game
-         // Remove 'id' if it's empty or not meant for insert, Supabase will generate it
+      } else { 
         const insertPayload = { ...dbGamePayload };
         if (!insertPayload.id) delete insertPayload.id;
 
         const { data: newGame, error } = await supabase
           .from('games')
-          .insert(insertPayload as any) // Cast to any
+          .insert(insertPayload as any) 
           .select()
           .single();
         if (error) throw error;
@@ -160,7 +155,11 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
       onSubmitSuccess();
     } catch (error: any) {
       console.error("Error saving game:", error);
-      toast.error(`Failed to save game: ${error.message}`);
+      let errorMessage = error.message;
+      if (error instanceof z.ZodError) {
+        errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      }
+      toast.error(`Failed to save game: ${errorMessage}`);
     }
   };
 
@@ -220,10 +219,9 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
                 <Select onValueChange={field.onChange} value={field.value || undefined} >
                   <SelectTrigger><SelectValue placeholder="Select Volatility" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="">None</SelectItem> 
                     {Object.values(GameVolatilityEnum).map(vol => (
-                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>
-                    ))}
+                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>))}
                   </SelectContent>
                 </Select>
               )}
@@ -276,7 +274,7 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
               <p className="text-red-500 text-sm">
                 {Array.isArray(errors.tags)
                   ? errors.tags.map(e => e?.message).filter(Boolean).join(', ')
-                  : errors.tags.message}
+                  : typeof errors.tags.message === 'string' ? errors.tags.message : ''}
               </p>
             )}
           </div>
@@ -315,8 +313,7 @@ const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLo
             {errors.release_date && <p className="text-red-500 text-sm">{errors.release_date.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2">
-            {[
-              { name: 'is_featured', label: 'Featured' },
+            {[{ name: 'is_featured', label: 'Featured' },
               { name: 'is_new', label: 'New' },
               { name: 'is_popular', label: 'Popular' },
               { name: 'show_home', label: 'Show on Home' },

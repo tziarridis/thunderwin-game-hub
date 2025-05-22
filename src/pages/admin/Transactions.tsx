@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DateRangePicker } from '@/components/ui/date-range-picker'; // Assuming this exists
+import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Changed from DateRangePicker
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -20,7 +20,7 @@ const ITEMS_PER_PAGE = 15;
 
 const AdminTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({}); // Store user data by ID
+  const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
@@ -38,7 +38,7 @@ const AdminTransactions: React.FC = () => {
     try {
       let query = supabase
         .from('transactions')
-        .select('*, user:users(id, username, email)', { count: 'exact' }); // Join with users table, assuming FK is user_id -> users.id
+        .select('*, user:users(id, username, email)', { count: 'exact' }); 
 
       if (searchTerm) {
         query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,metadata->>provider_transaction_id.ilike.%${searchTerm}%`);
@@ -65,14 +65,13 @@ const AdminTransactions: React.FC = () => {
       if (error) throw error;
       
       const fetchedTransactions = (data || []).map(txAny => {
-        const tx = txAny as any; // Cast to any to access joined user
-        if (tx.user && typeof tx.user === 'object') { // If user data is joined and is an object
+        const tx = txAny as any; 
+        if (tx.user && typeof tx.user === 'object') { 
           setUsers(prevUsers => ({
             ...prevUsers,
             [tx.user_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
           }));
         }
-        // Remove the joined user object from the transaction itself to match Transaction type
         const { user: userData, ...transactionData } = tx;
         return transactionData as Transaction;
       });
@@ -93,8 +92,7 @@ const AdminTransactions: React.FC = () => {
   }, [fetchTransactions, currentPage]);
 
   const handleSearchFilter = () => {
-    setCurrentPage(1); // Reset to first page
-    // fetchTransactions(1) is called by useEffect due to currentPage change if needed, or call directly
+    setCurrentPage(1); 
   };
   
   const handleEditTransaction = (tx: Transaction) => {
@@ -120,7 +118,7 @@ const AdminTransactions: React.FC = () => {
         toast.success('Transaction updated successfully!');
         setShowEditModal(false);
         setEditingTransaction(null);
-        fetchTransactions(currentPage); // Refresh data
+        fetchTransactions(currentPage); 
     } catch (error: any) {
         toast.error(`Failed to update transaction: ${error.message}`);
     } finally {
@@ -192,7 +190,11 @@ const AdminTransactions: React.FC = () => {
             </SelectContent>
           </Select>
           <div className="lg:col-span-2">
-            <DateRangePicker onUpdate={(values) => setDateRange(values.range)} />
+            {/* Changed DateRangePicker to DatePickerWithRange and updated props */}
+            <DatePickerWithRange 
+              date={dateRange} 
+              onDateChange={(newRange) => setDateRange(newRange)} 
+            />
           </div>
           <Button onClick={handleSearchFilter} className="w-full md:w-auto flex items-center gap-2">
             <Search className="h-4 w-4" /> Apply Filters
