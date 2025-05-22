@@ -1,67 +1,103 @@
-// Add UserRole export if it's not already there or defined elsewhere
-export type UserRole = 'user' | 'admin' | 'moderator' | 'agent' | 'vip_manager' | string; // Example roles - ensure this is EXPORTED
 
-// ... keep existing code (UserStatus, User interface)
-export type UserStatus = 'active' | 'pending_verification' | 'suspended' | 'banned' | 'deleted';
+import { KycStatus, UserRole as AppUserRole } from './'; // Import KycStatus and AppUserRole from index.d.ts or kyc.ts/user.ts respectively
 
-export interface User {
-  id: string; // Typically UUID from Supabase auth.users.id
-  username?: string | null;
-  email: string;
-  avatar_url?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  
-  // Custom fields for your application's 'users' or 'profiles' table
-  role?: UserRole; // Store role as string or use UserRole enum
-  status?: UserStatus | string;
-  is_verified?: boolean; // Email verification status
-  is_banned?: boolean;
-  
-  created_at: string; // ISO date string - ensure this matches what AppUser provides
-  updated_at: string; // ISO date string - ensure this matches what AppUser provides
-  last_sign_in_at?: string | null; // ISO date string, from Supabase auth
+// Define UserRole here if not already in a central place or imported
+export type UserRole = 'user' | 'admin' | 'support' | 'manager' | 'vip_player' | 'affiliate'; // Add other roles as needed
 
-  // Wallet related summary (optional, could be fetched separately)
-  balance?: number; 
-  currency?: string;
-  vipLevel?: number;
-  
-  // Fields from AppUser that are needed by UserMenu if User type is used
-  isActive: boolean; 
+export interface LoginCredentials {
+  email?: string;
+  phone?: string;
+  password?: string;
+  provider?: 'google' | 'facebook'; // For OAuth
+  otp?: string; // For OTP login
+}
 
-  // Supabase specific metadata (if you are merging auth.user with your public user table)
-  app_metadata?: {
+export interface RegisterCredentials {
+  email?: string;
+  phone?: string;
+  password?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  // Add other fields required for registration
+}
+
+export interface UserProfile {
+  id: string; // Should match AuthUser.id
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  date_of_birth?: string; // ISO string
+  phone_number?: string;
+  // Address fields
+  address_street?: string;
+  address_city?: string;
+  address_state?: string;
+  address_postal_code?: string;
+  address_country?: string;
+  // Preferences
+  communication_preferences?: {
+    email_promotions?: boolean;
+    sms_notifications?: boolean;
+  };
+  // Extended User fields if stored in a separate 'profiles' table
+  bio?: string;
+  website?: string;
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+}
+
+// This is a more UI-focused user representation, could be derived from AppUser in AuthContext
+export interface DisplayUser {
+  id: string;
+  displayName: string; // Combination of username, first/last name, or email
+  email?: string;
+  avatarUrl?: string;
+  role?: UserRole;
+  status?: string; // e.g., "Active", "Banned"
+  joinedDate?: string; // Formatted date
+  lastLogin?: string; // Formatted date
+  isOnline?: boolean;
+  kycStatus?: KycStatus;
+  vipLevel?: number | string; // Display representation
+}
+
+// For AuthContext or similar contexts providing user state
+export interface UserContextType {
+  user: User | null; // Using the more comprehensive User type
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error?: string | null;
+  login: (credentials: LoginCredentials) => Promise<any>;
+  register: (credentials: RegisterCredentials) => Promise<any>;
+  logout: () => Promise<void>;
+  // updateUser: (data: Partial<User>) => Promise<void>; // Example
+  // refreshUser: () => Promise<void>; // Example
+  isAdmin?: boolean; // Convenience flag
+}
+
+// Supabase specific user details, if needed separately, otherwise merge into main User/AppUser
+export interface SupabaseAuthUser {
+  id: string;
+  aud: string;
+  role?: string; // Supabase's internal role, distinct from application UserRole
+  email?: string;
+  email_confirmed_at?: string;
+  phone?: string;
+  phone_confirmed_at?: string;
+  confirmed_at?: string; // If email_confirmed_at is not granular enough
+  last_sign_in_at?: string;
+  app_metadata: {
     provider?: string;
     providers?: string[];
     [key: string]: any;
   };
-  user_metadata?: {
-    [key: string]: any;
+  user_metadata: {
+    [key: string]: any; // Custom fields like full_name, avatar_url
   };
-
-  // For AdminUserProfile page, if these are properties of your 'users' table:
-  banned?: boolean; // This seems to be a specific field in your 'users' table
-  // role_id might be how you store roles, if so, map it to 'role'
-
-  // Adding missing fields from src/types/user.ts to reduce conversion errors
-  // These may or may not be present on SupabaseUser directly, adjust AppUser enrichment
-  name?: string; // Often username or combination of first/last
-  avatar?: string; // often avatar_url
-  joined?: string; // often created_at
-  phone?: string;
-  lastLogin?: string; // often last_sign_in_at
-  favoriteGames?: string[]; // Custom app data
-  profile?: any; // From src/types/user.ts UserProfile, define more strictly if possible
-  isStaff?: boolean; // Custom app data
-  isAdmin?: boolean; // Custom app data, or derived from role
-  roles?: string[]; // Custom app data
-  kycStatus?: KycStatus; // Import KycStatus if needed. Assuming KycStatus is defined in kyc.ts
-  referralCode?: string; // Added for Referrals.tsx
-  referralLink?: string; // Added for Referrals.tsx
+  identities?: any[];
+  created_at: string;
+  updated_at: string;
 }
-
-// Ensure KycStatus is defined (likely in kyc.ts and re-exported)
-// If KycStatus is simple, you can define it here too:
-// export type KycStatus = 'not_started' | 'pending' | 'approved' | 'rejected' | 'resubmit';
-// For now, assuming it's in kyc.ts

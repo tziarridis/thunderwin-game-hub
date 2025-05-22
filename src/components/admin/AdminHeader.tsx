@@ -1,66 +1,48 @@
-
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Bell, UserCircle, Settings, LogOut, ChevronDown } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import SiteLogo from '../SiteLogo';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { LogOut, Settings } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Ensure useAuth is imported
 
 const AdminHeader = () => {
-  const { user, signOut } = useAuth(); // Changed logout to signOut
-  const navigate = useNavigate(); 
+  const { user, logout } = useAuth(); // Changed signOut to logout
 
-  const handleSignOut = async () => {
-    if (signOut) { 
-      await signOut(); 
-      navigate('/admin/login'); 
-    }
+  const handleLogout = async () => {
+    await logout(); // Use logout from AuthContext
+    // Navigate to login or home page after logout
   };
-  
-  const displayName = user?.app_metadata?.full_name || user?.email || 'Admin'; // Prefer full_name from app_metadata
 
   return (
-    <header className="bg-slate-900 text-white border-b border-slate-700 sticky top-0 z-40">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/admin/dashboard" className="flex items-center gap-2">
-          <SiteLogo className="h-8 w-auto text-primary" /> 
-          <span className="font-semibold text-lg hidden sm:inline">Admin Panel</span>
-        </Link>
-
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="hover:bg-slate-700">
-            <Bell className="h-5 w-5" />
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-2 hover:bg-slate-700 px-2 py-1">
-                <UserCircle className="h-6 w-6" />
-                <span className="hidden md:inline">{displayName}</span>
-                <ChevronDown className="h-4 w-4 text-slate-400" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700 text-white">
-              <DropdownMenuLabel>My Account ({user?.role || 'User'})</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-slate-700" />
-              <DropdownMenuItem asChild className="hover:!bg-slate-700 focus:!bg-slate-700 cursor-pointer">
-                <Link to="/admin/settings"><Settings className="mr-2 h-4 w-4" /> Profile Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="hover:!bg-slate-700 focus:!bg-slate-700 cursor-pointer">
-                <Link to="/"><Settings className="mr-2 h-4 w-4" /> View Site</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-slate-700" />
-              <DropdownMenuItem onClick={handleSignOut} className="hover:!bg-slate-700 focus:!bg-slate-700 cursor-pointer text-red-400 hover:!text-red-300">
-                <LogOut className="mr-2 h-4 w-4" /> Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    </header>
+    <div className="bg-casino-thunder-darker border-b border-casino-thunder-dark p-4 flex items-center justify-end">
+      <DropdownMenu>
+        <DropdownMenuTrigger>
+          <Avatar>
+            <AvatarImage src={user?.avatar_url || "https://github.com/shadcn.png"} alt={user?.username || "Admin"} />
+            <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase() || "AD"}</AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuItem>
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Log out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 };
 
 export default AdminHeader;
-

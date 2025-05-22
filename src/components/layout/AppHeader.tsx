@@ -1,181 +1,165 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useTheme } from "next-themes";
-import { cn } from '@/lib/utils';
+import React, { useState } from 'react';
+import { Link, NavLink } from 'react-router-dom';
+import { useTheme } from 'next-themes';
+import { useApp } from '@/contexts/AppContext';
 import { useAuth } from '@/contexts/AuthContext';
-import NavLinks from './NavLinks';
-import MobileNavBar from './MobileNavBar'; 
-import DepositButton from '@/components/user/DepositButton';
-import UserMenu from '@/components/user/UserMenu';
-import SiteLogo from '@/components/SiteLogo';
-import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
-import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet';
-import { AppUser } from '@/contexts/AppContext';
-import { User } from '@/types/user'; // Import your User type
-
-interface WalletState {
-  id: string;
-  userId: string;
-  balance: number;
-  currency: string;
-  symbol: string;
-  vipLevel: number;
-  vipPoints: number;
-  bonusBalance: number;
-  cryptoBalance: number;
-  demoBalance: number;
-  isActive: boolean;
-  lastTransactionDate: Date | null;
-  // Add the missing properties to match Wallet interface
-  hide_balance: boolean;
-  active: boolean;
-  total_bet: number;
-  total_won: number;
-  total_lose: number;
-  user_id: string;
-}
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Moon, Sun, Menu, LogOut, User, Settings, HelpCircle, Home, Plus, LayoutDashboard } from 'lucide-react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const AppHeader = () => {
-  // ... keep existing code (location, theme, auth variables)
-  const location = useLocation();
-  const { theme, setTheme } = useTheme(); 
-  const { user, isAuthenticated, signOut } = useAuth(); 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-  const [wallet, setWallet] = useState<WalletState | null>(null);
+  const { sidebarOpen, setSidebarOpen } = useApp();
+  const { theme, setTheme } = useTheme();
+  const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const { user, isAuthenticated, logout, isAdmin } = useAuth(); // Changed signOut to logout
 
-  const isHomePage = location.pathname === '/';
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      const fetchWallet = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('wallets')
-            .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, updated_at') 
-            .eq('user_id', user.id)
-            .maybeSingle();
-
-          if (error) {
-            console.error("Error fetching wallet:", error.message);
-            setWallet(null);
-          } else if (data) {
-            setWallet({
-              id: data.id,
-              userId: data.user_id,
-              user_id: data.user_id, // Add to match Wallet interface
-              balance: data.balance ?? 0,
-              currency: data.currency || 'USD',
-              symbol: data.symbol || '$',
-              vipLevel: data.vip_level ?? 0,
-              vipPoints: data.vip_points ?? 0,
-              bonusBalance: data.balance_bonus ?? 0, 
-              cryptoBalance: data.balance_cryptocurrency ?? 0, 
-              demoBalance: data.balance_demo ?? 0, 
-              isActive: data.active ?? false,
-              active: data.active ?? false, // Add to match Wallet interface
-              hide_balance: false, // Add to match Wallet interface
-              total_bet: 0, // Add to match Wallet interface
-              total_won: 0, // Add to match Wallet interface
-              total_lose: 0, // Add to match Wallet interface
-              lastTransactionDate: data.updated_at ? new Date(data.updated_at) : null,
-            });
-          } else {
-            setWallet(null);
-          }
-        } catch (err: any) {
-          console.error("Error in wallet fetch:", err.message);
-          setWallet(null);
-        }
-      };
-
-      fetchWallet();
-
-      const fetchNotificationsStatus = async () => {
-        // Mocking notification status for now
-        // const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_read', false);
-        // const unreadCount = count ?? 0;
-        const unreadCount = 0; // Placeholder
-        setHasUnreadNotifications(unreadCount > 0);
-      };
-
-      fetchNotificationsStatus();
-    } else {
-      setWallet(null);
-      setHasUnreadNotifications(false);
+  const handleLogout = async () => {
+    try {
+      await logout(); // Use logout from AuthContext
+      // navigate('/'); // or to login page
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // toast.error("Logout failed. Please try again.");
     }
-  }, [isAuthenticated, user]);
-
-  const toggleThemeHandler = () => { 
-    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
-
-  const toggleMobileMenuHandler = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
+  
   return (
-    <header className={cn(
-      "sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
-      isHomePage ? "bg-transparent border-transparent" : ""
-    )}>
-      <div className="container flex h-16 max-w-screen-2xl items-center">
-        <div className="flex flex-1 items-center justify-start">
-          <Link to="/" className="flex items-center space-x-2 mr-6">
-            <SiteLogo className="h-8 w-auto" />
-          </Link>
-          <div className="hidden md:flex md:items-center">
-            <NavLinks />
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-1 sm:space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleThemeHandler} 
-            className="hidden sm:flex"
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-
-          {isAuthenticated && user ? ( 
-            <>
-              <div className="hidden lg:block">
-                <DepositButton />
-              </div>
-              <NotificationsDropdown hasUnread={hasUnreadNotifications} />
-              <UserMenu 
-                user={user as User} // Cast AppUser from AuthContext to User type for UserMenu
-                onLogout={signOut}
-              />
-            </>
-          ) : (
-            <div className="hidden md:flex items-center space-x-2">
-              <Button variant="ghost" asChild>
-                <Link to="/login">Log In</Link>
-              </Button>
-              <Button asChild>
-                <Link to="/register">Sign Up</Link>
-              </Button>
+    <header className="bg-casino-thunder-darker border-b border-casino-thunder-dark flex items-center justify-between h-16 px-4 fixed top-0 left-0 w-full z-40">
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="sm" className="mr-2">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SheetHeader className="px-4 pt-4 pb-2">
+              <SheetTitle>Menu</SheetTitle>
+              <SheetDescription>Navigate through the app.</SheetDescription>
+            </SheetHeader>
+            <div className="py-2">
+              <NavLink to="/" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <Home className="mr-2 inline-block h-4 w-4" /> Home
+              </NavLink>
+              <NavLink to="/casino" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <LayoutDashboard className="mr-2 inline-block h-4 w-4" /> Casino
+              </NavLink>
+              <NavLink to="/sports" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <LayoutDashboard className="mr-2 inline-block h-4 w-4" /> Sports
+              </NavLink>
+              <NavLink to="/promotions" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <Gift className="mr-2 inline-block h-4 w-4" /> Promotions
+              </NavLink>
+              <NavLink to="/bonuses" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <Gift className="mr-2 inline-block h-4 w-4" /> Bonuses
+              </NavLink>
+              <NavLink to="/vip" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="mr-2 inline-block h-4 w-4">
+                  <path fillRule="evenodd" d="M12 1.757l8.25 4.714v8.458l-8.25 4.714-8.25-4.714V6.47l8.25-4.714zm.75 6.47l3.97 2.273-3.97 2.273-3.97-2.273 3.97-2.273z" clipRule="evenodd" />
+                </svg>
+                VIP
+              </NavLink>
+              <NavLink to="/support/help" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                <HelpCircle className="mr-2 inline-block h-4 w-4" /> Support
+              </NavLink>
+              {isAuthenticated ? (
+                <>
+                  <NavLink to="/profile" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                    <User className="mr-2 inline-block h-4 w-4" /> Profile
+                  </NavLink>
+                  {isAdmin && (
+                    <NavLink to="/admin" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                      <LayoutDashboard className="mr-2 inline-block h-4 w-4" /> Admin Panel
+                    </NavLink>
+                  )}
+                  <Button variant="ghost" onClick={handleLogout} className="block w-full text-left px-4 py-2 hover:bg-casino-thunder-dark">
+                    <LogOut className="mr-2 inline-block h-4 w-4" /> Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <NavLink to="/login" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                    <LogIn className="mr-2 inline-block h-4 w-4" /> Login
+                  </NavLink>
+                  <NavLink to="/register" className="block px-4 py-2 hover:bg-casino-thunder-dark">
+                    <Plus className="mr-2 inline-block h-4 w-4" /> Register
+                  </NavLink>
+                </>
+              )}
             </div>
-          )}
-
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenuHandler} aria-label="Toggle mobile menu">
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </Button>
-        </div>
-      </div>
-      
-       {isMobileMenuOpen && ( 
-        <div className="md:hidden">
-          <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet as unknown as Wallet} />
-        </div>
+          </SheetContent>
+        </Sheet>
       )}
+
+      {/* Logo */}
+      <Link to="/" className="text-lg font-bold">
+        ThunderWin
+      </Link>
+
+      {/* Theme Toggle & User Menu */}
+      <div className="flex items-center space-x-4">
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        >
+          {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+
+        {/* User Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.avatar_url || "https://github.com/shadcn.png"} alt={user?.username || "Avatar"} />
+                <AvatarFallback>{user?.username?.slice(0, 2).toUpperCase() || '?'}</AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{user?.username || user?.email || 'Guest'}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {isAuthenticated ? (
+              <>
+                <DropdownMenuItem onClick={() => navigate('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate('/admin')}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Admin Panel</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                <DropdownMenuItem onClick={() => navigate('/login')}>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  <span>Login</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/register')}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>Register</span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 };

@@ -1,171 +1,206 @@
-
-import React, { useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { gameService } from '@/services/gameService';
-import { Game } from '@/types';
+import { Game, GameProvider, GameCategory } from '@/types';
 import { Button } from '@/components/ui/button';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertTriangle, Heart, ChevronLeft } from 'lucide-react';
-import RelatedGames from '@/components/games/RelatedGames';
-import GameReviews from '@/components/games/GameReviews';
-import { useGames } from '@/hooks/useGames';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import RelatedGames from '@/components/games/RelatedGames'; // Ensure props are correct
+import GameReviews from '@/components/games/GameReviews'; // Ensure props are correct
+import GameProperties from '@/components/games/GameProperties'; // Ensure props are correct
+import { Star, PlayCircle, Heart, Loader2, AlertTriangle, ArrowLeft, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGames } from '@/hooks/useGames'; // For favorites and launch
 import { toast } from 'sonner';
-import LaunchGameButton from '@/components/casino/LaunchGameButton'; // Use the new button component
+import AppLayout from '@/components/layout/AppLayout';
 
-const GameDetails = () => {
-  const { gameId } = useParams<{ gameId: string }>();
+// Function to fetch game details, provider, and category
+const fetchGameDetails = async (gameIdOrSlug: string): Promise<{ game: Game; provider?: GameProvider; category?: GameCategory }> => {
+  // This function should fetch game, and optionally its provider and category details
+  // For simplicity, we assume gameService.getGameById includes enough details or separate calls are made.
+  
+  // Try fetching by slug first, then by ID if slug fails or is numeric ID
+  let gameData: Game | null = null;
+  try {
+    gameData = await gameService.getGameBySlug(gameIdOrSlug);
+  } catch (slugError) {
+    console.warn(`Failed to fetch game by slug "${gameIdOrSlug}", trying by ID if applicable.`);
+    // If gameIdOrSlug could be an ID (e.g., numeric or UUID), try fetching by ID
+    // This part depends on how your IDs vs slugs are structured.
+    // For now, we'll assume getGameById can handle either a numeric ID or a slug if getGameBySlug is not specific.
+    // Or, if you have a clear distinction:
+    // if (isNumeric(gameIdOrSlug) || isUUID(gameIdOrSlug)) {
+    //   gameData = await gameService.getGameById(gameIdOrSlug);
+    // } else {
+    //   throw slugError; // Re-throw if it wasn't an ID-like slug
+    // }
+    // Simplified: Assume getGameById handles it.
+    try {
+        gameData = await gameService.getGameById(gameIdOrSlug);
+    } catch (idError) {
+        console.error(`Failed to fetch game by ID "${gameIdOrSlug}" as well.`);
+        throw idError; // Or a combined error
+    }
+  }
+
+  if (!gameData) {
+    throw new Error(`Game with identifier "${gameIdOrSlug}" not found.`);
+  }
+
+  // Optionally fetch provider and category details if not embedded or if more info needed
+  let providerData: GameProvider | undefined = undefined;
+  if (gameData.provider_id) {
+    try {
+      // providerData = await gameService.getProviderById(String(gameData.provider_id)); // Assuming String conversion if needed
+      // Mocking for now if service method doesn't exist
+      providerData = { id: String(gameData.provider_id), name: `Provider ${gameData.provider_id}`, slug: `provider-${gameData.provider_id}`, status: 'active', created_at: '', updated_at: '' };
+    } catch (e) { console.warn("Failed to fetch provider details for game."); }
+  }
+
+  let categoryData: GameCategory | undefined = undefined;
+  if (gameData.category_id) {
+     try {
+      // categoryData = await gameService.getCategoryById(String(gameData.category_id));
+      // Mocking for now
+      categoryData = { id: String(gameData.category_id), name: `Category ${gameData.category_id}`, slug: `category-${gameData.category_id}`, status: 'active', created_at: '', updated_at: '' };
+    } catch (e) { console.warn("Failed to fetch category details for game."); }
+  }
+  
+  return { game: gameData, provider: providerData, category: categoryData };
+};
+
+
+const GameDetailsPage: React.FC = () => {
+  const { gameId } = useParams<{ gameId: string }>(); // gameId here can be slug or actual ID
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { favoriteGameIds, toggleFavoriteGame, games: allGames } = useGames();
+  const { favoriteGameIds, toggleFavoriteGame, launchGame } = useGames(); // Use useGames hook
 
-  const { data: game, isLoading, error, refetch } = useQuery<Game | null, Error>({
+  const { data, isLoading, error } = useQuery<{ game: Game; provider?: GameProvider; category?: GameCategory }, Error>({
     queryKey: ['gameDetails', gameId],
-    queryFn: async () => {
-        if (!gameId) return null;
-        // Try fetching by slug first, then by ID as a fallback
-        // This assumes gameService.getGameById can handle both or you have getGameBySlug
-        let fetchedGame = await gameService.getGameBySlug(gameId);
-        if (!fetchedGame) {
-            fetchedGame = await gameService.getGameById(gameId);
-        }
-        return fetchedGame;
-    },
+    queryFn: () => fetchGameDetails(gameId!),
     enabled: !!gameId,
   });
 
-  useEffect(() => {
-    if (gameId) {
-      refetch();
-    }
-    // Scroll to top when component mounts or gameId changes
-    window.scrollTo(0, 0);
-  }, [gameId, refetch]);
+  if (isLoading) {
+    return <AppLayout><div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></AppLayout>;
+  }
 
-  const handleToggleFavorite = () => {
-    if (!isAuthenticated) {
-      toast.info("Please log in to add to favorites.");
-      return;
-    }
-    if (game?.id) {
-      toggleFavoriteGame(String(game.id)); // Ensure game.id is string
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="container mx-auto py-8 px-4 text-center">
+           <Button variant="ghost" onClick={() => navigate(-1)} className="absolute top-20 left-4 sm:left-8 z-20">
+            <ArrowLeft className="mr-2 h-5 w-5" /> Back
+          </Button>
+          <AlertTriangle className="mx-auto h-16 w-16 text-red-500 mb-4 mt-20" />
+          <h2 className="text-3xl font-semibold mb-2">Game Not Found</h2>
+          <p className="text-muted-foreground mb-6">{error.message || "The game you are looking for could not be loaded or does not exist."}</p>
+          <Button onClick={() => navigate('/casino')}>Explore Other Games</Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!data || !data.game) {
+    return <AppLayout><div className="text-center py-10">Game data is unavailable.</div></AppLayout>;
+  }
+
+  const { game, provider, category } = data;
+  const isFavorite = favoriteGameIds.has(String(game.id));
+
+  const handlePlayGame = async (mode: 'real' | 'demo') => {
+    try {
+      const launchUrl = await launchGame(game, { mode });
+      if (launchUrl) {
+        // For seamless, might open in iframe or new tab. For now, new tab.
+        window.open(launchUrl, '_blank');
+      } else {
+        toast.error("Could not launch game. Launch URL not available.");
+      }
+    } catch (err: any) {
+      toast.error(`Failed to launch game: ${err.message}`);
     }
   };
   
-  const relatedGamesList = useMemo(() => {
-    if (!game || !allGames) return [];
-    return allGames
-    .filter(g => String(g.id) !== String(game.id) && (g.categoryName === game.categoryName || g.providerName === game.providerName))
-    .slice(0, 6);
-  }, [game, allGames]);
-
-
-  if (isLoading) return <div className="container mx-auto py-12 text-center min-h-screen"><Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" /><p className="mt-4">Loading game details...</p></div>;
-  if (error) return <div className="container mx-auto py-12 text-center min-h-screen text-destructive"><AlertTriangle className="h-12 w-12 mx-auto mb-2" />Error loading game: {error.message}</div>;
-  if (!game) return <div className="container mx-auto py-12 text-center min-h-screen text-muted-foreground">Game not found.</div>;
-
-  const isFavorite = favoriteGameIds.has(String(game.id)); // Ensure game.id is string
-  const canPlayDemo = !game.only_real; // Check if demo mode is allowed
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      <Button variant="outline" onClick={() => navigate(-1)} className="mb-6">
-        <ChevronLeft className="mr-2 h-4 w-4" /> Back
-      </Button>
+    <AppLayout>
+      <div className="container mx-auto py-8 px-4">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Games
+        </Button>
 
-      <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
-        <div>
-          <AspectRatio ratio={16 / 9} className="bg-muted rounded-lg overflow-hidden shadow-lg">
-            <img
-              src={game.image || game.cover || '/placeholder.svg'}
-              alt={game.title || 'Game image'}
-              className="object-cover w-full h-full"
-            />
-          </AspectRatio>
-          <div className="mt-6 flex flex-col sm:flex-row gap-3">
-            <LaunchGameButton 
-              game={game} 
-              mode="real" 
-              buttonText="Play Real Money" 
-              className="w-full sm:w-auto flex-grow" 
-              size="lg" 
-            />
-            {canPlayDemo && (
-              <LaunchGameButton 
-                game={game} 
-                mode="demo" 
-                buttonText="Play Demo" 
-                variant="secondary" 
-                className="w-full sm:w-auto flex-grow" 
-                size="lg" 
-              />
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Left Column: Game Image & Actions */}
+          <div className="md:col-span-1 space-y-6">
+            <AspectRatio ratio={3 / 4} className="bg-muted rounded-lg overflow-hidden shadow-lg">
+              <img src={game.image_url || '/placeholder.svg'} alt={game.title} className="object-cover w-full h-full" />
+            </AspectRatio>
+            <div className="space-y-2">
+              <Button onClick={() => handlePlayGame('real')} size="lg" className="w-full bg-green-500 hover:bg-green-600">
+                <PlayCircle className="mr-2 h-5 w-5" /> Play Real Money
+              </Button>
+              {game.features?.includes('demo_mode') && ( // Assuming 'features' array indicates demo availability
+                <Button onClick={() => handlePlayGame('demo')} size="lg" variant="outline" className="w-full">
+                  <PlayCircle className="mr-2 h-5 w-5" /> Play Demo
+                </Button>
+              )}
+            </div>
             {isAuthenticated && (
-              <Button variant="outline" size="lg" onClick={handleToggleFavorite} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={() => toggleFavoriteGame(String(game.id))} className="w-full">
                 <Heart className={`mr-2 h-5 w-5 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} />
-                {isFavorite ? 'Favorited' : 'Favorite'}
+                {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
+              </Button>
+            )}
+          </div>
+
+          {/* Right Column: Game Info & Details */}
+          <div className="md:col-span-2 space-y-8">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">{game.title}</h1>
+              <div className="flex items-center space-x-4 text-muted-foreground mb-4">
+                {provider && (
+                    <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => navigate(`/casino/providers/${provider.slug}`)}>
+                        By {provider.name}
+                    </span>
+                )}
+                {category && <span>| <span className="hover:text-primary transition-colors cursor-pointer" onClick={() => navigate(`/casino/categories/${category.slug}`)}>{category.name}</span></span>}
+              </div>
+              <div className="flex items-center space-x-1 mb-4">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className={`h-5 w-5 ${i < (game.rtp && game.rtp > 95 ? 4 : 3) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} /> // Mock rating based on RTP
+                ))}
+                <span className="text-sm text-muted-foreground ml-1">(Mocked Rating)</span>
+              </div>
+              <p className="text-lg text-muted-foreground leading-relaxed">{game.description || "No description available."}</p>
+            </div>
+            
+            <GameProperties game={game} providerName={provider?.name} categoryName={category?.name} />
+
+            {/* Related Games - Ensure props are correct for RelatedGames component */}
+            <RelatedGames 
+                currentGameId={String(game.id)} 
+                categoryId={game.category_id} 
+                providerId={game.provider_id} 
+                tags={game.tags} 
+            />
+
+            {/* Game Reviews - Ensure props are correct */}
+            <GameReviews gameId={String(game.id)} />
+
+            {game.external_url && (
+              <Button variant="link" asChild>
+                <a href={game.external_url} target="_blank" rel="noopener noreferrer">
+                  More Info on Provider Site <ExternalLink className="ml-2 h-4 w-4" />
+                </a>
               </Button>
             )}
           </div>
         </div>
-
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">{game.title}</h1>
-          {game.providerName && (
-            <Link 
-                to={`/casino/providers/${game.provider_slug || game.providerName.toLowerCase().replace(/\s+/g, '-')}`} 
-                className="text-lg text-primary hover:underline mb-4 block"
-            >
-              By {game.providerName}
-            </Link>
-          )}
-
-          {game.description && <p className="text-muted-foreground mb-6">{game.description}</p>}
-
-          <div className="space-y-3 mb-6 text-sm">
-            {game.categoryName && <p><strong>Category:</strong> <Badge variant="secondary">{game.categoryName}</Badge></p>}
-            {game.rtp && <p><strong>RTP:</strong> {game.rtp}%</p>}
-            {game.volatility && <p><strong>Volatility:</strong> <span className="capitalize">{game.volatility}</span></p>}
-            {game.releaseDate && <p><strong>Released:</strong> {new Date(game.releaseDate).toLocaleDateString()}</p>}
-            {game.lines && <p><strong>Paylines:</strong> {game.lines}</p>}
-          </div>
-
-          {game.tags && game.tags.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold mb-2 text-sm">Tags:</h3>
-              <div className="flex flex-wrap gap-2">
-                {game.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
-              </div>
-            </div>
-          )}
-
-          {game.features && game.features.length > 0 && (
-            <div className="mb-6">
-              <h3 className="font-semibold mb-2 text-sm">Features:</h3>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1 text-xs">
-                {game.features.map(feature => <li key={feature}>{feature}</li>)}
-              </ul>
-            </div>
-          )}
-        </div>
       </div>
-
-      {relatedGamesList.length > 0 && (
-        <section className="mt-12 pt-8 border-t border-border">
-          <h2 className="text-2xl font-bold mb-6">You Might Also Like</h2>
-          <RelatedGames games={relatedGamesList} />
-        </section>
-      )}
-      
-      <section className="mt-12 pt-8 border-t border-border">
-         <h2 className="text-2xl font-bold mb-6">Reviews</h2>
-         <GameReviews gameId={String(game.id)} />
-      </section>
-
-    </div>
+    </AppLayout>
   );
 };
 
-export default GameDetails;
+export default GameDetailsPage;

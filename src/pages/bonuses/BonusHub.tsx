@@ -1,199 +1,205 @@
+
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Bonus, BonusType, BonusStatus } from '@/types/bonus'; // Bonus type from bonus.ts
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { toast } from 'sonner';
-import { Gift, Ticket, RotateCcw, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { Badge } from '@/components/ui/badge'; // Added Badge import
+// import { bonusService } from '@/services/bonusService'; // Real service
+// import { promotionService } from '@/services/promotionService'; // Real service
+import { Bonus, UserBonus, Promotion, PromotionType } from '@/types'; // Make sure PromotionType is exported
+import PromotionCard from '@/components/promotions/PromotionCard';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AlertCircle, CheckCircle, Gift, Loader2, Tag } from 'lucide-react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import AppLayout from '@/components/layout/AppLayout'; // Or UserLayout if preferred
 
-// Example API call structure
-const fetchAvailableBonuses = async (userId?: string): Promise<Bonus[]> => {
-  // In a real app, filter by userId if provided, or fetch general available bonuses
-  console.log("Fetching available bonuses, userId:", userId);
-  await new Promise(resolve => setTimeout(resolve, 700)); // Simulate delay
-  // Example data
-  return [
-    { id: "promo1", name: "Welcome Bonus", description: "100% up to $100 on first deposit", type: "deposit", status: "active", percentage: 100, max_bonus_amount: 100, code: "WELCOME100", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), valid_until: new Date(Date.now() + 30*24*60*60*1000).toISOString() },
-    { id: "promo2", name: "20 Free Spins on Starburst", description: "Get 20 free spins, no deposit required!", type: "free_spins", status: "active", free_spins_count: 20, game_ids: ["starburst-slot"], created_at: new Date().toISOString(), updated_at: new Date().toISOString(), valid_until: new Date(Date.now() + 7*24*60*60*1000).toISOString() },
-    { id: "promo3", name: "Expired Offer", description: "This offer has expired.", type: "cashback", status: "expired", amount: 10, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), valid_until: new Date(Date.now() - 24*60*60*1000).toISOString() },
-  ];
+// Mock services
+const mockBonusService = {
+  getActiveUserBonuses: async (userId: string): Promise<UserBonus[]> => {
+    await new Promise(res => setTimeout(res, 500));
+    return [
+      { id: 'ub1', bonus_id: 'b1', user_id: userId, status: 'active', activated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86400000 * 7).toISOString(), progress: 0.3, bonus_details: { name: 'Active Welcome Bonus', type: 'deposit_match', amount: 50, currency: 'USD' } },
+      { id: 'ub2', bonus_id: 'b2', user_id: userId, status: 'available', bonus_details: { name: 'Weekend Spins', type: 'free_spins', amount: 20, currency: 'FS' } },
+    ];
+  },
+  claimBonus: async (userId: string, bonusCodeOrId: string): Promise<UserBonus> => {
+    await new Promise(res => setTimeout(res, 1000));
+    if (bonusCodeOrId === 'EXPIREDCODE') throw new Error("Bonus code is expired or invalid.");
+    toast.success(`Bonus "${bonusCodeOrId}" claimed successfully!`);
+    return { id: 'ub_new', bonus_id: bonusCodeOrId, user_id: userId, status: 'active', activated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86400000 * 3).toISOString(), progress: 0, bonus_details: { name: `Claimed: ${bonusCodeOrId}`, type: 'deposit_match', amount: 10, currency: 'USD'} };
+  }
 };
-
-const fetchClaimedBonuses = async (userId: string): Promise<Bonus[]> => {
-  // In a real app, fetch bonuses specifically claimed by this user
-  console.log("Fetching claimed bonuses for userId:", userId);
-  await new Promise(resolve => setTimeout(resolve, 700)); // Simulate delay
-  // Example data
-  return [
-    { id: "claimed1", name: "Weekly Cashback", description: "5% cashback on losses", type: "cashback", status: "used", amount: 5, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), valid_until: new Date(Date.now() + 3*24*60*60*1000).toISOString() },
-  ];
+const mockPromotionService = {
+  getAvailablePromotions: async (): Promise<Promotion[]> => {
+    await new Promise(res => setTimeout(res, 500));
+    return [
+      { id: 'p1', title: '100% Deposit Bonus', description: 'Double your first deposit up to $100.', type: 'deposit_bonus' as PromotionType, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 14).toISOString(), cta_text: 'Claim Now', code: 'WELCOME100', min_deposit: 10, bonus_percentage: 100, max_bonus_amount: 100, wagering_requirement: 30 },
+      { id: 'p2', title: '50 Free Spins on Starburst', description: 'Get 50 Free Spins when you sign up.', type: 'free_spins' as PromotionType, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 7).toISOString(), cta_text: 'Get Spins', free_spins_count: 50 },
+    ];
+  }
 };
+const bonusService = mockBonusService;
+const promotionService = mockPromotionService;
 
 
 const BonusHubPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [availableBonuses, setAvailableBonuses] = useState<Bonus[]>([]);
-  const [claimedBonuses, setClaimedBonuses] = useState<Bonus[]>([]);
-  const [isLoadingAvailable, setIsLoadingAvailable] = useState(true);
-  const [isLoadingClaimed, setIsLoadingClaimed] = useState(true);
-  const [isClaiming, setIsClaiming] = useState<Record<string, boolean>>({}); // Track claiming state per bonus
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [bonusCode, setBonusCode] = useState('');
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
-    const loadBonuses = async () => {
-      setIsLoadingAvailable(true);
-      try {
-        const bonuses = await fetchAvailableBonuses(user?.id);
-        setAvailableBonuses(bonuses.filter(b => b.status === 'active')); // Show only active ones as available
-      } catch (err) {
-        toast.error("Failed to load available bonuses.");
-        console.error(err);
-      } finally {
-        setIsLoadingAvailable(false);
-      }
+    if (!authLoading && !isAuthenticated) {
+      toast.error("Please log in to view bonuses.");
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
-      if (isAuthenticated && user?.id) {
-        setIsLoadingClaimed(true);
-        try {
-          const bonuses = await fetchClaimedBonuses(user.id);
-          setClaimedBonuses(bonuses);
-        } catch (err) {
-          toast.error("Failed to load your claimed bonuses.");
-          console.error(err);
-        } finally {
-          setIsLoadingClaimed(false);
-          setClaimedBonuses([]);
-        }
-      }
-    };
-    loadBonuses();
-  }, [isAuthenticated, user?.id]);
+  const { data: activeBonuses, isLoading: isLoadingActiveBonuses, refetch: refetchActiveBonuses } = useQuery<UserBonus[], Error>({
+    queryKey: ['userActiveBonuses', user?.id],
+    queryFn: () => user ? bonusService.getActiveUserBonuses(user.id) : Promise.resolve([]),
+    enabled: !!user && isAuthenticated,
+  });
 
-  const handleClaimBonus = async (bonus: Bonus) => {
-    if (!isAuthenticated || !user?.id) {
-      toast.error("Please log in to claim bonuses.");
+  const { data: availablePromotions, isLoading: isLoadingPromotions } = useQuery<Promotion[], Error>({
+    queryKey: ['availablePromotions'],
+    queryFn: promotionService.getAvailablePromotions,
+  });
+  
+  const handleClaimBonusCode = async () => {
+    if (!user || !bonusCode.trim()) {
+      toast.error("Please enter a bonus code.");
       return;
     }
-    if (bonus.status !== 'active') {
-        toast.warn("This bonus is not currently active.");
-        return;
-    }
-    setIsClaiming(prev => ({ ...prev, [bonus.id]: true }));
+    setIsClaiming(true);
     try {
-      // Simulate API call to claim bonus
-      console.log(`Claiming bonus ${bonus.name} for user ${user.id}`);
-      // In a real app, this would be: await supabase.rpc('claim_bonus', { p_user_id: user.id, p_bonus_id: bonus.id });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success(`Bonus "${bonus.name}" claimed successfully!`);
-      // Move bonus from available to claimed (or update its status)
-      setAvailableBonuses(prev => prev.filter(b => b.id !== bonus.id));
-      setClaimedBonuses(prev => [...prev, { ...bonus, status: 'used' }]); // Or 'pending_activation'
+      await bonusService.claimBonus(user.id, bonusCode.trim());
+      setBonusCode('');
+      refetchActiveBonuses(); // Refresh active bonuses list
     } catch (error: any) {
-      toast.error(`Failed to claim bonus: ${error.message || 'Please try again.'}`);
+      toast.error(error.message || "Failed to claim bonus.");
     } finally {
-      setIsClaiming(prev => ({ ...prev, [bonus.id]: false }));
+      setIsClaiming(false);
     }
   };
-  
-  const BonusCard: React.FC<{ bonus: Bonus, onClaim?: (bonus: Bonus) => void, isClaimed?: boolean, isClaiming?: boolean }> = ({ bonus, onClaim, isClaimed = false, isClaiming = false }) => {
-    const Icon = bonus.type === 'free_spins' ? Gift : bonus.type === 'deposit' ? Ticket : RotateCcw;
-    const isExpired = bonus.valid_until && new Date(bonus.valid_until) < new Date();
-    const statusText = isExpired ? "Expired" : isClaimed ? (bonus.status === 'used' ? "Used" : "Claimed") : bonus.status.replace(/_/g, ' ');
 
-    return (
-        <Card className={`w-full ${isExpired || bonus.status === 'expired' ? 'opacity-60' : ''}`}>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="text-lg">{bonus.name}</CardTitle>
-                        <CardDescription className="text-xs">{bonus.type.replace(/_/g, ' ').toUpperCase()}</CardDescription>
-                    </div>
-                    <Badge variant={isExpired || bonus.status === 'expired' ? 'outline' : (bonus.status === 'active' && !isClaimed ? 'success' : 'secondary')} className="capitalize">
-                      {statusText}
-                    </Badge>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">{bonus.description}</p>
-                {bonus.amount && <p className="text-sm">Amount: ${bonus.amount}</p>}
-                {bonus.percentage && <p className="text-sm">Percentage: {bonus.percentage}%</p>}
-                {bonus.max_bonus_amount && <p className="text-sm">Max Bonus: ${bonus.max_bonus_amount}</p>}
-                {bonus.free_spins_count && <p className="text-sm">Free Spins: {bonus.free_spins_count}</p>}
-                {bonus.wagering_requirement && <p className="text-sm">Wagering: {bonus.wagering_requirement}x</p>}
-                {bonus.code && <p className="text-sm">Code: <span className="font-semibold">{bonus.code}</span></p>}
-                 {bonus.valid_until && <p className={`text-xs mt-1 ${isExpired ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {isExpired ? 'Expired on:' : 'Valid until:'} {new Date(bonus.valid_until).toLocaleDateString()}
-                </p>}
-            </CardContent>
-            {!isClaimed && bonus.status === 'active' && !isExpired && onClaim && (
-                <CardFooter>
-                    <Button className="w-full" onClick={() => onClaim(bonus)} disabled={isClaiming}>
-                        {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Claim Bonus
-                    </Button>
-                </CardFooter>
-            )}
-             {(isClaimed || bonus.status !== 'active' || isExpired) && (
-                <CardFooter>
-                    <Button className="w-full" variant="outline" disabled>
-                        {isClaimed ? (bonus.status === 'used' ? 'Already Used' : 'Already Claimed') : (isExpired ? 'Expired' : 'Unavailable')}
-                    </Button>
-                </CardFooter>
-            )}
-        </Card>
-    );
-};
+  const handleClaimPromotion = async (promotion: Promotion) => {
+    if (!user) {
+      toast.error("Please log in to claim promotions.");
+      return;
+    }
+    setIsClaiming(true); // Use a generic claiming state or specific per-promotion
+    try {
+      // If promotion has a code, use it. Otherwise, it might be ID-based claim.
+      const claimIdentifier = promotion.code || promotion.id;
+      await bonusService.claimBonus(user.id, claimIdentifier);
+      toast.success(`Promotion "${promotion.title}" claimed!`);
+      refetchActiveBonuses();
+    } catch (error: any) {
+      toast.error(error.message || `Failed to claim promotion "${promotion.title}".`);
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
+
+  if (authLoading || (isLoadingActiveBonuses && isLoadingPromotions && !activeBonuses && !availablePromotions)) {
+    return <AppLayout><div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></AppLayout>;
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight">Bonus Hub</h1>
-        <p className="text-xl text-muted-foreground mt-2">Discover and manage your bonuses.</p>
+    <AppLayout>
+      <div className="container mx-auto py-8 px-4">
+        <h1 className="text-4xl font-bold mb-8 text-center">Bonus Hub</h1>
+
+        <Tabs defaultValue="available" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto mb-6">
+            <TabsTrigger value="available">Available Promotions</TabsTrigger>
+            <TabsTrigger value="active">My Active Bonuses</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="available">
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center"><Tag className="mr-2 h-5 w-5"/> Claim with Bonus Code</CardTitle>
+                <CardDescription>Have a bonus code? Enter it below to claim your reward.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col sm:flex-row gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Enter bonus code" 
+                  value={bonusCode}
+                  onChange={(e) => setBonusCode(e.target.value.toUpperCase())}
+                  className="input flex-grow bg-card border border-input rounded-md px-3 py-2 text-sm" // Basic input styling
+                />
+                <Button onClick={handleClaimBonusCode} disabled={isClaiming || !bonusCode.trim()} className="w-full sm:w-auto">
+                  {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                  Claim Bonus
+                </Button>
+              </CardContent>
+            </Card>
+
+            <h2 className="text-2xl font-semibold mb-4">Current Offers</h2>
+            {isLoadingPromotions ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : availablePromotions && availablePromotions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availablePromotions.map(promo => (
+                  <PromotionCard 
+                    key={promo.id} 
+                    promotion={promo} 
+                    onClaim={user ? () => handleClaimPromotion(promo) : undefined}
+                    // onDetails can navigate to a promotion details page or show a modal
+                    onDetails={(p) => toast.info(`Details for ${p.title} (Not implemented)`)} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-10">No promotions available at the moment. Check back soon!</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="active">
+            <h2 className="text-2xl font-semibold mb-4">Your Active & Available Bonuses</h2>
+            {isLoadingActiveBonuses ? (
+              <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
+            ) : activeBonuses && activeBonuses.length > 0 ? (
+              <div className="space-y-4">
+                {activeBonuses.map(userBonus => (
+                  <Card key={userBonus.id} className={`border-l-4 ${userBonus.status === 'active' ? 'border-green-500' : 'border-blue-500'}`}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        {userBonus.bonus_details?.name || `Bonus ID: ${userBonus.bonus_id}`}
+                        <Badge variant={userBonus.status === 'active' ? 'default' : 'secondary'}>{userBonus.status}</Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        {userBonus.bonus_details?.type && `Type: ${userBonus.bonus_details.type}`}
+                        {userBonus.bonus_details?.amount && ` | Value: ${userBonus.bonus_details.amount} ${userBonus.bonus_details.currency || ''}`}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {userBonus.expires_at && <p className="text-sm text-muted-foreground">Expires: {format(new Date(userBonus.expires_at), 'PPpp')}</p>}
+                      {userBonus.status === 'active' && userBonus.progress !== undefined && (
+                        <div>
+                          <p className="text-sm">Progress: {(userBonus.progress * 100).toFixed(0)}%</p>
+                          <div className="w-full bg-muted rounded-full h-2.5 mt-1">
+                            <div className="bg-primary h-2.5 rounded-full" style={{ width: `${userBonus.progress * 100}%` }}></div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Add more details like terms or actions */}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-10">You have no active or available bonuses right now.</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs defaultValue="available" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="available">Available Bonuses</TabsTrigger>
-          <TabsTrigger value="claimed">My Bonuses</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="available">
-          <h2 className="text-2xl font-semibold mb-4">Available For You</h2>
-          {isLoadingAvailable ? (
-             <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-3">Loading available bonuses...</span></div>
-          ) : availableBonuses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {availableBonuses.map(bonus => (
-                <BonusCard key={bonus.id} bonus={bonus} onClaim={handleClaimBonus} isClaiming={isClaiming[bonus.id]} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-10">No new bonuses available at the moment. Check back soon!</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="claimed">
-          <h2 className="text-2xl font-semibold mb-4">Your Claimed Bonuses</h2>
-          {!isAuthenticated ? (
-            <p className="text-muted-foreground text-center py-10">Please <Link to="/login" className="text-primary hover:underline">log in</Link> to see your claimed bonuses.</p>
-          ) : isLoadingClaimed ? (
-            <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <span className="ml-3">Loading your bonuses...</span></div>
-          ) : claimedBonuses.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {claimedBonuses.map(bonus => (
-                <BonusCard key={bonus.id} bonus={bonus} isClaimed={true} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-10">You haven't claimed any bonuses yet.</p>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+    </AppLayout>
   );
 };
 

@@ -1,312 +1,228 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, SortingState, ColumnDef } from '@tanstack/react-table';
-import { toast } from 'sonner';
-
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DataTable } from "@/components/ui/data-table";
-import AdminPageLayout from "@/components/layout/AdminPageLayout";
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { kycService } from '@/services/kycService';
+import { KycAttempt, KycStatus as KycStatusType, User } from '@/types';
+import AdminPageLayout from '@/components/layout/AdminPageLayout';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef, useReactTable, getCoreRowModel } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { Eye, CheckCircle, XCircle, RefreshCw, Loader2, Filter } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+// import KycDetailsModal from '@/components/admin/KycDetailsModal'; // Assuming this component exists
 
-import { FileSearch, RefreshCw, Loader2 } from 'lucide-react';
-import { KycStatus, KycDocumentTypeEnum, KycDocument, KycAttempt } from '@/types/kyc';
+const kycStatusOptions: { value: KycStatusType | 'all'; label: string }[] = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'pending_review', label: 'Pending Review' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'resubmit_required', label: 'Resubmit Required' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'not_started', label: 'Not Started' },
+  { value: 'verified', label: 'Verified' },
+];
 
-const KycManagementPage = () => {
-  const [filters, setFilters] = useState({ status: '', searchTerm: '' });
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [sorting, setSorting] = useState<SortingState>([]);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedKycAttempt, setSelectedKycAttempt] = useState<KycAttempt | null>(null);
-  const [updateStatus, setUpdateStatus] = useState<KycStatus | ''>('');
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [adminNotes, setAdminNotes] = useState('');
-
+const KycManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const [filters, setFilters] = useState({ userId: '', status: 'all' as KycStatusType | 'all', page: 0, limit: 10 });
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedKycAttempt, setSelectedKycAttempt] = useState<KycAttempt | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery<{ attempts: KycAttempt[], totalCount: number }, Error>({
-    queryKey: ['kycAttempts', filters, pagination],
-    queryFn: async () => {
-      // Replace with actual kycService.getKycAttempts call
-      // This is a placeholder structure
-      console.log("Fetching KYC attempts with filters:", filters, "pagination:", pagination);
-      // Simulate API call
-      // const fetchedData = await kycService.getAllAttempts({ ...filters, ...pagination });
-      // return { attempts: fetchedData.data, totalCount: fetchedData.count };
-      
-      // Placeholder data for now
-      const mockAttempts: KycAttempt[] = [
-        { id: '1', user_id: 'user123', status: 'pending_review', documents: [{id: 'doc1', user_id: 'user123', document_type: KycDocumentTypeEnum.ID_CARD_FRONT, file_url: '/placeholder.svg', status: 'pending', uploaded_at: new Date().toISOString()}], created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notes: 'First attempt' },
-        { id: '2', user_id: 'user456', status: 'approved', documents: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-      ];
-      return { attempts: mockAttempts, totalCount: mockAttempts.length };
-    },
-    // keepPreviousData: true, // Consider this for smoother pagination
+  const { data: kycData, isLoading, refetch } = useQuery<{ attempts: KycAttempt[], totalCount: number }, Error>({
+    queryKey: ['kycAttempts', filters],
+    queryFn: () => kycService.getAllKycAttempts({ 
+      userId: filters.userId || undefined, 
+      status: filters.status === 'all' ? undefined : filters.status,
+      page: filters.page,
+      limit: filters.limit,
+    }),
   });
 
-  const kycAttempts = data?.attempts || [];
-  const totalCount = data?.totalCount || 0;
-  const pageCount = Math.ceil(totalCount / pagination.pageSize);
+  const attempts = kycData?.attempts || [];
+  const totalCount = kycData?.totalCount || 0;
+  const pageCount = Math.ceil(totalCount / filters.limit);
 
-
-  const updateKycMutation = useMutation({
-    mutationFn: async (payload: { attemptId: string; status: KycStatus; rejectionReason?: string; adminNotes?: string }) => {
-      // Replace with actual kycService.updateKycAttemptStatus call
-      console.log("Updating KYC attempt:", payload);
-      // await kycService.updateAttemptStatus(payload.attemptId, payload.status, payload.rejectionReason, payload.adminNotes);
-      // Simulate update
-      return Promise.resolve();
-    },
+  const updateKycStatusMutation = useMutation({
+    mutationFn: ({ attemptId, status, remarks }: { attemptId: string; status: KycStatusType; remarks?: string }) =>
+      kycService.updateKycAttemptStatus(attemptId, status, remarks),
     onSuccess: () => {
-      toast.success('KYC status updated successfully.');
       queryClient.invalidateQueries({ queryKey: ['kycAttempts'] });
-      setIsModalOpen(false);
-      setSelectedKycAttempt(null);
-      setUpdateStatus('');
-      setRejectionReason('');
-      setAdminNotes('');
+      toast.success('KYC status updated successfully.');
+      if (isDetailsModalOpen) setIsDetailsModalOpen(false);
     },
-    onError: (err: Error) => {
-      toast.error(`Failed to update KYC status: ${err.message}`);
+    onError: (error: Error) => {
+      toast.error(`Failed to update KYC status: ${error.message}`);
     },
   });
 
   const handleViewDetails = (attempt: KycAttempt) => {
     setSelectedKycAttempt(attempt);
-    setUpdateStatus(attempt.status); // Pre-fill current status
-    setAdminNotes(attempt.notes || '');
-    setRejectionReason(attempt.documents.find(doc => doc.status === 'rejected')?.rejection_reason || ''); // Example prefill
-    setIsModalOpen(true);
+    setIsDetailsModalOpen(true);
   };
-
-  const handleSubmitUpdate = () => {
-    if (!selectedKycAttempt || !updateStatus) {
-      toast.error("No KYC attempt selected or status is missing.");
-      return;
-    }
-    if (updateStatus === 'rejected' && !rejectionReason) {
-      toast.error("Rejection reason is required for rejected status.");
-      return;
-    }
-    updateKycMutation.mutate({
-      attemptId: selectedKycAttempt.id,
-      status: updateStatus as KycStatus, // Cast as KycStatus because '' is not valid for mutation
-      rejectionReason: updateStatus === 'rejected' ? rejectionReason : undefined,
-      adminNotes: adminNotes,
-    });
+  
+  const handleUpdateStatus = (attemptId: string, status: KycStatusType, remarks?: string) => {
+    // This might be called from KycDetailsModal or directly from table actions
+    updateKycStatusMutation.mutate({ attemptId, status, remarks });
   };
 
   const columns: ColumnDef<KycAttempt>[] = [
-    { accessorKey: "id", header: "Attempt ID" },
-    { accessorKey: "user_id", header: "User ID" }, // TODO: Fetch and show username/email
+    { accessorKey: 'id', header: 'Attempt ID', cell: ({ row }) => <span className="truncate w-20 block">{row.original.id}</span> },
     { 
-      accessorKey: "status", 
-      header: "Status",
+      accessorKey: 'user_id', 
+      header: 'User ID / Email',
+      cell: ({ row }) => {
+        const user = row.original.user as User; // Assuming user is populated
+        return user ? (
+            <div className="flex flex-col">
+                <span>{user.username || user.email || row.original.user_id}</span>
+                <span className="text-xs text-muted-foreground">{row.original.user_id}</span>
+            </div>
+        ) : row.original.user_id;
+      } 
+    },
+    { 
+      accessorKey: 'status', 
+      header: 'Status', 
       cell: ({ row }) => <KycStatusDisplay status={row.original.status} />
     },
     { 
-      accessorKey: "documents", 
-      header: "Documents",
-      cell: ({ row }) => row.original.documents.length 
+      accessorKey: 'document_type', 
+      header: 'Doc Type',
+      cell: ({row}) => row.original.document_type || 'N/A'
     },
     { 
-      accessorKey: "created_at", 
-      header: "Submitted At",
-      cell: ({ row }) => format(new Date(row.original.created_at), "PPpp")
+      accessorKey: 'created_at', 
+      header: 'Submitted At', 
+      cell: ({ row }) => format(new Date(row.original.created_at), 'PPpp') 
     },
     { 
-      accessorKey: "updated_at", 
-      header: "Last Updated",
-      cell: ({ row }) => format(new Date(row.original.updated_at), "PPpp")
+      accessorKey: 'reviewed_at', 
+      header: 'Reviewed At', 
+      cell: ({ row }) => row.original.reviewed_at ? format(new Date(row.original.reviewed_at), 'PPpp') : 'N/A' 
+    },
+    { 
+      accessorKey: 'reviewed_by', 
+      header: 'Reviewed By',
+      cell: ({row}) => row.original.reviewed_by_admin?.username || row.original.reviewed_by || 'N/A' // Assuming admin relation
     },
     {
-      id: "actions",
-      header: "Actions",
+      id: 'actions',
+      header: 'Actions',
       cell: ({ row }) => (
-        <Button variant="outline" size="sm" onClick={() => handleViewDetails(row.original)}>
-          <FileSearch className="mr-2 h-4 w-4" /> View/Update
-        </Button>
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" onClick={() => handleViewDetails(row.original)}>
+            <Eye className="mr-1 h-4 w-4" /> View
+          </Button>
+          {/* More actions can be added here if needed, e.g., quick approve/reject */}
+        </div>
       ),
     },
   ];
 
   const table = useReactTable({
-    data: kycAttempts,
+    data: attempts,
     columns,
     pageCount: pageCount,
-    state: {
-      pagination,
-      sorting,
+    state: { pagination: { pageIndex: filters.page, pageSize: filters.limit } },
+    onPaginationChange: (updater) => {
+        const newPagination = typeof updater === 'function' ? updater({pageIndex: filters.page, pageSize: filters.limit}) : updater;
+        setFilters(prev => ({ ...prev, page: newPagination.pageIndex, limit: newPagination.pageSize }));
     },
-    onPaginationChange: setPagination,
-    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
-    manualSorting: true,
   });
+  
+  const handleFilterChange = (key: keyof typeof filters, value: string | number) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: 0 })); // Reset to first page on filter change
+  };
 
-
-  if (error) return <AdminPageLayout title="KYC Management"><div className="text-red-500 p-4">Error loading KYC attempts: {error.message}</div></AdminPageLayout>;
+  const headerActions = (
+     <Button onClick={() => refetch()} variant="outline" disabled={isLoading || updateKycStatusMutation.isPending}>
+        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+        Refresh List
+      </Button>
+  );
 
   return (
-    <AdminPageLayout title="KYC Management" headerActions={<Button onClick={() => refetch()} disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh Data</Button>}>
-      <div className="space-y-4">
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 p-4 bg-card rounded-lg shadow">
-          <Input
-            placeholder="Search by User ID or Attempt ID..."
-            value={filters.searchTerm}
-            onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-            className="max-w-sm"
+    <AdminPageLayout title="KYC Management" headerActions={headerActions}>
+      <div className="p-4 bg-card rounded-lg shadow mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input 
+            placeholder="Search by User ID or Email"
+            value={filters.userId}
+            onChange={e => handleFilterChange('userId', e.target.value)}
           />
-          <Select
-            value={filters.status}
-            onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+          <Select 
+            value={filters.status} 
+            onValueChange={(value: KycStatusType | 'all') => handleFilterChange('status', value)}
           >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
-              {(Object.keys(KycDocumentTypeEnum) as Array<keyof typeof KycDocumentTypeEnum>).map(key => (
-                <SelectItem key={KycDocumentTypeEnum[key]} value={KycDocumentTypeEnum[key]}>
-                  {KycDocumentTypeEnum[key].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </SelectItem>
+              {kycStatusOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setPagination(prev => ({ ...prev, pageIndex: 0 })); refetch(); }} disabled={isLoading}>
-            Apply Filters
+          <Button onClick={() => refetch()} disabled={isLoading}>
+            <Filter className="mr-2 h-4 w-4" /> Apply Filters
           </Button>
         </div>
-
-        {isLoading && kycAttempts.length === 0 ? (
-          <div className="flex justify-center items-center py-10">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2">Loading KYC attempts...</p>
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <DataTable table={table} columns={columns} isLoading={isLoading} />
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* Pagination Controls (Simplified example, use DataTable's built-in or custom component) */}
-         <div className="flex items-center justify-end space-x-2 py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <span className="text-sm">
-              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
-          </div>
-
       </div>
 
-      {/* Modal for Viewing/Updating KYC Attempt */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>KYC Attempt Details: {selectedKycAttempt?.id}</DialogTitle>
-            <DialogDescription>User ID: {selectedKycAttempt?.user_id}</DialogDescription>
-          </DialogHeader>
-          {selectedKycAttempt && (
-            <div className="space-y-4 py-4">
-              <div>
-                <h4 className="font-semibold mb-2">Submitted Documents:</h4>
-                {selectedKycAttempt.documents.length > 0 ? (
-                  <ul className="space-y-2">
-                    {selectedKycAttempt.documents.map(doc => (
-                      <li key={doc.id} className="border p-2 rounded-md">
-                        <p>Type: <Badge variant="secondary">{doc.document_type.replace(/_/g, ' ')}</Badge></p>
-                        <p>Status: <Badge variant={doc.status === 'approved' ? 'default' : doc.status === 'rejected' ? 'destructive' : 'outline'}>{doc.status}</Badge></p>
-                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-sm">View Document</a>
-                        {doc.rejection_reason && <p className="text-red-500 text-xs">Reason: {doc.rejection_reason}</p>}
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="text-muted-foreground">No documents submitted.</p>}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="current-status">Current Status</Label>
-                  <Input id="current-status" value={selectedKycAttempt.status.replace(/_/g, ' ')} readOnly className="bg-muted" />
-                </div>
-                 <div>
-                  <Label htmlFor="update-status">Update Status</Label>
-                  <Select value={updateStatus} onValueChange={(value) => setUpdateStatus(value as KycStatus)}>
-                    <SelectTrigger id="update-status">
-                      <SelectValue placeholder="Select new status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                       {(Object.keys(KycDocumentTypeEnum) as Array<keyof typeof KycDocumentTypeEnum>).map(key => (
-                          <SelectItem key={KycDocumentTypeEnum[key]} value={KycDocumentTypeEnum[key]}>
-                            {KycDocumentTypeEnum[key].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      <DataTable table={table} columns={columns} isLoading={isLoading} />
 
-              {updateStatus === 'rejected' && (
-                <div>
-                  <Label htmlFor="rejection-reason">Rejection Reason</Label>
-                  <Textarea
-                    id="rejection-reason"
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    placeholder="Provide a reason for rejection..."
-                  />
-                </div>
+      {/* {selectedKycAttempt && isDetailsModalOpen && (
+        <KycDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          kycAttempt={selectedKycAttempt}
+          onUpdateStatus={handleUpdateStatus}
+          isLoading={updateKycStatusMutation.isPending}
+        />
+      )} */}
+       {/* Placeholder for modal, if KycDetailsModal exists */}
+      {isDetailsModalOpen && selectedKycAttempt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h2 className="text-xl font-semibold mb-4">KYC Attempt Details (ID: {selectedKycAttempt.id})</h2>
+            <p>User ID: {selectedKycAttempt.user_id}</p>
+            <p>Status: <KycStatusDisplay status={selectedKycAttempt.status} /></p>
+            <p>Document Type: {selectedKycAttempt.document_type || 'N/A'}</p>
+            <p>Submitted: {format(new Date(selectedKycAttempt.created_at), 'PPpp')}</p>
+            {/* Display more details, documents, etc. */}
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
+              {/* Example update buttons */}
+              {selectedKycAttempt.status === 'pending_review' && (
+                <>
+                  <Button 
+                    variant="success"
+                    onClick={() => handleUpdateStatus(selectedKycAttempt.id, 'approved', 'Looks good.')}
+                    disabled={updateKycStatusMutation.isPending}
+                  >
+                    Approve
+                  </Button>
+                   <Button 
+                    variant="destructive"
+                    onClick={() => handleUpdateStatus(selectedKycAttempt.id, 'rejected', 'Information mismatch.')}
+                    disabled={updateKycStatusMutation.isPending}
+                  >
+                    Reject
+                  </Button>
+                </>
               )}
-              <div>
-                <Label htmlFor="admin-notes">Admin Notes</Label>
-                <Textarea
-                  id="admin-notes"
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Internal notes for this attempt..."
-                />
-              </div>
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSubmitUpdate} disabled={updateKycMutation.isPending || !updateStatus}>
-              {updateKycMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Status
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      )}
+
     </AdminPageLayout>
   );
 };

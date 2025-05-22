@@ -1,23 +1,39 @@
 
-export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
-export type TransactionType = 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund' | 'adjustment'; // Added 'adjustment'
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'processing' | 'requires_action';
+export type TransactionType = 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund' | 'adjustment' | 'fee';
+export type PaymentMethod = 'credit_card' | 'bank_transfer' | 'crypto' | 'paypal' | 'skrill' | 'neteller' | 'internal';
 
 export interface Transaction {
   id: string;
+  user_id: string;
   amount: number;
+  currency: string; // e.g., 'USD', 'EUR', 'BTC'
   type: TransactionType;
   status: TransactionStatus;
-  currency: string;
-  provider: string; // general provider (e.g. payment gateway, game provider)
-  provider_transaction_id?: string; // ID from the external provider
+  payment_method?: PaymentMethod; // Optional, relevant for deposits/withdrawals
+  provider_transaction_id?: string; // External ID from payment gateway or game provider
+  description?: string; // Optional, more details about the transaction
+  created_at: string; // ISO date string
+  updated_at: string; // ISO date string
+  
+  // Optional game-related fields (for bet/win transactions)
   game_id?: string;
   round_id?: string;
-  session_id?: string;
-  player_id: string; // This should be user_id from your users table
-  balance_before?: number;
-  balance_after?: number;
-  created_at: string;
-  updated_at: string;
+  
+  // Optional bonus-related fields
+  bonus_id?: string;
+
+  // Metadata for additional details
   metadata?: Record<string, any>;
-  notes?: string; // Admin notes, was in ExtendedTransaction
+
+  // For display purposes, user object might be joined
+  user?: { // Simplified user object for display
+    username?: string;
+    email?: string;
+  };
+}
+
+export interface DateRange {
+  from?: Date;
+  to?: Date;
 }

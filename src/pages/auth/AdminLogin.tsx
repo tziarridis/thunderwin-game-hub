@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,51 +7,63 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-
+import { Loader2, ShieldCheck } from 'lucide-react';
+import { LoginCredentials } from '@/types'; // Import LoginCredentials
 
 const AdminLoginPage: React.FC = () => {
+  const { adminLogin, loading, error: authError, isAdmin, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { adminLogin, isAuthenticated, isAdmin, loading, error } = useAuth(); // Use adminLogin, check if error is part of context
-  const navigate = useNavigate();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isAuthenticated && isAdmin) {
-      navigate('/admin/dashboard');
+      navigate('/admin/dashboard'); // Redirect if already logged in as admin
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
+      return;
+    }
     if (!adminLogin) {
-        toast.error("Admin login function is not available in AuthContext.");
+        toast.error("Admin login functionality is not available.");
         return;
     }
-    const result = await adminLogin({ email, password }); // adminLogin should handle loading state internally or return it
-    if (result && result.error) { // Check if adminLogin returns an error object
-      toast.error(result.error.message || 'Admin login failed. Check credentials and permissions.');
-    } else if (!result || (result && !result.error && !isAdmin)) { // If no error but not admin, implies login succeeded but no admin role
-      // This case might need refinement based on how adminLogin and isAdmin state are precisely determined
-      // For instance, adminLogin might first do a regular login, then AuthContext checks role.
-      // If adminLogin itself is supposed to ensure admin role, then an error should be returned by it.
-      // toast.error('Login successful, but you do not have admin privileges.');
-      // navigate('/'); // Redirect non-admins away
+    
+    const credentials: LoginCredentials = { email, password };
+    const result = await adminLogin(credentials);
+
+    if (result && !result.error) {
+      toast.success('Admin login successful!');
+      navigate('/admin/dashboard'); 
+    } else if (result && result.error) {
+      toast.error(result.error.message || 'Admin login failed. Check credentials or permissions.');
+    } else if (!result) {
+        toast.error('Admin login failed. An unexpected error occurred.');
     }
-    // Successful admin login is handled by useEffect redirect
   };
+  
+  React.useEffect(() => {
+    if (authError) {
+      // toast.error(authError);
+    }
+  }, [authError]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/40">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+      <Card className="w-full max-w-md shadow-2xl bg-gray-800 border-gray-700 text-white">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Admin Login</CardTitle>
-          <CardDescription>Enter your administrator credentials to access the dashboard.</CardDescription>
+          <ShieldCheck className="mx-auto h-12 w-12 text-blue-400 mb-4" />
+          <CardTitle className="text-3xl font-bold">Admin Panel</CardTitle>
+          <CardDescription className="text-gray-400">Secure sign-in for administrators.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-300">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -58,27 +71,31 @@ const AdminLoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="h-12 text-base bg-gray-700 border-gray-600 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-gray-300">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="h-12 text-base bg-gray-700 border-gray-600 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Login
+            {authError && <p className="text-sm text-red-400 text-center">{authError}</p>}
+            <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
+              Sign In as Admin
             </Button>
-          </CardFooter>
-        </form>
+          </form>
+        </CardContent>
+        <CardFooter>
+          {/* Optional: Link back to main site or other info */}
+        </CardFooter>
       </Card>
     </div>
   );

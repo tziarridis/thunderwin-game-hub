@@ -1,181 +1,236 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Referral, AffiliateStats } from '@/types/affiliate';
-import { ColumnDef, SortingState, useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, CellContext } from "@tanstack/react-table";
-import { format } from 'date-fns';
+
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
 import UserLayout from '@/components/layout/UserLayout';
-import UserPageLoadingSkeleton from '@/components/user/UserPageLoadingSkeleton';
-import { DataTable } from '@/components/ui/data-table';
+// import { affiliateService } from '@/services/affiliateService'; // Assuming this exists
+import { AffiliateStats, AffiliateLink, AffiliateEarning } from '@/types';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Users, DollarSign, Percent, CreditCard, Copy } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Copy, LinkIcon, Users, DollarSign, BarChart3, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+
+
+// Define AffiliateDashboardData if it's a specific combined type
+interface AffiliateDashboardData {
+  stats: AffiliateStats;
+  links: AffiliateLink[];
+  recentEarnings: AffiliateEarning[];
+  referralCode: string;
+  referralLinkBase: string; // e.g. "https://yourapp.com/register?ref="
+}
+
+// Mock affiliateService
+const mockAffiliateService = {
+  getDashboardData: async (userId: string): Promise<AffiliateDashboardData> => {
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    if (userId === "errorUser") throw new Error("Failed to fetch affiliate data");
+    return {
+      stats: { clicks: 120, sign_ups: 30, active_players: 15, total_earnings: 250.75, unpaid_earnings: 75.20, commission_rate: 0.25 },
+      links: [
+        { id: 'link1', name: 'Default Link', url: `https://yourapp.com/register?ref=testcode123`, clicks: 80, sign_ups: 20, created_at: new Date().toISOString() },
+        { id: 'link2', name: 'Campaign A', url: `https://yourapp.com/register?ref=campA`, clicks: 40, sign_ups: 10, created_at: new Date().toISOString() },
+      ],
+      recentEarnings: [
+        { id: 'earn1', amount: 10.50, player_id: 'playerX', transaction_id: 'txABC', created_at: new Date(Date.now() - 86400000).toISOString() }, // 1 day ago
+        { id: 'earn2', amount: 5.25, player_id: 'playerY', transaction_id: 'txDEF', created_at: new Date(Date.now() - 172800000).toISOString() }, // 2 days ago
+      ],
+      referralCode: 'testcode123',
+      referralLinkBase: 'https://yourapp.com/register?ref='
+    };
+  }
+};
+const affiliateService = mockAffiliateService;
+
 
 const AffiliateDashboardPage: React.FC = () => {
-  const { user } = useAuth();
-  
-  const [stats, setStats] = useState<AffiliateStats | null>(null);
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [customLinkName, setCustomLinkName] = useState('');
 
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [sorting, setSorting] = useState<SortingState>([]);
-
-  // Simulated data fetching
-  useEffect(() => {
-    setIsLoadingStats(true); setIsLoadingReferrals(true);
-    if(user?.referralCode && user?.referralLink) {
-        // Simulate API calls
-        // const fetchedStats = await affiliateService.getStats(user.id);
-        // const fetchedReferrals = await affiliateService.getReferrals(user.id, {page, limit});
-        setTimeout(() => {
-            setStats({
-                totalReferrals: 5,
-                activeReferrals: 3,
-                totalEarnings: 150.75,
-                commissionRate: 0.20, // 20%
-                pendingPayout: 25.50,
-                referralCode: user.referralCode!,
-                referralLink: user.referralLink!,
-            });
-            setReferrals([
-                { id: 'ref1', referredUserId: 'userABC', referredUsername: 'PlayerOne', joinDate: new Date().toISOString(), commissionEarned: 75.20, status: 'active' },
-                { id: 'ref2', referredUserId: 'userXYZ', referredUsername: 'PlayerTwo', joinDate: new Date(Date.now() - 86400000 * 5).toISOString(), commissionEarned: 50.55, status: 'active' },
-                { id: 'ref3', referredUserId: 'userDEF', referredUsername: 'PlayerThree', joinDate: new Date(Date.now() - 86400000 * 10).toISOString(), commissionEarned: 25.00, status: 'pending_first_deposit' },
-            ]);
-            setIsLoadingStats(false); setIsLoadingReferrals(false);
-        }, 1000);
-    } else {
-        setIsLoadingStats(false); setIsLoadingReferrals(false);
-    }
-  }, [user]);
-  
-  const pageCount = Math.ceil((stats?.totalReferrals || 0) / pagination.pageSize);
-
-
-  const columns: ColumnDef<Referral>[] = [
-    { accessorKey: "referredUsername", header: "Referred User" },
-    { accessorKey: "joinDate", header: "Join Date", cell: ({row}) => format(new Date(row.original.joinDate), "PP") },
-    { accessorKey: "status", header: "Status", cell: ({row}) => <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>{row.original.status.replace(/_/g, ' ')}</Badge> },
-    { accessorKey: "commissionEarned", header: "Commission Earned", cell: ({row}) => `$${row.original.commissionEarned.toFixed(2)}` },
-  ];
-  
-  const table = useReactTable({
-    data: referrals,
-    columns,
-    pageCount: pageCount,
-    state: { pagination, sorting },
-    onPaginationChange: setPagination,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: true, // If API handles pagination
-    manualSorting: true, // If API handles sorting
+  const { data, isLoading, error, refetch } = useQuery<AffiliateDashboardData, Error>({
+    queryKey: ['affiliateDashboard', user?.id],
+    queryFn: () => {
+        if (!user?.id) throw new Error("User not authenticated or ID missing");
+        return affiliateService.getDashboardData(user.id);
+    },
+    enabled: !!user?.id && isAuthenticated && !authLoading,
   });
 
-  if (isLoadingStats || isLoadingReferrals && !stats && referrals.length === 0) {
-    return <UserPageLoadingSkeleton />;
-  }
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
+  const handleCreateLink = () => {
+    if (!customLinkName.trim()) {
+      toast.error('Please enter a name for your custom link.');
+      return;
+    }
+    // Placeholder: Implement actual link creation via service
+    toast.info(`Creating link "${customLinkName}" (feature not fully implemented).`);
+    // Example: affiliateService.createLink(user.id, customLinkName).then(() => refetch());
+    setCustomLinkName('');
+  };
   
-  if (!user || !stats?.referralCode) {
+  if (authLoading) {
+    return <UserLayout><div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></UserLayout>;
+  }
+
+  if (!isAuthenticated || !user) {
+    navigate('/login'); // Redirect if not authenticated
+    return null; 
+  }
+
+  if (isLoading && !data) {
+     return <UserLayout><div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div></UserLayout>;
+  }
+
+  if (error) {
     return (
       <UserLayout>
-        <div className="container mx-auto px-4 py-8 text-center">
-            <Users className="mx-auto h-12 w-12 text-primary mb-4" />
-            <h1 className="text-2xl font-semibold mb-2">Affiliate Program</h1>
-            <p className="text-muted-foreground mb-4">It looks like you're not yet set up for our affiliate program, or your referral code is missing.</p>
-            <Button>Contact Support to Join</Button> {/* Placeholder action */}
+        <div className="container mx-auto py-8 px-4 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">Error Loading Affiliate Data</h2>
+          <p className="text-muted-foreground mb-4">{error.message}</p>
+          <Button onClick={() => refetch()}><RefreshCw className="mr-2 h-4 w-4" /> Retry</Button>
         </div>
       </UserLayout>
     );
   }
+  
+  if (!data) {
+     return <UserLayout><div className="text-center py-8">No affiliate data available.</div></UserLayout>;
+  }
 
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast.success("Referral link copied to clipboard!");
-    }).catch(err => {
-      toast.error("Failed to copy link.");
-      console.error('Failed to copy text: ', err);
-    });
-  };
+  const { stats, links, recentEarnings, referralCode, referralLinkBase } = data;
+  const defaultReferralLink = `${referralLinkBase}${referralCode}`;
 
   return (
-    <UserLayout title="Affiliate Dashboard">
-      <div className="space-y-6">
+    <UserLayout>
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Affiliate Dashboard</h1>
+            <Button onClick={() => refetch()} variant="outline" disabled={isLoading}><RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin': ''}`}/> Refresh Data</Button>
+        </div>
+
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{stats.totalReferrals}</div></CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">${stats.totalEarnings.toFixed(2)}</div></CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
-              <Percent className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">{(stats.commissionRate * 100).toFixed(0)}%</div></CardContent>
-          </Card>
-           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Payout</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent><div className="text-2xl font-bold">${stats.pendingPayout.toFixed(2)}</div></CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <StatCard title="Total Earnings" value={`$${stats.total_earnings.toFixed(2)}`} icon={<DollarSign />} />
+          <StatCard title="Unpaid Earnings" value={`$${stats.unpaid_earnings.toFixed(2)}`} icon={<DollarSign />} />
+          <StatCard title="Commission Rate" value={`${(stats.commission_rate * 100).toFixed(0)}%`} icon={<BarChart3 />} />
+          <StatCard title="Total Clicks" value={String(stats.clicks)} icon={<Users />} />
+          <StatCard title="Sign Ups" value={String(stats.sign_ups)} icon={<Users />} />
+          <StatCard title="Active Players" value={String(stats.active_players)} icon={<Users />} />
         </div>
 
         {/* Referral Link */}
-        <Card>
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Your Referral Link</CardTitle>
-            <CardDescription>Share this link to invite new players and earn commissions.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex items-center space-x-2">
-            <Input value={stats.referralLink} readOnly className="flex-grow" />
-            <Button onClick={() => copyToClipboard(stats.referralLink!)}><Copy className="mr-2 h-4 w-4"/> Copy Link</Button>
-          </CardContent>
-           <CardFooter className="text-xs text-muted-foreground">
-            Your referral code: <Badge variant="secondary" className="ml-1">{stats.referralCode}</Badge>
-          </CardFooter>
-        </Card>
-
-        {/* Referrals Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Referrals</CardTitle>
-            <CardDescription>List of users you've referred.</CardDescription>
+            <CardTitle>Your Default Referral Link</CardTitle>
+            <CardDescription>Share this link to earn commissions.</CardDescription>
           </CardHeader>
           <CardContent>
-            <DataTable table={table} columns={columns} isLoading={isLoadingReferrals} />
+            <div className="flex items-center space-x-2 bg-muted p-3 rounded-md">
+              <LinkIcon className="h-5 w-5 text-muted-foreground" />
+              <Input type="text" value={defaultReferralLink} readOnly className="flex-grow bg-transparent border-none focus:ring-0" />
+              <Button size="sm" variant="ghost" onClick={() => handleCopyToClipboard(defaultReferralLink)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+             <p className="text-sm text-muted-foreground mt-2">Your referral code: <strong>{referralCode}</strong></p>
           </CardContent>
-           {pageCount > 1 && (
-            <CardFooter className="flex items-center justify-end space-x-2 py-4">
-                <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-                <span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
-                <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-            </CardFooter>
-            )}
         </Card>
-        {/* Potentially add sections for marketing materials, payout history, etc. */}
+        
+        {/* Custom Links - Simplified for now */}
+        <Card className="mb-8">
+            <CardHeader>
+                <CardTitle>Your Affiliate Links</CardTitle>
+                <CardDescription>Manage your campaign links.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {links.map(link => (
+                        <div key={link.id} className="flex items-center justify-between p-3 bg-muted rounded-md">
+                            <div>
+                                <p className="font-semibold">{link.name}</p>
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{link.url}</a>
+                                <p className="text-xs text-muted-foreground">Clicks: {link.clicks} | Sign-ups: {link.sign_ups}</p>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => handleCopyToClipboard(link.url)}>
+                                <Copy className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-6 pt-4 border-t">
+                    <h3 className="text-lg font-semibold mb-2">Create New Link</h3>
+                    <div className="flex gap-2">
+                        <Input 
+                            type="text" 
+                            placeholder="Campaign Name (e.g., SummerPromo)" 
+                            value={customLinkName}
+                            onChange={(e) => setCustomLinkName(e.target.value)}
+                            className="flex-grow"
+                        />
+                        <Button onClick={handleCreateLink}>Create Link</Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+
+        {/* Recent Earnings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Earnings</CardTitle>
+            <CardDescription>A log of your recent commission earnings.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Player ID</TableHead>
+                  <TableHead>Source Transaction</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentEarnings.length > 0 ? recentEarnings.map(earning => (
+                  <TableRow key={earning.id}>
+                    <TableCell>{format(new Date(earning.created_at), 'PPp')}</TableCell>
+                    <TableCell className="text-green-500 font-semibold">${earning.amount.toFixed(2)}</TableCell>
+                    <TableCell>{earning.player_id}</TableCell>
+                    <TableCell>{earning.transaction_id}</TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">No recent earnings.</TableCell></TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
       </div>
     </UserLayout>
   );
 };
+
+interface StatCardProps { title: string; value: string; icon: React.ReactNode; }
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon }) => (
+  <Card>
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      <div className="text-muted-foreground">{icon}</div>
+    </CardHeader>
+    <CardContent>
+      <div className="text-2xl font-bold">{value}</div>
+    </CardContent>
+  </Card>
+);
 
 export default AffiliateDashboardPage;

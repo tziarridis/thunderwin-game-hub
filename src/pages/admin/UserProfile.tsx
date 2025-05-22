@@ -1,186 +1,172 @@
-// src/pages/admin/UserProfile.tsx
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, UserRole, UserStatus } from '@/types';
-import { KycStatus } from '@/types/kyc';
-import UserInfoForm from '@/components/admin/UserInfoForm';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { userService } from '@/services/userService';
+import { User, UserRole, KycStatus as KycStatusEnum } from '@/types'; // KycStatus aliased to KycStatusEnum
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
+import UserInfoForm from '@/components/admin/UserInfoForm'; // For editing basic info
+// import UserTransactionsTable from '@/components/admin/UserTransactionsTable'; // If exists
+// import UserActivityLog from '@/components/admin/UserActivityLog'; // If exists
+import KycStatusDisplay from '@/components/kyc/KycStatusDisplay'; // Corrected import
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, UserCog, Ban, AlertOctagon, MailCheck } from 'lucide-react';
+import { ArrowLeft, Save, Ban, CheckCircle, Edit, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from 'date-fns';
+
+// Define available roles for selection
+const availableRoles: UserRole[] = ['user', 'admin', 'support', 'manager', 'vip_player', 'affiliate'];
+const availableStatuses: User['status'][] = ['active', 'inactive', 'pending_verification', 'banned', 'restricted'];
+
 
 const AdminUserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  
-  // Simulated fetch, replace with actual useQuery and userService.getUserById(userId)
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
 
-  useEffect(() => {
-    setIsLoading(true);
-    if (userId) {
-      // Simulate fetching user data
-      // const fetchedUser = await userService.getUserById(userId);
-      // setUser(fetchedUser);
-      const mockUserFromDb = { // This represents data coming from your DB for 'users' table
-        id: userId,
-        username: `user_${userId.substring(0,5)}`,
-        email: `user_${userId.substring(0,5)}@example.com`,
-        avatar_url: null,
-        first_name: 'John',
-        last_name: 'Doe',
-        role: 'user' as UserRole, // Assuming 'user' is a valid UserRole
-        status: 'active' as UserStatus,
-        is_verified: true,
-        is_banned: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_sign_in_at: new Date().toISOString(),
-        // Other fields that might be in your 'users' table directly
-        // Example: balance, currency might be on users table or wallet table
-        balance: 100.00,
-        currency: "USD",
-        // Fields from AppUser/Supabase User that might not be on your 'users' table directly
-        // but are needed for the full User type from user.d.ts
-        // These would typically be merged or have defaults
-        app_metadata: { provider: 'email', providers: ['email'] },
-        user_metadata: { custom_field: 'value' },
-        isActive: true,
-        // Additional fields from the extended User type in user.d.ts:
-        name: `John Doe user_${userId.substring(0,5)}`, // Combined or from profile
-        avatar: null, // Often same as avatar_url
-        joined: new Date().toISOString(), // Often same as created_at
-        phone: '123-456-7890',
-        lastLogin: new Date().toISOString(), // Often same as last_sign_in_at
-        favoriteGames: ['game1', 'game2'],
-        profile: { bio: 'Loves playing slots.' }, // Could be a JSONB field
-        isStaff: false,
-        isAdmin: false, // Derived from role
-        roles: ['user' as UserRole], // Array of roles
-        kycStatus: 'approved' as KycStatus,
-        referralCode: `REF-${userId.substring(0,5)}`,
-        referralLink: `/ref/REF-${userId.substring(0,5)}`,
-        // Ensure banned is also present if UserInfoForm expects it (it's in User type)
-        banned: false,
-      };
-      setUser(mockUserFromDb as User); // Cast as User, ensure all fields are covered
-      setIsLoading(false);
-    } else {
-      setError(new Error("User ID is missing."));
-      setIsLoading(false);
-    }
-  }, [userId]);
-
-
-  const userMutation = useMutation({
-    mutationFn: async (updatedUserData: Partial<User>) => {
-      if (!userId) throw new Error("User ID is missing");
-      // await userService.updateUser(userId, updatedUserData);
-      return Promise.resolve(); // Placeholder
-    },
-    onSuccess: () => {
-      toast.success("User profile updated successfully.");
-      // refetch(); // If using useQuery
-      // For local state, you might update it or re-fetch
-    },
-    onError: (e: Error) => {
-      toast.error(`Failed to update user: ${e.message}`);
-    },
+  const { data: user, isLoading, error } = useQuery<User, Error>({
+    queryKey: ['adminUser', userId],
+    queryFn: () => userService.getUserById(userId!),
+    enabled: !!userId,
   });
 
-  const handleUserInfoSubmit = (data: Partial<User>) => {
-    userMutation.mutate(data);
+  const updateUserMutation = useMutation({
+    mutationFn: (updatedData: Partial<User>) => userService.updateUser(userId!, updatedData),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(['adminUser', userId], updatedUser);
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); // Invalidate user list if changes affect it
+      toast.success('User profile updated successfully!');
+      setIsEditingInfo(false);
+    },
+    onError: (updateError: Error) => {
+      toast.error(`Failed to update user: ${updateError.message}`);
+    },
+  });
+  
+  // Placeholder for other mutations (ban, verify, etc.)
+  // const banUserMutation = useMutation(...);
+  // const verifyUserKycMutation = useMutation(...);
+
+  if (isLoading) return <AdminPageLayout title="User Profile"><div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></AdminPageLayout>;
+  if (error) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">Error loading user: {error.message}</div></AdminPageLayout>;
+  if (!user) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">User not found.</div></AdminPageLayout>;
+
+  const handleInfoSubmit = (values: Partial<User>) => {
+    // Ensure role and status are correctly formatted if they come from a form
+    const dataToUpdate: Partial<User> = {
+        ...values,
+        role: values.role || user.role, // Keep original if not changed
+        status: values.status || user.status, // Keep original if not changed
+    };
+    updateUserMutation.mutate(dataToUpdate);
   };
 
-  // ... other handlers for banning, KYC, transactions, etc.
+  const breadcrumbs = [
+      { label: "Admin", href: "/admin" },
+      { label: "Users", href: "/admin/users" },
+      { label: user.username || user.email || userId! }
+  ];
 
-  if (isLoading) return <AdminPageLayout title="User Profile"><div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div></AdminPageLayout>;
-  if (error) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">Error: {error.message}</div></AdminPageLayout>;
-  if (!user) return <AdminPageLayout title="User Profile"><div className="text-muted-foreground p-4">User not found.</div></AdminPageLayout>;
-
-  // Ensure the 'user' object passed to UserInfoForm matches the props UserInfoForm expects.
-  // UserInfoForm is read-only, so we adapt 'user' to it.
-  // The error TS2739 indicates 'user' is missing many properties.
-  // The mockUserFromDb above now includes many of these.
-  // The cast `as User` above needs to be valid.
+  const headerActions = (
+    <div className="flex gap-2">
+        <Button variant="outline" onClick={() => setIsEditingInfo(!isEditingInfo)} disabled={updateUserMutation.isPending}>
+            <Edit className="mr-2 h-4 w-4" /> {isEditingInfo ? 'Cancel Edit' : 'Edit User Info'}
+        </Button>
+        {/* Add other action buttons like Ban, Verify KYC etc. */}
+    </div>
+  );
 
   return (
-    <AdminPageLayout title={`User Profile: ${user.username || user.email}`} breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Users", href: "/admin/users" }, {label: "Profile"}]}>
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview & Edit</TabsTrigger>
-          <TabsTrigger value="wallet">Wallet & Balance</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="activity">Activity Log</TabsTrigger>
-          <TabsTrigger value="kyc">KYC Status</TabsTrigger>
-          <TabsTrigger value="support">Support Tickets</TabsTrigger>
-          <TabsTrigger value="actions">Admin Actions</TabsTrigger>
-        </TabsList>
+    <AdminPageLayout title={`User Profile: ${user.username || user.email}`} breadcrumbs={breadcrumbs} headerActions={headerActions}>
+      <Button variant="ghost" onClick={() => navigate('/admin/users')} className="mb-4">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users List
+      </Button>
 
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Information</CardTitle>
-              <CardDescription>View and edit user details.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Ensure 'user' object here has all properties UserInfoForm expects (which is 'User' type) */}
-              <UserInfoForm initialData={user} onSubmit={handleUserInfoSubmit} isLoading={userMutation.isPending} />
-            </CardContent>
-          </Card>
-          {/* Other cards for stats, recent activity, etc. */}
-        </TabsContent>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+                <span>{user.username || 'N/A'}</span>
+                <Badge variant={user.is_active ? 'default' : 'destructive'}>{user.is_active ? 'Active' : 'Inactive'}</Badge>
+            </CardTitle>
+            <CardDescription>{user.email}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p><strong>ID:</strong> {user.id}</p>
+            <p><strong>Role:</strong> <Badge variant="secondary">{user.role || 'N/A'}</Badge></p>
+            <p><strong>Status:</strong> <Badge variant={user.status === 'active' ? 'default' : 'outline'}>{user.status || 'N/A'}</Badge></p>
+            <p><strong>Joined:</strong> {format(new Date(user.created_at), 'PPpp')}</p>
+            <p><strong>Last Login:</strong> {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'PPpp') : 'N/A'}</p>
+            <p><strong>KYC Status:</strong> <KycStatusDisplay status={user.kyc_status as KycStatusEnum || 'not_started'} /></p>
+            <p><strong>Balance:</strong> {user.balance?.toFixed(2) || '0.00'} {user.currency || 'N/A'}</p>
+            {/* More fields: VIP Level, etc. */}
+          </CardContent>
+        </Card>
 
-        <TabsContent value="wallet">
-          {/* Wallet details, balance adjustments */}
-          <Card><CardHeader><CardTitle>Wallet Management</CardTitle></CardHeader><CardContent><p>Wallet details coming soon...</p></CardContent></Card>
-        </TabsContent>
-        <TabsContent value="transactions">
-          {/* List of user's transactions */}
-          <Card><CardHeader><CardTitle>User Transactions</CardTitle></CardHeader><CardContent><p>Transaction list coming soon...</p></CardContent></Card>
-        </TabsContent>
-        {/* ... other TabsContent ... */}
-         <TabsContent value="activity">
-          <Card><CardHeader><CardTitle>User Activity Log</CardTitle></CardHeader><CardContent><p>Activity log coming soon...</p></CardContent></Card>
-        </TabsContent>
-        <TabsContent value="kyc">
-           <Card>
-            <CardHeader><CardTitle>KYC Information</CardTitle></CardHeader>
-            <CardContent>
-                <KycStatusDisplay status={user.kycStatus} />
-                {/* Further KYC details and actions */}
-                <p className="mt-2 text-sm text-muted-foreground">KYC management features coming soon.</p>
-            </CardContent>
-           </Card>
-        </TabsContent>
-         <TabsContent value="support">
-          <Card><CardHeader><CardTitle>Support Tickets</CardTitle></CardHeader><CardContent><p>Support ticket history coming soon...</p></CardContent></Card>
-        </TabsContent>
-         <TabsContent value="actions">
-          <Card>
-            <CardHeader><CardTitle>Admin Actions</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <Button variant="destructive" onClick={() => alert(`Confirm ban user ${user.id}? (not implemented)`)} disabled={user.is_banned}>
-                    {user.is_banned ? <Ban className="mr-2 h-4 w-4" /> : <AlertOctagon className="mr-2 h-4 w-4" />}
-                    {user.is_banned ? 'User is Banned' : 'Ban User'}
-                </Button>
-                 <Button variant="outline" onClick={() => alert(`Trigger email verification for ${user.email}? (not implemented)`)} disabled={user.is_verified}>
-                    <MailCheck className="mr-2 h-4 w-4" />
-                    {user.is_verified ? 'Email Verified' : 'Send Verification Email'}
-                </Button>
-                 {/* More actions like reset password, assign role etc. */}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </Tabs>
+        <div className="md:col-span-2">
+          {isEditingInfo ? (
+            <Card>
+              <CardHeader><CardTitle>Edit User Information</CardTitle></CardHeader>
+              <CardContent>
+                <UserInfoForm 
+                    initialData={{
+                        username: user.username || '',
+                        email: user.email || '',
+                        first_name: user.first_name || '',
+                        last_name: user.last_name || '',
+                        role: user.role,
+                        status: user.status,
+                        is_active: user.is_active,
+                        is_banned: user.is_banned,
+                        is_verified: user.is_verified,
+                        // map other relevant fields from User to form if UserInfoForm expects them
+                    }} 
+                    onSubmit={handleInfoSubmit} 
+                    isLoading={updateUserMutation.isPending}
+                    availableRoles={availableRoles}
+                    availableUserStatuses={availableStatuses}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="transactions">Transactions</TabsTrigger>
+                <TabsTrigger value="activity">Activity Log</TabsTrigger>
+                <TabsTrigger value="settings">User Settings</TabsTrigger>
+              </TabsList>
+              <TabsContent value="overview" className="mt-4">
+                <Card>
+                  <CardHeader><CardTitle>Detailed Information</CardTitle></CardHeader>
+                  <CardContent>
+                    <p><strong>First Name:</strong> {user.first_name || 'N/A'}</p>
+                    <p><strong>Last Name:</strong> {user.last_name || 'N/A'}</p>
+                    <p><strong>Phone:</strong> {user.phone_number || 'N/A'}</p>
+                    <p><strong>Date of Birth:</strong> {user.date_of_birth ? format(new Date(user.date_of_birth), 'PP') : 'N/A'}</p>
+                    {/* Display address if available */}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="transactions" className="mt-4">
+                <p>User transactions list placeholder.</p>
+                {/* <UserTransactionsTable userId={userId!} /> */}
+              </TabsContent>
+              <TabsContent value="activity" className="mt-4">
+                <p>User activity log placeholder.</p>
+                {/* <UserActivityLog userId={userId!} /> */}
+              </TabsContent>
+              <TabsContent value="settings" className="mt-4">
+                <p>User specific settings and controls placeholder (e.g., limits, 2FA status).</p>
+              </TabsContent>
+            </Tabs>
+          )}
+        </div>
+      </div>
     </AdminPageLayout>
   );
 };

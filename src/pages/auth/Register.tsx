@@ -1,132 +1,103 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-
+import { Loader2, UserPlus } from 'lucide-react';
+import { RegisterCredentials } from '@/types'; // Import RegisterCredentials
 
 const RegisterPage: React.FC = () => {
+  const { register, loading, error: authError, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [username, setUsername] = useState(''); // Optional username
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const { register, isAuthenticated, loading, error } = useAuth(); // register from AuthContext
-  const navigate = useNavigate();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/'); // Or to a specific post-registration page
+      navigate('/'); // Redirect if already logged in
     }
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !username || !password || !confirmPassword) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
     if (password !== confirmPassword) {
       toast.error("Passwords do not match.");
       return;
     }
-    if (!agreedToTerms) {
-      toast.error("You must agree to the terms and conditions.");
-      return;
-    }
-    if (!register) {
-        toast.error("Registration function is not available.");
-        return;
-    }
 
-    const result = await register({ email, password, data: { username } }); // Pass username in data for Supabase
-    if (result && result.error) {
+    const credentials: RegisterCredentials = { email, username, password };
+    const result = await register(credentials);
+
+    if (result && !result.error) {
+      toast.success('Registration successful! Please check your email to verify your account (if applicable).');
+      // Supabase might auto-login or require email verification.
+      // AuthContext listener should handle session update.
+      // We can navigate to login or home. If email verification is on, user might not be fully "authenticated" yet by app logic.
+      navigate('/'); // Or '/login' if post-registration login is preferred
+    } else if (result && result.error) {
       toast.error(result.error.message || 'Registration failed. Please try again.');
+    } else if (!result) {
+        toast.error('Registration failed. An unexpected error occurred.');
     }
-    // Successful registration might be handled by useEffect or AuthContext redirecting
-    // or by navigating based on result if no automatic redirect occurs
   };
+  
+  React.useEffect(() => {
+    if (authError) {
+      // toast.error(authError); 
+    }
+  }, [authError]);
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-dark to-casino-darker p-4">
+      <Card className="w-full max-w-md shadow-2xl bg-card">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Create an Account</CardTitle>
-          <CardDescription>Join us today! It's quick and easy.</CardDescription>
+          <UserPlus className="mx-auto h-12 w-12 text-primary mb-4" />
+          <CardTitle className="text-3xl font-bold">Create Your Account</CardTitle>
+          <CardDescription>Join ThunderWin today and experience the ultimate gaming thrill!</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username (Optional)</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="your_username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="h-11 text-base"/>
             </div>
-            <div className="space-y-2">
+            <div>
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" type="text" placeholder="your_username" value={username} onChange={(e) => setUsername(e.target.value)} required className="h-11 text-base"/>
+            </div>
+            <div>
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 text-base"/>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="confirm-password">Confirm Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="h-11 text-base"/>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="terms" 
-                checked={agreedToTerms}
-                onCheckedChange={(checked) => setAgreedToTerms(!!checked)}
-                disabled={loading}
-              />
-              <Label htmlFor="terms" className="text-sm font-normal">
-                I agree to the <Link to="/terms" className="underline hover:text-primary">Terms and Conditions</Link>
-              </Label>
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading || !agreedToTerms}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+             {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
+            <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5"/>}
               Sign Up
             </Button>
-          </CardFooter>
-        </form>
-        <p className="mt-4 px-8 text-center text-sm text-muted-foreground mb-6">
-          Already have an account?{' '}
-          <Link to="/login" className="font-semibold text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center">
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <Link to="/login" className="font-semibold text-primary hover:underline">
+              Sign In
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );

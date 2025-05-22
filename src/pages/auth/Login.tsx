@@ -1,51 +1,68 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-// import { FaGoogle, FaFacebook } from 'react-icons/fa'; // Example for social logins
+import { Loader2, LogIn } from 'lucide-react';
+import { LoginCredentials } from '@/types'; // Import LoginCredentials
 
 const LoginPage: React.FC = () => {
+  const { login, loading, error: authError, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isAuthenticated, loading, error } = useAuth(); // login from AuthContext
-  const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
 
-
-  useEffect(() => {
+  React.useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      navigate('/'); // Redirect if already logged in
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!login) {
-        toast.error("Login function is not available.");
-        return;
+    if (!email || !password) {
+      toast.error("Please enter both email and password.");
+      return;
     }
-    const result = await login({ email, password });
-    if (result && result.error) {
+    
+    const credentials: LoginCredentials = { email, password };
+    const result = await login(credentials);
+
+    if (result && !result.error) {
+      toast.success('Logged in successfully!');
+      navigate('/'); // Redirect to dashboard or home on successful login
+    } else if (result && result.error) {
+      // AuthError's message is already handled by AuthContext's setError,
+      // but we can show a toast here too.
       toast.error(result.error.message || 'Login failed. Please check your credentials.');
+    } else if (!result) { // Should not happen if login always returns object
+        toast.error('Login failed. An unexpected error occurred.');
     }
-    // Successful login is handled by useEffect
   };
+  
+  // Display authError from context if it exists
+  React.useEffect(() => {
+    if (authError) {
+      // toast.error(authError); // AuthContext might already show its own errors via a global Toaster
+      // Clear error in context after showing? Or let context manage its display.
+    }
+  }, [authError]);
+
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <Card className="w-full max-w-md mx-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-dark to-casino-darker p-4">
+      <Card className="w-full max-w-md shadow-2xl bg-card">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight">Welcome Back!</CardTitle>
-          <CardDescription>Sign in to continue to your account.</CardDescription>
+          <LogIn className="mx-auto h-12 w-12 text-primary mb-4" />
+          <CardTitle className="text-3xl font-bold">Welcome Back!</CardTitle>
+          <CardDescription>Sign in to access your account and continue the thrill.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -55,60 +72,41 @@ const LoginPage: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={loading}
+                className="h-12 text-base"
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={loading}
+                className="h-12 text-base"
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
+            <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
+              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
               Sign In
             </Button>
-            {/* Social Logins Placeholder */}
-            {/* <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" disabled={loading}><FaGoogle className="mr-2 h-4 w-4"/>Google</Button>
-              <Button variant="outline" disabled={loading}><FaFacebook className="mr-2 h-4 w-4"/>Facebook</Button>
-            </div> */}
-          </CardFooter>
-        </form>
-        <p className="mt-4 px-8 text-center text-sm text-muted-foreground">
-          Don't have an account?{' '}
-          <Link to="/register" className="font-semibold text-primary hover:underline">
-            Sign up
+          </form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center space-y-2">
+           <Link to="/forgot-password" // Assuming a forgot password route
+            className="text-sm text-primary hover:underline"
+          >
+            Forgot your password?
           </Link>
-        </p>
-         <p className="mt-2 mb-4 px-8 text-center text-sm text-muted-foreground">
-          <Link to="/admin/login" className="font-semibold text-primary hover:underline">
-            Admin Login
-          </Link>
-        </p>
+          <p className="text-sm text-muted-foreground">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-semibold text-primary hover:underline">
+              Sign Up
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
     </div>
   );
