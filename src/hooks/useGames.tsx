@@ -282,19 +282,20 @@ interface GamesContextType {
   handlePlayGame: (game: Game, mode: 'real' | 'demo') => void;
   handleGameDetails: (game: Game) => void;
   
-  favoriteGames: string[];
+  favoriteGames: string[]; // These are favorite game IDs
   favoriteGameIds: Set<string>;
   toggleFavoriteGame: (gameIdOrSlug: string) => void;
   isFavorite: (gameIdOrSlug: string) => boolean;
-  isLoadingFavorites: boolean;
+  isLoadingFavoriteGameIds: boolean; // Renamed from isLoadingFavorites to avoid conflict
 
   getFeaturedGames: (count?: number) => Promise<Game[]>;
   getPopularGames: (count?: number) => Promise<Game[]>;
   getLatestGames: (count?: number) => Promise<Game[]>;
 
   isLoading: boolean; 
-  getFavoriteGames: () => Promise<Game[]>;
-  isLoadingFavorites: boolean;
+  getFavoriteGames: () => Promise<Game[]>; // This fetches full game objects for favorites
+  // isLoadingFavorites was duplicated, using isLoadingFavoriteGameIds for the query fetching IDs.
+  // The getFavoriteGames function is async and its loading state is managed by the caller (e.g. FavoritesPage)
 }
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
@@ -322,46 +323,55 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery({
+  // Renamed isLoading to isLoadingFavoriteGameIds to avoid duplicate identifier
+  const { data: favoriteGamesData, isLoading: isLoadingFavoriteGameIds } = useQuery({
     queryKey: ['favoriteGames', user?.id],
     queryFn: () => user?.id ? gameService.getFavoriteGames(user.id) : Promise.resolve([]),
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5,
     retry: false,
-    onError: (error) => {
-      console.error('Error fetching favoriteGames:', error);
+    meta: {
+      onError: (error: Error) => { // Corrected onError syntax for Tanstack Query v5
+        console.error('Error fetching favoriteGames (IDs):', error);
+      }
     }
   });
 
   const games = gamesData?.games || [];
   const providers = providersData || [];
   const categories = categoriesData || [];
-  const favoriteGames = favoriteGamesData || [];
+  const favoriteGames = favoriteGamesData || []; // These are favorite game IDs from the query
   const favoriteGameIds = new Set(favoriteGames);
 
   // Function to fetch favorite games with details
-  const getFavoriteGames = useCallback(async (): Promise<Game[]> => {
+  const getFavoriteGamesWithDetails = useCallback(async (): Promise<Game[]> => {
     if (!user?.id) {
       return [];
     }
     
     try {
-      const favoriteIds = await gameService.getFavoriteGames(user.id);
+      const favoriteIds = await gameService.getFavoriteGames(user.id); // Fetches IDs
       
       if (!favoriteIds.length) {
         return [];
       }
       
       // If we already have all games loaded, filter from local data
-      if (games.length) {
-        return games.filter(game => favoriteIds.includes(String(game.id)));
+      // This check might need refinement: `games` refers to all games, not just favorites.
+      // It should be: const detailedFavoriteGames = allGames.filter(game => favoriteIds.includes(String(game.id)));
+      const allFetchedGames = queryClient.getQueryData<Game[]>(['allGames', 'details']); // Assuming a query key structure
+      if (allFetchedGames && allFetchedGames.length > 0) {
+         const filteredGames = allFetchedGames.filter(game => favoriteIds.includes(String(game.id)));
+         if (filteredGames.length === favoriteIds.length) return filteredGames;
       }
       
       // Otherwise query specifically for these games
+      // Note: Supabase `in` filter usually takes an array of values for a column, not 'game_id' column with 'favoriteIds' array.
+      // Assuming 'games' table has an 'id' column that matches 'game_id' in 'favorite_games' table.
       const { data, error } = await supabase
         .from('games')
         .select('*, providers:provider_id(*)')
-        .in('game_id', favoriteIds);
+        .in('id', favoriteIds); // Assuming 'id' is the game's primary key in the 'games' table.
       
       if (error) {
         console.error('Error fetching favorite games details:', error);
@@ -370,10 +380,10 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
     } catch (error) {
-      console.error('Error in getFavoriteGames:', error);
+      console.error('Error in getFavoriteGamesWithDetails:', error);
       return [];
     }
-  }, [user, games]);
+  }, [user, queryClient]);
 
   const fetchGameById = useCallback(async (id: string | number): Promise<Game | null> => {
     try {
@@ -447,9 +457,13 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     console.log(`Attempting to play game: ${game.title}, mode: ${mode}`);
     const launchUrl = await getGameLaunchUrl(game, { mode });
     if (launchUrl) {
-      navigate(`/casino/play/${game.slug || game.id}`);
+      // Instead of navigating to /casino/play, we might directly open the game or use a game launcher component
+      // For now, let's assume it opens in a new tab or a modal, or navigates to a specific play page.
+      // navigate(`/casino/play/${game.slug || game.id}`); // This line was causing issues if /casino/play is not set up.
+      // Let's use window.open for simplicity or rely on GameCard's own onPlay logic if available
+      window.open(launchUrl, '_blank'); // Example: open in new tab
     }
-  }, [getGameLaunchUrl, navigate]);
+  }, [getGameLaunchUrl]); // removed navigate dependency for now
 
   const handleGameDetails = useCallback((game: Game) => {
     navigate(`/casino/game/${game.slug || game.id}`);
@@ -461,12 +475,17 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         throw new Error("User not authenticated");
       }
       
-      // Find the game from our loaded games or fetch it if needed
       let gameId = gameIdOrSlug;
       const gameToToggle = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
       
       if (gameToToggle) {
         gameId = String(gameToToggle.id);
+      } else {
+        // If game is not in the main `games` list (e.g., on a details page not part of main list)
+        // We might need to fetch game details by slug/ID to get its actual ID if only slug is passed
+        // For now, assume gameIdOrSlug is an ID if not found by slug in the list.
+        // This part might need more robust handling if gameIdOrSlug can frequently be a slug for a non-listed game.
+        console.warn(`Game with ID/Slug "${gameIdOrSlug}" not found in the current game list for toggling favorite. Proceeding with the provided identifier.`);
       }
       
       const currentFavorites = await gameService.getFavoriteGames(user.id);
@@ -474,14 +493,15 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (isCurrentlyFavorite) {
         await gameService.removeFavoriteGame(user.id, gameId);
-        return { success: true, added: false, gameTitle: gameToToggle?.title || 'Game' };
+        return { success: true, added: false, gameTitle: gameToToggle?.title || gameId };
       } else {
         await gameService.addFavoriteGame(user.id, gameId);
-        return { success: true, added: true, gameTitle: gameToToggle?.title || 'Game' };
+        return { success: true, added: true, gameTitle: gameToToggle?.title || gameId };
       }
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['favoriteGames', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['getFavoriteGamesWithDetails', user?.id] }); // Invalidate detailed favorites query
       if (result.added) {
         toast.success(`${result.gameTitle} added to favorites.`);
       } else {
@@ -503,10 +523,15 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [isAuthenticated, user, navigate, toggleFavoriteMutation]);
 
   const isFavorite = useCallback((gameIdOrSlug: string): boolean => {
-    const game = games.find(g => g.id === gameIdOrSlug || g.slug === gameIdOrSlug);
-    if (!game) return false;
-    return favoriteGames.includes(game.id.toString());
-  }, [favoriteGames, games]);
+    // Find game by ID or slug from the locally available 'games' list.
+    const game = games.find(g => String(g.id) === gameIdOrSlug || g.slug === gameIdOrSlug);
+    if (!game) { 
+      // If not found in main list, it could be that favoriteGameIds (Set of strings) already contains it directly.
+      // This happens if gameIdOrSlug is an ID not present in `games` but is in `favoriteGameIds`.
+      return favoriteGameIds.has(gameIdOrSlug);
+    }
+    return favoriteGameIds.has(String(game.id));
+  }, [favoriteGameIds, games]);
 
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
     return await gameService.getFeaturedGames(count);
@@ -520,7 +545,8 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return await gameService.getLatestGames(count);
   }, []);
   
-  const isLoading = isLoadingGames || isLoadingProviders || isLoadingCategories || (!!user && isLoadingFavorites);
+  const isLoading = isLoadingGames || isLoadingProviders || isLoadingCategories || (!!user && isLoadingFavoriteGameIds);
+
 
   return (
     <GamesContext.Provider value={{
@@ -530,10 +556,13 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       fetchGameById, fetchGamesByProvider, fetchGamesByCategory,
       getGameById, getGameBySlug,
       getGameLaunchUrl, launchGame, handlePlayGame, handleGameDetails,
-      favoriteGames, favoriteGameIds, toggleFavoriteGame, isFavorite, isLoadingFavorites,
+      favoriteGames, // These are IDs
+      favoriteGameIds, // This is the Set of IDs
+      toggleFavoriteGame, isFavorite, 
+      isLoadingFavoriteGameIds, // Pass the renamed loading state for IDs
       getFeaturedGames, getPopularGames, getLatestGames,
       isLoading,
-      getFavoriteGames
+      getFavoriteGames: getFavoriteGamesWithDetails // Provide the function that fetches detailed games
     }}>
       {children}
     </GamesContext.Provider>

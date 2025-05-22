@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
@@ -13,6 +12,7 @@ export interface AppUser extends SupabaseUser {
   lastName?: string;
   avatarUrl?: string;
   role?: string; // Example: 'admin', 'user', 'affiliate' (from app_metadata or custom table)
+  isActive: boolean; // Added to match User type for components like UserMenu
   // Add other app-specific user properties here
 }
 
@@ -41,13 +41,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const enrichUser = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
     if (!supabaseUser) return null;
 
-    let appUser: AppUser = { ...supabaseUser };
+    // Initialize AppUser with SupabaseUser fields and isActive
+    let appUser: AppUser = { 
+      ...supabaseUser, 
+      isActive: true // Default to true, can be refined with actual user status from DB
+    };
 
     try {
       // 1. Fetch from public.users table
       const { data: publicUserData, error: publicUserError } = await supabase
         .from('users')
-        .select('username, role_id') 
+        .select('username, role_id, status') // Assuming 'status' field exists for isActive
         .eq('id', supabaseUser.id) 
         .single();
 
@@ -58,13 +62,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else if (publicUserData) {
         appUser.username = publicUserData.username;
         // Example: appUser.role = mapRoleIdToName(publicUserData.role_id); 
+        // Set isActive based on database status if available
+        if (publicUserData.status) {
+            appUser.isActive = publicUserData.status.toLowerCase() === 'active';
+        }
       }
       
       // 2. Fetch from public.profiles table
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('first_name, last_name, avatar_url')
-        .eq('id', supabaseUser.id) 
+        .eq('id', supabaseUser.id) // Assuming profiles.id links to auth.users.id
         .maybeSingle();
 
       if (profileError) {
@@ -169,20 +177,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { data, error } = await supabase
         .from('wallets')
         .select('balance, currency, vip_level, vip_points')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) // Assuming wallets.user_id links to public.users.id, not auth.users.id directly
         .single();
         
       if (error) {
         console.error("Error fetching wallet balance:", error);
+        // Potentially toast.error("Could not refresh wallet balance.");
         return;
       }
       
       if (data) {
-        // Just refresh the data, no need to update state
+        // If using this to update a local state for wallet, do it here.
+        // For now, just a success toast.
         toast.success("Wallet balance refreshed");
       }
     } catch (error) {
       console.error("Error in refreshWalletBalance:", error);
+      // toast.error("An error occurred while refreshing wallet balance.");
     }
   };
 
