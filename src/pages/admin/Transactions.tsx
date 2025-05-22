@@ -1,15 +1,16 @@
-
+// ... keep existing code (imports)
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
+import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction'; // Keep this
+import { WalletTransaction } from '@/types/wallet'; // For specific wallet transaction types, ensure 'adjustment' is included if needed
 import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DateRangePicker } from '@/components/ui/date-range-picker'; // Import from our newly created file
+import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { Search, FileDown, Edit2, Loader2 } from 'lucide-react';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
@@ -17,20 +18,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
-interface ExtendedTransaction extends Transaction {
-  user_id: string;
+// Use WalletTransaction if it's more comprehensive and includes 'adjustment'
+// Otherwise, ensure TransactionType includes 'adjustment'
+interface ExtendedTransaction extends WalletTransaction { // Using WalletTransaction
+  user_id: string; // This might be player_id in your DB
   notes?: string;
+  // Add any other fields from 'transactions' table not in WalletTransaction
+  player_id?: string; // if your DB table uses this for user linking
+  game_id?: string;
+  provider?: string; // Ensure this is part of the type if used
 }
 
 const ITEMS_PER_PAGE = 15;
 
 const AdminTransactions: React.FC = () => {
+// ... keep existing code (state variables)
   const [transactions, setTransactions] = useState<ExtendedTransaction[]>([]);
   const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
-  const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all');
+  const [filterType, setFilterType] = useState<WalletTransaction['type'] | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<WalletTransaction['status'] | 'all'>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalTransactions, setTotalTransactions] = useState(0);
@@ -39,11 +47,12 @@ const AdminTransactions: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const fetchTransactions = useCallback(async (page: number) => {
+// ... keep existing code (fetchTransactions logic)
     setIsLoading(true);
     try {
       let query = supabase
-        .from('transactions')
-        .select('*, user:users(id, username, email)', { count: 'exact' });
+        .from('transactions') // ensure this table matches ExtendedTransaction fields
+        .select('*, user:users!inner(id, username, email)', { count: 'exact' }); // Use !inner if user must exist
 
       if (searchTerm) {
         query = query.or(`id.ilike.%${searchTerm}%,player_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%`);
@@ -55,32 +64,33 @@ const AdminTransactions: React.FC = () => {
         query = query.eq('status', filterStatus);
       }
       if (dateRange?.from) {
-        query = query.gte('created_at', format(dateRange.from, 'yyyy-MM-dd HH:mm:ss'));
+        query = query.gte('created_at', format(dateRange.from, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
       }
       if (dateRange?.to) {
-        query = query.lte('created_at', format(dateRange.to, 'yyyy-MM-dd HH:mm:ss'));
+        query = query.lte('created_at', format(dateRange.to, "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"));
       }
 
       const from = (page - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
-      query = query.range(from, to).order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).range(from, to);
 
       const { data, error, count } = await query;
 
       if (error) throw error;
       
       const fetchedTransactions = (data || []).map(txAny => {
-        const tx = txAny as any; // Cast to any to access joined user
-        if (tx.user && typeof tx.user === 'object') {
+        const tx = txAny as any; 
+        const userIdKey = tx.player_id || tx.user_id; // Use player_id if present
+        if (tx.user && typeof tx.user === 'object' && userIdKey) {
           setUsers(prevUsers => ({
             ...prevUsers,
-            [tx.player_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
+            [userIdKey]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
           }));
         }
-        // Return extended transaction with user_id
         return {
           ...tx,
-          user_id: tx.player_id
+          user_id: userIdKey, // Standardize to user_id in the frontend type
+          // Ensure all fields of ExtendedTransaction are mapped
         } as ExtendedTransaction;
       });
 
@@ -109,11 +119,12 @@ const AdminTransactions: React.FC = () => {
   };
 
   const handleSaveTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+// ... keep existing code (handleSaveTransaction logic)
     event.preventDefault();
     if (!editingTransaction) return;
 
     const formData = new FormData(event.currentTarget);
-    const newStatus = formData.get('status') as TransactionStatus;
+    const newStatus = formData.get('status') as WalletTransaction['status'];
     const newNotes = formData.get('notes') as string;
 
     setIsLoading(true);
@@ -135,6 +146,7 @@ const AdminTransactions: React.FC = () => {
   };
   
   const handleExport = () => {
+// ... keep existing code (handleExport logic)
     if(transactions.length === 0) {
       toast.info("No transactions to export.");
       return;
@@ -143,14 +155,14 @@ const AdminTransactions: React.FC = () => {
         ...tx,
         username: users[tx.user_id]?.username || 'N/A',
         user_email: users[tx.user_id]?.email || 'N/A',
-        created_at: format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
-        updated_at: format(new Date(tx.updated_at), 'yyyy-MM-dd HH:mm:ss'),
+        created_at: format(parseISO(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
+        updated_at: format(parseISO(tx.updated_at), 'yyyy-MM-dd HH:mm:ss'),
     }));
 
     const headers = Object.keys(dataToExport[0]).join(',');
     const csvContent = "data:text/csv;charset=utf-8," 
         + headers + "\n"
-        + dataToExport.map(e => Object.values(e).map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join("\n");
+        + dataToExport.map(e => Object.values(e).map(val => `"${String(val ?? '').replace(/"/g, '""')}"`).join(',')).join("\n");
     
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
@@ -163,8 +175,8 @@ const AdminTransactions: React.FC = () => {
   };
 
   const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
-  const transactionTypes: TransactionType[] = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
-  const transactionStatuses: TransactionStatus[] = ['pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected'];
+  const transactionTypes: Array<WalletTransaction['type']> = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
+  const transactionStatuses: Array<WalletTransaction['status']> = ['pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected'];
 
   return (
     <div className="container mx-auto p-4">
@@ -178,7 +190,7 @@ const AdminTransactions: React.FC = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="lg:col-span-2"
           />
-          <Select value={filterType} onValueChange={(value) => setFilterType(value as TransactionType | 'all')}>
+          <Select value={filterType} onValueChange={(value) => setFilterType(value as WalletTransaction['type'] | 'all')}>
             <SelectTrigger><SelectValue placeholder="Filter by Type" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
@@ -187,7 +199,7 @@ const AdminTransactions: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as TransactionStatus | 'all')}>
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as WalletTransaction['status'] | 'all')}>
             <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
@@ -197,7 +209,14 @@ const AdminTransactions: React.FC = () => {
             </SelectContent>
           </Select>
           <div className="lg:col-span-2">
-            <DateRangePicker onUpdate={(values) => setDateRange(values.range)} />
+             {/* Corrected DateRangePicker props */}
+            <DateRangePicker 
+                initialDateRange={dateRange} 
+                onUpdate={({range}) => setDateRange(range)} 
+                align="start" 
+                locale="en-GB"
+                showCompare={false}
+            />
           </div>
           <Button onClick={handleSearchFilter} className="w-full md:w-auto flex items-center gap-2">
             <Search className="h-4 w-4" /> Apply Filters
@@ -247,7 +266,7 @@ const AdminTransactions: React.FC = () => {
                         </span>
                     </TableCell>
                     <TableCell className="truncate max-w-[100px]" title={tx.provider || undefined}>{tx.provider || 'N/A'}</TableCell>
-                    <TableCell>{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+                    <TableCell>{format(parseISO(tx.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleEditTransaction(tx)} title="Edit/View Transaction">
                         <Edit2 className="h-4 w-4" />

@@ -1,42 +1,37 @@
 
-export type PromotionStatus = 'active' | 'inactive' | 'expired' | 'upcoming' | 'draft';
-export type PromotionType = 'deposit_bonus' | 'free_spins' | 'cashback' | 'tournament' | 'other';
-
-export interface PromotionTargetAudience {
-  segment_id?: string; // If you have user segments
-  countries?: string[]; // ISO country codes
-  vip_levels?: number[];
-  new_users_only?: boolean;
-}
-
-export interface PromotionTerms {
-  wagering_requirement?: number; // e.g., 30 for 30x
-  min_deposit?: number;
-  max_bonus_amount?: number;
-  valid_for_days?: number;
-  eligible_games?: string[]; // Game IDs or slugs
-  bonus_code?: string;
-}
+// src/types/promotion.ts
+export type PromotionType = 'deposit_bonus' | 'free_spins' | 'cashback_offer' | 'tournament' | 'special_event' | 'welcome_offer' | 'reload_bonus';
+export type PromotionStatus = 'active' | 'inactive' | 'upcoming' | 'expired' | 'draft';
+export type PromotionAudience = 'all' | 'new_users' | 'vip_only' | 'segmented';
 
 export interface Promotion {
   id: string;
   title: string;
-  slug: string;
   description: string;
-  short_description?: string;
   type: PromotionType;
   status: PromotionStatus;
-  start_date: string; // ISO Date string
-  end_date: string; // ISO Date string
-  image_url?: string;
-  banner_url?: string;
-  terms_and_conditions_url?: string; // Link to full T&C page
-  details?: PromotionTerms; // More detailed terms
-  target_audience?: PromotionTargetAudience;
+  image_url?: string; // Changed from imageUrl
+  valid_from: string; // ISO date string
+  valid_until: string; // ISO date string
   created_at: string;
   updated_at: string;
-  created_by?: string; // Admin user ID
-  // For tracking
-  impressions?: number;
-  claims?: number;
+
+  // Specific fields based on type
+  value?: number; // e.g. cashback percentage or fixed bonus amount
+  bonus_percentage?: number; // For deposit bonuses
+  free_spins_count?: number;
+  min_deposit?: number;
+  max_bonus_amount?: number;
+  wagering_requirement?: number;
+  games?: string[]; // Applicable game IDs or slugs
+  
+  code?: string; // Promo code
+  cta_text?: string; // Call to action button text
+  terms_and_conditions_url?: string; // Changed from termsAndConditions
+  target_audience?: PromotionAudience; // Changed from targetAudience
+  category?: string; // e.g. "Slots", "Live Casino"
+  is_active: boolean; // Added for consistency
 }
+
+// Make sure this file is re-exported in src/types/index.d.ts
+// e.g. export * from './promotion';

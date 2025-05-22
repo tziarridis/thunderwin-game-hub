@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+import CMSPageHeader, { CMSPageHeaderProps } from '@/components/admin/cms/CMSPageHeader'; // Import CMSPageHeaderProps
+import ConfirmationDialog, { ConfirmationDialogProps } from '@/components/admin/shared/ConfirmationDialog'; // Import ConfirmationDialogProps
 
 const fetchAdminGames = async (searchTerm: string = ''): Promise<DbGame[]> => {
   let query = supabase.from('games').select('*').order('title', { ascending: true });
@@ -132,18 +131,32 @@ const GamesManagement: React.FC = () => {
     const newStatus = game.status === GameStatusEnum.ACTIVE ? GameStatusEnum.INACTIVE : GameStatusEnum.ACTIVE;
     toggleGameStatusMutation.mutate({ gameId: game.id, newStatus });
   };
+  
+  const cmsHeaderProps: CMSPageHeaderProps = {
+    title:"Games Management",
+    description:"Add, edit, and manage all casino games.",
+    actions: ( // Changed actionButton to actions
+      <Button onClick={handleAddNewGame}>
+        <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
+      </Button>
+    )
+  };
+
+  const deleteDialogProps: ConfirmationDialogProps = {
+    isOpen:showDeleteConfirm,
+    onClose:() => setShowDeleteConfirm(false),
+    onConfirm:confirmDeleteGame,
+    title:"Confirm Deletion",
+    description:`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`,
+    confirmText:"Delete",
+    variant:"destructive", // Assuming 'variant' is used for styling, not 'isDestructive' directly
+    isLoading:deleteGameMutation.isPending
+  };
+
 
   return (
     <div className="p-6">
-      <CMSPageHeader
-        title="Games Management"
-        description="Add, edit, and manage all casino games."
-        actionButton={
-          <Button onClick={handleAddNewGame}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
-          </Button>
-        }
-      />
+      <CMSPageHeader {...cmsHeaderProps} />
 
       <div className="my-6">
         <div className="relative">
@@ -230,16 +243,7 @@ const GamesManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
       
-      <ConfirmationDialog
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDeleteGame}
-        title="Confirm Deletion"
-        description={`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        isDestructive
-        isLoading={deleteGameMutation.isPending}
-      />
+      <ConfirmationDialog {...deleteDialogProps} />
 
     </div>
   );

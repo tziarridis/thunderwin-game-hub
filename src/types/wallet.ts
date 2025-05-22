@@ -35,7 +35,7 @@ export interface WalletType {
   isActive: boolean; 
   lastTransactionDate: Date | null; 
   hide_balance: boolean; 
-  active: boolean; 
+  // active: boolean; // This was duplicated, removed one. isActive covers it.
   total_bet: number; 
   total_won: number; 
   total_lose: number; 
@@ -46,11 +46,13 @@ export interface WalletType {
 export interface WalletTransaction {
   id: string;
   wallet_id: string;
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus';
+  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund'; // Added 'adjustment'
   amount: number;
   currency: string;
-  status: 'pending' | 'completed' | 'failed';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
+  description?: string; // Optional description
+  provider?: string; // Optional provider
   // ... other transaction details
 }

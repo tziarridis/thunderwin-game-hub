@@ -1,51 +1,38 @@
-
 // src/types/kyc.ts
-
-export enum KycStatusEnum {
-  PENDING = "pending",
-  APPROVED = "approved",
-  REJECTED = "rejected",
-  RESUBMIT = "resubmit", // A status to ask the user to resubmit documents
-}
-export type KycStatus = `${KycStatusEnum}`;
+export type KycStatus = 'not_started' | 'pending_review' | 'approved' | 'rejected' | 'resubmit_required' | 'verified' | 'failed';
 
 export enum KycDocumentTypeEnum {
-  PASSPORT = "passport",
-  NATIONAL_ID = "national_id",
-  DRIVING_LICENSE = "driving_license",
-  UTILITY_BILL = "utility_bill", // For Proof of Address
-  BANK_STATEMENT = "bank_statement", // For Proof of Address
+  ID_CARD_FRONT = 'id_card_front',
+  ID_CARD_BACK = 'id_card_back',
+  PASSPORT = 'passport',
+  DRIVING_LICENSE_FRONT = 'driving_license_front',
+  DRIVING_LICENSE_BACK = 'driving_license_back',
+  UTILITY_BILL = 'utility_bill',
+  BANK_STATEMENT = 'bank_statement',
+  PROOF_OF_ADDRESS = 'proof_of_address', // Generic proof of address
+  SELFIE = 'selfie', // Added Selfie
 }
-export type KycDocumentType = `${KycDocumentTypeEnum}`;
 
+export interface KycDocument {
+  id: string;
+  user_id: string;
+  document_type: KycDocumentTypeEnum;
+  file_url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  uploaded_at: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
+}
 
-export interface KycRequest {
-  id: string; // UUID
-  user_id: string; // Foreign key to users table
+export interface KycAttempt {
+  id: string;
+  user_id: string;
   status: KycStatus;
-  document_type: KycDocumentType | string; // Allow string for flexibility if new types added directly in DB
-  document_front_url?: string | null;
-  document_back_url?: string | null;
-  selfie_url?: string | null;
-  submitted_at: string; // ISO Date string
-  reviewed_at?: string | null; // ISO Date string
-  reviewed_by?: string | null; // User ID of admin/reviewer
-  rejection_reason?: string | null;
-  notes?: string | null; // Internal notes, formerly review_notes
-  created_at?: string;
-  updated_at?: string;
-  // Optional user data if joined
-  user?: {
-    id: string;
-    email?: string;
-    full_name?: string;
-  } | null;
+  documents: KycDocument[];
+  created_at: string;
+  updated_at: string;
+  notes?: string;
 }
 
-export interface KycFormValues {
-  document_type: KycDocumentType | '';
-  document_front?: FileList | null;
-  document_back?: FileList | null;
-  selfie?: FileList | null;
-}
-
+// Make sure this file is re-exported in src/types/index.d.ts
+// e.g. export * from './kyc';

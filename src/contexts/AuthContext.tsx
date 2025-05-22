@@ -1,10 +1,11 @@
+
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 // Use User type from user.d.ts for broader compatibility if it's more comprehensive
 // For now, ensuring AppUser has camelCase date fields
-// import { User as AppUserTypeDefinition } from '@/types/user.d.ts';
+import { User as AppUserTypeDefinition, UserRole } from '@/types/user'; // Added UserRole import
 
 
 // Define a more specific User type for your application context if needed
@@ -15,13 +16,20 @@ export interface AppUser extends SupabaseUser {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
-  role?: string; // Example: 'admin', 'user', 'affiliate' (from app_metadata or custom table)
+  role?: UserRole | string; // Example: 'admin', 'user', 'affiliate' (from app_metadata or custom table)
   isActive: boolean; // Added to match User type for components like UserMenu
   // Add other app-specific user properties here
 
   // Ensure camelCase versions for compatibility with other User types
   createdAt?: string;
   updatedAt?: string;
+
+  // Added from User type for Profile.tsx needs
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  referralCode?: string;
+  referralLink?: string;
 }
 
 export interface AuthContextType {
@@ -34,8 +42,13 @@ export interface AuthContextType {
   signOut: () => Promise<void>; // Standardized to 'signOut'
   refreshUser: () => Promise<void>;
   refreshWalletBalance?: () => Promise<void>; // Added for wallet refresh
-  // updateUserMetadata: (metadata: object) => Promise<{ data: { user: SupabaseUser | null }, error: any }>; // For app_metadata
-  // updateProfile: (profileData: Partial<ProfileType>) => Promise<void>; // Example for profile updates
+  
+  // Added stubs for missing auth methods
+  login?: (credentials: any) => Promise<{ error: any | null }>; // Define args as needed
+  register?: (details: any) => Promise<{ error: any | null }>; // Define args as needed
+  adminLogin?: (credentials: any) => Promise<{ error: any | null }>; // Define args as needed
+  updateProfile?: (profileData: Partial<AppUser>) => Promise<{ error: any | null }>; // Define args as needed
+  error?: string | null; // Added for AdminLogin.tsx
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true); // Standardized variable name
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null); // For the 'error' field
 
   const enrichUser = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
     if (!supabaseUser) return null;
@@ -55,13 +69,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isActive: true, // Default to true, can be refined with actual user status from DB
       createdAt: supabaseUser.created_at, // Map to camelCase
       updatedAt: supabaseUser.updated_at, // Map to camelCase
+      // Ensure AppUser fields are initialized if not present on SupabaseUser
+      firstName: supabaseUser.user_metadata?.first_name || undefined,
+      lastName: supabaseUser.user_metadata?.last_name || undefined,
+      avatarUrl: supabaseUser.user_metadata?.avatar_url || undefined,
     };
 
     try {
       // 1. Fetch from public.users table
       const { data: publicUserData, error: publicUserError } = await supabase
         .from('users')
-        .select('username, role_id, status, first_name, last_name, avatar_url') // Added more fields, assuming 'profiles' data might be here too
+        .select('username, role, status, first_name, last_name, avatar_url, phone, referralCode, referralLink') // Added more fields, assuming 'role' exists
         .eq('id', supabaseUser.id) 
         .single();
 
@@ -74,32 +92,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         appUser.firstName = publicUserData.first_name || appUser.firstName;
         appUser.lastName = publicUserData.last_name || appUser.lastName;
         appUser.avatarUrl = publicUserData.avatar_url || appUser.avatarUrl;
-        // Example: appUser.role = mapRoleIdToName(publicUserData.role_id); 
-        // Set isActive based on database status if available
+        appUser.role = publicUserData.role || appUser.role; 
+        appUser.phone = publicUserData.phone || appUser.phone;
+        appUser.referralCode = (publicUserData as any).referralCode || appUser.referralCode;
+        appUser.referralLink = (publicUserData as any).referralLink || appUser.referralLink;
+        
         if (publicUserData.status) {
             appUser.isActive = publicUserData.status.toLowerCase() === 'active';
         }
       }
       
-      // 2. Fetch from public.profiles table (if separate and still needed)
-      // This might be redundant if 'users' table now contains profile fields
-      // const { data: profileData, error: profileError } = await supabase
-      //   .from('profiles')
-      //   .select('first_name, last_name, avatar_url')
-      //   .eq('id', supabaseUser.id) // Assuming profiles.id links to auth.users.id
-      //   .maybeSingle();
-
-      // if (profileError) {
-      //   if (profileError.code !== 'PGRST116') { // Not found error
-      //     console.error("Error fetching profile data:", profileError);
-      //   }
-      // } else if (profileData) {
-      //   appUser.firstName = profileData.first_name || appUser.firstName;
-      //   appUser.lastName = profileData.last_name || appUser.lastName;
-      //   appUser.avatarUrl = profileData.avatar_url || appUser.avatarUrl;
-      // }
-      
-      // 3. Get role from app_metadata
+      // 2. Get role from app_metadata if not in users table or to override
       appUser.role = supabaseUser.app_metadata?.role || appUser.role; 
 
     } catch (error) {
@@ -143,8 +146,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       toast.error(error.message);
+      setAuthError(error.message);
     } else {
       toast.success('Password updated successfully.');
+      setAuthError(null);
     }
     setLoading(false);
     return { error };
@@ -157,16 +162,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setIsAdmin(false);
     setLoading(false);
+    setAuthError(null);
     toast.success("Signed out successfully.");
   };
   
   const refreshUser = async () => {
     setLoading(true);
+    setAuthError(null);
     // Corrected: refreshSession doesn't directly return user, need getUser after
     const { error: refreshError } = await supabase.auth.refreshSession();
     
     if (refreshError) {
         console.error("Error refreshing user session:", refreshError.message);
+        setAuthError(refreshError.message);
         if (refreshError.message.includes('Invalid refresh token')) { // More robust check
              await signOut();
         }
@@ -174,6 +182,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const { data: { user: currentSupabaseUserFromAuth }, error: getUserError } = await supabase.auth.getUser();
         if (getUserError) {
             console.error("Error getting user after session refresh:", getUserError.message);
+            setAuthError(getUserError.message);
         } else {
             const appUser = await enrichUser(currentSupabaseUserFromAuth);
             setUser(appUser);
@@ -186,23 +195,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // New function to refresh wallet balance
   const refreshWalletBalance = async () => {
     if (!user?.id) return;
-    
+    setAuthError(null);
     try {
       const { data, error } = await supabase
         .from('wallets')
         .select('balance, currency, vip_level, vip_points')
-        .eq('user_id', user.id) // Assuming wallets.user_id links to public.users.id, not auth.users.id directly
+        .eq('user_id', user.id) 
         .single();
         
       if (error) {
         console.error("Error fetching wallet balance:", error);
-        // Potentially toast.error("Could not refresh wallet balance.");
+        toast.error("Could not refresh wallet balance.");
         return;
       }
       
       if (data) {
-        // If using this to update a local state for wallet, do it here.
+        // TODO: Update user context or a dedicated wallet context if wallet data is stored there.
         // For now, just a success toast.
+        // Example: setUser(prevUser => prevUser ? ({...prevUser, wallet: data }) : null);
         toast.success("Wallet balance refreshed");
       }
     } catch (error) {
@@ -211,16 +221,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Stub implementations for missing auth functions
+  const login = async (credentials: any) => { 
+    console.warn("AuthContext: login function is a stub.", credentials);
+    toast.info("Login functionality not fully implemented yet.");
+    // Example: const { error } = await supabase.auth.signInWithPassword(credentials); setAuthError(error?.message || null); return { error };
+    return { error: null };
+  };
+  const register = async (details: any) => {
+    console.warn("AuthContext: register function is a stub.", details);
+    toast.info("Registration functionality not fully implemented yet.");
+    // Example: const { error } = await supabase.auth.signUp(details); setAuthError(error?.message || null); return { error };
+    return { error: null };
+  };
+  const adminLogin = async (credentials: any) => {
+    console.warn("AuthContext: adminLogin function is a stub.", credentials);
+    toast.info("Admin login functionality not fully implemented yet.");
+    // This would likely involve checking role after a normal login
+    return { error: null };
+  };
+   const updateProfile = async (profileData: Partial<AppUser>) => {
+    console.warn("AuthContext: updateProfile function is a stub.", profileData);
+    if (!user?.id) return { error: { message: "User not authenticated" }};
+    setLoading(true);
+    setAuthError(null);
+    try {
+        const { data, error } = await supabase
+            .from('users') // Or 'profiles' depending on your table
+            .update(profileData)
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        
+        // Re-enrich user data after profile update
+        const { data: { user: currentSupabaseUserFromAuth } } = await supabase.auth.getUser();
+        const appUser = await enrichUser(currentSupabaseUserFromAuth);
+        setUser(appUser);
+
+        toast.success("Profile updated successfully.");
+        setLoading(false);
+        return { error: null };
+
+    } catch (err: any) {
+        toast.error(`Failed to update profile: ${err.message}`);
+        setAuthError(err.message);
+        setLoading(false);
+        return { error: err };
+    }
+  };
+
+
   const value = {
     user,
     session,
-    loading, // Standardized variable name
+    loading, 
     isAdmin,
     isAuthenticated: !!user,
     updateUserPassword,
-    signOut, // Standardized function name
+    signOut, 
     refreshUser,
     refreshWalletBalance,
+    login,
+    register,
+    adminLogin,
+    updateProfile,
+    error: authError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -233,3 +300,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

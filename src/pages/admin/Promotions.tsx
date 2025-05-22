@@ -1,394 +1,327 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Promotion } from '@/types/promotion';
+import { Promotion, PromotionType, PromotionStatus, PromotionAudience } from '@/types/promotion'; // Using defined types
+import AdminPageLayout from '@/components/layout/AdminPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, Loader2, Eye, EyeOff, Gift } from 'lucide-react';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { promotionsService } from '@/services/promotionsService'; // Assuming this service exists and is typed
-import { Game } from '@/types'; // For game selection
+import { DatePicker } from '@/components/ui/date-picker'; // Assuming single date picker for from/to
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { PlusCircle, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import ConfirmationDialog, { ConfirmationDialogProps } from '@/components/admin/shared/ConfirmationDialog';
+import { format, parseISO, isValid } from 'date-fns';
+import { Badge } from '@/components/ui/badge'; // Import Badge
 
 const ITEMS_PER_PAGE = 10;
 
-const AdminPromotions: React.FC = () => {
+const AdminPromotionsPage: React.FC = () => {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [games, setGames] = useState<Game[]>([]); // For selecting eligible games
   const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
-  const [showFormDialog, setShowFormDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPromotion, setEditingPromotion] = useState<Partial<Promotion> | null>(null);
+  
   const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
   const [promotionToDelete, setPromotionToDelete] = useState<Promotion | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPromotions, setTotalPromotions] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchPromotions = useCallback(async (page: number, search: string) => {
+  const fetchPromotions = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
-      // Adapt to promotionsService methods or use supabase directly
-      const { data, error, count } = await supabase
-        .from('promotions') // Assuming table name
-        .select('*', { count: 'exact' })
-        .ilike('title', `%${search}%`) // Example search
-        .order('created_at', { ascending: false }) // Assuming created_at field
-        .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
+      let query = supabase.from('promotions').select('*', { count: 'exact' });
+
+      if (searchTerm) {
+        query = query.or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,code.ilike.%${searchTerm}%`);
+      }
       
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.order('created_at', { ascending: false }).range(from, to);
+
+      const { data, error, count } = await query;
       if (error) throw error;
-      setPromotions(data as Promotion[] || []); // Cast if supabase types are generic
+      setPromotions((data as Promotion[]) || []);
       setTotalPromotions(count || 0);
     } catch (error: any) {
       toast.error(`Failed to fetch promotions: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
-  }, []);
-  
-  const fetchGames = async () => {
-     try {
-        const { data, error } = await supabase.from('games').select('id, title, slug').limit(100); // Fetch basic game info
-        if (error) throw error;
-        setGames(data as Game[] || []);
-     } catch (error: any) {
-        toast.error(`Failed to fetch games for promotions: ${error.message}`);
-     }
-  };
-
+  }, [searchTerm]);
 
   useEffect(() => {
-    fetchPromotions(currentPage, searchTerm);
-  }, [fetchPromotions, currentPage, searchTerm]);
+    fetchPromotions(currentPage);
+  }, [fetchPromotions, currentPage]);
 
-  useEffect(() => {
-    if (showFormDialog) {
-        fetchGames(); // Fetch games when dialog is open
-    }
-  }, [showFormDialog]);
-
-
-  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    
-    const promoData: Partial<Promotion> = {
-      title: formData.get('title') as string,
-      description: formData.get('description') as string,
-      type: formData.get('type') as string,
-      status: formData.get('status') as Promotion['status'],
-      validFrom: formData.get('validFrom') ? new Date(formData.get('validFrom') as string).toISOString() : new Date().toISOString(),
-      validUntil: formData.get('validUntil') ? new Date(formData.get('validUntil') as string).toISOString() : null,
-      imageUrl: formData.get('imageUrl') as string || undefined,
-      termsAndConditions: formData.get('termsAndConditions') as string || undefined,
-      category: formData.get('category') as string,
-      code: formData.get('code') as string || undefined,
-      value: formData.get('value') ? parseFloat(formData.get('value') as string) : undefined,
-      bonusPercentage: formData.get('bonusPercentage') ? parseFloat(formData.get('bonusPercentage') as string) : undefined,
-      freeSpinsCount: formData.get('freeSpinsCount') ? parseInt(formData.get('freeSpinsCount') as string) : undefined,
-      minDeposit: formData.get('minDeposit') ? parseFloat(formData.get('minDeposit') as string) : undefined,
-      maxBonusAmount: formData.get('maxBonusAmount') ? parseFloat(formData.get('maxBonusAmount') as string) : undefined,
-      wageringRequirement: formData.get('wageringRequirement') ? parseInt(formData.get('wageringRequirement') as string) : undefined,
-      games: formData.getAll('games') as string[] || undefined, // Ensure this is string[]
-      targetAudience: formData.get('targetAudience') as Promotion['targetAudience'],
-      ctaText: formData.get('ctaText') as string || undefined,
-      // isActive: formData.get('isActive') === 'on', // status field is more comprehensive
-    };
-
-    // Derive isActive based on status and dates
-    if (promoData.status === 'active') {
-        const now = new Date();
-        const from = new Date(promoData.validFrom);
-        const until = new Date(promoData.validUntil) ? new Date(promoData.validUntil) : null;
-        if (from <= now && (!until || until >= now)) {
-            promoData.isActive = true;
-        } else {
-            promoData.isActive = false;
-            // Optionally update status to 'expired' or 'upcoming' if isActive is false due to dates
-            if (until && until < now) promoData.status = 'expired';
-            if (from > now) promoData.status = 'upcoming';
-        }
-    } else {
-        promoData.isActive = false;
-    }
-
-
-    setIsLoading(true);
-    try {
-      if (editingPromotion) {
-        // Use promotionsService or supabase directly
-        const { error } = await supabase.from('promotions').update(promoData).eq('id', editingPromotion.id);
-        if (error) throw error;
-        toast.success('Promotion updated successfully!');
-      } else {
-        const { error } = await supabase.from('promotions').insert(promoData);
-        if (error) throw error;
-        toast.success('Promotion created successfully!');
-      }
-      setShowFormDialog(false);
-      setEditingPromotion(null);
-      fetchPromotions(currentPage, searchTerm);
-    } catch (error: any) {
-      toast.error(`Operation failed: ${error.message}`);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAddNew = () => {
+    setEditingPromotion({ 
+      type: 'deposit_bonus', // Default type
+      status: 'draft', 
+      is_active: false,
+      valid_from: new Date().toISOString(),
+      valid_until: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(), // Default 30 days validity
+      target_audience: 'all',
+    });
+    setIsModalOpen(true);
   };
 
-  const openDeleteDialog = (promotion: Promotion) => {
-    setPromotionToDelete(promotion);
+  const handleEdit = (promo: Promotion) => {
+    setEditingPromotion({
+        ...promo,
+        // Ensure dates are in string format if DatePicker expects strings
+        valid_from: promo.valid_from ? (isValid(parseISO(promo.valid_from)) ? promo.valid_from : new Date().toISOString()) : new Date().toISOString(),
+        valid_until: promo.valid_until ? (isValid(parseISO(promo.valid_until)) ? promo.valid_until : new Date().toISOString()) : new Date().toISOString(),
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = (promo: Promotion) => {
+    setPromotionToDelete(promo);
     setShowConfirmDeleteDialog(true);
   };
 
-  const handleDeleteConfirm = async () => {
+  const confirmDeletePromotion = async () => {
     if (!promotionToDelete) return;
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
-      // Use promotionsService or supabase directly
       const { error } = await supabase.from('promotions').delete().eq('id', promotionToDelete.id);
       if (error) throw error;
-      toast.success('Promotion deleted successfully!');
+      toast.success('Promotion deleted successfully.');
+      fetchPromotions(currentPage); // Refresh
       setShowConfirmDeleteDialog(false);
       setPromotionToDelete(null);
-      fetchPromotions(currentPage, searchTerm);
     } catch (error: any) {
       toast.error(`Failed to delete promotion: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSavePromotion = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingPromotion) return;
+    setIsSubmitting(true);
+
+    // Ensure numeric fields are numbers or null
+    const payload: Partial<Promotion> = {
+      ...editingPromotion,
+      value: editingPromotion.value ? Number(editingPromotion.value) : undefined,
+      bonus_percentage: editingPromotion.bonus_percentage ? Number(editingPromotion.bonus_percentage) : undefined,
+      free_spins_count: editingPromotion.free_spins_count ? Number(editingPromotion.free_spins_count) : undefined,
+      min_deposit: editingPromotion.min_deposit ? Number(editingPromotion.min_deposit) : undefined,
+      max_bonus_amount: editingPromotion.max_bonus_amount ? Number(editingPromotion.max_bonus_amount) : undefined,
+      wagering_requirement: editingPromotion.wagering_requirement ? Number(editingPromotion.wagering_requirement) : undefined,
+      is_active: !!editingPromotion.is_active, // Ensure boolean
+      // Dates should be ISO strings
+      valid_from: editingPromotion.valid_from ? new Date(editingPromotion.valid_from).toISOString() : new Date().toISOString(),
+      valid_until: editingPromotion.valid_until ? new Date(editingPromotion.valid_until).toISOString() : new Date().toISOString(),
+    };
+    
+    // Clean up undefined fields before upsert to avoid issues with Supabase expecting null for empty optional fields.
+    Object.keys(payload).forEach(key => payload[key as keyof Promotion] === undefined && delete payload[key as keyof Promotion]);
+
+
+    try {
+      if (editingPromotion.id) { // Update
+        const { error } = await supabase.from('promotions').update(payload).eq('id', editingPromotion.id);
+        if (error) throw error;
+        toast.success('Promotion updated successfully.');
+      } else { // Create
+        const { error } = await supabase.from('promotions').insert(payload as Promotion); // Cast if needed for new record
+        if (error) throw error;
+        toast.success('Promotion created successfully.');
+      }
+      setIsModalOpen(false);
+      setEditingPromotion(null);
+      fetchPromotions(currentPage); // Refresh
+    } catch (error: any) {
+      toast.error(`Failed to save promotion: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  const totalPages = Math.ceil(totalPromotions / ITEMS_PER_PAGE);
+  const promotionTypes: PromotionType[] = ['deposit_bonus', 'free_spins', 'cashback_offer', 'tournament', 'special_event', 'welcome_offer', 'reload_bonus'];
+  const promotionStatuses: PromotionStatus[] = ['active', 'inactive', 'upcoming', 'expired', 'draft'];
+  const promotionAudiences: PromotionAudience[] = ['all', 'new_users', 'vip_only', 'segmented'];
 
-  // Helper to format date for input type="datetime-local"
-  const formatDateForInput = (date?: string | Date | null) => {
-    if (!date) return '';
-    try {
-      const d = new Date(date);
-      // Format: YYYY-MM-DDTHH:mm
-      return d.toISOString().substring(0, 16);
-    } catch {
-      return '';
-    }
+
+  const deleteDialogProps: ConfirmationDialogProps = {
+    isOpen: showConfirmDeleteDialog,
+    onClose: () => setShowConfirmDeleteDialog(false),
+    onConfirm: confirmDeletePromotion,
+    title: "Delete Promotion",
+    description: `Are you sure you want to delete the promotion "${promotionToDelete?.title}"? This action cannot be undone.`,
+    confirmText: "Delete", // Changed from confirmButtonText
+    variant: "destructive",
+    isLoading: isSubmitting,
   };
 
 
   return (
-    <div className="container mx-auto p-4">
-      <CMSPageHeader
-        title="Promotion Management"
-        description="Create, edit, and manage all casino promotions."
-        actions={
-          <Button onClick={() => { setEditingPromotion(null); setShowFormDialog(true); }}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New Promotion
-          </Button>
-        }
-      />
-
-      <div className="mb-4 flex items-center">
+    <AdminPageLayout title="Promotions Management">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Manage Promotions</h1>
+        <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add Promotion</Button>
+      </div>
+      <div className="mb-4">
         <Input
-          placeholder="Search promotions..."
+          placeholder="Search promotions by title, code..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
-         <Button onClick={() => fetchPromotions(1, searchTerm)} className="ml-2">
-          <Search className="mr-2 h-4 w-4" /> Search
-        </Button>
       </div>
 
-      {isLoading && promotions.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
-      {promotions.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Active</TableHead>
-                <TableHead>Valid From</TableHead>
-                <TableHead>Valid Until</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {promotions.map((promo) => (
-                <TableRow key={promo.id}>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {promo.imageUrl ? <img src={promo.imageUrl} alt={promo.title} className="h-8 w-8 object-cover rounded-sm"/> : <Gift className="h-6 w-6 text-muted-foreground"/>}
+      {isLoading ? (
+        <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : promotions.length === 0 ? (
+        <p className="text-muted-foreground text-center py-10">No promotions found.</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Active</TableHead>
+              <TableHead>Valid From</TableHead>
+              <TableHead>Valid Until</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {promotions.map((promo) => (
+              <TableRow key={promo.id}>
+                <TableCell className="font-medium flex items-center gap-2">
+                    {promo.image_url && <img src={promo.image_url} alt={promo.title} className="h-10 w-10 rounded-sm object-cover"/>}
                     {promo.title}
-                  </TableCell>
-                  <TableCell>{promo.type?.replace(/_/g, ' ')}</TableCell>
-                  <TableCell>
-                     <Badge variant={
-                        promo.status === 'active' ? 'success' : 
-                        promo.status === 'draft' ? 'outline' :
-                        promo.status === 'expired' ? 'destructive' : 'secondary'
-                     }>{promo.status?.toUpperCase()}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {promo.isActive ? (
-                      <span className="text-green-600 flex items-center"><Eye className="mr-1 h-4 w-4" /> Yes</span>
-                    ) : (
-                      <span className="text-red-600 flex items-center"><EyeOff className="mr-1 h-4 w-4" /> No</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{new Date(promo.validFrom).toLocaleDateString()}</TableCell>
-                  <TableCell>{promo.validUntil ? new Date(promo.validUntil).toLocaleDateString() : 'Ongoing'}</TableCell>
-                  <TableCell className="space-x-1">
-                    <Button variant="ghost" size="icon" onClick={() => { setEditingPromotion(promo); setShowFormDialog(true); }}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(promo)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                </TableCell>
+                <TableCell><Badge variant="outline" className="capitalize">{promo.type.replace(/_/g, ' ')}</Badge></TableCell>
+                <TableCell><Badge variant={promo.status === 'active' ? 'success' : 'secondary'} className="capitalize">{promo.status}</Badge></TableCell>
+                <TableCell>{promo.is_active ? <CheckCircle2 className="text-green-500"/> : <XCircle className="text-red-500"/>}</TableCell>
+                <TableCell>{promo.valid_from ? format(parseISO(promo.valid_from), 'PP') : 'N/A'}</TableCell>
+                <TableCell>{promo.valid_until ? format(parseISO(promo.valid_until), 'PP') : 'N/A'}</TableCell>
+                <TableCell>
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(promo)} className="mr-2"><Edit className="mr-1 h-3 w-3"/>Edit</Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(promo)}><Trash2 className="mr-1 h-3 w-3"/>Delete</Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-between items-center mt-4">
-            <Button 
-                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
-                disabled={currentPage === 1 || isLoading}
+        {/* Pagination */}
+        {totalPromotions > ITEMS_PER_PAGE && (
+            <div className="flex justify-end items-center space-x-2 pt-4">
+            <Button
                 variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
             >
                 Previous
             </Button>
-            <span>Page {currentPage} of {totalPages}</span>
-            <Button 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
-                disabled={currentPage === totalPages || isLoading}
+            <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {Math.ceil(totalPromotions / ITEMS_PER_PAGE)}
+            </span>
+            <Button
                 variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalPromotions / ITEMS_PER_PAGE), prev + 1))}
+                disabled={currentPage === Math.ceil(totalPromotions / ITEMS_PER_PAGE)}
             >
                 Next
             </Button>
-        </div>
-      )}
-      
-      {!isLoading && promotions.length === 0 && (
-        <p className="text-center text-muted-foreground py-6">
-          No promotions found. Click "Add New Promotion" to create one.
-        </p>
-      )}
+            </div>
+        )}
 
-
-      <Dialog open={showFormDialog} onOpenChange={setShowFormDialog}>
+      {/* Add/Edit Modal */}
+      <Dialog open={isModalOpen} onOpenChange={(isOpen) => { if (!isOpen) setEditingPromotion(null); setIsModalOpen(isOpen);}}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingPromotion ? 'Edit Promotion' : 'Add New Promotion'}</DialogTitle>
+            <DialogTitle>{editingPromotion?.id ? 'Edit' : 'Add New'} Promotion</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleFormSubmit} className="space-y-4 py-4">
-            {/* General Info */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label htmlFor="title">Title</Label><Input id="title" name="title" defaultValue={editingPromotion?.title || ''} required /></div>
-              <div><Label htmlFor="type">Type</Label>
-                <Select name="type" defaultValue={editingPromotion?.type || ''}>
-                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                  <SelectContent>
-                    {['deposit_bonus', 'free_spins', 'cashback', 'tournament_prize', 'welcome_bonus', 'reload_bonus', 'loyalty_reward', 'no_deposit_bonus'].map(t => 
-                      <SelectItem key={t} value={t}>{t.replace(/_/g, ' ').toUpperCase()}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div><Label htmlFor="description">Description</Label><Textarea id="description" name="description" defaultValue={editingPromotion?.description || ''} /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div><Label htmlFor="status">Status</Label>
-                <Select name="status" defaultValue={editingPromotion?.status || 'draft'}>
-                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                    <SelectContent>
-                        {['draft', 'active', 'inactive', 'upcoming', 'expired'].map(s => <SelectItem key={s} value={s}>{s.toUpperCase()}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-              </div>
-              <div><Label htmlFor="category">Category (e.g., slots, sports)</Label><Input id="category" name="category" defaultValue={editingPromotion?.category || 'casino'} /></div>
-            </div>
-            
-            {/* Dates & Image */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><Label htmlFor="validFrom">Valid From</Label><Input id="validFrom" type="datetime-local" name="validFrom" defaultValue={formatDateForInput(editingPromotion?.validFrom)} required /></div>
-              <div><Label htmlFor="validUntil">Valid Until (optional)</Label><Input id="validUntil" type="datetime-local" name="validUntil" defaultValue={formatDateForInput(editingPromotion?.validUntil)} /></div>
-              <div><Label htmlFor="imageUrl">Image URL</Label><Input id="imageUrl" name="imageUrl" defaultValue={editingPromotion?.imageUrl || ''} /></div>
-            </div>
-
-            {/* Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><Label htmlFor="value">Value (e.g. amount, prize pool)</Label><Input id="value" name="value" type="number" step="any" defaultValue={editingPromotion?.value || ''} /></div>
-                <div><Label htmlFor="bonusPercentage">Bonus Percentage (e.g. 100 for 100%)</Label><Input id="bonusPercentage" name="bonusPercentage" type="number" step="any" defaultValue={editingPromotion?.bonusPercentage || ''} /></div>
-                <div><Label htmlFor="freeSpinsCount">Free Spins Count</Label><Input id="freeSpinsCount" name="freeSpinsCount" type="number" defaultValue={editingPromotion?.freeSpinsCount || ''} /></div>
-            </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div><Label htmlFor="minDeposit">Min Deposit</Label><Input id="minDeposit" name="minDeposit" type="number" step="any" defaultValue={editingPromotion?.minDeposit || ''} /></div>
-                <div><Label htmlFor="maxBonusAmount">Max Bonus Amount</Label><Input id="maxBonusAmount" name="maxBonusAmount" type="number" step="any" defaultValue={editingPromotion?.maxBonusAmount || ''} /></div>
-                <div><Label htmlFor="wageringRequirement">Wagering Requirement (e.g. 35 for 35x)</Label><Input id="wageringRequirement" name="wageringRequirement" type="number" defaultValue={editingPromotion?.wageringRequirement || ''} /></div>
-            </div>
-
-            {/* Audience & CTA */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div><Label htmlFor="targetAudience">Target Audience</Label>
-                <Select name="targetAudience" defaultValue={editingPromotion?.targetAudience || 'all'}>
-                  <SelectTrigger><SelectValue placeholder="Select audience" /></SelectTrigger>
-                  <SelectContent>
-                    {['all', 'new_users', 'existing_users', 'vip_only'].map(ta => <SelectItem key={ta} value={ta}>{ta.replace(/_/g, ' ').toUpperCase()}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label htmlFor="code">Promo Code (optional)</Label><Input id="code" name="code" defaultValue={editingPromotion?.code || ''} /></div>
-              <div><Label htmlFor="ctaText">CTA Button Text</Label><Input id="ctaText" name="ctaText" defaultValue={editingPromotion?.ctaText || 'Claim Now'} /></div>
-            </div>
-             <div>
-                <Label>Eligible Games (for Free Spins, etc.)</Label>
-                <div className="mt-1 grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto border p-2 rounded-md">
-                    {games.map(game => (
-                    <div key={game.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                        id={`game-${game.id}`} 
-                        name="games" 
-                        value={game.slug || game.id!} // Use slug if available, otherwise ID
-                        defaultChecked={editingPromotion?.games?.includes(game.slug || game.id!) || false}
-                        />
-                        <Label htmlFor={`game-${game.id}`} className="font-normal truncate" title={game.title}>{game.title}</Label>
-                    </div>
-                    ))}
+          {editingPromotion && (
+            <form onSubmit={handleSavePromotion} className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><Label htmlFor="title">Title</Label><Input id="title" value={editingPromotion.title || ''} onChange={(e) => setEditingPromotion(p => ({...p, title: e.target.value}))} required /></div>
+                <div>
+                  <Label htmlFor="type">Type</Label>
+                  <Select value={editingPromotion.type || ''} onValueChange={(value) => setEditingPromotion(p => ({...p, type: value as PromotionType}))}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>{promotionTypes.map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-            </div>
-            <div><Label htmlFor="termsAndConditions">Terms & Conditions</Label><Textarea id="termsAndConditions" name="termsAndConditions" rows={5} defaultValue={editingPromotion?.termsAndConditions || ''} /></div>
-            
-            <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setShowFormDialog(false)}>Cancel</Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingPromotion ? 'Save Changes' : 'Create Promotion'}
-              </Button>
-            </DialogFooter>
-          </form>
+                 <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={editingPromotion.status || ''} onValueChange={(value) => setEditingPromotion(p => ({...p, status: value as PromotionStatus}))}>
+                    <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                    <SelectContent>{promotionStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="target_audience">Target Audience</Label>
+                   <Select value={editingPromotion.target_audience || ''} onValueChange={(value) => setEditingPromotion(p => ({...p, target_audience: value as PromotionAudience}))}>
+                    <SelectTrigger><SelectValue placeholder="Select audience" /></SelectTrigger>
+                    <SelectContent>{promotionAudiences.map(a => <SelectItem key={a} value={a}>{a.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                    <Label htmlFor="valid_from">Valid From</Label>
+                    <DatePicker 
+                        date={editingPromotion.valid_from ? parseISO(editingPromotion.valid_from) : undefined} 
+                        onDateChange={(date) => setEditingPromotion(p => ({...p, valid_from: date?.toISOString()}))} 
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="valid_until">Valid Until</Label>
+                    <DatePicker 
+                        date={editingPromotion.valid_until ? parseISO(editingPromotion.valid_until) : undefined} 
+                        onDateChange={(date) => setEditingPromotion(p => ({...p, valid_until: date?.toISOString()}))} 
+                    />
+                </div>
+                <div><Label htmlFor="image_url">Image URL</Label><Input id="image_url" value={editingPromotion.image_url || ''} onChange={(e) => setEditingPromotion(p => ({...p, image_url: e.target.value}))} /></div>
+                <div><Label htmlFor="category">Category</Label><Input id="category" value={editingPromotion.category || ''} onChange={(e) => setEditingPromotion(p => ({...p, category: e.target.value}))} /></div>
+                <div><Label htmlFor="value">Value (e.g., cashback %)</Label><Input type="number" id="value" value={editingPromotion.value || ''} onChange={(e) => setEditingPromotion(p => ({...p, value: parseFloat(e.target.value) || undefined}))} /></div>
+                <div><Label htmlFor="bonus_percentage">Bonus Percentage</Label><Input type="number" id="bonus_percentage" value={editingPromotion.bonus_percentage || ''} onChange={(e) => setEditingPromotion(p => ({...p, bonus_percentage: parseFloat(e.target.value) || undefined}))} /></div>
+                <div><Label htmlFor="free_spins_count">Free Spins Count</Label><Input type="number" id="free_spins_count" value={editingPromotion.free_spins_count || ''} onChange={(e) => setEditingPromotion(p => ({...p, free_spins_count: parseInt(e.target.value) || undefined}))} /></div>
+                <div><Label htmlFor="min_deposit">Min Deposit</Label><Input type="number" id="min_deposit" value={editingPromotion.min_deposit || ''} onChange={(e) => setEditingPromotion(p => ({...p, min_deposit: parseFloat(e.target.value) || undefined}))} /></div>
+                <div><Label htmlFor="max_bonus_amount">Max Bonus Amount</Label><Input type="number" id="max_bonus_amount" value={editingPromotion.max_bonus_amount || ''} onChange={(e) => setEditingPromotion(p => ({...p, max_bonus_amount: parseFloat(e.target.value) || undefined}))} /></div>
+                <div><Label htmlFor="wagering_requirement">Wagering Requirement (e.g., 30 for 30x)</Label><Input type="number" id="wagering_requirement" value={editingPromotion.wagering_requirement || ''} onChange={(e) => setEditingPromotion(p => ({...p, wagering_requirement: parseFloat(e.target.value) || undefined}))} /></div>
+                 <div><Label htmlFor="code">Promo Code</Label><Input id="code" value={editingPromotion.code || ''} onChange={(e) => setEditingPromotion(p => ({...p, code: e.target.value}))} /></div>
+                <div><Label htmlFor="cta_text">CTA Button Text</Label><Input id="cta_text" value={editingPromotion.cta_text || ''} onChange={(e) => setEditingPromotion(p => ({...p, cta_text: e.target.value}))} /></div>
+                <div className="md:col-span-2"><Label htmlFor="games">Applicable Games (comma-separated IDs/slugs)</Label><Input id="games" value={(editingPromotion.games || []).join(',')} onChange={(e) => setEditingPromotion(p => ({...p, games: e.target.value.split(',').map(s => s.trim()).filter(Boolean)}))} /></div>
+                <div className="md:col-span-2"><Label htmlFor="terms_and_conditions_url">Terms & Conditions URL</Label><Input id="terms_and_conditions_url" value={editingPromotion.terms_and_conditions_url || ''} onChange={(e) => setEditingPromotion(p => ({...p, terms_and_conditions_url: e.target.value}))} /></div>
+              </div>
+              <div className="md:col-span-2"><Label htmlFor="description">Description</Label><Textarea id="description" value={editingPromotion.description || ''} onChange={(e) => setEditingPromotion(p => ({...p, description: e.target.value}))} /></div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="is_active" checked={!!editingPromotion.is_active} onCheckedChange={(checked) => setEditingPromotion(p => ({...p, is_active: !!checked}))} />
+                <Label htmlFor="is_active">Is Active</Label>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="outline" onClick={() => {setIsModalOpen(false); setEditingPromotion(null);}}>Cancel</Button></DialogClose>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {editingPromotion?.id ? 'Save Changes' : 'Create Promotion'}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
-
-      <ConfirmationDialog
-        isOpen={showConfirmDeleteDialog}
-        onClose={() => setShowConfirmDeleteDialog(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Promotion"
-        description={`Are you sure you want to delete the promotion "${promotionToDelete?.title}"? This action cannot be undone.`}
-        confirmButtonText="Delete"
-        isLoading={isLoading}
-      />
-    </div>
+      <ConfirmationDialog {...deleteDialogProps} />
+    </AdminPageLayout>
   );
 };
 
-export default AdminPromotions;
+export default AdminPromotionsPage;

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User as UserType, UserRole } from '@/types/user'; // Ensure User is UserType from your definitions
+import { User as UserType, UserRole } from '@/types/user'; // UserRole imported
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'; // Removed DialogTrigger
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { PlusCircle, Edit, Trash2, Search, Eye, Ban, Unlock, UserCheck, UserX, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog'; // Assuming this exists
+import CMSPageHeader, { CMSPageHeaderProps } from '@/components/admin/cms/CMSPageHeader';
+import ConfirmationDialog, { ConfirmationDialogProps } from '@/components/admin/shared/ConfirmationDialog';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns'; // Added parseISO
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // For Role Select
 
 const ITEMS_PER_PAGE = 10;
 
@@ -37,15 +38,15 @@ const AdminUsers: React.FC = () => {
     setIsLoading(true);
     try {
       let query = supabase
-        .from('users')
+        .from('users') // Ensure this is your Supabase table name for users
         .select('*', { count: 'exact' });
 
       if (search) {
-        query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%,id.ilike.%${search}%`);
+        query = query.or(`username.ilike.%${search}%,email.ilike.%${search}%,id.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
       }
       
       if (sortCol) {
-         query = query.order(sortCol as string, { ascending: sortDir === 'asc' }); // Cast sortCol to string
+         query = query.order(sortCol as string, { ascending: sortDir === 'asc' });
       } else {
         query = query.order('created_at', { ascending: false }); 
       }
@@ -56,7 +57,15 @@ const AdminUsers: React.FC = () => {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      setUsers((data as UserType[]) || []); // Cast data to UserType[]
+
+      // Map DB fields to UserType if necessary, e.g. DB 'banned' to UserType 'is_banned'
+      const mappedData = data?.map(dbUser => ({
+        ...dbUser,
+        is_banned: dbUser.banned, // Assuming DB has 'banned' field
+        // ensure all UserType fields are covered
+      })) as UserType[];
+
+      setUsers(mappedData || []);
       setTotalUsers(count || 0);
     } catch (error: any) {
       toast.error(`Failed to fetch users: ${error.message}`);
@@ -64,6 +73,7 @@ const AdminUsers: React.FC = () => {
       setIsLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     fetchUsers(currentPage, searchTerm, sortColumn, sortDirection);
@@ -74,35 +84,44 @@ const AdminUsers: React.FC = () => {
     if (!editingUser && !showFormDialog) return; 
     
     const formData = new FormData(event.currentTarget);
-    const userData: Partial<UserType> = {
+    const userDataFromForm = {
       username: formData.get('username') as string,
       email: formData.get('email') as string,
-      role: formData.get('role') as UserRole, // Use UserRole type
-      // is_verified: formData.get('is_verified') === 'on', // is_verified might come from auth, handle carefully
-      // is_banned: formData.get('is_banned') === 'on',
-      first_name: formData.get('first_name') as string || undefined,
-      last_name: formData.get('last_name') as string || undefined,
-      avatar_url: formData.get('avatar_url') as string || undefined,
-      status: editingUser?.status || 'active', // Keep existing or default
-      // map checkbox values correctly
-      is_verified: (formData.get('is_verified') as string) === 'on',
-      is_banned: (formData.get('is_banned') as string) === 'on',
+      role: formData.get('role') as UserRole,
+      first_name: formData.get('first_name') as string || null, // Use null for empty optionals
+      last_name: formData.get('last_name') as string || null,
+      avatar_url: formData.get('avatar_url') as string || null,
+      is_verified: formData.get('is_verified') === 'on',
+      banned: formData.get('is_banned') === 'on', // Use 'banned' to match DB column
+      status: formData.get('is_banned') === 'on' ? 'banned' : (editingUser?.status || 'active'), // Update status based on ban
+      phone: formData.get('phone') as string || null,
     };
+
+    // Construct the payload for Supabase, ensure it matches DB schema
+    const supabasePayload: any = { ...userDataFromForm };
+    // If your DB uses 'is_banned' change here, but above used 'banned' for form.
+    // For this example, assuming DB has 'banned', 'is_verified', 'status', 'role', etc.
+    
+    // Remove fields not directly on the 'users' table or handle them separately
+    // e.g., if 'isActive' is derived or not a DB column
+    // delete supabasePayload.isActive; 
+
 
     setIsLoading(true);
     try {
       if (editingUser) {
         const { error } = await supabase
           .from('users')
-          .update(userData)
+          .update({...supabasePayload, updated_at: new Date().toISOString()})
           .eq('id', editingUser.id);
         if (error) throw error;
         toast.success('User updated successfully!');
       } else {
-        // This needs proper handling for creating auth user as well
-        const { data: newUser, error } = await supabase.from('users').insert(userData).select().single();
+        // This is for creating user in 'users' table, NOT Supabase Auth.
+        // Auth user creation should be handled via Supabase Auth methods.
+        const { data: newUser, error } = await supabase.from('users').insert({...supabasePayload, created_at: new Date().toISOString()}).select().single();
         if (error) throw error;
-        toast.success(`User ${newUser?.username || newUser?.email} created. Auth user NOT created.`);
+        toast.success(`User ${newUser?.username || newUser?.email} created in database. (Auth user NOT created).`);
       }
       setShowFormDialog(false);
       setEditingUser(null);
@@ -114,6 +133,7 @@ const AdminUsers: React.FC = () => {
     }
   };
 
+
   const openDeleteDialog = (user: UserType) => {
     setUserToDelete(user);
     setShowConfirmDeleteDialog(true);
@@ -123,9 +143,10 @@ const AdminUsers: React.FC = () => {
     if (!userToDelete) return;
     setIsLoading(true);
     try {
+      // This deletes from your 'users' table. Auth user deletion is separate.
       const { error } = await supabase.from('users').delete().eq('id', userToDelete.id);
       if (error) throw error;
-      toast.success('User data deleted successfully! (Auth user may still exist)');
+      toast.success('User data deleted from database successfully! (Auth user may still exist)');
       setShowConfirmDeleteDialog(false);
       setUserToDelete(null);
       fetchUsers(currentPage, searchTerm, sortColumn, sortDirection);
@@ -139,10 +160,10 @@ const AdminUsers: React.FC = () => {
   const toggleUserBan = async (user: UserType) => {
     setIsLoading(true);
     try {
-      const newBanStatus = !user.is_banned; // Assuming is_banned exists on UserType
+      const newBanStatus = !user.is_banned; // UserType uses is_banned
       const { error } = await supabase
-        .from('users')
-        .update({ is_banned: newBanStatus, updated_at: new Date().toISOString(), status: newBanStatus ? 'banned' : 'active' })
+        .from('users') // DB table
+        .update({ banned: newBanStatus, status: newBanStatus ? 'banned' : 'active', updated_at: new Date().toISOString() }) // DB uses 'banned'
         .eq('id', user.id);
       if (error) throw error;
       toast.success(`User ${newBanStatus ? 'banned' : 'unbanned'} successfully.`);
@@ -171,18 +192,33 @@ const AdminUsers: React.FC = () => {
   };
 
   const totalPages = Math.ceil(totalUsers / ITEMS_PER_PAGE);
+  const userRoles: UserRole[] = ['user', 'admin', 'moderator', 'agent', 'vip_manager']; // Example roles for dropdown
+
+  const cmsHeaderProps: CMSPageHeaderProps = {
+    title: "User Management",
+    description: "View, manage, and moderate platform users.",
+    actions: (
+      <Button onClick={() => { setEditingUser(null); setShowFormDialog(true); }}>
+        <PlusCircle className="mr-2 h-4 w-4" /> Add New User (DB Only)
+      </Button>
+    )
+  };
+  
+  const deleteDialogProps: ConfirmationDialogProps = {
+    isOpen:showConfirmDeleteDialog,
+    onClose:() => setShowConfirmDeleteDialog(false),
+    onConfirm:handleDeleteConfirm,
+    title:"Delete User",
+    description:`Are you sure you want to delete user "${userToDelete?.username || userToDelete?.email}"? This action might be irreversible.`,
+    confirmText:"Delete",
+    variant: "destructive",
+    isLoading:isLoading
+  };
+
 
   return (
     <div className="container mx-auto p-4">
-      <CMSPageHeader
-        title="User Management"
-        description="View, manage, and moderate platform users."
-        actions={
-          <Button onClick={() => { setEditingUser(null); setShowFormDialog(true); }}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New User (Admin)
-          </Button>
-        }
-      />
+      <CMSPageHeader {...cmsHeaderProps} />
 
       <div className="mb-4 flex items-center">
         <Input
@@ -191,9 +227,10 @@ const AdminUsers: React.FC = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
-        <Button onClick={() => fetchUsers(1, searchTerm, sortColumn, sortDirection)} className="ml-2">
+        {/* Search button can trigger fetch if needed, or rely on useEffect */}
+        {/* <Button onClick={() => fetchUsers(1, searchTerm, sortColumn, sortDirection)} className="ml-2">
           <Search className="mr-2 h-4 w-4" /> Search
-        </Button>
+        </Button> */}
       </div>
       
       {isLoading && users.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
@@ -218,10 +255,10 @@ const AdminUsers: React.FC = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium truncate max-w-[150px]" title={user.username || undefined}>{user.username || 'N/A'}</TableCell>
                   <TableCell className="truncate max-w-[200px]" title={user.email || undefined}>{user.email}</TableCell>
-                  <TableCell>{user.role || 'user'}</TableCell>
+                  <TableCell className="capitalize">{user.role || 'user'}</TableCell>
                   <TableCell>{user.is_verified ? <UserCheck className="h-5 w-5 text-green-500" /> : <UserX className="h-5 w-5 text-red-500" />}</TableCell>
                   <TableCell>{user.is_banned ? <Ban className="h-5 w-5 text-red-500" /> : <Unlock className="h-5 w-5 text-green-500" />}</TableCell>
-                  <TableCell>{format(new Date(user.created_at), 'PP')}</TableCell>
+                  <TableCell>{format(parseISO(user.created_at), 'PP')}</TableCell>
                   <TableCell className="space-x-1">
                     <Button variant="ghost" size="icon" title="View Profile" onClick={() => navigate(`/admin/users/${user.id}`)}>
                       <Eye className="h-4 w-4" />
@@ -271,9 +308,9 @@ const AdminUsers: React.FC = () => {
       <Dialog open={showFormDialog} onOpenChange={(isOpen) => { setShowFormDialog(isOpen); if(!isOpen) setEditingUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingUser ? 'Edit User' : 'Add New User (Admin Only)'}</DialogTitle>
+            <DialogTitle>{editingUser ? 'Edit User' : 'Add New User (DB Only)'}</DialogTitle>
             <DialogDescription>
-                {editingUser ? 'Modify user details.' : 'Manually add a user. This does NOT create a Supabase Auth account.'}
+                {editingUser ? 'Modify user details in the database.' : 'Manually add a user to the database. This does NOT create a Supabase Auth account.'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleFormSubmit} className="space-y-4 py-2">
@@ -299,36 +336,33 @@ const AdminUsers: React.FC = () => {
             </div>
             <div>
               <Label htmlFor="role">Role</Label>
-              <Input id="role" name="role" defaultValue={editingUser?.role || 'user'} placeholder="e.g., user, admin, moderator" />
+              <Select name="role" defaultValue={editingUser?.role || 'user'}>
+                <SelectTrigger id="role"><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>
+                  {userRoles.map(r => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox id="is_verified" name="is_verified" defaultChecked={editingUser?.is_verified || false} />
-              <Label htmlFor="is_verified" className="font-normal">Email Verified</Label>
+              <Label htmlFor="is_verified" className="font-normal">Email Verified (DB flag)</Label>
             </div>
              <div className="flex items-center space-x-2">
               <Checkbox id="is_banned" name="is_banned" defaultChecked={editingUser?.is_banned || false} />
-              <Label htmlFor="is_banned" className="font-normal">Banned</Label>
+              <Label htmlFor="is_banned" className="font-normal">Banned (DB flag)</Label>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowFormDialog(false)}>Cancel</Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingUser ? 'Save Changes' : 'Create User'}
+                {editingUser ? 'Save Changes' : 'Create User (DB)'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <ConfirmationDialog
-        isOpen={showConfirmDeleteDialog}
-        onClose={() => setShowConfirmDeleteDialog(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete User"
-        description={`Are you sure you want to delete user "${userToDelete?.username || userToDelete?.email}"? This action might be irreversible.`}
-        confirmText="Delete" // Changed from confirmButtonText
-        isLoading={isLoading}
-      />
+      <ConfirmationDialog {...deleteDialogProps} />
     </div>
   );
 };
