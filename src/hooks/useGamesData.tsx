@@ -1,18 +1,23 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Game } from '@/types'; // Game from game.ts
+import { Game } from '@/types/game';
 import { gameService } from '@/services/gameService';
 import { toast } from 'sonner';
 
 interface UseGamesDataProps {
-  category?: string; // category slug
-  provider?: string; // provider slug
+  category?: string;
+  provider?: string;
   featured?: boolean;
   popular?: boolean;
   latest?: boolean;
   limit?: number;
   searchQuery?: string;
-  initialOffset?: number; // Added initialOffset
+  initialOffset?: number;
+}
+
+interface GamesResult {
+  games: Game[];
+  count: number;
 }
 
 export const useGamesData = ({
@@ -23,17 +28,16 @@ export const useGamesData = ({
   latest,
   limit = 12,
   searchQuery = '',
-  initialOffset = 0, // Default initialOffset to 0
+  initialOffset = 0,
 }: UseGamesDataProps = {}) => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(initialOffset); // Use offset state
+  const [offset, setOffset] = useState(initialOffset);
 
   const fetchGames = useCallback(async (currentOffset: number, replace: boolean = false) => {
-    // `replace` flag to determine if we append or replace games array
     try {
       setLoading(true);
       
@@ -58,7 +62,6 @@ export const useGamesData = ({
       }
       
       setTotalCount(count || 0);
-      // Corrected hasMore logic
       setHasMore(fetchedGames.length > 0 && (currentOffset + fetchedGames.length) < (count || 0));
       setError(null);
     } catch (err: any) {
@@ -71,22 +74,22 @@ export const useGamesData = ({
   }, [category, provider, featured, popular, latest, limit, searchQuery]);
 
   useEffect(() => {
-    setGames([]); // Clear games when filters change
-    setOffset(0); // Reset offset
-    fetchGames(0, true); // Initial fetch, replacing games
-  }, [fetchGames]); // fetchGames itself has dependencies that trigger re-fetch
+    setGames([]);
+    setOffset(0);
+    fetchGames(0, true);
+  }, [fetchGames]);
 
   const loadMore = useCallback(() => {
     if (loading || !hasMore) return;
     const nextOffset = offset + limit;
-    setOffset(nextOffset); // Update offset state
-    fetchGames(nextOffset, false); // Fetch next page, appending games
+    setOffset(nextOffset);
+    fetchGames(nextOffset, false);
   }, [fetchGames, offset, limit, hasMore, loading]);
 
   const refresh = useCallback(() => {
-    setGames([]); // Clear games
-    setOffset(0); // Reset offset
-    fetchGames(0, true); // Re-fetch first page, replacing games
+    setGames([]);
+    setOffset(0);
+    fetchGames(0, true);
   }, [fetchGames]);
 
   return {

@@ -1,34 +1,95 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Game, GameProvider, GameCategory, GameLaunchOptions, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter';
 
-// Game service mock implementation (should be replaced with actual implementation)
+// Game service implementation
 const gameService = {
-  getAllGames: async ({ limit = 100 } = {}): Promise<{ games: Game[], count: number }> => {
-    const { data, error, count } = await supabase
-      .from('games')
-      .select('*', { count: 'exact' })
-      .limit(limit);
+  getAllGames: async ({ limit = 100, offset = 0, category, provider, search, featured, popular, latest } = {}): Promise<{ games: Game[], count: number }> => {
+    let query = supabase.from('games').select('*, providers:provider_id(*)', { count: 'exact' });
+
+    // Apply filters
+    if (category) {
+      query = query.contains('category_slugs', [category]);
+    }
+    
+    if (provider) {
+      query = query.eq('provider_slug', provider);
+    }
+    
+    if (search && search.trim() !== '') {
+      query = query.ilike('game_name', `%${search}%`);
+    }
+    
+    if (featured) {
+      query = query.eq('is_featured', true);
+    }
+    
+    if (popular) {
+      query = query.eq('is_popular', true);
+    }
+    
+    if (latest) {
+      query = query.order('created_at', { ascending: false });
+    } else {
+      // Default sorting
+      query = query.order('views', { ascending: false });
+    }
+    
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+    
+    const { data, error, count } = await query;
     
     if (error) throw error;
-    return { games: data as Game[], count: count || 0 };
+    
+    // Map DB games to Game interface
+    const mappedGames = (data || []).map((dbGame: any) => {
+      const game = mapDbGameToGameAdapter(dbGame as DbGame);
+      return game;
+    });
+    
+    return { 
+      games: mappedGames,
+      count: count || 0
+    };
   },
   
   getProviders: async (): Promise<GameProvider[]> => {
     const { data, error } = await supabase.from('providers').select('*');
+    
     if (error) throw error;
-    return data as GameProvider[];
+    
+    return (data || []).map((provider: any) => ({
+      id: provider.id || '',
+      name: provider.name || '',
+      slug: provider.name?.toLowerCase().replace(/\s+/g, '-') || '',
+      logoUrl: provider.logo || '',
+      description: provider.description || '',
+      isActive: provider.status === 'active',
+      games_count: 0, // This would need a separate query to count games
+    }));
   },
   
   getCategories: async (): Promise<GameCategory[]> => {
     const { data, error } = await supabase.from('game_categories').select('*');
+    
     if (error) throw error;
-    return data as GameCategory[];
+    
+    return (data || []).map((category: any) => ({
+      id: category.id || '',
+      name: category.name || '',
+      slug: category.slug || '',
+      description: category.description || '',
+      icon: category.icon || '',
+      image_url: category.image || '',
+      order: category.order || 0,
+    }));
   },
   
   getFavoriteGames: async (userId: string): Promise<string[]> => {
@@ -38,7 +99,7 @@ const gameService = {
       .eq('user_id', userId);
     
     if (error) throw error;
-    return data.map(item => item.game_id);
+    return (data || []).map(item => item.game_id);
   },
   
   addFavoriteGame: async (userId: string, gameId: string): Promise<void> => {
@@ -62,7 +123,7 @@ const gameService = {
   getGameById: async (gameId: string): Promise<Game | null> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .eq('id', gameId)
       .single();
     
@@ -70,13 +131,14 @@ const gameService = {
       if (error.code === 'PGRST116') return null; // Not found
       throw error;
     }
-    return data as Game;
+    
+    return mapDbGameToGameAdapter(data as DbGame);
   },
   
   getGameBySlug: async (slug: string): Promise<Game | null> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .eq('slug', slug)
       .single();
     
@@ -84,27 +146,30 @@ const gameService = {
       if (error.code === 'PGRST116') return null; // Not found
       throw error;
     }
-    return data as Game;
+    
+    return mapDbGameToGameAdapter(data as DbGame);
   },
   
   getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .eq('provider_slug', providerSlug);
     
     if (error) throw error;
-    return data as Game[];
+    
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
   },
   
   getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .contains('category_slugs', [categorySlug]);
     
     if (error) throw error;
-    return data as Game[];
+    
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
   },
   
   getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
@@ -116,43 +181,44 @@ const gameService = {
   getFeaturedGames: async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .eq('is_featured', true)
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
   },
   
   getPopularGames: async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .order('views', { ascending: false })
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
   },
   
   getLatestGames: async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*')
+      .select('*, providers:provider_id(*)')
       .order('created_at', { ascending: false })
       .limit(count);
     
     if (error) throw error;
-    return data as Game[];
+    
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
   }
 };
 
-// Props for GameLauncher component, if it's still being used directly with these specific prop names
 export interface GameLauncherProps {
   game: Game;
   mode?: 'real' | 'demo';
   onClose?: () => void;
-  // These might be part of the context now, check usage
   onPlay?: (game: Game, mode: 'real' | 'demo') => void; 
   onDetails?: (game: Game) => void;
 }
@@ -189,7 +255,6 @@ interface GamesContextType {
   getPopularGames: (count?: number) => Promise<Game[]>;
   getLatestGames: (count?: number) => Promise<Game[]>;
 
-  // General loading state combining all initial fetches
   isLoading: boolean; 
 }
 
@@ -202,7 +267,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const { data: gamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ games: Game[], count: number }, Error>({
     queryKey: ['allGames'],
-    queryFn: () => gameService.getAllGames({ limit: 500 }), // Fetch a larger initial set or implement pagination
+    queryFn: () => gameService.getAllGames({ limit: 500 }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
@@ -314,7 +379,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const toggleFavoriteMutation = useMutation<void, Error, string>({
     mutationFn: async (gameIdOrSlug: string) => {
       if (!user) throw new Error("User not authenticated");
-      // Find the actual game ID if a slug is passed
+      
       const gameToToggle = games.find(g => g.id === gameIdOrSlug || g.slug === gameIdOrSlug);
       if (!gameToToggle) throw new Error("Game not found");
       

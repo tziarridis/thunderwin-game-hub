@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
-import { Wallet } from '@/types';
+import { Wallet } from '@/types/wallet';
 
 interface VipProgressProps {
   currentLevel?: number;
@@ -23,7 +23,10 @@ const VipProgress: React.FC<VipProgressProps> = ({
   // Default points needed if not provided
   const pointsNeeded = pointsToNextLevel || 100;
   
-  const progressPercentage = Math.min(100, Math.round((points / pointsNeeded) * 100));
+  // Ensure we don't divide by zero and cap at 100%
+  const progressPercentage = pointsNeeded > 0 
+    ? Math.min(100, Math.round((points / pointsNeeded) * 100)) 
+    : 0;
   
   return (
     <div className="space-y-2">

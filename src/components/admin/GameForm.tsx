@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,23 +12,23 @@ import { Game, DbGame, GameStatusEnum, GameVolatilityEnum, AllGameStatuses, AllG
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { XIcon, PlusCircleIcon } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client'; // Added import
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'; // Added import
-import { Badge } from '@/components/ui/badge'; // Added import
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 // Zod schema for form validation
 const gameFormSchema = z.object({
-  game_id: z.string().optional(), // External game ID from provider
+  game_id: z.string().optional(),
   title: z.string().min(1, "Title is required"),
   slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug must be lowercase alphanumeric with hyphens"),
   provider_slug: z.string().min(1, "Provider slug is required"),
   category_slugs: z.array(z.string()).min(1, "At least one category is required"),
   rtp: z.number().min(0).max(100).optional().nullable(),
-  image: z.string().url("Must be a valid URL").optional().nullable(), // Cover image
-  bannerUrl: z.string().url("Must be a valid URL").optional().nullable(), // Banner image
+  image: z.string().url("Must be a valid URL").optional().nullable(),
+  bannerUrl: z.string().url("Must be a valid URL").optional().nullable(),
   description: z.string().optional().nullable(),
-  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.DRAFT),
-  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(),
+  status: z.enum(AllGameStatuses as [string, ...string[]]).default(GameStatusEnum.DRAFT),
+  volatility: z.enum(AllGameVolatilities as [string, ...string[]]).optional().nullable(),
   lines: z.number().int().positive().optional().nullable(),
   min_bet: z.number().positive().optional().nullable(),
   max_bet: z.number().positive().optional().nullable(),
@@ -40,10 +39,10 @@ const gameFormSchema = z.object({
   is_new: z.boolean().default(false).optional(),
   is_featured: z.boolean().default(false).optional(),
   show_home: z.boolean().default(false).optional(),
-  release_date: z.string().optional().nullable(), // Consider using a date picker
+  release_date: z.string().optional().nullable(),
   has_freespins: z.boolean().default(false).optional(),
-  has_jackpot: z.boolean().default(false).optional(), // This field is in the schema, but not in DbGame
-  game_code: z.string().optional().nullable(), // Alternative game identifier
+  has_jackpot: z.boolean().default(false).optional(),
+  game_code: z.string().optional().nullable(),
 });
 
 type GameFormData = z.infer<typeof gameFormSchema>;
@@ -89,7 +88,6 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
   const [currentThemes, setCurrentThemes] = useState<string[]>(initialThemes);
   const [themeInput, setThemeInput] = useState('');
 
-
   const form = useForm<GameFormData>({
     resolver: zodResolver(gameFormSchema),
     defaultValues: {
@@ -116,7 +114,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
       show_home: game?.show_home || false,
       release_date: game?.release_date ? new Date(game.release_date).toISOString().split('T')[0] : '',
       has_freespins: game?.has_freespins || false,
-      has_jackpot: (game as Game)?.has_jackpot || false, // Safely access, not in DbGame
+      has_jackpot: (game as Game)?.has_jackpot || false,
       game_code: game?.game_code || '',
     },
   });
@@ -204,8 +202,8 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
         banner: data.bannerUrl || null,
         banner_url: data.bannerUrl || null,
         description: data.description || null,
-        status: data.status,
-        volatility: data.volatility || null,
+        status: data.status as string,
+        volatility: data.volatility as string || null,
         lines: data.lines !== null ? data.lines : null,
         min_bet: data.min_bet !== null ? data.min_bet : null,
         max_bet: data.max_bet !== null ? data.max_bet : null,

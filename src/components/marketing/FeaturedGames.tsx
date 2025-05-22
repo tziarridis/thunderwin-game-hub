@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { Game } from '@/types';
-import { useGames } from '@/hooks/useGames';
+import { Game } from '@/types/game';
+import { useGamesData } from '@/hooks/useGamesData';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
@@ -13,7 +13,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { toast } from 'sonner'; 
+import { toast } from 'sonner';
+import { useGames } from '@/hooks/useGames';
 
 interface FeaturedGamesProps {
   title?: string;
@@ -28,13 +29,13 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   categorySlug,
   tag 
 }) => {
-  const { games, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
+  const { games: allGames, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
   const [filteredGamesToShow, setFilteredGamesToShow] = useState<Game[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (games.length > 0) {
-      let tempFiltered = [...games]; 
+    if (allGames.length > 0) {
+      let tempFiltered = [...allGames]; 
 
       if (categorySlug) {
         tempFiltered = tempFiltered.filter(g => 
@@ -69,7 +70,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
 
       setFilteredGamesToShow(tempFiltered.slice(0, count));
     }
-  }, [games, count, categorySlug, tag]);
+  }, [allGames, count, categorySlug, tag]);
 
   const handlePlayGame = async (game: Game) => {
     try {

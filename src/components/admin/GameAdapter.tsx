@@ -2,12 +2,10 @@
 import { Game, DbGame, GameStatus, GameVolatility, GameTag } from '@/types/game';
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
-export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
-  // console.log("Mapping DbGame to Game:", dbGame);
-
+export const mapDbGameToGameAdapter = (dbGame: DbGame | any): Game => {
   // Helper to safely cast string to GameStatus
   const parseGameStatus = (statusStr: string | null | undefined): GameStatus => {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked']; // Added pending, blocked
+    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked'];
     if (statusStr && validStatuses.includes(statusStr as GameStatus)) {
       return statusStr as GameStatus;
     }
@@ -22,13 +20,18 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     return undefined;
   };
   
-  const providerData = dbGame.providers &&
-                       typeof dbGame.providers === 'object' &&
-                       'name' in dbGame.providers &&
-                       'slug' in dbGame.providers
-    ? { id: String(dbGame.providers.id), name: dbGame.providers.name, slug: dbGame.providers.slug } // Ensure id is string
-    : null;
-
+  // Handle the providers field that comes from Supabase join
+  let providerData = null;
+  
+  if (dbGame.providers) {
+    if (typeof dbGame.providers === 'object' && dbGame.providers !== null) {
+      providerData = {
+        id: String(dbGame.providers.id || ''),
+        name: dbGame.providers.name || '',
+        slug: dbGame.providers.slug || dbGame.provider_slug || ''
+      };
+    }
+  }
 
   return {
     id: String(dbGame.id), 
@@ -66,9 +69,6 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     max_bet: dbGame.max_bet ?? undefined, 
     
     features: Array.isArray(dbGame.features) ? dbGame.features : [],
-    // DbGame.tags is string[] | null. Game.tags can be string[] | GameTag[].
-    // For now, map DbGame.tags (string[]) directly to Game.tags as string[].
-    // If Game.tags needs to be GameTag[], further transformation is needed here based on available tag data.
     tags: Array.isArray(dbGame.tags) ? dbGame.tags : [], 
     themes: Array.isArray(dbGame.themes) ? dbGame.themes : [],
     
@@ -79,7 +79,9 @@ export const mapDbGameToGameAdapter = (dbGame: DbGame): Game => {
     status: parseGameStatus(dbGame.status),
     only_demo: dbGame.only_demo ?? false,
     only_real: dbGame.only_real ?? false,
-    provider_id: String(dbGame.provider_id || ''), // Ensure provider_id is string
+    provider_id: String(dbGame.provider_id || ''),
+    created_at: dbGame.created_at,
+    updated_at: dbGame.updated_at,
   };
 };
 
@@ -139,7 +141,7 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.game_code) dbGame.game_code = String(game.game_code);
   
   if (game.status) {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked']; // Added pending, blocked
+    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked'];
     if (validStatuses.includes(game.status)) {
       dbGame.status = game.status;
     } else {
@@ -150,6 +152,11 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
 
   if (game.only_demo !== undefined) dbGame.only_demo = game.only_demo;
   if (game.only_real !== undefined) dbGame.only_real = game.only_real;
+  
+  // Set distribution if not already set
+  if (!dbGame.distribution && game.provider) {
+    dbGame.distribution = game.provider.slug || 'internal';
+  }
 
   Object.keys(dbGame).forEach(key => {
     const dbGameKey = key as keyof DbGame;

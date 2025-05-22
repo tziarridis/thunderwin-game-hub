@@ -1,3 +1,4 @@
+
 // Game Enums (can be extended)
 export enum GameStatusEnum {
   ACTIVE = "active",
@@ -31,30 +32,29 @@ export interface GameTag {
 
 // Game Provider
 export interface GameProvider {
-  id: string | number; // Keep flexible as in index.ts
+  id: string | number;
   name: string;
-  slug: string; // Ensure this is present
+  slug: string;
   logoUrl?: string;
   description?: string;
-  isActive?: boolean; // As in index.ts
-  games_count?: number; // As in index.ts
-  // Fields from game.ts's GameProvider
-  games?: Game[]; // Game array from game.ts GameProvider
-  status?: 'active' | 'inactive' | 'coming_soon'; // Status from game.ts GameProvider
+  isActive?: boolean;
+  games_count?: number;
+  status?: 'active' | 'inactive' | 'coming_soon';
+  games?: Game[];
 }
 
 // Game Category
 export interface GameCategory {
-  id: string | number; // Keep flexible
+  id: string | number;
   name: string;
   slug: string;
   description?: string;
-  icon?: string; // e.g., Lucide icon name or path (from index.ts)
-  image_url?: string; // (from index.ts and game.ts)
-  parent_id?: string | number; // (from index.ts)
-  order?: number; // (from index.ts)
-  icon_svg?: string; // For SVG icons (from game.ts)
-  game_ids?: string[]; // List of game IDs in this category (from game.ts)
+  icon?: string;
+  image_url?: string;
+  parent_id?: string | number;
+  order?: number;
+  icon_svg?: string;
+  game_ids?: string[];
 }
 
 // Game Launch Options
@@ -63,70 +63,68 @@ export interface GameLaunchOptions {
   user_id?: string;
   username?: string;
   currency?: string;
-  platform?: 'mobile' | 'desktop' | 'web'; // from game.ts
+  platform?: 'mobile' | 'desktop' | 'web';
   language?: string;
-  token?: string; // from game.ts
+  token?: string;
   returnUrl?: string;
 }
 
-// Consolidated Game Interface (based on src/types/index.ts, augmented by src/types/game.ts)
+// Consolidated Game Interface
 export interface Game {
   id: string | number;
-  game_id?: string; // Specific external game ID
+  game_id?: string;
   title: string;
   slug: string;
   provider_id?: string | number;
-  providerName?: string; // Often denormalized
-  provider_slug: string; // Ensure this is present
-  category?: string; // Legacy or simple category name
-  categoryName?: string; // Often denormalized
-  category_slugs?: string[]; // Array of category slugs
+  providerName?: string;
+  provider_slug: string;
+  provider?: { id?: string; name: string; slug?: string };
+  category?: string;
+  categoryName?: string;
+  category_slugs?: string[];
   rtp?: number;
   cover?: string;
-  image?: string; // Alternative for cover
-  banner?: string; // Optional banner image from index.ts
-  bannerUrl?: string; // from game.ts
+  image?: string;
+  image_url?: string;
+  banner?: string;
+  bannerUrl?: string;
   description?: string;
-  status?: GameStatus; // Use the consolidated GameStatus
+  status?: GameStatus;
   views?: number;
   is_featured?: boolean;
-  isNew?: boolean; // To mark new games
-  releaseDate?: string; // ISO date string
-  tags?: string[] | GameTag[]; // Can be simple strings or tag objects
-  volatility?: GameVolatility; // Use the consolidated GameVolatility
+  isNew?: boolean;
+  isPopular?: boolean;
+  releaseDate?: string;
+  created_at?: string;
+  updated_at?: string;
+  tags?: string[] | GameTag[];
+  volatility?: GameVolatility;
   lines?: number;
   min_bet?: number;
   max_bet?: number;
   only_real?: boolean;
   only_demo?: boolean;
   has_freespins?: boolean;
-  created_at?: string;
-  updated_at?: string;
-
-  // Fields from game.ts's Game definition
-  provider?: { id?: string; name: string; slug?: string };
-  image_url?: string; // (already covered by image/cover)
   features?: string[];
   themes?: string[];
-  isPopular?: boolean; // (is_featured might cover this)
   show_home?: boolean;
   launch_url?: string;
   demo_url?: string;
-  game_code?: string; // Alternative game identifier if needed
+  game_code?: string;
   likes?: number;
   has_jackpot?: boolean;
   supported_currencies?: string[];
   supported_languages?: string[];
   technology?: 'html5' | 'flash' | 'other';
 
-  [key: string]: any; // Allow for additional properties
+  [key: string]: any;
 }
 
-// Database Game Structure (from src/types/game.ts)
+// Database Game Structure
 export interface DbGame {
-  id: string; // Primary key (UUID)
-  game_id: string; // Provider's game ID
-  game_name: string; // Title of the game
+  id: string;
+  game_id: string;
+  game_name: string;
   slug?: string;
   provider_id?: string | null;
   provider_slug?: string | null;
@@ -166,4 +164,6 @@ export interface DbGame {
   views?: number | null;
   providers?: { id?: string; name: string; slug: string } | null;
   title?: string;
+  
+  [key: string]: any; // For flexibility with database fields
 }
