@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Heart, PlayCircle, Info } from 'lucide-react';
-import { useGames } from '@/hooks/useGames'; // Fixed import
+import { useGames } from '@/hooks/useGames';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -24,9 +24,9 @@ const EnhancedGameCard: React.FC<EnhancedGameCardProps> = ({
   className 
 }) => {
   const { isAuthenticated } = useAuth();
-  const { toggleFavoriteGame, isFavorite: isGameFavorite } = useGames();
+  const { favoriteGameIds, toggleFavoriteGame } = useGames();
 
-  const isFavorite = isGameFavorite(String(game.id));
+  const isFavorite = favoriteGameIds?.has(String(game.id));
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();

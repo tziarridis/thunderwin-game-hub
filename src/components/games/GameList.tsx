@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Game } from '@/types';
-import GameCard from './GameCard';
-import { useGames } from '@/hooks/useGames'; // Fixed import
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import GameCard from './GameCard'; 
+import { useGames } from '@/hooks/useGames';
+import { useNavigate } from 'react-router-dom'; 
+import { toast } from 'sonner'; // For notifications
 
 interface GameListProps {
   games: Game[];
@@ -12,7 +11,7 @@ interface GameListProps {
 }
 
 const GameList: React.FC<GameListProps> = ({ games, title }) => {
-  const { launchGame, isFavorite, toggleFavoriteGame } = useGames();
+  const { favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
   const navigate = useNavigate();
 
   if (!games || games.length === 0) {
@@ -25,10 +24,12 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
       if (launchUrl) {
         window.open(launchUrl, '_blank');
       } else {
+        // Fallback to details page if no launch URL
         navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
       }
     } catch (error: any) {
       toast.error(`Could not launch game: ${error.message}`);
+      // Fallback to details page on error
       navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
     }
   };
@@ -39,10 +40,10 @@ const GameList: React.FC<GameListProps> = ({ games, title }) => {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
           <GameCard
-            key={String(game.id)}
+            key={String(game.id)} // Ensure key is unique and string
             game={game}
-            isFavorite={isFavorite(String(game.id))}
-            onToggleFavorite={toggleFavoriteGame}
+            isFavorite={favoriteGameIds.has(String(game.id))}
+            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
             onPlay={() => handlePlayGame(game)}
           />
         ))}

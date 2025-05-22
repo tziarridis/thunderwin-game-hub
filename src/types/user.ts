@@ -1,51 +1,33 @@
+import { KycStatus } from './kyc'; // Assuming KycStatus might be relevant
 
-// Basic user type for authentication
+export interface UserProfile {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  dateOfBirth?: string;
+  // Add other profile fields
+}
+
 export interface User {
   id: string;
-  email?: string;
-  created_at: string;
-  updated_at: string;
+  email: string;
   username?: string;
-  lastName?: string;
-  firstName?: string;
-  roles?: string[];
-  permissions?: string[];
-  isActive?: boolean;
-  avatarUrl?: string;
-  phone?: string;
-  inviterCode?: string;
+  profile?: UserProfile;
+  isActive: boolean;
+  isStaff?: boolean;
+  isAdmin?: boolean; // Or use roles
+  roles?: string[]; // Example: ['admin', 'player']
+  createdAt: string;
+  updatedAt: string;
+  lastLogin?: string;
+  kycStatus?: KycStatus; // Example
+  // any other user-specific fields
+  [key: string]: any;
 }
 
-// App User type used in components like UserMenu
-export interface AppUser {
-  id: string;
-  email?: string | null;
-  username?: string;
-  firstName?: string;
-  lastName?: string;
-  avatarUrl?: string;
-  isActive?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-  roles?: string[];
-  permissions?: string[];
-}
-
-// User with additional fields for the affiliate system
-export interface AffiliateUser extends User {
-  tracking_code?: string;
-  website_url?: string;
-  status?: 'active' | 'pending' | 'inactive' | 'blocked';
-  commission_type?: 'revshare' | 'cpa' | 'hybrid';
-  default_commission_rate?: number;
-  commission_tiers?: CommissionTier[];
-  // For displaying in the admin
-  userId?: string;
-}
-
-// Commission tier structure for affiliates
-export interface CommissionTier {
-  threshold: number;
-  rate: number;
-  type: 'percentage' | 'fixed';
+// You might also want types for user settings, preferences etc.
+export interface UserSettings {
+  theme?: 'dark' | 'light';
+  language?: string;
+  // ... other settings
 }

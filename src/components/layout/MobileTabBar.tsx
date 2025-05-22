@@ -58,10 +58,10 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
         {navItems.map((item, index) => (
           <Button
             key={index}
-            variant="ghost"
-            size="default"
+            variant="ghost" // Valid variant
+            size="default" // Explicitly set a valid size or remove if not needed for custom styling
             className={cn(
-              "flex flex-col items-center justify-center rounded-none h-full p-1",
+              "flex flex-col items-center justify-center rounded-none h-full p-1", // Adjusted padding for smaller text
               isActive(item.path) ? "text-casino-thunder-green" : "text-white/70",
               item.highlight && "text-casino-thunder-green"
             )}
@@ -77,3 +77,4 @@ export const MobileTabBar = ({ onOpenMenu }: MobileTabBarProps) => {
 };
 
 export default MobileTabBar;
+

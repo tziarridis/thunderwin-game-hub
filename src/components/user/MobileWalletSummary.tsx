@@ -3,10 +3,10 @@ import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, ArrowDownCircle } from 'lucide-react';
-import { Wallet } from '@/types/wallet'; 
+import { Wallet as UserWalletType } from '@/types'; 
 
 interface MobileWalletSummaryProps {
-  wallet: Wallet | null;
+  wallet: UserWalletType | null;
   onDepositClick?: () => void; // Made optional if not always used
   onWithdrawClick?: () => void; // Made optional
 }

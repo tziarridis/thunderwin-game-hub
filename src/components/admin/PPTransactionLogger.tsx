@@ -1,251 +1,311 @@
 
-import React, { useState, useEffect } from 'react';
-import { useQuery, QueryKey } from '@tanstack/react-query';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Transaction, TransactionStatusEnum } from '@/types/transaction'; // Use standardized Transaction type
 import { toast } from 'sonner';
-import Papa from 'papaparse';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption, TableFooter } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Search, Download, RefreshCw, AlertCircle } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import { Loader2, Search, Filter, Download, ArrowUpDown } from 'lucide-react';
+import Papa from 'papaparse'; // Import papaparse
+import { Transaction } from '@/types/transaction'; 
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 20;
 
-// Mock API call - replace with actual Supabase query or API call
-// This function signature now matches what fetchTransactions in AdminTransactions expects
-const fetchPPTransactions = async (
-  page: number,
-  filters: { playerId?: string; gameId?: string; roundId?: string; status?: string; dateFrom?: string; dateTo?: string; },
-  sortBy: string,
-  sortOrder: 'asc' | 'desc'
-): Promise<{ data: Transaction[]; count: number }> => {
-  console.log("Fetching PP Transactions:", { page, filters, sortBy, sortOrder });
-  // Simulating API delay
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  // Mock data structure matching Transaction type from src/types/transaction.ts
-  const mockRawData = Array.from({ length: 50 }).map((_, i) => {
-    const baseId = (page - 1) * ITEMS_PER_PAGE + i + 1;
-    return {
-      id: `pp_tx_${baseId}_${Date.now()}`,
-      player_id: filters.playerId || `user${100 + (baseId % 5)}`,
-      type: baseId % 3 === 0 ? 'bet' : 'win',
-      amount: parseFloat((Math.random() * (baseId % 3 === 0 ? -10 : 20)).toFixed(2)),
-      currency: 'USD',
-      status: baseId % 5 === 0 ? TransactionStatusEnum.FAILED : TransactionStatusEnum.COMPLETED,
-      provider: 'PragmaticPlay',
-      game_id: filters.gameId || `game_${1 + (baseId % 3)}`,
-      round_id: filters.roundId || `round_${baseId * 10}`,
-      created_at: new Date(Date.now() - Math.random() * 1000000000).toISOString(),
-      updated_at: new Date().toISOString(),
-      balance_before: Math.random() * 1000,
-      balance_after: Math.random() * 1000 + (baseId % 3 === 0 ? -10 : 20),
-      session_id: `session_${baseId}`,
-    };
-  });
-  
-  // Basic filtering mock
-  let filteredData = mockRawData;
-  if(filters.status) filteredData = filteredData.filter(tx => tx.status === filters.status);
-  // Add more mock filtering as needed
-
-  // Basic sorting mock
-  filteredData.sort((a, b) => {
-    const valA = (a as any)[sortBy];
-    const valB = (b as any)[sortBy];
-    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
-  
-  const paginatedData = filteredData.slice(0, ITEMS_PER_PAGE); // Mock pagination after filtering and sorting full set
-
-  return { data: paginatedData as Transaction[], count: mockRawData.length }; // Return full count for totalPages calculation
-};
-
-
-const PPTransactionLogger: React.FC = () => {
-  // ... keep existing code (useState for filters, currentPage, sortBy, sortOrder)
-  const [filters, setFilters] = useState<{
-    playerId?: string; gameId?: string; roundId?: string; status?: string; dateFrom?: string; dateTo?: string;
-  }>({});
+const PPTransactionLogger = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
+  const fetchTransactions = useCallback(async (page = 1) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('transactions') 
+        .select('*', { count: 'exact' });
 
-  const queryKey: QueryKey = ['ppTransactions', currentPage, filters, sortBy, sortOrder];
-  const { data: queryData, isLoading, error } = useQuery({
-    queryKey,
-    queryFn: () => fetchPPTransactions(currentPage, filters, sortBy, sortOrder),
-    staleTime: 60000, // Replace keepPreviousData with appropriate modern options
-  });
+      if (searchTerm) {
+        // Ensure search terms are appropriate for columns being searched
+        // Using player_id as it is in the Transaction type and Supabase table
+        query = query.or(`player_id.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,round_id.ilike.%${searchTerm}%,provider_transaction_id.ilike.%${searchTerm}%`);
+      }
+      if (filterType !== 'all') {
+        query = query.eq('type', filterType);
+      }
+      if (filterStatus !== 'all') {
+        query = query.eq('status', filterStatus);
+      }
+      if (dateRange?.from) {
+        query = query.gte('created_at', dateRange.from.toISOString());
+      }
+      if (dateRange?.to) {
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', toDate.toISOString());
+      }
 
-  const transactions = queryData?.data || [];
-  const totalCount = queryData?.count || 0;
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to).order('created_at', { ascending: false });
 
-  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value || undefined }));
-    setCurrentPage(1);
+      const { data, error: dbError, count } = await query;
+
+      if (dbError) throw dbError;
+      
+      setTransactions(data as Transaction[]); 
+      setTotalTransactions(count || 0);
+      setCurrentPage(page);
+
+    } catch (err: any) {
+      console.error("Error fetching transactions:", err);
+      setError(`Failed to fetch transactions: ${err.message}`);
+      toast.error(`Failed to fetch transactions: ${err.message}`);
+      setTransactions([]);
+      setTotalTransactions(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, filterType, filterStatus, dateRange]);
+
+  useEffect(() => {
+    fetchTransactions(1);
+  }, [fetchTransactions]);
+
+  const handleRefresh = () => {
+    fetchTransactions(currentPage);
   };
 
-  const handleSort = (columnId: keyof Transaction) => {
-    if (sortBy === columnId) {
-      setSortOrder(currentOrder => currentOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(columnId);
-      setSortOrder('desc');
-    }
-    setCurrentPage(1);
+  const handleDateChange = (newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+    // fetchTransactions(1); // Optionally fetch on date change, or rely on "Apply Filters"
   };
   
-  const exportToCSV = () => {
-    if(!transactions.length) {
-        toast.error("No data to export.");
-        return;
+  const handleDownloadCSV = () => {
+    if (transactions.length === 0) {
+      toast.info("No transactions to download.");
+      return;
     }
-    const csv = Papa.unparse(transactions.map(tx => ({
-        ID: tx.id,
-        PlayerID: tx.player_id,
-        Type: tx.type,
-        Amount: tx.amount,
-        Currency: tx.currency,
-        Status: tx.status,
-        Provider: tx.provider,
-        GameID: tx.game_id,
-        RoundID: tx.round_id,
-        SessionID: tx.session_id,
-        BalanceBefore: tx.balance_before,
-        BalanceAfter: tx.balance_after,
-        CreatedAt: format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
-        UpdatedAt: tx.updated_at ? format(new Date(tx.updated_at), 'yyyy-MM-dd HH:mm:ss') : '',
-    })));
+    // Ensure all fields are strings for CSV, handle null/undefined
+    const csvReadyTransactions = transactions.map(tx => {
+      const { ...restOfTx } = tx; // Destructure to omit metadata if it was ever there
+      return {
+        ...restOfTx,
+        amount: tx.amount.toString(),
+        balance_before: tx.balance_before?.toString() ?? '',
+        balance_after: tx.balance_after?.toString() ?? '',
+        // metadata: tx.metadata ? JSON.stringify(tx.metadata) : '', // Removed metadata
+      };
+    });
+    const csv = Papa.unparse(csvReadyTransactions);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `pragmaticplay_transactions_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Transactions CSV downloaded.");
+  };
+
+  const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      fetchTransactions(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      fetchTransactions(currentPage - 1);
     }
   };
 
 
-  // ... keep existing code (JSX for filters, table, pagination)
-  // Minor adjustments for pagination link might be needed if 'disabled' is not directly supported.
-  // Shadcn PaginationLink uses `aria-disabled` and styling, not a direct `disabled` prop.
-  // The `Pagination` component itself usually handles disabling logic.
-
   return (
-    <div className="p-4 md:p-6 bg-card text-card-foreground rounded-lg shadow-md">
-      <h2 className="text-2xl font-semibold mb-6">Pragmatic Play Transaction Logger</h2>
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+        <h1 className="text-2xl font-bold">Transaction Logger</h1>
+        <div className="flex items-center gap-2">
+           <DatePickerWithRange date={dateRange} onDateChange={handleDateChange} />
+          <Button onClick={handleDownloadCSV} variant="outline" size="sm" disabled={transactions.length === 0}>
+            <Download className="mr-2 h-4 w-4" /> CSV
+          </Button>
+          <Button onClick={handleRefresh} variant="outline" size="icon" title="Refresh transactions">
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+      </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <Input placeholder="Player ID" value={filters.playerId || ''} onChange={e => handleFilterChange('playerId', e.target.value)} />
-        <Input placeholder="Game ID" value={filters.gameId || ''} onChange={e => handleFilterChange('gameId', e.target.value)} />
-        <Input placeholder="Round ID" value={filters.roundId || ''} onChange={e => handleFilterChange('roundId', e.target.value)} />
-        <Select value={filters.status || ''} onValueChange={value => handleFilterChange('status', value === 'all' ? '' : value)}>
-          <SelectTrigger><SelectValue placeholder="Status (All)" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {Object.values(TransactionStatusEnum).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Input type="date" value={filters.dateFrom || ''} onChange={e => handleFilterChange('dateFrom', e.target.value)} />
-        <Input type="date" value={filters.dateTo || ''} onChange={e => handleFilterChange('dateTo', e.target.value)} />
-      </div>
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-muted-foreground">Displaying {transactions.length} of {totalCount} transactions.</p>
-        <Button onClick={exportToCSV} variant="outline" size="sm"><Download className="mr-2 h-4 w-4" />Export CSV</Button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-card rounded-lg shadow">
+        <div>
+          <label htmlFor="search-transactions" className="block text-sm font-medium text-muted-foreground mb-1">Search</label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="search-transactions"
+              type="search"
+              placeholder="Player ID, Game ID, Tx ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-full"
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="filter-type" className="block text-sm font-medium text-muted-foreground mb-1">Type</label>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger id="filter-type">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="deposit">Deposit</SelectItem>
+              <SelectItem value="withdrawal">Withdrawal</SelectItem>
+              <SelectItem value="bet">Bet</SelectItem>
+              <SelectItem value="win">Win</SelectItem>
+              <SelectItem value="bonus">Bonus</SelectItem>
+              <SelectItem value="refund">Refund</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label htmlFor="filter-status" className="block text-sm font-medium text-muted-foreground mb-1">Status</label>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="filter-status">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="failed">Failed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              {/* Added other statuses from TransactionStatus type */}
+              <SelectItem value="processing">Processing</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={() => fetchTransactions(1)} className="self-end">Apply Filters</Button>
       </div>
 
-      {isLoading && <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}
-      {error && <p className="text-red-500">Error loading transactions: {error.message}</p>}
-      
-      {!isLoading && !error && (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {/* Update TableHead to use keyof Transaction for sorting */}
-                {(['id', 'created_at', 'player_id', 'type', 'amount', 'status', 'game_id', 'round_id'] as (keyof Transaction)[]).map(headerKey => (
-                    <TableHead key={headerKey}>
-                        <Button variant="ghost" onClick={() => handleSort(headerKey)} className="px-1 text-xs">
-                        {String(headerKey).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        {sortBy === headerKey && (sortOrder === 'asc' ? ' ▲' : ' ▼')}
-                        </Button>
-                    </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {transactions.map(tx => (
-                <TableRow key={tx.id}>
-                  <TableCell className="text-xs font-mono" title={tx.id}>{tx.id.substring(0,15)}...</TableCell>
-                  <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
-                  <TableCell>{tx.player_id}</TableCell>
-                  <TableCell>{tx.type}</TableCell>
-                  <TableCell className={tx.amount < 0 ? 'text-red-500' : 'text-green-500'}>
-                    {tx.amount.toFixed(2)} {tx.currency}
-                  </TableCell>
-                  <TableCell>
-                     <span className={`px-2 py-1 text-xs rounded-full ${
-                        tx.status === TransactionStatusEnum.COMPLETED ? 'bg-green-100 text-green-700' :
-                        tx.status === TransactionStatusEnum.PENDING ? 'bg-yellow-100 text-yellow-700' :
-                        tx.status === TransactionStatusEnum.FAILED ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
-                    }`}>
-                        {tx.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{tx.game_id}</TableCell>
-                  <TableCell>{tx.round_id}</TableCell>
-                </TableRow>
-              ))}
-               {transactions.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center h-24">No transactions found for current filters.</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
+      {isLoading && transactions.length === 0 && (
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2">Loading transactions...</p>
         </div>
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <Pagination className="mt-6">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
-                aria-disabled={currentPage === 1}
-                tabIndex={currentPage === 1 ? -1 : undefined}
-                className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
-              />
-            </PaginationItem>
-            {/* Simplified pagination display for brevity */}
-            <PaginationItem>
-                <PaginationLink isActive>
-                    Page {currentPage} of {totalPages}
-                </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext 
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
-                aria-disabled={currentPage === totalPages}
-                tabIndex={currentPage === totalPages ? -1 : undefined}
-                className={currentPage === totalPages ? "pointer-events-none opacity-50" : undefined}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      {error && !isLoading && (
+        <div className="flex flex-col items-center justify-center py-10 bg-destructive/10 text-destructive border border-destructive rounded-lg p-4">
+          <AlertCircle className="h-8 w-8 mb-2" />
+          <p className="font-semibold">Error loading transactions</p>
+          <p className="text-sm">{error}</p>
+          <Button onClick={() => fetchTransactions(1)} variant="outline" className="mt-4">Try Again</Button>
+        </div>
+      )}
+
+      {!isLoading && !error && transactions.length === 0 && (
+        <div className="text-center py-10 text-muted-foreground">
+          <p>No transactions found matching your criteria.</p>
+        </div>
+      )}
+
+      {transactions.length > 0 && (
+        <div className="overflow-x-auto">
+          <Table>
+            <TableCaption>
+              Displaying {transactions.length} of {totalTransactions} transactions. 
+              Page {currentPage} of {totalPages}.
+            </TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Player ID</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Currency</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Provider</TableHead> {/* Added from Transaction type */}
+                <TableHead>Game ID</TableHead>
+                <TableHead>Round ID</TableHead> {/* Added from Transaction type */}
+                <TableHead>Provider Tx ID</TableHead> {/* Changed from Tx Hash */}
+                <TableHead>Created At</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.map((tx) => (
+                <TableRow key={tx.id}>
+                  <TableCell className="font-medium text-xs" title={tx.id}>{tx.id.substring(0, 8)}...</TableCell>
+                  <TableCell title={tx.player_id}>{tx.player_id?.substring(0,8)}...</TableCell> {/* Uses player_id */}
+                  <TableCell>{tx.type}</TableCell>
+                  <TableCell className="text-right">{tx.amount.toFixed(2)}</TableCell>
+                  <TableCell>{tx.currency}</TableCell>
+                  <TableCell>
+                     <span className={`px-2 py-1 text-xs rounded-full ${
+                        tx.status === 'completed' || tx.status === 'approved' ? 'bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300' :
+                        tx.status === 'pending' || tx.status === 'processing' ? 'bg-yellow-500/20 text-yellow-700 dark:bg-yellow-500/30 dark:text-yellow-300' :
+                        tx.status === 'failed' || tx.status === 'rejected' ? 'bg-red-500/20 text-red-700 dark:bg-red-500/30 dark:text-red-300' :
+                        tx.status === 'cancelled' ? 'bg-orange-500/20 text-orange-700 dark:bg-orange-500/30 dark:text-orange-300' :
+                        'bg-gray-500/20 text-gray-700 dark:bg-gray-500/30 dark:text-gray-300'
+                      }`}>
+                      {tx.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>{tx.provider || 'N/A'}</TableCell>
+                  <TableCell>{tx.game_id || 'N/A'}</TableCell>
+                  <TableCell>{tx.round_id || 'N/A'}</TableCell>
+                  <TableCell title={tx.provider_transaction_id || ''}>{tx.provider_transaction_id?.substring(0,8) || 'N/A'}...</TableCell>
+                  <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={11}> {/* Adjusted colSpan */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalTransactions)} of {totalTransactions} transactions
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 1 || isLoading}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage === totalPages || isLoading}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </div>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+
 // Fix the DateRangePicker usage in PPTransactions.tsx
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-// Changed DateRangePicker to DatePickerWithRange
-import { DatePickerWithRange, DateRange } from "@/components/ui/date-range-picker"; 
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -22,7 +22,7 @@ import { format } from "date-fns";
 
 interface Transaction {
   id: string;
-  date: string; // This should ideally be Date object or string that can be parsed to Date
+  date: string;
   player_id: string;
   round_id: string;
   type: string;
@@ -61,11 +61,10 @@ const mockTransactions: Transaction[] = [
   }
 ];
 
-
 const PPTransactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({ // Changed to DateRange | undefined to match DatePickerWithRange
+  const [dateRange, setDateRange] = useState<DateRange>({
     from: new Date(new Date().setDate(new Date().getDate() - 7)),
     to: new Date()
   });
@@ -73,31 +72,31 @@ const PPTransactions = () => {
 
   // Filter transactions based on search query, date range, and type
   const filteredTransactions = transactions.filter(tx => {
+    // Search filter (check player_id, round_id, or id)
     const searchMatch = searchQuery === "" || 
       tx.player_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.round_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tx.id.toLowerCase().includes(searchQuery.toLowerCase());
     
+    // Date filter
     let dateMatch = true;
-    if (dateRange?.from && dateRange?.to) { // Added optional chaining for dateRange
+    if (dateRange.from && dateRange.to) {
       const txDate = new Date(tx.date);
       dateMatch = txDate >= dateRange.from && txDate <= dateRange.to;
-    } else if (dateRange?.from) { // Handle case where only from date is selected
-        const txDate = new Date(tx.date);
-        dateMatch = txDate >= dateRange.from;
     }
     
+    // Type filter
     const typeMatch = transactionType === "all" || tx.type === transactionType;
     
     return searchMatch && dateMatch && typeMatch;
   });
 
-  // Ensure handleDateChange matches DatePickerWithRange's onDateChange prop type
-  const handleDateChange = (newRange: DateRange | undefined) => { 
-    setDateRange(newRange);
+  const handleDateChange = (range: DateRange) => {
+    setDateRange(range);
   };
 
   const handleExport = () => {
+    // Logic to export transactions
     console.log("Exporting transactions:", filteredTransactions);
     alert("Export functionality will be implemented here");
   };
@@ -129,10 +128,9 @@ const PPTransactions = () => {
             <div>
               <Label htmlFor="date-range">Date Range</Label>
               <div className="mt-1">
-                {/* Changed DateRangePicker to DatePickerWithRange and updated props */}
-                <DatePickerWithRange
-                  date={dateRange}
-                  onDateChange={handleDateChange}
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={handleDateChange}
                 />
               </div>
             </div>

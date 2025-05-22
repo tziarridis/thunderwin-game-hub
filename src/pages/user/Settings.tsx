@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { 
   Tabs, 
@@ -49,7 +50,7 @@ import {
   CircleCheck
 } from "lucide-react";
 import { toast } from "sonner";
-import { KycStatus, KycStatusEnum } from "@/types/kyc"; // Import KycStatusEnum
+import { KycStatus } from "@/types/kyc"; // Corrected import path
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
@@ -71,7 +72,7 @@ const Settings = () => {
     username: "johndoe",
     phone: "+1 555-123-4567",
     avatarUrl: "",
-    kycStatus: KycStatusEnum.NOT_SUBMITTED as KycStatus // Use Enum value and cast to type
+    kycStatus: KycStatus.NOT_SUBMITTED
   });
   
   const togglePassword = () => setShowPassword(!showPassword);
@@ -99,29 +100,27 @@ const Settings = () => {
   
   const getKycStatusBadge = (status: KycStatus) => {
     switch (status) {
-      case KycStatusEnum.APPROVED: // Use Enum value, was KycStatus.VERIFIED
+      case KycStatus.VERIFIED:
         return (
           <div className="bg-green-500/10 text-green-500 px-3 py-1 rounded-full text-sm flex items-center">
             <CircleCheck className="w-4 h-4 mr-1" />
-            Verified {/* UI Text */}
+            Verified
           </div>
         );
-      case KycStatusEnum.PENDING: // Use Enum value
+      case KycStatus.PENDING:
         return (
           <div className="bg-yellow-500/10 text-yellow-500 px-3 py-1 rounded-full text-sm flex items-center">
             <Clock className="w-4 h-4 mr-1" />
             Pending
           </div>
         );
-      case KycStatusEnum.REJECTED: // Use Enum value
+      case KycStatus.REJECTED:
         return (
           <div className="bg-red-500/10 text-red-500 px-3 py-1 rounded-full text-sm flex items-center">
             <X className="w-4 h-4 mr-1" />
             Rejected
           </div>
         );
-      case KycStatusEnum.NOT_SUBMITTED: // Explicitly handle NOT_SUBMITTED
-      case KycStatusEnum.RESUBMIT: // Added RESUBMIT to default for now, can be styled separately if needed
       default:
         return (
           <div className="bg-gray-500/10 text-gray-500 px-3 py-1 rounded-full text-sm flex items-center">
@@ -496,34 +495,34 @@ const Settings = () => {
                       {getKycStatusBadge(user.kycStatus)}
                     </div>
                     
-                    {user.kycStatus === KycStatusEnum.NOT_SUBMITTED && ( // Use Enum
+                    {user.kycStatus === KycStatus.NOT_SUBMITTED && (
                       <Button onClick={handleKycSubmit}>
                         Start Verification
                       </Button>
                     )}
                     
-                    {user.kycStatus === KycStatusEnum.PENDING && ( // Use Enum
+                    {user.kycStatus === KycStatus.PENDING && (
                       <Button variant="outline" disabled>
                         <Clock className="w-4 h-4 mr-2" />
                         Verification in Progress
                       </Button>
                     )}
                     
-                    {user.kycStatus === KycStatusEnum.REJECTED && ( // Use Enum
+                    {user.kycStatus === KycStatus.REJECTED && (
                       <Button onClick={handleKycSubmit}>
                         Retry Verification
                       </Button>
                     )}
                     
-                    {user.kycStatus === KycStatusEnum.APPROVED && ( // Use Enum (was VERIFIED)
+                    {user.kycStatus === KycStatus.VERIFIED && (
                       <Button variant="outline" disabled className="bg-green-500/10 text-green-500 border-green-200">
                         <Check className="w-4 h-4 mr-2" />
-                        Verified {/* UI Text */}
+                        Verified
                       </Button>
                     )}
                   </div>
                   
-                  {user.kycStatus === KycStatusEnum.NOT_SUBMITTED && ( // Use Enum
+                  {user.kycStatus === KycStatus.NOT_SUBMITTED && (
                     <div className="bg-yellow-500/10 border border-yellow-200 rounded-md p-4 flex gap-3 items-start">
                       <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" />
                       <div>
@@ -536,7 +535,7 @@ const Settings = () => {
                     </div>
                   )}
                   
-                  {user.kycStatus === KycStatusEnum.PENDING && ( // Use Enum
+                  {user.kycStatus === KycStatus.PENDING && (
                     <div className="bg-blue-500/10 border border-blue-200 rounded-md p-4 flex gap-3 items-start">
                       <Clock className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
                       <div>
@@ -552,7 +551,7 @@ const Settings = () => {
                     </div>
                   )}
                   
-                  {user.kycStatus === KycStatusEnum.REJECTED && ( // Use Enum
+                  {user.kycStatus === KycStatus.REJECTED && (
                     <div className="bg-red-500/10 border border-red-200 rounded-md p-4 flex gap-3 items-start">
                       <X className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
                       <div>
@@ -567,7 +566,7 @@ const Settings = () => {
                     </div>
                   )}
                   
-                  {user.kycStatus === KycStatusEnum.APPROVED && ( // Use Enum (was VERIFIED)
+                  {user.kycStatus === KycStatus.VERIFIED && (
                     <div className="bg-green-500/10 border border-green-200 rounded-md p-4 flex gap-3 items-start">
                       <CircleCheck className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
                       <div>

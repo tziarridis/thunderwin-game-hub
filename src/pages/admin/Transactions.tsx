@@ -1,225 +1,320 @@
-
-import React, { useState, useMemo } from 'react';
-import { useQuery, QueryKey } from '@tanstack/react-query';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Transaction, TransactionStatusEnum, TransactionTypeEnum } from '@/types/transaction'; // Use the new Transaction type
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
+import { User } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpDown, Download } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DateRangePicker } from '@/components/ui/date-range-picker'; // Assuming this exists
 import { DateRange } from 'react-day-picker';
-// Assuming DateRangePicker is correctly exported from its file or using a placeholder
-// For now, let's ensure the component exists and is imported.
-// If it's from shadcn/ui, it might be a composite component.
-// Let's use a simpler date input for now if DateRangePicker is problematic.
-// import { DateRangePicker } from '@/components/ui/date-range-picker'; 
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { Search, Filter, Edit2, Eye, Loader2, FileDown } from 'lucide-react';
+import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
-const ITEMS_PER_PAGE = 20;
-
-// Function to fetch transactions with pagination and filtering
-const fetchTransactions = async (
-  page: number,
-  filters: {
-    userId?: string;
-    status?: string;
-    type?: string;
-    dateRange?: DateRange;
-  },
-  sortBy: string,
-  sortOrder: 'asc' | 'desc'
-): Promise<{ data: Transaction[]; count: number }> => {
-  let query = supabase
-    .from('transactions')
-    .select('*', { count: 'exact' });
-
-  // Filtering
-  if (filters.userId) query = query.eq('player_id', filters.userId); // Assuming player_id is user_id
-  if (filters.status) query = query.eq('status', filters.status);
-  if (filters.type) query = query.eq('type', filters.type);
-  if (filters.dateRange?.from) query = query.gte('created_at', format(filters.dateRange.from, "yyyy-MM-dd'T'HH:mm:ssXXX"));
-  if (filters.dateRange?.to) query = query.lte('created_at', format(filters.dateRange.to, "yyyy-MM-dd'T'HH:mm:ssXXX"));
-  
-  // Sorting
-  if (sortBy) query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-  
-  // Pagination
-  const offset = (page - 1) * ITEMS_PER_PAGE;
-  query = query.range(offset, offset + ITEMS_PER_PAGE - 1);
-
-  const { data, error, count } = await query;
-
-  if (error) throw error;
-  return { data: (data as Transaction[]) || [], count: count || 0 };
-};
+const ITEMS_PER_PAGE = 15;
 
 const AdminTransactions: React.FC = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({}); // Store user data by ID
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
+  const [filterStatus, setFilterStatus] = useState<TransactionStatus | 'all'>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filters, setFilters] = useState<{
-    userId?: string;
-    status?: string;
-    type?: string;
-    dateRange?: DateRange;
-  }>({});
-  const [sortBy, setSortBy] = useState<string>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [totalTransactions, setTotalTransactions] = useState(0);
 
-  const queryKey: QueryKey = ['transactions', currentPage, filters, sortBy, sortOrder];
-  const { data, isLoading, error } = useQuery<{ data: Transaction[]; count: number }, Error>({
-    queryKey: queryKey,
-    queryFn: () => fetchTransactions(currentPage, filters, sortBy, sortOrder),
-    keepPreviousData: true, // Useful for pagination
-  });
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
-  const transactions = data?.data || [];
-  const totalCount = data?.count || 0;
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  const handleSort = (columnId: string) => {
-    if (sortBy === columnId) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(columnId);
-      setSortOrder('desc');
+  const fetchTransactions = useCallback(async (page: number) => {
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from('transactions')
+        .select('*, user:users(id, username, email)', { count: 'exact' }); // Join with users table, assuming FK is user_id -> users.id
+
+      if (searchTerm) {
+        query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,metadata->>provider_transaction_id.ilike.%${searchTerm}%`);
+      }
+      if (filterType !== 'all') {
+        query = query.eq('type', filterType);
+      }
+      if (filterStatus !== 'all') {
+        query = query.eq('status', filterStatus);
+      }
+      if (dateRange?.from) {
+        query = query.gte('created_at', format(dateRange.from, 'yyyy-MM-dd HH:mm:ss'));
+      }
+      if (dateRange?.to) {
+        query = query.lte('created_at', format(dateRange.to, 'yyyy-MM-dd HH:mm:ss'));
+      }
+
+      const from = (page - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to).order('created_at', { ascending: false });
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+      
+      const fetchedTransactions = (data || []).map(txAny => {
+        const tx = txAny as any; // Cast to any to access joined user
+        if (tx.user && typeof tx.user === 'object') { // If user data is joined and is an object
+          setUsers(prevUsers => ({
+            ...prevUsers,
+            [tx.user_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
+          }));
+        }
+        // Remove the joined user object from the transaction itself to match Transaction type
+        const { user: userData, ...transactionData } = tx;
+        return transactionData as Transaction;
+      });
+
+      setTransactions(fetchedTransactions);
+      setTotalTransactions(count || 0);
+
+    } catch (error: any) {
+      console.error('Error fetching transactions:', error);
+      toast.error('Failed to load transactions: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
-    setCurrentPage(1); // Reset to first page on sort change
-  };
+  }, [searchTerm, filterType, filterStatus, dateRange]);
 
-  const handleFilterChange = (filterName: string, value: any) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
-    setCurrentPage(1);
+  useEffect(() => {
+    fetchTransactions(currentPage);
+  }, [fetchTransactions, currentPage]);
+
+  const handleSearchFilter = () => {
+    setCurrentPage(1); // Reset to first page
+    // fetchTransactions(1) is called by useEffect due to currentPage change if needed, or call directly
   };
   
-  // DateRangePicker simplified to two date inputs for now to avoid import issues if complex.
-  // If you have a working DateRangePicker component, you can use it.
-  const [dateRangeFrom, setDateRangeFrom] = useState<string>('');
-  const [dateRangeTo, setDateRangeTo] = useState<string>('');
+  const handleEditTransaction = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setShowEditModal(true);
+  };
 
-  const handleDateRangeApply = () => {
-    const newDateRange: DateRange = {};
-    if (dateRangeFrom) newDateRange.from = new Date(dateRangeFrom);
-    if (dateRangeTo) newDateRange.to = new Date(dateRangeTo);
-    handleFilterChange('dateRange', Object.keys(newDateRange).length > 0 ? newDateRange : undefined);
+  const handleSaveTransaction = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingTransaction) return;
+
+    const formData = new FormData(event.currentTarget);
+    const newStatus = formData.get('status') as TransactionStatus;
+    const newNotes = formData.get('notes') as string;
+
+    setIsLoading(true);
+    try {
+        const { error } = await supabase
+            .from('transactions')
+            .update({ status: newStatus, notes: newNotes, updated_at: new Date().toISOString() })
+            .eq('id', editingTransaction.id);
+        if (error) throw error;
+        toast.success('Transaction updated successfully!');
+        setShowEditModal(false);
+        setEditingTransaction(null);
+        fetchTransactions(currentPage); // Refresh data
+    } catch (error: any) {
+        toast.error(`Failed to update transaction: ${error.message}`);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+  
+  const handleExport = () => {
+    if(transactions.length === 0) {
+      toast.info("No transactions to export.");
+      return;
+    }
+    const dataToExport = transactions.map(tx => ({
+        ...tx,
+        username: users[tx.user_id]?.username || 'N/A',
+        user_email: users[tx.user_id]?.email || 'N/A',
+        created_at: format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
+        updated_at: format(new Date(tx.updated_at), 'yyyy-MM-dd HH:mm:ss'),
+    }));
+
+    const headers = Object.keys(dataToExport[0]).join(',');
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + headers + "\n"
+        + dataToExport.map(e => Object.values(e).map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `transactions_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Transactions exported successfully.");
   };
 
 
-  if (error) return <div className="p-4">Error loading transactions: {error.message}</div>;
+  const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
+  const transactionTypes: TransactionType[] = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
+  const transactionStatuses: TransactionStatus[] = ['pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected'];
 
   return (
-    <div className="p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">Transaction History</h1>
+    <div className="container mx-auto p-4">
+      <CMSPageHeader title="Transaction Management" description="View and manage all user transactions." />
 
-      {/* Filters Section */}
-      <div className="mb-6 p-4 bg-card rounded-lg shadow grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 items-end">
-        <Input
-          placeholder="Filter by User ID (Player ID)"
-          value={filters.userId || ''}
-          onChange={(e) => handleFilterChange('userId', e.target.value)}
-          className="bg-background"
-        />
-        <Select value={filters.status || ''} onValueChange={(value) => handleFilterChange('status', value === 'all' ? undefined : value)}>
-          <SelectTrigger className="bg-background"><SelectValue placeholder="Filter by Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            {Object.values(TransactionStatusEnum).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.type || ''} onValueChange={(value) => handleFilterChange('type', value === 'all' ? undefined : value)}>
-          <SelectTrigger className="bg-background"><SelectValue placeholder="Filter by Type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {Object.values(TransactionTypeEnum).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <div className="flex flex-col space-y-2">
-            <label className="text-sm font-medium">Date Range</label>
-            <div className="flex gap-2">
-                <Input type="date" value={dateRangeFrom} onChange={e => setDateRangeFrom(e.target.value)} className="bg-background" />
-                <Input type="date" value={dateRangeTo} onChange={e => setDateRangeTo(e.target.value)} className="bg-background" />
-            </div>
-            <Button onClick={handleDateRangeApply} size="sm" variant="outline">Apply Dates</Button>
+      <div className="mb-6 p-4 border rounded-lg bg-card shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <Input
+            placeholder="Search by Tx ID, User ID, Notes, Game ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="lg:col-span-2"
+          />
+          <Select value={filterType} onValueChange={(value) => setFilterType(value as TransactionType | 'all')}>
+            <SelectTrigger><SelectValue placeholder="Filter by Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {transactionTypes.map(type => (
+                <SelectItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as TransactionStatus | 'all')}>
+            <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {transactionStatuses.map(status => (
+                <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="lg:col-span-2">
+            <DateRangePicker onUpdate={(values) => setDateRange(values.range)} />
+          </div>
+          <Button onClick={handleSearchFilter} className="w-full md:w-auto flex items-center gap-2">
+            <Search className="h-4 w-4" /> Apply Filters
+          </Button>
+           <Button onClick={handleExport} variant="outline" className="w-full md:w-auto flex items-center gap-2">
+            <FileDown className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
-        {/* Add DateRangePicker here if available and working */}
-        {/* <DateRangePicker
-          date={filters.dateRange}
-          onDateChange={(range) => handleFilterChange('dateRange', range)}
-          className="bg-background"
-        /> */}
       </div>
       
-      <div className="flex justify-end mb-4">
-          <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
-      </div>
+      {isLoading && transactions.length === 0 && <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>}
 
-
-      {isLoading && <p>Loading transactions...</p>}
-      {!isLoading && (
-        <div className="overflow-x-auto bg-card rounded-lg shadow">
+      {transactions.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border bg-card">
           <Table>
             <TableHeader>
               <TableRow>
-                {['id', 'player_id', 'type', 'amount', 'currency', 'status', 'provider', 'created_at'].map(col => (
-                  <TableHead key={col}>
-                    <Button variant="ghost" onClick={() => handleSort(col)} className="px-1">
-                      {col.replace('_', ' ').toUpperCase()}
-                      {sortBy === col && (sortOrder === 'asc' ? ' ▲' : ' ▼')}
-                    </Button>
-                  </TableHead>
-                ))}
+                <TableHead>Tx ID</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.length === 0 && (
-                <TableRow><TableCell colSpan={8} className="text-center h-24">No transactions found.</TableCell></TableRow>
-              )}
-              {transactions.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell className="font-mono text-xs" title={tx.id}>{tx.id.substring(0, 8)}...</TableCell>
-                  <TableCell title={tx.player_id}>{tx.player_id.substring(0,8)}...</TableCell>
-                  <TableCell>{tx.type}</TableCell>
-                  <TableCell>{tx.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
-                  <TableCell>{tx.currency}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                        tx.status === TransactionStatusEnum.COMPLETED ? 'bg-green-500 text-white' :
-                        tx.status === TransactionStatusEnum.PENDING ? 'bg-yellow-500 text-black' :
-                        tx.status === TransactionStatusEnum.FAILED ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                    }`}>
-                        {tx.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{tx.provider}</TableCell>
-                  <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
-                </TableRow>
-              ))}
+              {transactions.map((tx) => {
+                const user = users[tx.user_id];
+                return (
+                  <TableRow key={tx.id}>
+                    <TableCell className="font-medium truncate max-w-[100px]" title={tx.id}>{tx.id}</TableCell>
+                    <TableCell className="truncate max-w-[150px]" title={user?.username || user?.email || tx.user_id}>
+                      {user?.username || user?.email || tx.user_id.substring(0,8)+'...'}
+                    </TableCell>
+                    <TableCell>{tx.type}</TableCell>
+                    <TableCell>{tx.amount.toFixed(2)} {tx.currency}</TableCell>
+                    <TableCell>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                            tx.status === 'completed' || tx.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            tx.status === 'failed' || tx.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            tx.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                        }`}>
+                            {tx.status}
+                        </span>
+                    </TableCell>
+                    <TableCell className="truncate max-w-[100px]" title={tx.provider || undefined}>{tx.provider || 'N/A'}</TableCell>
+                    <TableCell>{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => handleEditTransaction(tx)} title="Edit/View Transaction">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
       )}
+       {!isLoading && transactions.length === 0 && (
+         <p className="text-center text-muted-foreground py-6">No transactions found matching your criteria.</p>
+       )}
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-          disabled={currentPage === 1 || isLoading}
-        >
-          Previous
-        </Button>
-        <span className="text-sm">
-          Page {currentPage} of {totalPages} (Total: {totalCount})
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-          disabled={currentPage === totalPages || isLoading}
-        >
-          Next
-        </Button>
-      </div>
+
+      {totalPages > 1 && (
+         <div className="flex justify-between items-center mt-4">
+            <Button 
+                onClick={() => setCurrentPage(p => Math.max(1, p-1))} 
+                disabled={currentPage === 1 || isLoading}
+                variant="outline"
+            >
+                Previous
+            </Button>
+            <span>Page {currentPage} of {totalPages}</span>
+            <Button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} 
+                disabled={currentPage === totalPages || isLoading}
+                variant="outline"
+            >
+                Next
+            </Button>
+        </div>
+      )}
+
+      {editingTransaction && (
+        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Edit Transaction: {editingTransaction.id.substring(0,8)}...</DialogTitle>
+                    <DialogDescription>
+                        Update status or add notes for this transaction. User: {users[editingTransaction.user_id]?.username || editingTransaction.user_id.substring(0,8)}
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSaveTransaction} className="space-y-4 py-2">
+                    <div>
+                        <Label htmlFor="tx-status">Status</Label>
+                        <Select name="status" defaultValue={editingTransaction.status}>
+                            <SelectTrigger id="tx-status" className="mt-1">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {transactionStatuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="tx-notes">Admin Notes</Label>
+                        <Textarea id="tx-notes" name="notes" defaultValue={editingTransaction.notes || ''} rows={3} className="mt-1"/>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isLoading}>
+                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

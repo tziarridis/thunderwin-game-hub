@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client'; // Corrected path
-import { AffiliateData, AffiliateUser, AffiliateCommissionTier } from '@/types/affiliate'; 
+import { supabase } from '@/integrations/supabase/client';
+import { Affiliate, AffiliateUser, AffiliateCommissionTier, AffiliateData } from '@/types/affiliate'; 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'; // Removed DialogTrigger as it's not explicitly used here but part of Dialog
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { PlusCircle, Edit, Trash2, Search, X } from 'lucide-react'; // Removed ExternalLink
+import { PlusCircle, Edit, Trash2, Search, ExternalLink, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 const AFFILIATES_QUERY_KEY = 'admin_affiliates';
@@ -23,50 +24,50 @@ const AffiliatesPage: React.FC = () => {
   const { data: affiliates = [], isLoading: isLoadingAffiliates } = useQuery<AffiliateData[], Error>({
     queryKey: [AFFILIATES_QUERY_KEY, searchTerm],
     queryFn: async () => {
-      // Mock data fetch (replace with actual Supabase query if 'affiliates' table exists and is structured for this)
-      // The 'affiliates' table is not in the provided schema. This mock is for UI demonstration.
-      const mockDataRaw = Array(5).fill(null).map((_, i) => ({
-        id: `aff-${i+1}`,
-        user_id: `user-${i+1}`, // This would be a foreign key to your users/profiles table
-        firstName: `First${i+1}`,
-        lastName: `Last${i+1}`,
-        email: `affiliate${i+1}@example.com`, // Typically from related user record
-        tracking_code: `CODE${i+1}`,
-        website_url: `https://site${i+1}.com`,
-        status: (i % 2 === 0 ? 'approved' : 'pending') as AffiliateData['status'],
-        commission_type: (i % 3 === 0 ? 'cpa' : 'revshare') as AffiliateData['commission_type'],
-        default_commission_rate: 20 + i,
-        commission_tiers: [
-          { threshold: 0, rate: 10 + i, type: 'percentage' as AffiliateCommissionTier['type'] },
-          { threshold: 10, rate: 15 + i, type: 'percentage' as AffiliateCommissionTier['type'] }
-        ],
-        created_at: new Date().toISOString(),
-        // Adding missing fields for AffiliateData type
-        balance: (Math.random() * 1000), // Mock balance
-        updated_at: new Date().toISOString(), // Mock updated_at
-        total_referred: Math.floor(Math.random() * 100), // Mock
-        total_earnings: Math.random() * 5000, // Mock
-      }));
+      let query = supabase.from('affiliates').select(`
+        *,
+        user:users(email, username, raw_user_meta_data->firstName, raw_user_meta_data->lastName)
+      `); // Adjust table name if different, e.g., 'affiliate_users' or 'affiliate_profiles'
       
-      const typedMockData: AffiliateData[] = mockDataRaw;
+      if (searchTerm) {
+        // This is a simplified search. Real search might need to query related user table too.
+        query = query.or(`tracking_code.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%`);
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
 
-      return searchTerm 
-        ? typedMockData.filter(aff => 
-            (aff.tracking_code && aff.tracking_code.includes(searchTerm)) || 
-            (aff.email && aff.email.includes(searchTerm)) ||
-            (aff.firstName && aff.firstName.includes(searchTerm)) ||
-            (aff.lastName && aff.lastName.includes(searchTerm))
-          )
-        : typedMockData;
+      // Map to AffiliateData, assuming 'user' relation gives basic user info
+      return data.map(aff => ({
+        ...aff,
+        // @ts-ignore
+        firstName: aff.user?.raw_user_meta_data?.firstName,
+        // @ts-ignore
+        lastName: aff.user?.raw_user_meta_data?.lastName,
+        // @ts-ignore
+        email: aff.user?.email,
+      })) as AffiliateData[];
     },
   });
 
   // Create or Update Affiliate Mutation
   const affiliateMutation = useMutation({
     mutationFn: async (affiliateData: Partial<AffiliateUser>) => {
+      // Here, decide if it's an insert or update based on affiliateData.id
+      // This is a placeholder for actual Supabase insert/update logic.
+      
+      // const { data, error } = await supabase.from('affiliates')
+      //   .upsert(affiliateData) // This assumes affiliateData matches your table structure
+      //   .select()
+      //   .single();
+
+      // if (error) throw error;
+      // return data as AffiliateUser;
       console.log("Simulating upsert for:", affiliateData);
       if (!affiliateData.email) throw new Error("Email is required for affiliate user.");
 
+      // This is highly simplified. Real implementation needs to handle user creation if not exists,
+      // then affiliate profile creation.
       const mockUpsertedData: AffiliateUser = {
         id: affiliateData.id || Date.now().toString(),
         userId: affiliateData.userId || `user_${Date.now()}`,
@@ -93,7 +94,7 @@ const AffiliatesPage: React.FC = () => {
   const handleEdit = (affiliate: AffiliateData) => {
     const affiliateUserShape: Partial<AffiliateUser> = {
         id: affiliate.id,
-        userId: affiliate.user_id, 
+        userId: affiliate.user_id, // Assuming user_id is the link to auth user
         email: affiliate.email || '',
         firstName: affiliate.firstName || '',
         lastName: affiliate.lastName || '',
@@ -102,21 +103,27 @@ const AffiliatesPage: React.FC = () => {
         status: affiliate.status,
         commission_type: affiliate.commission_type,
         default_commission_rate: affiliate.default_commission_rate,
-        commission_tiers: affiliate.commission_tiers || []
+        commission_tiers: affiliate.commission_tiers || [] // Ensure this is an array
     };
     setEditingAffiliate(affiliateUserShape);
     setIsModalOpen(true);
   };
   
   const handleAddNew = () => {
-    setEditingAffiliate({ commission_tiers: [{ threshold: 0, rate: 10, type: 'percentage' }] });
+    setEditingAffiliate({ commission_tiers: [{ threshold: 0, rate: 10, type: 'percentage' }] }); // Default tier
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this affiliate?')) return;
-    toast.info("Delete functionality placeholder. In a real app, this would call Supabase.");
-    // Example: queryClient.invalidateQueries({ queryKey: [AFFILIATES_QUERY_KEY] });
+    // const { error } = await supabase.from('affiliates').delete().match({ id });
+    // if (error) {
+    //   toast.error(`Failed to delete affiliate: ${error.message}`);
+    // } else {
+    //   toast.success('Affiliate deleted successfully.');
+    //   queryClient.invalidateQueries({ queryKey: [AFFILIATES_QUERY_KEY] });
+    // }
+    toast.info("Delete functionality placeholder.");
   };
 
   const handleSaveAffiliate = (e: React.FormEvent<HTMLFormElement>) => {
@@ -129,14 +136,8 @@ const AffiliatesPage: React.FC = () => {
   const handleTierChange = (index: number, field: keyof AffiliateCommissionTier, value: string | number) => {
     if (!editingAffiliate || !editingAffiliate.commission_tiers) return;
     const updatedTiers = [...editingAffiliate.commission_tiers];
-    const tierToUpdate = { ...updatedTiers[index] };
-
-    if (field === 'rate' || field === 'threshold') {
-        (tierToUpdate[field] as number) = parseFloat(value as string) || 0;
-    } else if (field === 'type') {
-        (tierToUpdate[field] as AffiliateCommissionTier['type']) = value as AffiliateCommissionTier['type'];
-    }
-    updatedTiers[index] = tierToUpdate;
+    // @ts-ignore
+    updatedTiers[index] = { ...updatedTiers[index], [field]: field === 'rate' || field === 'threshold' ? parseFloat(value as string) || 0 : value };
     setEditingAffiliate(prev => ({ ...prev, commission_tiers: updatedTiers } as Partial<AffiliateUser>));
   };
   
@@ -154,6 +155,7 @@ const AffiliatesPage: React.FC = () => {
     const updatedTiers = editingAffiliate.commission_tiers.filter((_, i) => i !== index);
     setEditingAffiliate(prev => ({ ...prev, commission_tiers: updatedTiers } as Partial<AffiliateUser>));
   };
+
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -273,7 +275,7 @@ const AffiliatesPage: React.FC = () => {
               
               <DialogFooter className="pt-4">
                 <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                <Button type="submit" disabled={affiliateMutation.isPending /* Corrected: isPending not isLoading */}>
+                <Button type="submit" disabled={affiliateMutation.isPending}>
                   {affiliateMutation.isPending ? 'Saving...' : 'Save Affiliate'}
                 </Button>
               </DialogFooter>

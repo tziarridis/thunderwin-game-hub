@@ -1,87 +1,66 @@
+
 import React from 'react';
-import { Game } from '@/types/game';
-import { useGames } from '@/hooks/useGames';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { Game } from '@/types';
 import GameCard from './GameCard';
-import { toast } from 'sonner';
+import { useGames } from '@/hooks/useGames';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner'; // Added toast import
 
 interface RelatedGamesProps {
-  game: Game;
-  count?: number;
+  games: Game[];
+  // title?: string; // Optional title for the section
 }
 
-const RelatedGames: React.FC<RelatedGamesProps> = ({ game, count = 4 }) => {
-  const { games, getGamesByCategory, launchGame, isFavorite, toggleFavoriteGame } = useGames();
-  const { isAuthenticated } = useAuth(); // Get isAuthenticated from useAuth
+const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
+  const { favoriteGameIds, toggleFavoriteGame, launchGame } = useGames(); // Added launchGame
   const navigate = useNavigate();
 
-  const relatedGames = React.useMemo(() => {
-    if (!game || !game.category_slugs || !getGamesByCategory) return [];
-
-    const related = game.category_slugs.flatMap(categorySlug => {
-      return getGamesByCategory(categorySlug)
-        .filter(relatedGame => relatedGame.id !== game.id); // Exclude the current game
-    });
-
-    // Remove duplicates and limit the count
-    const uniqueRelatedGames = Array.from(new Set(related.map(a => a.id)))
-      .map(id => {
-        return related.find(a => a.id === id)
-      })
-      .slice(0, count) as Game[];
-
-    return uniqueRelatedGames;
-  }, [game, games, count, getGamesByCategory]);
-
-  const handleToggleFavorite = async (gameId: string) => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to add favorites");
-      // Optionally, redirect to login: navigate('/login', { state: { from: location } });
-      return;
-    }
-    await toggleFavoriteGame(gameId);
-  };
-
-  const handlePlayAction = async (gameToPlay: Game) => { // Renamed from game to gameToPlay
-    if (gameToPlay.game_id && (gameToPlay.provider_slug || gameToPlay.providerName)) {
-      try {
-        const url = await launchGame(gameToPlay, { mode: 'real' });
-        if (url) {
-          // For related games, maybe navigate to seamless launch or open in new tab
-          // navigate(`/casino/seamless`, { state: { gameUrl: url, gameTitle: gameToPlay.title } });
-          window.open(url, '_blank');
-        } else {
-          toast.error("Could not get game URL. Please try again later.");
-          // Fallback: navigate to game details page if launch fails
-          navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
-        }
-      } catch (err) {
-        toast.error(`Launch error: ${(err as Error).message}`);
-        navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
-      }
-    } else {
-      toast.error("Cannot launch game: missing details or play action.");
-      // Fallback to game details page
-      navigate(`/casino/game/${gameToPlay.slug || gameToPlay.id}`);
-    }
-  };
-
-  if (!relatedGames || relatedGames.length === 0) {
-    return null;
+  if (!games || games.length === 0) {
+    // Optionally render nothing or a minimal message if no related games
+    return null; 
+    /*
+    return (
+      <div className="bg-card p-4 rounded-lg shadow">
+        <h3 className="text-xl font-semibold mb-4 text-foreground">Related Games</h3>
+        <p className="text-center text-muted-foreground">No related games found.</p>
+      </div>
+    );
+    */
   }
+  
+  const handleGamePlayOrDetails = (game: Game) => {
+    // For related games, clicking "Play" might launch directly or navigate to details
+    // If direct launch is preferred:
+    if (game.game_id && game.provider_slug) {
+        launchGame(game, { mode: 'real' }) // Or 'demo'
+            .then(launchUrl => {
+                if (launchUrl) {
+                    window.open(launchUrl, '_blank');
+                } else {
+                    toast.error("Could not launch related game.");
+                }
+            });
+    } else if (game.slug) { // Fallback to details page
+      navigate(`/casino/game/${game.slug}`);
+    } else if (game.id) {
+      navigate(`/casino/game/${String(game.id)}`);
+    } else {
+      console.warn("No identifier to navigate to game:", game.title);
+      toast.error("Could not open related game.");
+    }
+  };
 
   return (
-    <div className="mt-8">
-      <h3 className="text-xl font-semibold mb-4">You might also like</h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-        {relatedGames.map((relatedGame) => (
+    <div className="bg-card p-4 rounded-lg shadow">
+      <h3 className="text-xl font-semibold mb-4 text-foreground">Related Games</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"> {/* Adjusted grid for more items */}
+        {games.map((game) => (
           <GameCard
-            key={relatedGame.id}
-            game={relatedGame}
-            isFavorite={isFavorite(relatedGame.id)}
-            onToggleFavorite={() => handleToggleFavorite(relatedGame.id)}
-            onPlay={() => handlePlayAction(relatedGame)}
+            key={String(game.id)}
+            game={game}
+            isFavorite={favoriteGameIds.has(String(game.id))}
+            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
+            onPlay={() => handleGamePlayOrDetails(game)}
           />
         ))}
       </div>

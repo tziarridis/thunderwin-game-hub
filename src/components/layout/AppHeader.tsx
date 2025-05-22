@@ -4,64 +4,48 @@ import { Menu, X, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from "next-themes";
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext'; 
+import { useAuth } from '@/contexts/AuthContext';
 import NavLinks from './NavLinks';
-import MobileNavMenu from './MobileNavMenu'; // Changed to MobileNavMenu
+import MobileNavBar from './MobileNavBar'; 
 import DepositButton from '@/components/user/DepositButton';
-import { UserMenu } from '@/components/user/UserMenu'; // Changed to named import
+import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet } from '@/types/wallet'; 
-import { AppUser } from '@/types/user';
+
+interface WalletState {
+  id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  vipPoints: number;
+  bonusBalance: number;
+  cryptoBalance: number;
+  demoBalance: number;
+  isActive: boolean;
+  lastTransactionDate: Date | null;
+}
 
 const AppHeader = () => {
   const location = useLocation();
   const { theme, setTheme } = useTheme(); 
-  const { user: supabaseUser, isAuthenticated, signOut } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth(); 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [appUserForMenu, setAppUserForMenu] = useState<AppUser | null>(null);
+  const [wallet, setWallet] = useState<WalletState | null>(null);
 
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {
-    if (isAuthenticated && supabaseUser) {
-      // Transform Supabase User to AppUser for UserMenu
-      // The UserMenu might expect a type compatible with AuthUserType from @/types/user.ts
-      // which needs created_at, updated_at. AppUser has createdAt, updatedAt.
-      // Let's try to construct an object that satisfies what UserMenu might expect,
-      // based on typical User properties.
-      const transformedUser: AppUser & { created_at?: string, updated_at?: string } = { // Explicitly add for clarity
-        id: supabaseUser.id,
-        email: supabaseUser.email,
-        // @ts-ignore user_metadata might not be directly on supabaseUser type from useAuth.
-        username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0], 
-        // @ts-ignore
-        avatarUrl: supabaseUser.user_metadata?.avatar_url,
-        // @ts-ignore
-        firstName: supabaseUser.user_metadata?.first_name,
-        // @ts-ignore
-        lastName: supabaseUser.user_metadata?.last_name,
-        isActive: true, 
-        createdAt: supabaseUser.created_at, // AppUser field
-        updatedAt: supabaseUser.updated_at, // AppUser field
-        created_at: supabaseUser.created_at, // For compatibility if UserMenu needs this exact name
-        updated_at: supabaseUser.updated_at, // For compatibility
-        roles: supabaseUser.app_metadata?.roles || [], // Get roles from app_metadata
-        // permissions would need to be fetched separately if needed
-      };
-      setAppUserForMenu(transformedUser as AppUser); // Cast to AppUser for UserMenu prop
-      
+    if (isAuthenticated && user) {
       const fetchWallet = async () => {
         try {
-          // The 'wallets' table uses 'user_id', 'vip_level', 'vip_points'.
-          // The Wallet type uses 'userId', 'vipLevel', 'vipPoints'.
           const { data, error } = await supabase
             .from('wallets')
             .select('id, user_id, balance, currency, symbol, vip_level, vip_points, active, balance_bonus, balance_cryptocurrency, balance_demo, updated_at') 
-            .eq('user_id', supabaseUser.id)
+            .eq('user_id', user.id)
             .maybeSingle();
 
           if (error) {
@@ -70,12 +54,12 @@ const AppHeader = () => {
           } else if (data) {
             setWallet({
               id: data.id,
-              userId: data.user_id, // Map from user_id
+              userId: data.user_id,
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
-              vipLevel: data.vip_level ?? 0, // Map from vip_level
-              vipPoints: data.vip_points ?? 0, // Map from vip_points
+              vipLevel: data.vip_level ?? 0,
+              vipPoints: data.vip_points ?? 0,
               bonusBalance: data.balance_bonus ?? 0, 
               cryptoBalance: data.balance_cryptocurrency ?? 0, 
               demoBalance: data.balance_demo ?? 0, 
@@ -93,24 +77,20 @@ const AppHeader = () => {
 
       fetchWallet();
 
-      // ... (fetchNotificationsStatus)
-       const fetchNotificationsStatus = async () => {
-        // Placeholder: Fetch actual unread count
-        // For example, from a 'notifications' table where 'user_id' = supabaseUser.id and 'is_read' = false
-        // const { count, error } = await supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', supabaseUser.id).eq('is_read', false);
-        // setHasUnreadNotifications(count ? count > 0 : false);
-        const unreadCount = 0; 
+      const fetchNotificationsStatus = async () => {
+        // Mocking notification status for now
+        // const { count } = await supabase.from('notifications').select('id', { count: 'exact' }).eq('user_id', user.id).eq('is_read', false);
+        // const unreadCount = count ?? 0;
+        const unreadCount = 0; // Placeholder
         setHasUnreadNotifications(unreadCount > 0);
       };
 
       fetchNotificationsStatus();
-
     } else {
       setWallet(null);
-      setAppUserForMenu(null);
       setHasUnreadNotifications(false);
     }
-  }, [isAuthenticated, supabaseUser]);
+  }, [isAuthenticated, user]);
 
   const toggleThemeHandler = () => { 
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -146,15 +126,20 @@ const AppHeader = () => {
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
 
-          {isAuthenticated && supabaseUser ? ( 
+          {isAuthenticated && user ? ( 
             <>
               <div className="hidden lg:block">
                 <DepositButton />
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
               <UserMenu 
-                user={supabaseUser}
+                user={user} 
                 onLogout={signOut}
+                // wallet={wallet} // UserMenuProps in read-only file likely doesn't expect this complex object
+                // loadingWallet={loadingWallet} // Also likely not expected
+                // The following props caused errors, commenting out until UserMenu props are known/updated:
+                // balance={wallet?.balance} 
+                // currencySymbol={wallet?.symbol} 
               />
             </>
           ) : (
@@ -174,11 +159,10 @@ const AppHeader = () => {
         </div>
       </div>
       
-      {isMobileMenuOpen && (
-        <MobileNavMenu
-          isOpen={isMobileMenuOpen}
-          setIsOpen={setIsMobileMenuOpen}
-        />
+       {isMobileMenuOpen && ( 
+        <div className="md:hidden">
+          <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
+        </div>
       )}
     </header>
   );

@@ -1,227 +1,154 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User as AppUser } from "@/types/user";
-import { toast } from "sonner";
+
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { User } from '@/types';
+import { toast } from 'sonner';
+// import { userService } from '@/services/userService'; // Assuming you have a userService
 
 const userFormSchema = z.object({
-  username: z.string().min(2, "Username must be at least 2 characters."),
-  email: z.string().email("Invalid email address."),
-  status: z.enum(["active", "inactive", "banned", "pending"]).optional(),
-  roles: z.array(z.string()).optional(), 
-  vipLevel: z.number().min(0).optional(),
+  email: z.string().email({ message: "Invalid email address." }),
+  username: z.string().min(3, { message: "Username must be at least 3 characters." }).optional(),
+  full_name: z.string().optional(),
+  avatar_url: z.string().url({ message: "Invalid URL." }).optional().or(z.literal('')),
+  role: z.string().optional(),
+  status: z.enum(['active', 'inactive', 'banned']).default('active'),
+  kyc_status: z.enum(['verified', 'pending', 'rejected', 'not_submitted']).default('not_submitted'),
   currency: z.string().optional(),
   language: z.string().optional(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  avatarUrl: z.string().url().optional().or(z.literal('')),
-  isActive: z.boolean().optional(),
+  vip_level: z.coerce.number().int().min(0).optional(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
-  user?: AppUser | null;
-  onSubmit: (values: UserFormValues) => Promise<void>;
-  onCancel?: () => void;
-  isLoading?: boolean;
+  user?: User | null;
+  onSave: (data: UserFormValues, userId?: string) => Promise<void>;
+  isEditing?: boolean;
 }
 
-const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading }) => {
+const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) => {
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
-      username: user?.username || "",
-      email: user?.email || "",
-      status: (user as any)?.status || "pending",
-      roles: user?.roles || [], 
-      vipLevel: (user as any)?.vipLevel || 0,
-      currency: (user as any)?.currency || "USD",
-      language: (user as any)?.language || "en",
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      avatarUrl: user?.avatarUrl || "",
-      isActive: user?.isActive !== undefined ? user.isActive : true,
+      email: user?.email || '',
+      username: user?.user_metadata?.username || '',
+      full_name: user?.user_metadata?.full_name || '',
+      avatar_url: user?.user_metadata?.avatar_url || '',
+      role: user?.role || 'user', // default to 'user'
+      status: user?.status || 'active',
+      kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
+      currency: user?.user_metadata?.currency || 'USD',
+      language: user?.user_metadata?.language || 'en',
+      vip_level: user?.user_metadata?.vip_level || 0,
     },
   });
 
-  const handleSubmit = async (values: UserFormValues) => {
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        email: user.email || '',
+        username: user.user_metadata?.username || '',
+        full_name: user.user_metadata?.full_name || '',
+        avatar_url: user.user_metadata?.avatar_url || '',
+        role: user.role || 'user',
+        status: user.status || 'active',
+        kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
+        currency: user.user_metadata?.currency || 'USD',
+        language: user.user_metadata?.language || 'en',
+        vip_level: user.user_metadata?.vip_level || 0,
+      });
+    }
+  }, [user, form]);
+
+  const onSubmit = async (data: UserFormValues) => {
     try {
-      await onSubmit(values);
-      toast.success(user ? "User updated successfully!" : "User created successfully!");
+      await onSave(data, user?.id);
+      toast.success(`User ${isEditing ? 'updated' : 'created'} successfully.`);
     } catch (error) {
-      toast.error(`Error: ${(error as Error).message}`);
+      toast.error(`Failed to ${isEditing ? 'update' : 'create'} user.`);
+      console.error(error);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="username"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Username</FormLabel>
-                <FormControl>
-                  <Input placeholder="johndoe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder="m@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="firstName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>First Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="John" {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="lastName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Last Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Doe" {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select user status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="banned">Banned</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-        <FormField
-          control={form.control}
-          name="roles"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Roles (comma-separated)</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="admin,editor" 
-                  {...field} 
-                  value={Array.isArray(field.value) ? field.value.join(',') : ''} 
-                  onChange={e => field.onChange(e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                />
-              </FormControl>
-              <FormDescription>Assign roles to the user.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-            control={form.control}
-            name="avatarUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Avatar URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="https://example.com/avatar.png" {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-        <div className="flex items-center space-x-2">
-            <FormField
-                control={form.control}
-                name="isActive"
-                render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm col-span-2">
-                        <div className="space-y-0.5">
-                            <FormLabel>Is Active</FormLabel>
-                            <FormDescription>
-                                Controls if the user account is generally active.
-                            </FormDescription>
-                        </div>
-                        <FormControl>
-                            <Switch
-                            checked={field.value ?? true}
-                            onCheckedChange={field.onChange}
-                            />
-                        </FormControl>
-                    </FormItem>
-                )}
-            />
-        </div>
-
-        <div className="flex justify-end space-x-4">
-          {onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
-              Cancel
-            </Button>
-          )}
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? (user ? "Updating..." : "Creating...") : (user ? "Update User" : "Create User")}
-          </Button>
-        </div>
-      </form>
-    </Form>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div>
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" {...form.register('email')} />
+        {form.formState.errors.email && <p className="text-red-500 text-sm">{form.formState.errors.email.message}</p>}
+      </div>
+      <div>
+        <Label htmlFor="username">Username</Label>
+        <Input id="username" {...form.register('username')} />
+        {form.formState.errors.username && <p className="text-red-500 text-sm">{form.formState.errors.username.message}</p>}
+      </div>
+      <div>
+        <Label htmlFor="full_name">Full Name</Label>
+        <Input id="full_name" {...form.register('full_name')} />
+      </div>
+      <div>
+        <Label htmlFor="avatar_url">Avatar URL</Label>
+        <Input id="avatar_url" {...form.register('avatar_url')} />
+        {form.formState.errors.avatar_url && <p className="text-red-500 text-sm">{form.formState.errors.avatar_url.message}</p>}
+      </div>
+      <div>
+        <Label htmlFor="role">Role</Label>
+        <Input id="role" {...form.register('role')} />
+      </div>
+      <div>
+        <Label htmlFor="status">Status</Label>
+        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned')} defaultValue={form.getValues('status')}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="banned">Banned</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="kyc_status">KYC Status</Label>
+        <Select onValueChange={(value) => form.setValue('kyc_status', value as 'verified' | 'pending' | 'rejected' | 'not_submitted')} defaultValue={form.getValues('kyc_status')}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select KYC status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="not_submitted">Not Submitted</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label htmlFor="currency">Currency</Label>
+        <Input id="currency" {...form.register('currency')} />
+      </div>
+       <div>
+        <Label htmlFor="language">Language</Label>
+        <Input id="language" {...form.register('language')} />
+      </div>
+      <div>
+        <Label htmlFor="vip_level">VIP Level</Label>
+        <Input id="vip_level" type="number" {...form.register('vip_level')} />
+        {form.formState.errors.vip_level && <p className="text-red-500 text-sm">{form.formState.errors.vip_level.message}</p>}
+      </div>
+      
+      <Button type="submit" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create User')}
+      </Button>
+    </form>
   );
 };
 
 export default UserForm;
+

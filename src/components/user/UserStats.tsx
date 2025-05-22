@@ -1,57 +1,60 @@
 
 import React from 'react';
+import { User as UserType } from '@/types'; // Renamed to avoid conflict
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CalendarDays, Clock } from 'lucide-react'; // Example icons
-import { formatDistanceToNow, parseISO } from 'date-fns';
-import { User } from "@supabase/supabase-js"; // Use Supabase User type
+import { TrendingUp, TrendingDown, Star, Clock } from 'lucide-react';
 
 interface UserStatsProps {
-  user: User | null; // User object from Supabase auth
-  // Add other stats as needed, e.g., total_bets, total_winnings
+  user: UserType;
+  // Additional stats can be passed as props if not directly on User object
+  totalWagered?: number;
+  totalWins?: number;
+  winLossRatio?: number;
+  favoriteGame?: string;
+  lastLogin?: string;
 }
 
-const UserStats: React.FC<UserStatsProps> = ({ user }) => {
-  if (!user) {
-    return <p>Loading user data...</p>;
-  }
+const UserStats: React.FC<UserStatsProps> = ({ 
+    user, 
+    totalWagered = 1250.75, // Example data
+    totalWins = 850.25, 
+    winLossRatio = 0.68, 
+    favoriteGame = "Starburst",
+    lastLogin = user.last_sign_in_at 
+}) => {
+  
+  const stats = [
+    { label: 'Total Wagered', value: `$${totalWagered.toFixed(2)}`, icon: <TrendingUp className="h-5 w-5 text-green-500" /> },
+    { label: 'Total Wins', value: `$${totalWins.toFixed(2)}`, icon: <Star className="h-5 w-5 text-yellow-500" /> },
+    { label: 'Win/Loss Ratio', value: `${(winLossRatio * 100).toFixed(0)}%`, icon: <TrendingDown className="h-5 w-5 text-red-500" /> }, // Example icon
+    { label: 'Favorite Game', value: favoriteGame, icon: <Star className="h-5 w-5 text-blue-500" /> }, // Example, might need different icon
+    { label: 'Member Since', value: user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A', icon: <Clock className="h-5 w-5 text-gray-500" /> },
+    { label: 'Last Login', value: lastLogin ? new Date(lastLogin).toLocaleString() : 'N/A', icon: <Clock className="h-5 w-5 text-gray-500" /> },
+  ];
 
   return (
-    <Card>
+    <Card className="bg-card">
       <CardHeader>
-        <CardTitle>Account Overview</CardTitle>
+        <CardTitle>Player Statistics</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center">
-          <Users className="h-5 w-5 mr-3 text-primary" />
-          <div>
-            <p className="text-sm text-muted-foreground">Username</p>
-            <p className="font-medium">{user.user_metadata?.username || user.email}</p>
-          </div>
-        </div>
-        <div className="flex items-center">
-          <CalendarDays className="h-5 w-5 mr-3 text-primary" />
-          <div>
-            <p className="text-sm text-muted-foreground">Joined</p>
-            <p className="font-medium">
-              {user.created_at ? formatDistanceToNow(parseISO(user.created_at), { addSuffix: true }) : 'N/A'}
-            </p>
-          </div>
-        </div>
-        {user.last_sign_in_at && (
-          <div className="flex items-center">
-            <Clock className="h-5 w-5 mr-3 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Last Login</p>
-              <p className="font-medium">
-                {formatDistanceToNow(parseISO(user.last_sign_in_at), { addSuffix: true })}
-              </p>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {stats.map((stat, index) => (
+            <div key={index} className="p-3 bg-background/30 rounded-lg flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-1">
+                {stat.icon}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <p className="text-sm font-semibold truncate">{stat.value}</p>
+              </div>
             </div>
-          </div>
-        )}
-        {/* Add more stats here */}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
 };
 
 export default UserStats;
+

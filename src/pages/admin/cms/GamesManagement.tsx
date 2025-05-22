@@ -13,7 +13,6 @@ import { PlusCircle, Edit, Trash2, Search, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
-import { convertAPIGameToUIGame } from '@/utils/gameTypeAdapter';
 
 const fetchAdminGames = async (searchTerm: string = ''): Promise<DbGame[]> => {
   let query = supabase.from('games').select('*').order('title', { ascending: true });
@@ -48,6 +47,7 @@ const GamesManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [gameToDelete, setGameToDelete] = useState<DbGame | null>(null);
+
 
   const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery<DbGame[], Error>({
     queryKey: ['adminGames', searchTerm],

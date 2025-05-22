@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Game, GameTag } from '@/types'; // Ensure GameTag is imported if used for game.tags
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,16 @@ const GameCard: React.FC<GameCardProps> = ({
     >
       <CardHeader className="p-0 relative">
         <AspectRatio ratio={4 / 3}>
+          {/* <LazyLoadImage
+            alt={game.title}
+            src={game.image || game.image_url || game.cover || '/placeholder.svg'}
+            effect="blur" // Optional
+            width="100%"
+            height="100%"
+            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            placeholderSrc="/placeholder.svg" // Small placeholder
+            onError={(e: any) => (e.target.src = '/placeholder.svg')}
+          /> */}
            <img
             src={game.image || game.image_url || game.cover || '/placeholder.svg'}
             alt={game.title}
@@ -82,7 +93,7 @@ const GameCard: React.FC<GameCardProps> = ({
                 <Heart className={cn("h-5 w-5", isFavorite ? "fill-red-500 text-red-500" : "text-white")} />
             </Button>
         )}
-         {game.is_new && ( // Corrected from game.isNew
+         {game.isNew && (
           <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">NEW</div>
         )}
       </CardHeader>
