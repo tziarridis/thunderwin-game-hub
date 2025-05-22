@@ -59,11 +59,15 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             // Make sure g.tags is an array and contains the tag
             tempFiltered = tempFiltered.filter(g => {
               // Safely check if tags is an array and contains the tag string
-              return Array.isArray(g.tags) && g.tags.some(t => 
+              return Array.isArray(g.tags) && g.tags.some(t => {
                 // Handle both string tags and GameTag objects
-                (typeof t === 'string' && t === tag) || 
-                (typeof t === 'object' && t && 'slug' in t && t.slug === tag)
-              );
+                if (typeof t === 'string') {
+                  return t === tag;
+                } else if (typeof t === 'object' && t && 'slug' in t) {
+                  return t.slug === tag;
+                }
+                return false;
+              });
             });
             break;
         }
@@ -72,7 +76,11 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
       }
       
       if (tag === 'new') {
-        tempFiltered.sort((a,b) => new Date(b.releaseDate || b.created_at || 0).getTime() - new Date(a.releaseDate || a.created_at || 0).getTime());
+        tempFiltered.sort((a,b) => {
+          const dateA = a.releaseDate || a.created_at || '0';
+          const dateB = b.releaseDate || b.created_at || '0';
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
       }
 
       setFilteredGamesToShow(tempFiltered.slice(0, count));

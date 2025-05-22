@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
@@ -6,21 +7,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DateRangePicker } from '@/components/ui/date-range-picker'; // Assuming this exists
+import { DateRangePicker } from '@/components/ui/date-range-picker'; // Import from our newly created file
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Search, Filter, Edit2, Eye, Loader2, FileDown } from 'lucide-react';
+import { Search, FileDown, Edit2, Loader2 } from 'lucide-react';
 import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 
+interface ExtendedTransaction extends Transaction {
+  user_id: string;
+  notes?: string;
+}
+
 const ITEMS_PER_PAGE = 15;
 
 const AdminTransactions: React.FC = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({}); // Store user data by ID
+  const [transactions, setTransactions] = useState<ExtendedTransaction[]>([]);
+  const [users, setUsers] = useState<Record<string, Pick<User, 'id' | 'username' | 'email'>>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<TransactionType | 'all'>('all');
@@ -29,19 +35,18 @@ const AdminTransactions: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalTransactions, setTotalTransactions] = useState(0);
 
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<ExtendedTransaction | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
 
   const fetchTransactions = useCallback(async (page: number) => {
     setIsLoading(true);
     try {
       let query = supabase
         .from('transactions')
-        .select('*, user:users(id, username, email)', { count: 'exact' }); // Join with users table, assuming FK is user_id -> users.id
+        .select('*, user:users(id, username, email)', { count: 'exact' });
 
       if (searchTerm) {
-        query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,metadata->>provider_transaction_id.ilike.%${searchTerm}%`);
+        query = query.or(`id.ilike.%${searchTerm}%,player_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%`);
       }
       if (filterType !== 'all') {
         query = query.eq('type', filterType);
@@ -66,15 +71,17 @@ const AdminTransactions: React.FC = () => {
       
       const fetchedTransactions = (data || []).map(txAny => {
         const tx = txAny as any; // Cast to any to access joined user
-        if (tx.user && typeof tx.user === 'object') { // If user data is joined and is an object
+        if (tx.user && typeof tx.user === 'object') {
           setUsers(prevUsers => ({
             ...prevUsers,
-            [tx.user_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
+            [tx.player_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
           }));
         }
-        // Remove the joined user object from the transaction itself to match Transaction type
-        const { user: userData, ...transactionData } = tx;
-        return transactionData as Transaction;
+        // Return extended transaction with user_id
+        return {
+          ...tx,
+          user_id: tx.player_id
+        } as ExtendedTransaction;
       });
 
       setTransactions(fetchedTransactions);
@@ -93,11 +100,10 @@ const AdminTransactions: React.FC = () => {
   }, [fetchTransactions, currentPage]);
 
   const handleSearchFilter = () => {
-    setCurrentPage(1); // Reset to first page
-    // fetchTransactions(1) is called by useEffect due to currentPage change if needed, or call directly
+    setCurrentPage(1);
   };
   
-  const handleEditTransaction = (tx: Transaction) => {
+  const handleEditTransaction = (tx: ExtendedTransaction) => {
     setEditingTransaction(tx);
     setShowEditModal(true);
   };
@@ -120,7 +126,7 @@ const AdminTransactions: React.FC = () => {
         toast.success('Transaction updated successfully!');
         setShowEditModal(false);
         setEditingTransaction(null);
-        fetchTransactions(currentPage); // Refresh data
+        fetchTransactions(currentPage);
     } catch (error: any) {
         toast.error(`Failed to update transaction: ${error.message}`);
     } finally {
@@ -155,7 +161,6 @@ const AdminTransactions: React.FC = () => {
     document.body.removeChild(link);
     toast.success("Transactions exported successfully.");
   };
-
 
   const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
   const transactionTypes: TransactionType[] = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
@@ -258,7 +263,6 @@ const AdminTransactions: React.FC = () => {
        {!isLoading && transactions.length === 0 && (
          <p className="text-center text-muted-foreground py-6">No transactions found matching your criteria.</p>
        )}
-
 
       {totalPages > 1 && (
          <div className="flex justify-between items-center mt-4">

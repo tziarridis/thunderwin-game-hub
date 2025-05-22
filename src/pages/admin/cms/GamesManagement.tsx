@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Game, DbGame, GameProvider, GameCategory, GameStatusEnum, GameVolatilityEnum } from '@/types/game';
+import { DbGame, GameStatusEnum } from '@/types/game';
 import GameForm from '@/components/admin/GameForm';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -49,26 +49,26 @@ const GamesManagement: React.FC = () => {
   const [gameToDelete, setGameToDelete] = useState<DbGame | null>(null);
 
 
-  const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery<DbGame[], Error>({
+  const { data: games = [], isLoading: isLoadingGames, refetch: refetchGames } = useQuery({
     queryKey: ['adminGames', searchTerm],
     queryFn: () => fetchAdminGames(searchTerm),
     staleTime: 1000 * 60 * 1, // 1 minute
   });
 
-  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery<{ slug: string; name: string }[], Error>({
+  const { data: providersForForm = [], isLoading: isLoadingProviders } = useQuery({
     queryKey: ['formProviders'],
     queryFn: fetchProvidersForForm,
     staleTime: Infinity, // Providers list doesn't change often
   });
 
-  const { data: categoriesForForm = [], isLoading: isLoadingCategories } = useQuery<{ slug: string; name: string }[], Error>({
+  const { data: categoriesForForm = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['formCategories'],
     queryFn: fetchCategoriesForForm,
     staleTime: Infinity, // Categories list doesn't change often
   });
 
 
-  const deleteGameMutation = useMutation<void, Error, string>({
+  const deleteGameMutation = useMutation({
     mutationFn: async (gameId: string) => {
       const { error } = await supabase.from('games').delete().eq('id', gameId);
       if (error) throw error;
@@ -114,8 +114,8 @@ const GamesManagement: React.FC = () => {
     refetchGames(); // Refetch games list after add/edit
   };
   
-  const toggleGameStatusMutation = useMutation<void, Error, { gameId: string; newStatus: GameStatusEnum }>({
-    mutationFn: async ({ gameId, newStatus }) => {
+  const toggleGameStatusMutation = useMutation({
+    mutationFn: async ({ gameId, newStatus }: { gameId: string; newStatus: GameStatusEnum }) => {
       const { error } = await supabase.from('games').update({ status: newStatus }).eq('id', gameId);
       if (error) throw error;
     },
@@ -138,11 +138,6 @@ const GamesManagement: React.FC = () => {
       <CMSPageHeader
         title="Games Management"
         description="Add, edit, and manage all casino games."
-        actionButton={
-          <Button onClick={handleAddNewGame}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
-          </Button>
-        }
       />
 
       <div className="my-6">
@@ -155,6 +150,12 @@ const GamesManagement: React.FC = () => {
           />
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         </div>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <Button onClick={handleAddNewGame}>
+          <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
+        </Button>
       </div>
 
       {isLoadingGames || isLoadingProviders || isLoadingCategories ? (
@@ -237,7 +238,6 @@ const GamesManagement: React.FC = () => {
         title="Confirm Deletion"
         description={`Are you sure you want to delete the game "${gameToDelete?.title || gameToDelete?.game_name}"? This action cannot be undone.`}
         confirmText="Delete"
-        isDestructive
         isLoading={deleteGameMutation.isPending}
       />
 

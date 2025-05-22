@@ -57,3 +57,14 @@ export const DatePickerWithRange: React.FC<DatePickerWithRangeProps> = ({ date, 
   );
 };
 
+export const DateRangePicker: React.FC<{onUpdate: (values: {range?: DateRange}) => void}> = ({ onUpdate }) => {
+  const [date, setDate] = React.useState<DateRange | undefined>(undefined);
+
+  React.useEffect(() => {
+    onUpdate({ range: date });
+  }, [date, onUpdate]);
+
+  return <DatePickerWithRange date={date} onDateChange={setDate} />;
+};
+
+export { type DateRange };

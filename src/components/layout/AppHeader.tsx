@@ -12,6 +12,8 @@ import UserMenu from '@/components/user/UserMenu';
 import SiteLogo from '@/components/SiteLogo';
 import NotificationsDropdown from '@/components/notifications/NotificationsDropdown';
 import { supabase } from '@/integrations/supabase/client';
+import { Wallet } from '@/types/wallet';
+import { AppUser } from '@/contexts/AppContext';
 
 interface WalletState {
   id: string;
@@ -26,9 +28,17 @@ interface WalletState {
   demoBalance: number;
   isActive: boolean;
   lastTransactionDate: Date | null;
+  // Add the missing properties to match Wallet interface
+  hide_balance: boolean;
+  active: boolean;
+  total_bet: number;
+  total_won: number;
+  total_lose: number;
+  user_id: string;
 }
 
 const AppHeader = () => {
+  // ... keep existing code (location, theme, auth variables)
   const location = useLocation();
   const { theme, setTheme } = useTheme(); 
   const { user, isAuthenticated, signOut } = useAuth(); 
@@ -55,6 +65,7 @@ const AppHeader = () => {
             setWallet({
               id: data.id,
               userId: data.user_id,
+              user_id: data.user_id, // Add to match Wallet interface
               balance: data.balance ?? 0,
               currency: data.currency || 'USD',
               symbol: data.symbol || '$',
@@ -64,6 +75,11 @@ const AppHeader = () => {
               cryptoBalance: data.balance_cryptocurrency ?? 0, 
               demoBalance: data.balance_demo ?? 0, 
               isActive: data.active ?? false,
+              active: data.active ?? false, // Add to match Wallet interface
+              hide_balance: false, // Add to match Wallet interface
+              total_bet: 0, // Add to match Wallet interface
+              total_won: 0, // Add to match Wallet interface
+              total_lose: 0, // Add to match Wallet interface
               lastTransactionDate: data.updated_at ? new Date(data.updated_at) : null,
             });
           } else {
@@ -133,13 +149,8 @@ const AppHeader = () => {
               </div>
               <NotificationsDropdown hasUnread={hasUnreadNotifications} />
               <UserMenu 
-                user={user} 
+                user={user as AppUser} 
                 onLogout={signOut}
-                // wallet={wallet} // UserMenuProps in read-only file likely doesn't expect this complex object
-                // loadingWallet={loadingWallet} // Also likely not expected
-                // The following props caused errors, commenting out until UserMenu props are known/updated:
-                // balance={wallet?.balance} 
-                // currencySymbol={wallet?.symbol} 
               />
             </>
           ) : (
@@ -161,7 +172,7 @@ const AppHeader = () => {
       
        {isMobileMenuOpen && ( 
         <div className="md:hidden">
-          <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet} />
+          <MobileNavBar onClose={toggleMobileMenuHandler} wallet={wallet as unknown as Wallet} />
         </div>
       )}
     </header>

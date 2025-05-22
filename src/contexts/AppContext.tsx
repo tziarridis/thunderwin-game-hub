@@ -8,6 +8,9 @@ export type AppUser = {
   firstName?: string;
   lastName?: string;
   avatar?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 interface AppContextValue {
