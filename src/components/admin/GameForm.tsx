@@ -14,9 +14,8 @@ import { toast } from 'sonner';
 import { slugify } from '@/utils/gameTypeAdapter';
 import { convertGameToDbGame, convertDbGameToGame } from '@/utils/gameTypeAdapter';
 
-
 const MAX_FILE_SIZE_MB = 5;
-const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const gameFormSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters'),
@@ -26,11 +25,9 @@ const gameFormSchema = z.object({
   category_slugs: z.array(z.string()).optional().default([]),
   description: z.string().optional().nullable(),
   rtp: z.coerce.number().min(0).max(100).optional().nullable(),
-  // Using z.nativeEnum for TypeScript enums
-  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(),
+  volatility: z.nativeEnum(GameVolatilityEnum).optional().nullable(), // Changed to z.nativeEnum
   tags: z.array(z.string()).optional().default([]),
-  // Using z.nativeEnum for TypeScript enums
-  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.ACTIVE),
+  status: z.nativeEnum(GameStatusEnum).default(GameStatusEnum.ACTIVE), // Changed to z.nativeEnum
   
   image_url: z.string().url().optional().nullable(),
   cover: z.string().url().optional().nullable(),
@@ -75,20 +72,20 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
     provider_slug: gameForForm?.provider_slug || '',
     category_slugs: gameForForm?.category_slugs || [],
     description: gameForForm?.description || '',
-    rtp: gameForForm?.rtp ?? undefined, // Use ?? for undefined
-    volatility: gameForForm?.volatility ?? undefined,
+    rtp: gameForForm?.rtp || undefined,
+    volatility: gameForForm?.volatility as GameVolatilityEnum | undefined || undefined, // Ensure type cast for default value
     tags: Array.isArray(gameForForm?.tags) ? gameForForm.tags.map(tag => typeof tag === 'string' ? tag : tag.name) : [],
-    status: gameForForm?.status ?? GameStatusEnum.ACTIVE, // Use ?? for undefined
+    status: gameForForm?.status as GameStatusEnum | undefined || GameStatusEnum.ACTIVE, // Ensure type cast for default value
     image_url: gameForForm?.image_url || '',
     cover: gameForForm?.cover || '',
-    banner_url: gameForForm?.bannerUrl || '', // Assuming bannerUrl from Game type
+    banner_url: gameForForm?.bannerUrl || '',
     is_featured: gameForForm?.is_featured || false,
     is_new: gameForForm?.is_new || false,
     is_popular: gameForForm?.is_popular || false,
     show_home: gameForForm?.show_home || false,
-    lines: gameForForm?.lines ?? undefined,
-    min_bet: gameForForm?.min_bet ?? undefined,
-    max_bet: gameForForm?.max_bet ?? undefined,
+    lines: gameForForm?.lines || undefined,
+    min_bet: gameForForm?.min_bet || undefined,
+    max_bet: gameForForm?.max_bet || undefined,
     only_demo: gameForForm?.only_demo || false,
     only_real: gameForForm?.only_real || false,
     has_freespins: gameForForm?.has_freespins || false,
@@ -104,29 +101,23 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
 
   const watchedTitle = watch('title');
   useEffect(() => {
-    if (watchedTitle && !gameForForm?.slug) { 
+    if (watchedTitle && !gameForForm?.slug) { // Only auto-slugify if not editing or slug is empty
       setValue('slug', slugify(watchedTitle));
     }
   }, [watchedTitle, setValue, gameForForm?.slug]);
 
   const onSubmit = async (data: GameFormValues) => {
     try {
-      const gameDataToSave: Partial<Game> = { 
+      const gameDataToSave: Partial<Game> & { volatility?: GameVolatilityEnum | null, status?: GameStatusEnum } = { 
         ...data,
         tags: data.tags?.map(tagName => ({ name: tagName, slug: slugify(tagName) })),
+        // Ensure volatility and status are correctly typed if they exist
+        volatility: data.volatility as GameVolatilityEnum || null,
+        status: data.status as GameStatusEnum || GameStatusEnum.DRAFT, // Default to DRAFT if somehow undefined
       };
       
-      // Ensure that nullable fields that are empty strings are converted to null for Supabase
-      const validatedData = gameFormSchema.parse(data); // Re-validate to get coerced values
+      const dbGamePayload = convertGameToDbGame(gameDataToSave as Game); // Cast as Game after adjustments
       
-      const dbGamePayload = convertGameToDbGame({
-        ...gameForForm, // spread existing game data if editing
-        ...validatedData, // spread validated form data
-        // Map specific fields if necessary, e.g. if Game and DbGame types differ significantly beyond convertGameToDbGame
-         // Ensure tags are correctly formatted if convertGameToDbGame doesn't handle it fully
-        tags: validatedData.tags?.map(tagName => ({ name: tagName, slug: slugify(tagName) })) || [],
-      } as Game); // Cast as Game because convertGameToDbGame expects Game
-
       let result;
       if (game?.id) { 
         const { data: updatedGame, error } = await supabase
@@ -155,11 +146,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
       onSubmitSuccess();
     } catch (error: any) {
       console.error("Error saving game:", error);
-      let errorMessage = error.message;
-      if (error instanceof z.ZodError) {
-        errorMessage = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      }
-      toast.error(`Failed to save game: ${errorMessage}`);
+      toast.error(`Failed to save game: ${error.message}`);
     }
   };
 
@@ -200,7 +187,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
               name="status"
               control={control}
               render={({ field }) => (
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || GameStatusEnum.ACTIVE}>
                   <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                   <SelectContent>
                     {Object.values(GameStatusEnum).map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
@@ -219,7 +206,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                 <Select onValueChange={field.onChange} value={field.value || undefined} >
                   <SelectTrigger><SelectValue placeholder="Select Volatility" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem> 
+                    <SelectItem value="">None</SelectItem>
                     {Object.values(GameVolatilityEnum).map(vol => (
                       <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>))}
                   </SelectContent>
@@ -274,7 +261,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
               <p className="text-red-500 text-sm">
                 {Array.isArray(errors.tags)
                   ? errors.tags.map(e => e?.message).filter(Boolean).join(', ')
-                  : typeof errors.tags.message === 'string' ? errors.tags.message : ''}
+                  : errors.tags.message}
               </p>
             )}
           </div>
@@ -313,7 +300,8 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
             {errors.release_date && <p className="text-red-500 text-sm">{errors.release_date.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2">
-            {[{ name: 'is_featured', label: 'Featured' },
+            {[
+              { name: 'is_featured', label: 'Featured' },
               { name: 'is_new', label: 'New' },
               { name: 'is_popular', label: 'Popular' },
               { name: 'show_home', label: 'Show on Home' },

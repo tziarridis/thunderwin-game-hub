@@ -1,52 +1,71 @@
-
 import React from 'react';
-import { Game } from '@/types';
+import { Game } from '@/types/game';
+import { useGames } from '@/hooks/useGames'; // Corrected: useGames for context
 import GameCard from './GameCard';
-import { useGamesData } from '@/hooks/useGames';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface RelatedGamesProps {
-  games: Game[];
+  game: Game;
+  count?: number;
 }
 
-const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
-  const { launchGame, isFavorite, toggleFavoriteGame } = useGamesData();
-  const navigate = useNavigate();
+const RelatedGames: React.FC<RelatedGamesProps> = ({ game, count = 4 }) => {
+  const { games, getGamesByCategory, launchGame, isFavorite, toggleFavoriteGame, isAuthenticated } = useGames();
 
-  if (!games || games.length === 0) {
-    return null; 
-  }
-  
-  const handleGamePlayOrDetails = (game: Game) => {
-    if (game.game_id && (game.provider_slug || game.providerName) ) {
-        launchGame(game, { mode: 'real' })
-            .then(launchUrl => {
-                if (launchUrl) {
-                    window.open(launchUrl, '_blank');
-                }
-            });
-    } else if (game.slug) {
-      navigate(`/casino/game/${game.slug}`);
-    } else if (game.id) {
-      navigate(`/casino/game/${String(game.id)}`);
+  const relatedGames = React.useMemo(() => {
+    if (!game || !game.category_slugs || !getGamesByCategory) return [];
+
+    const related = game.category_slugs.flatMap(categorySlug => {
+      return getGamesByCategory(categorySlug)
+        .filter(relatedGame => relatedGame.id !== game.id); // Exclude the current game
+    });
+
+    // Remove duplicates and limit the count
+    const uniqueRelatedGames = Array.from(new Set(related.map(a => a.id)))
+      .map(id => {
+        return related.find(a => a.id === id)
+      })
+      .slice(0, count) as Game[];
+
+    return uniqueRelatedGames;
+  }, [game, games, count, getGamesByCategory]);
+
+  const handleToggleFavorite = async (gameId: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please log in to add favorites");
+      return;
+    }
+    await toggleFavoriteGame(gameId);
+  };
+
+  const handlePlayAction = (game: Game) => {
+    if (game.game_id && (game.provider_slug || game.providerName)) {
+      launchGame(game, { mode: 'real' })
+        .then(url => {
+          if (url) window.open(url, '_blank');
+          else toast.error("Could not get game URL.");
+        })
+        .catch(err => toast.error(`Launch error: ${(err as Error).message}`));
     } else {
-      console.warn("No identifier to navigate to game:", game.title);
-      toast.error("Could not open related game.");
+      toast.error("Cannot launch game: missing details or play action.");
     }
   };
 
+  if (!relatedGames || relatedGames.length === 0) {
+    return null;
+  }
+
   return (
-    <div className="bg-card p-4 rounded-lg shadow">
-      <h3 className="text-xl font-semibold mb-4 text-foreground">Related Games</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {games.map((game) => (
+    <div className="mt-8">
+      <h3 className="text-xl font-semibold mb-4">You might also like</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+        {relatedGames.map((relatedGame) => (
           <GameCard
-            key={String(game.id)}
-            game={game}
-            isFavorite={isFavorite(String(game.id))}
-            onToggleFavorite={toggleFavoriteGame}
-            onPlay={() => handleGamePlayOrDetails(game)}
+            key={relatedGame.id}
+            game={relatedGame}
+            isFavorite={isFavorite(relatedGame.id)}
+            onToggleFavorite={() => handleToggleFavorite(relatedGame.id)}
+            onPlay={() => handlePlayAction(relatedGame)}
           />
         ))}
       </div>
@@ -55,4 +74,3 @@ const RelatedGames: React.FC<RelatedGamesProps> = ({ games }) => {
 };
 
 export default RelatedGames;
-

@@ -1,107 +1,84 @@
+
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Game, GameLaunchOptions, GameStatusEnum } from '@/types';
-import { useGames } from '@/hooks/useGames'; // Corrected import: useGames instead of useGamesData
-import { useAuth } from '@/contexts/AuthContext';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGames } from '@/hooks/useGames'; // Corrected: useGames for context
+import { Game, GameLaunchOptions } from '@/types/game';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import ResponsiveEmbed from '@/components/ResponsiveEmbed';
 import { Loader2 } from 'lucide-react';
-// import { gameAggregatorService } from '@/services/gameAggregatorService'; // Assuming this service exists
 
 const AggregatorGameLauncher: React.FC = () => {
-  const { provider, gameCode } = useParams<{ provider: string; gameCode: string }>();
-  const { user, isAuthenticated } = useAuth();
-  const [launchUrl, setLaunchUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { gameId } = useParams<{ gameId: string }>(); // gameId could be slug or actual ID
+  const navigate = useNavigate();
+  const { launchGame, fetchGameBySlug, getGameById, isLoadingGames } = useGames(); // Use methods from context
+  const [game, setGame] = useState<Game | null>(null);
   const [error, setError] = useState<string | null>(null);
-// ... keep existing code (useState, useParams, useAuth)
-  const { getGameBySlug, getGameById } = useGames(); // Use the hook correctly
-  const [gameDetails, setGameDetails] = useState<Game | null>(null);
 
   useEffect(() => {
-    const fetchGameDetailsAndLaunch = async () => {
-// ... keep existing code (check for provider and gameCode)
+    const loadGame = async () => {
+      if (!gameId) {
+        setError("No game identifier provided.");
+        return;
+      }
+      let foundGame: Game | null | undefined = null;
+      // Try fetching by slug first, then by ID if fetchGameBySlug is robust
+      if (fetchGameBySlug) {
+         foundGame = await fetchGameBySlug(gameId);
+      }
+      // Fallback or primary fetch by ID if getGameById is preferred/available
+      if (!foundGame && getGameById) {
+          // This getGameById would ideally fetch if not in local state, or useGames provides a direct fetchGameById
+          // For now, assuming it checks local cache primarily.
+          // foundGame = getGameById(gameId); 
+          // If getGameById is just a local search, we might need a dedicated fetchGameById method in context
+          console.warn("getGameById from context might be a local cache search. Fetching by slug is preferred for direct launch.")
+      }
 
-      try {
-        // Attempt to find the game in our DB first for metadata.
-        let game: Game | undefined = undefined;
-        if (gameCode) { // ensure gameCode is defined
-            game = await getGameBySlug(gameCode) || await getGameById(gameCode);
-        }
-        
-        if (game) {
-            setGameDetails(game);
-        } else {
-            // Fallback if game not in local DB, still attempt to launch
-            // but set a minimal game detail for title etc.
-            setGameDetails({ 
-                id: gameCode || 'unknown', 
-                title: gameCode || 'Game', 
-                slug: gameCode, 
-                provider_slug: provider || 'unknown', 
-                status: GameStatusEnum.ACTIVE 
-            } as Game); // Cast to Game, acknowledge missing fields
-            console.warn(`Game with code/slug ${gameCode} not found in local DB. Proceeding with launch.`);
-        }
-        
 
-        const options: GameLaunchOptions = {
-          mode: isAuthenticated ? 'real' : 'demo',
-          // user_id: user?.id, // This needs to be Supabase auth user ID, not your custom user table ID if different.
-          // username: user?.user_metadata?.username,
-          // currency: user?.user_metadata?.currency || 'USD',
-          // language: user?.user_metadata?.language || 'en',
-          // platform: 'web',
-        };
-        
-        // This is where you'd call your aggregator service
-        // const url = await gameAggregatorService.launchGame(provider, gameCode, options);
-        // For placeholder:
-        const demoUrl = `https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=${gameCode}&provider=${provider}&lang=en&cur=USD`;
-        // In a real scenario, gameAggregatorService.launchGame would be used.
-        // setLaunchUrl(url); 
-        setLaunchUrl(demoUrl); // Placeholder
-        toast.info(`Attempting to launch ${gameCode || 'game'} from ${provider || 'provider'}.`);
-
-      } catch (err: any) {
-// ... keep existing code (error handling and finally block)
-        console.error("Error launching aggregator game:", err);
-        setError(err.message || "Failed to launch game via aggregator.");
-        toast.error(err.message || "Failed to launch game.");
-      } finally {
-        setLoading(false);
+      if (foundGame) {
+        setGame(foundGame);
+      } else if(!isLoadingGames) { // Avoid setting error if it's just loading
+        setError(`Game with identifier "${gameId}" not found.`);
+        toast.error(`Game "${gameId}" not found.`);
       }
     };
+    loadGame();
+  }, [gameId, fetchGameBySlug, getGameById, isLoadingGames]);
 
-    if (provider && gameCode) { // Ensure they are defined before fetching
-        fetchGameDetailsAndLaunch();
-    } else {
-        setError("Provider or game code missing in URL parameters.");
-        setLoading(false);
-        toast.error("Cannot launch game: critical information missing.");
+  const handleLaunch = async (mode: 'real' | 'demo') => {
+    if (!game) {
+      toast.error("Game data is not available for launch.");
+      return;
     }
+    const launchOptions: GameLaunchOptions = { mode };
+    const url = await launchGame(game, launchOptions);
+    if (url) {
+      // For an embedded experience, you might use an iframe or a dedicated launch view
+      // window.open(url, '_blank'); // Opens in new tab
+      navigate('/casino/seamless', { state: { gameUrl: url, gameTitle: game.title } });
+    }
+    // Error handling is within launchGame from context
+  };
 
-  }, [provider, gameCode, user, isAuthenticated, getGameBySlug, getGameById]);
-
-// ... keep existing code (loading, error, and launchUrl checks and return JSX)
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin" /> <p className="ml-4 text-lg">Loading game...</p></div>;
-  }
-
-  if (error) {
-    return <div className="text-center py-10"><p className="text-red-500 text-xl">Error: {error}</p></div>;
-  }
-
-  if (!launchUrl) {
-    return <div className="text-center py-10"><p className="text-xl">Could not retrieve game launch URL.</p></div>;
-  }
+  if (isLoadingGames && !game) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /> <p className="ml-4 text-xl">Loading Game...</p></div>;
+  if (error) return <div className="text-center py-10 text-red-500">{error} <Button onClick={() => navigate(-1)}>Go Back</Button></div>;
+  if (!game) return <div className="text-center py-10">Game not found. <Button onClick={() => navigate(-1)}>Go Back</Button></div>;
 
   return (
-    <div className="container mx-auto p-4">
-      {gameDetails && <h1 className="text-2xl font-bold text-center mb-4">{gameDetails.title}</h1>}
-      <ResponsiveEmbed src={launchUrl} title={gameDetails?.title || gameCode || "Game"} />
+    <div className="container mx-auto p-4 text-center">
+      <h1 className="text-3xl font-bold mb-6">Launch {game.title}</h1>
+      <img src={game.cover || game.image_url || game.image} alt={game.title} className="w-64 h-auto mx-auto mb-6 rounded-lg shadow-lg" />
+      <p className="mb-2 text-lg">Provider: {game.providerName || game.provider_slug}</p>
+      {game.description && <p className="mb-6 text-muted-foreground max-w-xl mx-auto">{game.description}</p>}
+      
+      <div className="space-x-4">
+        <Button onClick={() => handleLaunch('real')} size="lg">Play Real</Button>
+        {!(game.only_real) && <Button onClick={() => handleLaunch('demo')} variant="outline" size="lg">Play Demo</Button>}
+      </div>
+      <Button onClick={() => navigate('/casino/main')} variant="link" className="mt-8">Back to Casino</Button>
     </div>
   );
 };
 
 export default AggregatorGameLauncher;
+

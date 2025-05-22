@@ -1,99 +1,77 @@
 
 import React, { useEffect, useState } from 'react';
-import { useGames } from '@/hooks/useGames'; // Corrected import name
-import EnhancedGameCard from '../casino/EnhancedGameCard'; // Corrected path
-import { Game, GameTag } from '@/types/game';
-import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
-import GameCardLoadingSkeleton from '@/components/skeletons/GameCardLoadingSkeleton';
+import { Game } from '@/types/game';
+import { useGames } from '@/hooks/useGames'; // Corrected: useGames for context
+import CasinoGameGrid from '@/components/casino/CasinoGameGrid'; // Assuming this is the correct path
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { toast } from 'sonner';
+import SectionTitle from '@/components/shared/SectionTitle'; // Assuming this component exists
 
 interface FeaturedGamesProps {
   count?: number;
   title?: string;
-  showViewAllButton?: boolean;
-  viewAllLink?: string;
 }
 
-const FeaturedGames: React.FC<FeaturedGamesProps> = ({
-  count = 8,
-  title = "Featured Games",
-  showViewAllButton = true,
-  viewAllLink = "/casino/main?filter=featured" // Example link
-}) => {
-  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoading: isLoadingContext } = useGames();
-  const navigate = useNavigate();
+const FeaturedGamesMarketing: React.FC<FeaturedGamesProps> = ({ count = 4, title = "Top Games" }) => {
+  // Use context methods. isLoading might be isLoadingGames from the updated context.
+  const { getFeaturedGames, handlePlayGame, handleGameDetails, isLoadingGames } = useGames();
   const [featuredGames, setFeaturedGames] = useState<Game[]>([]);
-  const [isLoadingGamesHook, setIsLoadingGamesHook] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchGames = async () => {
-      setIsLoadingGamesHook(true);
-      setError(null);
-      try {
-        const games = await getFeaturedGames(count);
-        setFeaturedGames(games);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch featured games');
-        console.error("Error fetching featured games:", err);
-      } finally {
-        setIsLoadingGamesHook(false);
+    const fetchFeatured = async () => {
+      if (getFeaturedGames) { // Check if function exists
+        try {
+          const games = await getFeaturedGames(count);
+          setFeaturedGames(games);
+        } catch (error: any) {
+          toast.error("Failed to load top games: " + error.message);
+        }
+      } else {
+         console.warn("getFeaturedGames function is not available on GamesContext.");
       }
     };
+    fetchFeatured();
+  }, [getFeaturedGames, count]);
 
-    fetchGames();
-  }, [count, getFeaturedGames]);
+  const onGameClick = handleGameDetails || ((game: Game) => {
+    console.log("Marketing featured game clicked (fallback):", game.title);
+    toast.info(`Explore ${game.title}`);
+  });
 
-  const isLoadingState = isLoadingGamesHook || isLoadingContext;
 
-  if (error) {
-    return <div className="text-red-500 py-4">Error loading featured games: {error}</div>;
+  if (isLoadingGames && featuredGames.length === 0) {
+    return (
+      <section className="py-12 bg-gradient-to-b from-casino-secondary to-casino-secondary-dark">
+        <div className="container mx-auto px-4">
+          {title && <h2 className="text-3xl font-bold text-center mb-8 text-white">{title}</h2>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            {Array.from({ length: count }).map((_, index) => (
+              <div key={index} className="space-y-3 p-4 bg-white/10 rounded-lg">
+                <Skeleton className="h-40 w-full rounded-md" />
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-5 w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
   }
   
-  // Example of how tags might be displayed (if EnhancedGameCard expects strings)
-  const renderTags = (tags: GameTag[] | string[] | null | undefined): string => {
-    if (!tags) return '';
-    return tags.map(tag => (typeof tag === 'string' ? tag : tag.name)).join(', ');
-  };
-
+  if (!featuredGames.length) {
+    return null; 
+  }
 
   return (
-    <section className="py-8 md:py-12">
+    <section className="py-12 bg-gradient-to-b from-casino-secondary to-casino-secondary-dark">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white">{title}</h2>
-          {showViewAllButton && (
-            <Button variant="ghost" onClick={() => navigate(viewAllLink)} className="text-primary hover:text-primary/80">
-              View All <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        {isLoadingState && !featuredGames.length ? (
-           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-            {Array.from({ length: count }).map((_, index) => (
-              <GameCardLoadingSkeleton key={index} />
-            ))}
-          </div>
-        ) : !featuredGames.length && !isLoadingState ? (
-          <p className="text-center text-muted-foreground py-8">No featured games available at the moment.</p>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
-            {featuredGames.map((game) => (
-              <EnhancedGameCard
-                key={game.id || game.slug}
-                game={game}
-                onPlay={(selectedGame, mode) => handlePlayGame(selectedGame, mode)}
-                onDetails={(selectedGame) => handleGameDetails(selectedGame)}
-                // If EnhancedGameCard has a prop like `displayTags` expecting a string:
-                // displayTags={renderTags(game.tags)} 
-              />
-            ))}
-          </div>
-        )}
+        {title && <h2 className="text-3xl font-bold text-center mb-8 text-white">{title}</h2>}
+        {/* CasinoGameGrid might need specific styling for marketing variant */}
+        <CasinoGameGrid games={featuredGames} onGameClick={onGameClick} showEmptyMessage={false} />
       </div>
     </section>
   );
 };
 
-export default FeaturedGames;
+export default FeaturedGamesMarketing;
+

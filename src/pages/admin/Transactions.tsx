@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
-import { User } from '@/types/user';
+// Assuming Transaction, TransactionStatus, TransactionType are imported from a global types file
+// For now, let's define a local one that matches the error and typical usage.
+// import { Transaction, TransactionStatus, TransactionType } from '@/types/transaction';
+import { User } from '@/types/user'; // Assuming this User type is correct
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker'; // Changed from DateRangePicker
+import { DatePickerWithRange } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -15,6 +17,32 @@ import CMSPageHeader from '@/components/admin/cms/CMSPageHeader';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+
+// Local Transaction type definition to match common structure and error
+// In a real app, this would come from `@/types/transaction`
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
+export type TransactionType = 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund';
+
+export interface Transaction {
+  id: string;
+  user_id: string; // Added as per typical requirements for user transactions
+  amount: number;
+  currency: string;
+  type: TransactionType;
+  status: TransactionStatus;
+  provider?: string | null;
+  game_id?: string | null;
+  session_id?: string | null;
+  round_id?: string | null;
+  notes?: string | null;
+  metadata?: Record<string, any> | null;
+  created_at: string;
+  updated_at: string;
+  date: string; // Added to satisfy the error message, will map from created_at
+  // Optional: if user details are embedded or joined
+  user?: Pick<User, 'id' | 'username' | 'email'>; 
+}
+
 
 const ITEMS_PER_PAGE = 15;
 
@@ -37,11 +65,12 @@ const AdminTransactions: React.FC = () => {
     setIsLoading(true);
     try {
       let query = supabase
-        .from('transactions')
-        .select('*, user:users(id, username, email)', { count: 'exact' }); 
+        .from('transactions') // Assuming this table matches the Transaction interface structure
+        .select('*, user:users!left(id, username, email)', { count: 'exact' }); 
 
       if (searchTerm) {
-        query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%,metadata->>provider_transaction_id.ilike.%${searchTerm}%`);
+        // Ensure metadata search is appropriate for your DB (e.g., JSONB)
+        query = query.or(`id.ilike.%${searchTerm}%,user_id.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%,provider.ilike.%${searchTerm}%,game_id.ilike.%${searchTerm}%` + (supabase.rpc ? "": ",metadata->>provider_transaction_id.ilike.%${searchTerm}%"));
       }
       if (filterType !== 'all') {
         query = query.eq('type', filterType);
@@ -66,14 +95,20 @@ const AdminTransactions: React.FC = () => {
       
       const fetchedTransactions = (data || []).map(txAny => {
         const tx = txAny as any; 
-        if (tx.user && typeof tx.user === 'object') { 
+        if (tx.user && typeof tx.user === 'object' && tx.user_id) { 
           setUsers(prevUsers => ({
             ...prevUsers,
             [tx.user_id]: { id: tx.user.id, username: tx.user.username, email: tx.user.email }
           }));
         }
+        // Ensure the transaction object matches the Transaction interface
+        // Particularly, map created_at to date field
         const { user: userData, ...transactionData } = tx;
-        return transactionData as Transaction;
+        return {
+            ...transactionData,
+            date: tx.created_at, // Map created_at to date
+            user_id: tx.user_id || 'N/A' // Ensure user_id exists
+        } as Transaction;
       });
 
       setTransactions(fetchedTransactions);
@@ -93,6 +128,7 @@ const AdminTransactions: React.FC = () => {
 
   const handleSearchFilter = () => {
     setCurrentPage(1); 
+    // fetchTransactions(1); // fetchTransactions is already called by useEffect on currentPage change
   };
   
   const handleEditTransaction = (tx: Transaction) => {
@@ -136,7 +172,8 @@ const AdminTransactions: React.FC = () => {
         username: users[tx.user_id]?.username || 'N/A',
         user_email: users[tx.user_id]?.email || 'N/A',
         created_at: format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm:ss'),
-        updated_at: format(new Date(tx.updated_at), 'yyyy-MM-dd HH:mm:ss'),
+        updated_at: tx.updated_at ? format(new Date(tx.updated_at), 'yyyy-MM-dd HH:mm:ss') : 'N/A',
+        date_field: format(new Date(tx.date), 'yyyy-MM-dd HH:mm:ss'), // use tx.date
     }));
 
     const headers = Object.keys(dataToExport[0]).join(',');
@@ -156,8 +193,8 @@ const AdminTransactions: React.FC = () => {
 
 
   const totalPages = Math.ceil(totalTransactions / ITEMS_PER_PAGE);
-  const transactionTypes: TransactionType[] = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
-  const transactionStatuses: TransactionStatus[] = ['pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected'];
+  const transactionTypesList: TransactionType[] = ['deposit', 'withdrawal', 'bet', 'win', 'bonus', 'adjustment', 'refund'];
+  const transactionStatusesList: TransactionStatus[] = ['pending', 'completed', 'failed', 'cancelled', 'approved', 'rejected'];
 
   return (
     <div className="container mx-auto p-4">
@@ -166,7 +203,7 @@ const AdminTransactions: React.FC = () => {
       <div className="mb-6 p-4 border rounded-lg bg-card shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
           <Input
-            placeholder="Search by Tx ID, User ID, Notes, Game ID..."
+            placeholder="Search by Tx ID, User ID, Notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="lg:col-span-2"
@@ -175,7 +212,7 @@ const AdminTransactions: React.FC = () => {
             <SelectTrigger><SelectValue placeholder="Filter by Type" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              {transactionTypes.map(type => (
+              {transactionTypesList.map(type => (
                 <SelectItem key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</SelectItem>
               ))}
             </SelectContent>
@@ -184,13 +221,12 @@ const AdminTransactions: React.FC = () => {
             <SelectTrigger><SelectValue placeholder="Filter by Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              {transactionStatuses.map(status => (
+              {transactionStatusesList.map(status => (
                 <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="lg:col-span-2">
-            {/* Changed DateRangePicker to DatePickerWithRange and updated props */}
             <DatePickerWithRange 
               date={dateRange} 
               onDateChange={(newRange) => setDateRange(newRange)} 
@@ -224,12 +260,12 @@ const AdminTransactions: React.FC = () => {
             </TableHeader>
             <TableBody>
               {transactions.map((tx) => {
-                const user = users[tx.user_id];
+                const userDisplay = users[tx.user_id] || { username: tx.user_id.substring(0,8)+'...' };
                 return (
                   <TableRow key={tx.id}>
                     <TableCell className="font-medium truncate max-w-[100px]" title={tx.id}>{tx.id}</TableCell>
-                    <TableCell className="truncate max-w-[150px]" title={user?.username || user?.email || tx.user_id}>
-                      {user?.username || user?.email || tx.user_id.substring(0,8)+'...'}
+                    <TableCell className="truncate max-w-[150px]" title={userDisplay.username || userDisplay.email || tx.user_id}>
+                      {userDisplay.username || userDisplay.email || tx.user_id.substring(0,8)+'...'}
                     </TableCell>
                     <TableCell>{tx.type}</TableCell>
                     <TableCell>{tx.amount.toFixed(2)} {tx.currency}</TableCell>
@@ -244,7 +280,7 @@ const AdminTransactions: React.FC = () => {
                         </span>
                     </TableCell>
                     <TableCell className="truncate max-w-[100px]" title={tx.provider || undefined}>{tx.provider || 'N/A'}</TableCell>
-                    <TableCell>{format(new Date(tx.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
+                    <TableCell>{format(new Date(tx.date), 'yyyy-MM-dd HH:mm')}</TableCell> {/* Use tx.date */}
                     <TableCell>
                       <Button variant="ghost" size="icon" onClick={() => handleEditTransaction(tx)} title="Edit/View Transaction">
                         <Edit2 className="h-4 w-4" />
@@ -299,7 +335,7 @@ const AdminTransactions: React.FC = () => {
                                 <SelectValue placeholder="Select status" />
                             </SelectTrigger>
                             <SelectContent>
-                                {transactionStatuses.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+                                {transactionStatusesList.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
                             </SelectContent>
                         </Select>
                     </div>

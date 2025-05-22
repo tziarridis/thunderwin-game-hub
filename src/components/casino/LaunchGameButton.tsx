@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Game, GameLaunchOptions } from '@/types/game';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGames } from '@/hooks/useGames'; // Corrected to useGames
 import { Button, ButtonProps } from '@/components/ui/button';
 import { PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,14 +13,14 @@ interface LaunchGameButtonProps extends ButtonProps {
 }
 
 const LaunchGameButton: React.FC<LaunchGameButtonProps> = ({ game, launchOptions, buttonText = "Play", children, ...props }) => {
-  const { launchGame } = useGamesData(); // Use context function
+  const { launchGame } = useGames(); // Use context function from useGames
 
   const handleLaunch = async () => {
-    const url = await launchGame(game, launchOptions); // Call context function
+    const url = await launchGame(game, launchOptions);
     if (url) {
-      window.open(url, '_blank'); // Or use a game launcher modal
+      window.open(url, '_blank');
     } else {
-      // Error handled by launchGame
+      // Error already handled by launchGame in context
     }
   };
 
@@ -36,3 +36,4 @@ const LaunchGameButton: React.FC<LaunchGameButtonProps> = ({ game, launchOptions
 };
 
 export default LaunchGameButton;
+
