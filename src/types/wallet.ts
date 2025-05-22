@@ -1,78 +1,32 @@
+
 export interface Wallet {
   id: string;
-  userId: string;
+  user_id: string;
   balance: number;
+  balance_bonus?: number;
+  balance_bonus_rollover?: number;
+  balance_deposit_rollover?: number;
+  balance_withdrawal?: number;
+  balance_cryptocurrency?: number;
+  balance_demo?: number;
+  hide_balance: boolean;
+  active: boolean;
+  total_bet: number;
+  total_won: number;
+  total_lose: number;
+  vipLevel?: number;
+  vipPoints?: number;
   currency: string;
-  symbol: string;
-  vipLevel: number;
-  vipPoints?: number; // Added vipPoints as optional
-  bonusBalance: number;
-  cryptoBalance: number;
-  demoBalance: number;
-  isActive: boolean;
-  // Retaining other properties from the original file if they exist
-  lastTransactionDate?: string | Date; // From previous walletService version, ensure it's here if needed
-}
-
-export interface WalletTransaction {
-  id: string;
-  userId: string;
-  type: string;
-  amount: number;
-  currency: string;
-  status: string;
-  date: string;
-  gameId?: string;
-  gameName?: string;
-  provider?: string;
-  // Add description if it's used by TransactionQueryService and exists in DB
-  description?: string; 
-  balance_before?: number;
-  balance_after?: number;
-  round_id?: string;
-  session_id?: string;
-}
-
-export interface WalletFilter {
-  type?: string;
-  startDate?: Date;
-  endDate?: Date;
-  status?: string;
-}
-
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  type: string;
-  logo: string;
-  minAmount: number;
-  maxAmount: number;
-  fee: number | string;
-  processingTime: string;
-  currency: string[];
-  isActive: boolean;
-}
-
-export interface WalletResponse {
-  data: any;
-  error: any;
-}
-
-export interface WalletDeposit {
-  userId: string;
-  amount: number;
-  method: string;
-  currency: string;
-  status: string;
-  transactionId?: string;
-}
-
-export interface WalletWithdrawal {
-  userId: string;
-  amount: number;
-  method: string;
-  currency: string;
-  status: string;
-  address?: string;
-  transactionId?: string;
+  symbol?: string;
+  vip_level?: number;
+  vip_points?: number;
+  created_at?: string;
+  updated_at?: string;
+  deposit_limit_daily?: number;
+  deposit_limit_weekly?: number;
+  deposit_limit_monthly?: number;
+  exclusion_until?: string | null;
+  time_reminder_enabled?: boolean;
+  reminder_interval_minutes?: number;
+  exclusion_period?: string;
 }

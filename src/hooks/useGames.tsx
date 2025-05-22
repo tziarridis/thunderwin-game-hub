@@ -1,16 +1,30 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame } from '@/types/game';
+import { Game, GameProvider, GameCategory, GameLaunchOptions, DbGame, GameTag } from '@/types/game';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { mapDbGameToGameAdapter } from '@/components/admin/GameAdapter';
 
+// Define interface for the gameService getAllGames method
+interface GetAllGamesOptions {
+  limit?: number;
+  offset?: number;
+  category?: string;
+  provider?: string;
+  search?: string;
+  featured?: boolean;
+  popular?: boolean;
+  latest?: boolean;
+}
+
 // Game service implementation
 const gameService = {
-  getAllGames: async ({ limit = 100, offset = 0, category, provider, search, featured, popular, latest } = {}): Promise<{ games: Game[], count: number }> => {
+  getAllGames: async (options: GetAllGamesOptions = {}): Promise<{ games: Game[], count: number }> => {
+    const { limit = 100, offset = 0, category, provider, search, featured, popular, latest } = options;
+    
     let query = supabase.from('games').select('*, providers:provider_id(*)', { count: 'exact' });
 
     // Apply filters
@@ -50,8 +64,7 @@ const gameService = {
     
     // Map DB games to Game interface
     const mappedGames = (data || []).map((dbGame: any) => {
-      const game = mapDbGameToGameAdapter(dbGame as DbGame);
-      return game;
+      return mapDbGameToGameAdapter(dbGame);
     });
     
     return { 
@@ -132,7 +145,7 @@ const gameService = {
       throw error;
     }
     
-    return mapDbGameToGameAdapter(data as DbGame);
+    return mapDbGameToGameAdapter(data);
   },
   
   getGameBySlug: async (slug: string): Promise<Game | null> => {
@@ -147,7 +160,7 @@ const gameService = {
       throw error;
     }
     
-    return mapDbGameToGameAdapter(data as DbGame);
+    return mapDbGameToGameAdapter(data);
   },
   
   getGamesByProvider: async (providerSlug: string): Promise<Game[]> => {
@@ -158,7 +171,7 @@ const gameService = {
     
     if (error) throw error;
     
-    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
   },
   
   getGamesByCategory: async (categorySlug: string): Promise<Game[]> => {
@@ -169,7 +182,7 @@ const gameService = {
     
     if (error) throw error;
     
-    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
   },
   
   getGameLaunchUrl: async (gameId: string, options: GameLaunchOptions): Promise<string | null> => {
@@ -187,7 +200,7 @@ const gameService = {
     
     if (error) throw error;
     
-    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
   },
   
   getPopularGames: async (count: number = 8): Promise<Game[]> => {
@@ -199,7 +212,7 @@ const gameService = {
     
     if (error) throw error;
     
-    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
   },
   
   getLatestGames: async (count: number = 8): Promise<Game[]> => {
@@ -211,7 +224,7 @@ const gameService = {
     
     if (error) throw error;
     
-    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame as DbGame));
+    return (data || []).map((dbGame: any) => mapDbGameToGameAdapter(dbGame));
   }
 };
 
@@ -265,25 +278,25 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
 
-  const { data: gamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ games: Game[], count: number }, Error>({
+  const { data: gamesData, isLoading: isLoadingGames, error: gamesError } = useQuery({
     queryKey: ['allGames'],
     queryFn: () => gameService.getAllGames({ limit: 500 }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const { data: providersData, isLoading: isLoadingProviders, error: providersError } = useQuery<GameProvider[], Error>({
+  const { data: providersData, isLoading: isLoadingProviders, error: providersError } = useQuery({
     queryKey: ['allProviders'],
     queryFn: gameService.getProviders,
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery<GameCategory[], Error>({
+  const { data: categoriesData, isLoading: isLoadingCategories, error: categoriesError } = useQuery({
     queryKey: ['allCategories'],
     queryFn: gameService.getCategories,
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 
-  const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery<string[], Error>({
+  const { data: favoriteGamesData, isLoading: isLoadingFavorites } = useQuery({
     queryKey: ['favoriteGames', user?.id],
     queryFn: () => user ? gameService.getFavoriteGames(user.id) : Promise.resolve([]),
     enabled: !!user,
@@ -376,7 +389,7 @@ export const GamesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     navigate(`/casino/game/${game.slug || game.id}`);
   }, [navigate]);
 
-  const toggleFavoriteMutation = useMutation<void, Error, string>({
+  const toggleFavoriteMutation = useMutation({
     mutationFn: async (gameIdOrSlug: string) => {
       if (!user) throw new Error("User not authenticated");
       

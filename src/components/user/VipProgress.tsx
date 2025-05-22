@@ -17,8 +17,8 @@ const VipProgress: React.FC<VipProgressProps> = ({
   wallet
 }) => {
   // If wallet prop is provided, use its values
-  const level = currentLevel !== undefined ? currentLevel : wallet?.vipLevel || 0;
-  const points = currentPoints !== undefined ? currentPoints : wallet?.vipPoints || 0;
+  const level = currentLevel !== undefined ? currentLevel : wallet?.vip_level || 0;
+  const points = currentPoints !== undefined ? currentPoints : wallet?.vip_points || 0;
   
   // Default points needed if not provided
   const pointsNeeded = pointsToNextLevel || 100;

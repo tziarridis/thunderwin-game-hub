@@ -2,7 +2,7 @@
 import { Game, DbGame, GameStatus, GameVolatility, GameTag } from '@/types/game';
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
-export const mapDbGameToGameAdapter = (dbGame: DbGame | any): Game => {
+export const mapDbGameToGameAdapter = (dbGame: any): Game => {
   // Helper to safely cast string to GameStatus
   const parseGameStatus = (statusStr: string | null | undefined): GameStatus => {
     const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked'];
@@ -129,10 +129,18 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.max_bet !== undefined && game.max_bet !== null) dbGame.max_bet = Number(game.max_bet);
 
   if (game.features) dbGame.features = game.features;
-  // Convert Game.tags (string[] | GameTag[]) to DbGame.tags (string[])
+  
+  // Convert Game.tags to DbGame.tags
   if (game.tags) {
-    dbGame.tags = game.tags.map(tag => (typeof tag === 'string' ? tag : tag.slug));
+    if (Array.isArray(game.tags)) {
+      dbGame.tags = game.tags.map(tag => {
+        if (typeof tag === 'string') return tag;
+        if (typeof tag === 'object' && tag && 'slug' in tag) return tag.slug;
+        return String(tag);
+      });
+    }
   }
+  
   if (game.themes) dbGame.themes = game.themes;
   
   if (game.releaseDate) dbGame.release_date = game.releaseDate; 

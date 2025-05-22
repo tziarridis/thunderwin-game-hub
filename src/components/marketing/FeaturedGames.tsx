@@ -56,8 +56,15 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
             tempFiltered = tempFiltered.filter(g => g.isNew);
             break;
           default:
-            // Make sure g.tags is an array before filtering
-            tempFiltered = tempFiltered.filter(g => Array.isArray(g.tags) && g.tags.includes(tag));
+            // Make sure g.tags is an array and contains the tag
+            tempFiltered = tempFiltered.filter(g => {
+              // Safely check if tags is an array and contains the tag string
+              return Array.isArray(g.tags) && g.tags.some(t => 
+                // Handle both string tags and GameTag objects
+                (typeof t === 'string' && t === tag) || 
+                (typeof t === 'object' && t && 'slug' in t && t.slug === tag)
+              );
+            });
             break;
         }
       } else if (!categorySlug) { 

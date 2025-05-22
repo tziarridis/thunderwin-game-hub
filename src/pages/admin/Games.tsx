@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabaseClient';
-import { Game, GameProvider, GameCategory, GameStatus } from '@/types'; // Ensure GameProvider and GameCategory are imported
+import { supabase } from '@/integrations/supabase/client';
+import { Game, GameProvider, GameCategory, GameStatus, GameVolatility } from '@/types/game'; // Ensure GameProvider and GameCategory are imported
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -74,8 +73,8 @@ const GamesAdminPage: React.FC = () => {
   });
   
   // Create or Update Game Mutation
-  const gameMutation = useMutation<Game, Error, Partial<Game>>(
-    async (gameData) => {
+  const gameMutation = useMutation<Game, Error, Partial<Game>>({
+    mutationFn: async (gameData) => {
       // Ensure required fields for insert/update are present
       const payload = {
         ...gameData,
@@ -110,18 +109,16 @@ const GamesAdminPage: React.FC = () => {
       if (error) throw error;
       return data as Game;
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: [GAMES_ADMIN_QUERY_KEY] });
-        setIsModalOpen(false);
-        setEditingGame(null);
-        toast.success(`Game ${editingGame?.id || editingGame?.game_id ? 'updated' : 'created'} successfully.`);
-      },
-      onError: (error) => {
-        toast.error(`Error saving game: ${error.message}`);
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [GAMES_ADMIN_QUERY_KEY] });
+      setIsModalOpen(false);
+      setEditingGame(null);
+      toast.success(`Game ${editingGame?.id || editingGame?.game_id ? 'updated' : 'created'} successfully.`);
+    },
+    onError: (error) => {
+      toast.error(`Error saving game: ${error.message}`);
+    },
+  });
 
   const handleEdit = (game: Game) => {
     setEditingGame(game);
@@ -181,13 +178,16 @@ const GamesAdminPage: React.FC = () => {
       </div>
 
       <div className="mb-6 p-4 bg-card rounded-lg shadow-sm grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <Input
-          type="search"
-          placeholder="Search games..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          icon={<Search className="h-4 w-4 text-muted-foreground" />}
-        />
+        <div className="relative">
+          <Input
+            type="search"
+            placeholder="Search games..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </div>
         <Select value={filterProvider} onValueChange={setFilterProvider}>
             <SelectTrigger><SelectValue placeholder="Filter by Provider" /></SelectTrigger>
             <SelectContent>
@@ -309,7 +309,7 @@ const GamesAdminPage: React.FC = () => {
                   </Select>
                 </div>
                 <div><Label htmlFor="lines">Lines</Label><Input id="lines" type="number" value={editingGame.lines || ''} onChange={(e) => setEditingGame(prev => ({...prev, lines: parseInt(e.target.value) || undefined}))} /></div>
-                <div><Label htmlFor="releaseDate">Release Date</Label><Input id="releaseDate" type="date" value={editingGame.releaseDate ? editingGame.releaseDate.substring(0,10) : ''} onChange={(e) => setEditingGame(prev => ({...prev, releaseDate: e.target.value}))} /></div>
+                <div><Label htmlFor="releaseDate">Release Date</Label><Input id="releaseDate" type="date" value={editingGame.releaseDate ? String(editingGame.releaseDate).substring(0,10) : ''} onChange={(e) => setEditingGame(prev => ({...prev, releaseDate: e.target.value}))} /></div>
               </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><Label htmlFor="cover">Cover Image URL</Label><Input id="cover" value={editingGame.cover || ''} onChange={(e) => setEditingGame(prev => ({...prev, cover: e.target.value}))} /></div>
@@ -327,7 +327,7 @@ const GamesAdminPage: React.FC = () => {
 
               <DialogFooter className="pt-4">
                 <DialogClose asChild><Button type="button" variant="outline">Cancel</Button></DialogClose>
-                <Button type="submit" disabled={gameMutation.isLoading}>{gameMutation.isLoading ? 'Saving...' : 'Save Game'}</Button>
+                <Button type="submit" disabled={gameMutation.isPending}>{gameMutation.isPending ? 'Saving...' : 'Save Game'}</Button>
               </DialogFooter>
             </form>
           )}
