@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,7 +66,8 @@ interface GameFormProps {
   isLoading?: boolean;
 }
 
-const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, providers, categories, isLoading }) => {
+// Fixed the syntax error in the component declaration
+const GameForm = ({ game, onSubmitSuccess, onCancel, providers, categories, isLoading }: GameFormProps) => {
   // const [imagePreview, setImagePreview] = useState<string | null>(game?.cover || game?.image_url || null);
   // const [bannerPreview, setBannerPreview] = useState<string | null>(game?.banner_url || null);
   // Image handling can be complex, simplified for now by using URL inputs. File upload would require more logic.
@@ -222,7 +224,7 @@ const GameForm: React.FC<GameFormProps> = ({ game, onSubmitSuccess, onCancel, pr
                   <SelectContent>
                     <SelectItem value="">None</SelectItem>
                     {Object.values(GameVolatilityEnum).map(vol => (
-                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>)}
+                      <SelectItem key={vol} value={vol}>{vol.charAt(0).toUpperCase() + vol.slice(1)}</SelectItem>))}
                   </SelectContent>
                 </Select>
               )}
