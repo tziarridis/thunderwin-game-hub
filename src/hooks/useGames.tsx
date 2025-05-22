@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey, DefinedInitialDataOptions, UndefinedInitialDataOptions, DefinedUseQueryResult, QueryFunction } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'; // Removed unused QueryFunction type
 import { supabase } from '@/integrations/supabase/client';
 import { Game, DbGame, GameProvider, GameCategory, GameLaunchOptions, GameContextType, GameStatusEnum } from '@/types/game';
-// import { PostgrestError } from '@supabase/supabase-js'; // Not directly used, covered by Error type
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-// Updated import names
-import { convertDbGameToGame, convertGameToDbGame } from '@/utils/gameTypeAdapter';
+import { convertDbGameToGame, convertGameToDbGame, slugify } from '@/utils/gameTypeAdapter'; // Added slugify import
 
 const GAMES_PER_PAGE = 20;
 
@@ -51,22 +49,22 @@ export const useGamesData = (): GameContextType => {
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMoreState, setHasMoreState] = useState(true); // Renamed to avoid conflict with RQ hasMore
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   const [activeFilters, setActiveFilters] = useState({
     searchTerm: '',
     provider: '',
     category: '',
-    sortBy: 'popularity', // Default sort
+    sortBy: 'popularity',
   });
 
-  const fetchGamesQueryFn: QueryFunction<{ data: DbGame[], count: number }, QueryKey> = async ({ queryKey }) => {
+  const fetchGamesQueryFn = async ({ queryKey }: { queryKey: QueryKey }) => {
     const page = queryKey[1] as number;
     const from = (page - 1) * GAMES_PER_PAGE;
     const to = from + GAMES_PER_PAGE - 1;
     
-    let query = supabase.from('games').select('*, providers(id, name, slug)', { count: 'exact' }) // Assuming 'providers' is a related table with FK on games.provider_id
+    let query = supabase.from('games').select('*, providers(id, name, slug)', { count: 'exact' })
       .eq('status', GameStatusEnum.ACTIVE)
       .range(from, to);
 
@@ -77,33 +75,47 @@ export const useGamesData = (): GameContextType => {
 
     const { data, error, count } = await query;
     if (error) throw error;
-    // Ensure data matches DbGame[] before returning
-    return { data: (data || []) as DbGame[], count: count || 0 };
+    // Explicitly cast to DbGame[] after checking data
+    const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
+    return { data: dbGames, count: count || 0 };
   };
   
 
-  const { data: fetchedGamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ data: DbGame[], count: number }, Error, { data: DbGame[], count: number }, QueryKey>({
-    queryKey: ['allGames', currentPage, activeFilters.sortBy], // Added sortBy to queryKey
+  const { data: fetchedGamesData, isLoading: isLoadingGames, error: gamesError } = useQuery<{ data: DbGame[], count: number }, Error>({
+    queryKey: ['allGames', currentPage, activeFilters.sortBy],
     queryFn: fetchGamesQueryFn,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    // keepPreviousData: true, // Consider implications of keepPreviousData with pagination
+    staleTime: 1000 * 60 * 5,
   });
 
   useEffect(() => {
     if (fetchedGamesData?.data) {
       const newGames = fetchedGamesData.data.map(convertDbGameToGame);
       setAllGames(prev => currentPage === 1 ? newGames : [...prev, ...newGames]);
-      setHasMore(allGames.length < (fetchedGamesData.count ?? 0));
+      // Use a different name for hasMore state to avoid conflict with RQ's hasMore
+      setHasMoreState( (currentPage * GAMES_PER_PAGE) < (fetchedGamesData.count ?? 0) );
     }
-  }, [fetchedGamesData, currentPage]); // allGames.length was causing re-runs, removed from deps
+  }, [fetchedGamesData, currentPage]);
 
 
   const { data: providers = [], isLoading: isLoadingProviders } = useQuery<GameProvider[], Error>({
-    queryKey: ['gameProviders'],
+    queryKey: ['gameProvidersList'], // Changed queryKey to avoid conflicts
     queryFn: async () => {
-      const { data, error } = await supabase.from('game_providers').select('*').eq('is_active', true);
+      // Assuming 'providers' is the correct table for general provider info
+      // And it has 'name' and 'logo' (or 'logo_url')
+      // 'slug' is often derived or part of another table like 'game_providers'
+      const { data, error } = await supabase
+        .from('providers') // Changed from 'game_providers'
+        .select('id, name, logo'); // Select specific fields. 'logo' is used in schema
+      
       if (error) throw error;
-      return data || [];
+
+      return (data || []).map(p => ({
+        id: String(p.id),
+        name: p.name,
+        slug: slugify(p.name), // Derive slug from name as 'providers' table lacks it
+        logo_url: p.logo, // Map 'logo' to 'logo_url'
+        is_active: true, // Assuming active if fetched, or add status column to 'providers'
+      }));
     },
     staleTime: Infinity,
   });
@@ -118,20 +130,17 @@ export const useGamesData = (): GameContextType => {
     staleTime: Infinity,
   });
 
-  // Favorite Games Logic
   const { data: favoriteGameRows } = useQuery<Array<{ game_id: string }>, Error>({
     queryKey: ['favoriteGames'],
     queryFn: async () => {
-      // This assumes you have access to the user's ID, e.g., from an AuthContext
       // const { data: { user } } = await supabase.auth.getUser();
       // if (!user) return [];
       // const { data, error } = await supabase.from('favorite_games').select('game_id').eq('user_id', user.id);
-      // For now, let's mock or assume it's handled if auth isn't fully integrated here
-      // This part needs user_id to be functional.
-      // console.warn("Favorite games fetch needs user context");
-      return []; // Placeholder if user is not available
+      // if (error) throw error;
+      // return data || [];
+      return []; // Placeholder, requires user context
     },
-    // enabled: !!user, // Only run if user is logged in
+    // enabled: !!user, 
   });
 
   const favoriteGameIds = useMemo(() => {
@@ -140,6 +149,10 @@ export const useGamesData = (): GameContextType => {
 
   const addFavoriteMutation = useMutation<void, Error, string>({
     mutationFn: async (gameId: string) => {
+      // const { data: { user } } = await supabase.auth.getUser();
+      // if (!user) throw new Error("User not logged in");
+      // const { error } = await supabase.from('favorite_games').insert({ game_id: gameId, user_id: user.id });
+      // if (error) throw error;
       console.warn("Add favorite needs user context. Simulating success for gameId:", gameId);
       await new Promise(res => setTimeout(res, 300)); 
     },
@@ -154,6 +167,10 @@ export const useGamesData = (): GameContextType => {
 
   const removeFavoriteMutation = useMutation<void, Error, string>({
     mutationFn: async (gameId: string) => {
+      // const { data: { user } } = await supabase.auth.getUser();
+      // if (!user) throw new Error("User not logged in");
+      // const { error } = await supabase.from('favorite_games').delete().match({ game_id: gameId, user_id: user.id });
+      // if (error) throw error;
       console.warn("Remove favorite needs user context. Simulating success for gameId:", gameId);
       await new Promise(res => setTimeout(res, 300));
     },
@@ -182,52 +199,47 @@ export const useGamesData = (): GameContextType => {
     return favoriteGameIds.has(gameId);
   }, [favoriteGameIds]);
 
-  // Filtering and Sorting Logic
   useEffect(() => {
-    let tempGames = [...allGames]; // Use allGames which is populated from fetchedGamesData
+    let tempGames = [...allGames];
     if (activeFilters.searchTerm) {
       tempGames = tempGames.filter(game => game.title.toLowerCase().includes(activeFilters.searchTerm.toLowerCase()));
     }
-    if (activeFilters.provider && activeFilters.provider !== '') { // Check for non-empty provider
+    if (activeFilters.provider && activeFilters.provider !== '') {
       tempGames = tempGames.filter(game => game.provider_slug === activeFilters.provider);
     }
-    if (activeFilters.category && activeFilters.category !== '') { // Check for non-empty category
+    if (activeFilters.category && activeFilters.category !== '') {
       tempGames = tempGames.filter(game => game.category_slugs?.includes(activeFilters.category));
     }
     setFilteredGames(tempGames);
   }, [allGames, activeFilters]);
 
 
-  const fetchGamesCb = useCallback(async (page = 1) => { // Renamed to avoid conflict with React Query's fetchGames
+  const fetchGamesCb = useCallback(async (page = 1) => {
     setCurrentPage(page);
-    // query will refetch due to `currentPage` or `activeFilters.sortBy` in queryKey changing
-    queryClient.invalidateQueries({ queryKey: ['allGames'] }); // More general invalidation
+    queryClient.invalidateQueries({ queryKey: ['allGames'] });
   }, [queryClient]);
   
   const loadMoreGames = useCallback(() => {
-    if (hasMore && !isLoadingGames && !isLoadingMore) {
+    if (hasMoreState && !isLoadingGames && !isLoadingMore) { // Use hasMoreState
       setIsLoadingMore(true);
       const nextPage = currentPage + 1;
       setCurrentPage(nextPage);
-      // Prefetch or rely on useEffect to fetch based on currentPage change
       queryClient.prefetchQuery({
         queryKey: ['allGames', nextPage, activeFilters.sortBy],
         queryFn: fetchGamesQueryFn,
       }).finally(() => setIsLoadingMore(false));
     }
-  }, [hasMore, isLoadingGames, isLoadingMore, currentPage, activeFilters.sortBy, queryClient, fetchGamesQueryFn]);
-
+  }, [hasMoreState, isLoadingGames, isLoadingMore, currentPage, activeFilters.sortBy, queryClient, fetchGamesQueryFn]);
 
   const getGameById = useCallback((id: string): Game | undefined => {
     return allGames.find(game => String(game.id) === id);
   }, [allGames]);
 
-  // Game Launching
   const getGameLaunchUrl = useCallback(async (game: Game, options: GameLaunchOptions): Promise<string | null> => {
     console.log(`Requesting launch URL for ${game.title} with options:`, options);
     await new Promise(resolve => setTimeout(resolve, 500)); 
     if (game.slug) {
-      return `/mock-game-frame/${game.slug}?mode=${options.mode}`;
+      return `/mock-game-frame/${game.slug}?mode=${options.mode}&lang=${options.language || 'en'}`;
     }
     toast.error("Game launch URL not available.");
     return null;
@@ -251,7 +263,7 @@ export const useGamesData = (): GameContextType => {
   const getFeaturedGames = useCallback(async (count: number = 8): Promise<Game[]> => {
     const { data, error } = await supabase
       .from('games')
-      .select('*, providers(id, name, slug)') // Assuming 'providers' relation
+      .select('*, providers(id, name, slug)')
       .eq('status', GameStatusEnum.ACTIVE)
       .eq('is_featured', true)
       .limit(count)
@@ -261,7 +273,9 @@ export const useGamesData = (): GameContextType => {
       console.error('Error fetching featured games:', error);
       return [];
     }
-    return data?.map(dbGame => convertDbGameToGame(dbGame as DbGame)) || [];
+    // Ensure data is DbGame[] before mapping
+    const dbGames: DbGame[] = (data || []).map(g => g as DbGame);
+    return dbGames.map(convertDbGameToGame);
   }, []);
   
   const handleGameDetails = (game: Game) => {
@@ -279,18 +293,20 @@ export const useGamesData = (): GameContextType => {
 
   const setSearchTerm = (searchTerm: string) => setActiveFilters(prev => ({ ...prev, searchTerm }));
   const setProviderFilter = (provider: string) => {
-    setCurrentPage(1); // Reset to page 1 when filter changes
-    setActiveFilters(prev => ({ ...prev, provider, searchTerm: '' })); // Clear search on provider change
+    setCurrentPage(1); 
+    setAllGames([]); // Clear games to ensure fresh load for new filter
+    setActiveFilters(prev => ({ ...prev, provider, searchTerm: '' })); 
   };
   const setCategoryFilter = (category: string) => {
-    setCurrentPage(1); // Reset to page 1
-    setActiveFilters(prev => ({ ...prev, category, searchTerm: '' })); // Clear search on category change
+    setCurrentPage(1); 
+    setAllGames([]); // Clear games
+    setActiveFilters(prev => ({ ...prev, category, searchTerm: '' })); 
   };
   const setSortBy = (sortBy: string) => {
-    setCurrentPage(1); // Reset to page 1
+    setCurrentPage(1); 
+    setAllGames([]); // Clear games
     setActiveFilters(prev => ({ ...prev, sortBy }));
   };
-
 
   return {
     games: allGames,
@@ -299,12 +315,12 @@ export const useGamesData = (): GameContextType => {
     categories,
     isLoading: isLoadingGames || isLoadingProviders || isLoadingCategories,
     isLoadingMore,
-    hasMore,
+    hasMore: hasMoreState, // Use renamed state variable
     error: gamesError || null,
     activeFilters,
     favoriteGameIds,
     getGameById,
-    fetchGames: fetchGamesCb, // Use renamed callback
+    fetchGames: fetchGamesCb,
     setSearchTerm,
     setProviderFilter,
     setCategoryFilter,

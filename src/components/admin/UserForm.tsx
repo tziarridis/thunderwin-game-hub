@@ -14,10 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User as AppUser } from "@/types/user"; // Use AppUser or a more specific AdminUser type
+import { User as AppUser } from "@/types/user";
 import { toast } from "sonner";
 
-// Define your form schema using Zod
 const userFormSchema = z.object({
   username: z.string().min(2, "Username must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
@@ -35,7 +34,7 @@ const userFormSchema = z.object({
 type UserFormValues = z.infer<typeof userFormSchema>;
 
 interface UserFormProps {
-  user?: AppUser | null; // Use AppUser consistently
+  user?: AppUser | null;
   onSubmit: (values: UserFormValues) => Promise<void>;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -47,11 +46,11 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
     defaultValues: {
       username: user?.username || "",
       email: user?.email || "",
-      status: user?.status || "pending", // Assuming AppUser has status
+      status: (user as any)?.status || "pending",
       roles: user?.roles || [], 
-      vipLevel: user?.vipLevel || 0, // Assuming AppUser has vipLevel
-      currency: user?.currency || "USD", // Assuming AppUser has currency
-      language: user?.language || "en", // Assuming AppUser has language
+      vipLevel: (user as any)?.vipLevel || 0,
+      currency: (user as any)?.currency || "USD",
+      language: (user as any)?.language || "en",
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",
       avatarUrl: user?.avatarUrl || "",
@@ -201,7 +200,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSubmit, onCancel, isLoading
                         </div>
                         <FormControl>
                             <Switch
-                            checked={field.value ?? true} // Provide a default if field.value is undefined
+                            checked={field.value ?? true}
                             onCheckedChange={field.onChange}
                             />
                         </FormControl>

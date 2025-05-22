@@ -1,8 +1,9 @@
+
 import { Game } from '@/types';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
 import { Loader2, FilterX } from 'lucide-react';
-import { useGamesData } from '@/hooks/useGames'; // Changed to useGamesData
+import { useGamesData } from '@/hooks/useGames';
 
 interface GamesGridProps {
   games: Game[];
@@ -23,8 +24,7 @@ const GamesGrid = ({
   hasMore = false,
   loadingMore = false
 }: GamesGridProps) => {
-  // GameCard will use context for favorites
-  // const { toggleFavoriteGame, isFavorite } = useGamesData(); 
+  const { isFavorite, toggleFavoriteGame } = useGamesData(); 
 
   if (loading && games.length === 0) {
     return (
@@ -50,7 +50,8 @@ const GamesGrid = ({
           <GameCard 
             key={String(game.id)}
             game={game}
-            // isFavorite and onToggleFavorite handled by GameCard internally
+            isFavorite={isFavorite(String(game.id))}
+            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
             onPlay={onGameClick ? () => onGameClick(game) : undefined}
           />
         ))}
@@ -80,3 +81,4 @@ const GamesGrid = ({
 };
 
 export default GamesGrid;
+
