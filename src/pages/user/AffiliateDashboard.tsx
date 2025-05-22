@@ -1,214 +1,180 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { User, AffiliateStatsData, CommissionEarning, MarketingMaterial } from '@/types'; // Assuming these types are defined
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { Copy, Download, Share2, Users, DollarSign, Percent, TrendingUp, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Referral, AffiliateStats } from '@/types/affiliate';
+import { ColumnDef, SortingState, useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, CellContext } from "@tanstack/react-table";
 import { format } from 'date-fns';
-
-// Placeholder components - these would need to be implemented
-const AffiliateStats: React.FC<{ stats: AffiliateStatsData | null, isLoading: boolean }> = ({ stats, isLoading }) => {
-    if (isLoading) return <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">{Array(4).fill(0).map((_,i)=><Card key={i}><CardHeader><Loader2 className="h-5 w-5 animate-spin"/></CardHeader><CardContent><Loader2 className="h-8 w-20 animate-spin"/></CardContent></Card>)}</div>;
-    if (!stats) return <p>No stats available.</p>;
-    return (
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card><CardHeader><CardTitle>Clicks</CardTitle><Users className="h-5 w-5 text-muted-foreground"/></CardHeader><CardContent><p className="text-2xl font-bold">{stats.clicks ?? 0}</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Registrations</CardTitle><Users className="h-5 w-5 text-muted-foreground"/></CardHeader><CardContent><p className="text-2xl font-bold">{stats.registrations ?? 0}</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>FTDs</CardTitle><DollarSign className="h-5 w-5 text-muted-foreground"/></CardHeader><CardContent><p className="text-2xl font-bold">{stats.firstTimeDepositors ?? 0}</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Commissions</CardTitle><Percent className="h-5 w-5 text-muted-foreground"/></CardHeader><CardContent><p className="text-2xl font-bold">${(stats.totalCommission ?? 0).toFixed(2)}</p></CardContent></Card>
-        </div>
-    );
-};
-
-const AffiliateLink: React.FC<{ link: string | null, code: string | null }> = ({ link, code }) => {
-    if (!link) return <p>Referral link not available.</p>;
-    const handleCopy = (textToCopy: string, type: string) => {
-        navigator.clipboard.writeText(textToCopy);
-        toast.success(`${type} copied to clipboard!`);
-    };
-    return (
-        <Card className="mb-6">
-            <CardHeader><CardTitle>Your Referral Link & Code</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-                <div>
-                    <Label htmlFor="referralLink">Link:</Label>
-                    <div className="flex items-center gap-2">
-                        <Input id="referralLink" value={link} readOnly />
-                        <Button variant="outline" size="icon" onClick={() => handleCopy(link, "Link")}><Copy className="h-4 w-4"/></Button>
-                    </div>
-                </div>
-                {code && (
-                     <div>
-                        <Label htmlFor="referralCode">Code:</Label>
-                        <div className="flex items-center gap-2">
-                            <Input id="referralCode" value={code} readOnly />
-                            <Button variant="outline" size="icon" onClick={() => handleCopy(code, "Code")}><Copy className="h-4 w-4"/></Button>
-                        </div>
-                    </div>
-                )}
-                 <p className="text-xs text-muted-foreground">Share this link or code with your audience to earn commissions.</p>
-            </CardContent>
-        </Card>
-    );
-};
-const CommissionHistory: React.FC<{ earnings: CommissionEarning[], isLoading: boolean }> = ({ earnings, isLoading }) => {
-    if (isLoading) return <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>;
-    if (!earnings.length) return <p className="text-center text-muted-foreground py-4">No commission history yet.</p>;
-    return (
-        <Table>
-            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Type</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-            <TableBody>
-                {earnings.map(e => (
-                    <TableRow key={e.id}>
-                        <TableCell>{format(new Date(e.date), 'PP')}</TableCell>
-                        <TableCell>${e.amount.toFixed(2)}</TableCell>
-                        <TableCell className="capitalize">{e.type}</TableCell>
-                        <TableCell className="capitalize">{e.status}</TableCell>
-                    </TableRow>
-                ))}
-            </TableBody>
-        </Table>
-    );
-};
-const MarketingMaterials: React.FC<{ materials: MarketingMaterial[], isLoading: boolean }> = ({ materials, isLoading }) => {
-     if (isLoading) return <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin"/></div>;
-    if (!materials.length) return <p className="text-center text-muted-foreground py-4">No marketing materials available currently.</p>;
-    return (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {materials.map(m => (
-                <Card key={m.id}>
-                    <CardHeader><CardTitle>{m.title}</CardTitle><CardDescription>{m.type}</CardDescription></CardHeader>
-                    <CardContent>
-                        {m.previewUrl && <img src={m.previewUrl} alt={m.title} className="rounded-md mb-2 max-h-40 w-full object-contain"/>}
-                        <p className="text-sm text-muted-foreground mb-3">{m.description}</p>
-                         <div className="flex gap-2">
-                            {m.downloadUrl && <Button variant="outline" size="sm" asChild><a href={m.downloadUrl} download><Download className="mr-2 h-4 w-4"/>Download</a></Button>}
-                            {/* Implement share functionality if needed */}
-                            {/* <Button variant="outline" size="sm"><Share2 className="mr-2 h-4 w-4"/>Share</Button> */}
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
-    );
-};
-
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import UserLayout from '@/components/layout/UserLayout';
+import UserPageLoadingSkeleton from '@/components/user/UserPageLoadingSkeleton';
+import { DataTable } from '@/components/ui/data-table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Users, DollarSign, Percent, CreditCard, Copy } from 'lucide-react';
 
 const AffiliateDashboardPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [stats, setStats] = useState<AffiliateStatsData | null>(null);
-  const [earnings, setEarnings] = useState<CommissionEarning[]>([]);
-  const [materials, setMaterials] = useState<MarketingMaterial[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [referralLink, setReferralLink] = useState<string | null>(null);
-  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const { user } = useAuth();
+  
+  const [stats, setStats] = useState<AffiliateStats | null>(null);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
 
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState<SortingState>([]);
 
+  // Simulated data fetching
   useEffect(() => {
-    if (!isAuthenticated || !user) {
-      setIsLoading(false);
-      return;
+    setIsLoadingStats(true); setIsLoadingReferrals(true);
+    if(user?.referralCode && user?.referralLink) {
+        // Simulate API calls
+        // const fetchedStats = await affiliateService.getStats(user.id);
+        // const fetchedReferrals = await affiliateService.getReferrals(user.id, {page, limit});
+        setTimeout(() => {
+            setStats({
+                totalReferrals: 5,
+                activeReferrals: 3,
+                totalEarnings: 150.75,
+                commissionRate: 0.20, // 20%
+                pendingPayout: 25.50,
+                referralCode: user.referralCode!,
+                referralLink: user.referralLink!,
+            });
+            setReferrals([
+                { id: 'ref1', referredUserId: 'userABC', referredUsername: 'PlayerOne', joinDate: new Date().toISOString(), commissionEarned: 75.20, status: 'active' },
+                { id: 'ref2', referredUserId: 'userXYZ', referredUsername: 'PlayerTwo', joinDate: new Date(Date.now() - 86400000 * 5).toISOString(), commissionEarned: 50.55, status: 'active' },
+                { id: 'ref3', referredUserId: 'userDEF', referredUsername: 'PlayerThree', joinDate: new Date(Date.now() - 86400000 * 10).toISOString(), commissionEarned: 25.00, status: 'pending_first_deposit' },
+            ]);
+            setIsLoadingStats(false); setIsLoadingReferrals(false);
+        }, 1000);
+    } else {
+        setIsLoadingStats(false); setIsLoadingReferrals(false);
     }
-
-    const fetchAffiliateData = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate fetching data
-        // In a real app, these would be Supabase calls, e.g., rpc calls or table queries
-        // const { data: statsData, error: statsError } = await supabase.rpc('get_affiliate_stats', { p_user_id: user.id });
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
-        
-        // Example: User's referral code might be on the user object itself or a related table
-        // This depends on how AppUser is populated in AuthContext.
-        setReferralCode(user.referralCode || `REF-${user.id.substring(0,6).toUpperCase()}`);
-        setReferralLink(user.referralLink || `${window.location.origin}/register?ref=${user.referralCode || `REF-${user.id.substring(0,6).toUpperCase()}`}`);
+  }, [user]);
+  
+  const pageCount = Math.ceil((stats?.totalReferrals || 0) / pagination.pageSize);
 
 
-        setStats({ clicks: 1250, registrations: 85, firstTimeDepositors: 23, totalCommission: 475.50 });
-        setEarnings([
-          { id: '1', date: new Date(Date.now() - 5*24*60*60*1000).toISOString(), amount: 150.00, type: 'revenue_share', status: 'paid' },
-          { id: '2', date: new Date(Date.now() - 12*24*60*60*1000).toISOString(), amount: 75.25, type: 'cpa', status: 'paid' },
-          { id: '3', date: new Date(Date.now() - 20*24*60*60*1000).toISOString(), amount: 250.25, type: 'revenue_share', status: 'pending' },
-        ]);
-        setMaterials([
-          { id: 'm1', title: 'Casino Welcome Banner', type: 'banner', description: 'Attractive banner for new players.', previewUrl: 'https://via.placeholder.com/300x250/007bff/ffffff?text=Welcome+Banner', downloadUrl: '#' },
-          { id: 'm2', title: 'Slots Promotion Image', type: 'image', description: 'Image for slots promotion.', previewUrl: 'https://via.placeholder.com/300x250/28a745/ffffff?text=Slots+Promo', downloadUrl: '#' },
-        ]);
+  const columns: ColumnDef<Referral>[] = [
+    { accessorKey: "referredUsername", header: "Referred User" },
+    { accessorKey: "joinDate", header: "Join Date", cell: ({row}) => format(new Date(row.original.joinDate), "PP") },
+    { accessorKey: "status", header: "Status", cell: ({row}) => <Badge variant={row.original.status === 'active' ? 'default' : 'secondary'}>{row.original.status.replace(/_/g, ' ')}</Badge> },
+    { accessorKey: "commissionEarned", header: "Commission Earned", cell: ({row}) => `$${row.original.commissionEarned.toFixed(2)}` },
+  ];
+  
+  const table = useReactTable({
+    data: referrals,
+    columns,
+    pageCount: pageCount,
+    state: { pagination, sorting },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true, // If API handles pagination
+    manualSorting: true, // If API handles sorting
+  });
 
-      } catch (error: any) {
-        toast.error("Failed to load affiliate data: " + error.message);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAffiliateData();
-  }, [user, isAuthenticated]);
-
-
-  if (!isAuthenticated) {
+  if (isLoadingStats || isLoadingReferrals && !stats && referrals.length === 0) {
+    return <UserPageLoadingSkeleton />;
+  }
+  
+  if (!user || !stats?.referralCode) {
     return (
-      <div className="container mx-auto py-10 px-4 text-center">
-        <h1 className="text-2xl font-semibold">Affiliate Dashboard</h1>
-        <p className="mt-4 text-muted-foreground">Please log in to view your affiliate dashboard.</p>
-        <Button asChild className="mt-6"><Link to="/login">Login</Link></Button>
-      </div>
+      <UserLayout>
+        <div className="container mx-auto px-4 py-8 text-center">
+            <Users className="mx-auto h-12 w-12 text-primary mb-4" />
+            <h1 className="text-2xl font-semibold mb-2">Affiliate Program</h1>
+            <p className="text-muted-foreground mb-4">It looks like you're not yet set up for our affiliate program, or your referral code is missing.</p>
+            <Button>Contact Support to Join</Button> {/* Placeholder action */}
+        </div>
+      </UserLayout>
     );
   }
 
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success("Referral link copied to clipboard!");
+    }).catch(err => {
+      toast.error("Failed to copy link.");
+      console.error('Failed to copy text: ', err);
+    });
+  };
+
   return (
-    <div className="container mx-auto py-8 px-4 space-y-8">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Affiliate Dashboard</h1>
-            <p className="text-muted-foreground">Track your referrals, earnings, and access marketing tools.</p>
-        </div>
-        {/* Maybe a button to "Request Payout" or "Settings" */}
-      </header>
-
-      <AffiliateStats stats={stats} isLoading={isLoading} />
-      <AffiliateLink link={referralLink} code={referralCode} />
-
-      <Tabs defaultValue="commissions" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 mb-6"> {/* Adjusted for 2 or 3 tabs */}
-          <TabsTrigger value="commissions">Commission History</TabsTrigger>
-          <TabsTrigger value="materials">Marketing Materials</TabsTrigger>
-          {/* <TabsTrigger value="referrals">My Referrals</TabsTrigger> */}
-        </TabsList>
-        
-        <TabsContent value="commissions">
+    <UserLayout title="Affiliate Dashboard">
+      <div className="space-y-6">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
-            <CardHeader><CardTitle>Your Earnings</CardTitle></CardHeader>
-            <CardContent>
-              <CommissionHistory earnings={earnings} isLoading={isLoading} />
-            </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{stats.totalReferrals}</div></CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="materials">
            <Card>
-            <CardHeader><CardTitle>Promotional Tools</CardTitle><CardDescription>Use these materials to promote our platform.</CardDescription></CardHeader>
-            <CardContent>
-                <MarketingMaterials materials={materials} isLoading={isLoading}/>
-            </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">${stats.totalEarnings.toFixed(2)}</div></CardContent>
           </Card>
-        </TabsContent>
-        
-        {/* <TabsContent value="referrals">
-          <Card>
-            <CardHeader><CardTitle>Referred Users</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-center text-muted-foreground py-4">Referred users list coming soon.</p>
-            </CardContent>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Commission Rate</CardTitle>
+              <Percent className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{(stats.commissionRate * 100).toFixed(0)}%</div></CardContent>
           </Card>
-        </TabsContent> */}
-      </Tabs>
-    </div>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Payout</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">${stats.pendingPayout.toFixed(2)}</div></CardContent>
+          </Card>
+        </div>
+
+        {/* Referral Link */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Referral Link</CardTitle>
+            <CardDescription>Share this link to invite new players and earn commissions.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center space-x-2">
+            <Input value={stats.referralLink} readOnly className="flex-grow" />
+            <Button onClick={() => copyToClipboard(stats.referralLink!)}><Copy className="mr-2 h-4 w-4"/> Copy Link</Button>
+          </CardContent>
+           <CardFooter className="text-xs text-muted-foreground">
+            Your referral code: <Badge variant="secondary" className="ml-1">{stats.referralCode}</Badge>
+          </CardFooter>
+        </Card>
+
+        {/* Referrals Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Referrals</CardTitle>
+            <CardDescription>List of users you've referred.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DataTable table={table} columns={columns} isLoading={isLoadingReferrals} />
+          </CardContent>
+           {pageCount > 1 && (
+            <CardFooter className="flex items-center justify-end space-x-2 py-4">
+                <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
+                <span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
+                <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
+            </CardFooter>
+            )}
+        </Card>
+        {/* Potentially add sections for marketing materials, payout history, etc. */}
+      </div>
+    </UserLayout>
   );
 };
 

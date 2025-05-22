@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Game, GameCategory, GameProvider, GameTag, GameSortOption, DisplayGame } from '@/types'; // Assuming DisplayGame is needed
 import { useGames } from '@/hooks/useGames';
-import GamesGrid from '@/components/games/GamesGrid'; // GameGridProps might need onGameClick
+import GamesGrid from '@/components/games/GamesGrid';
 import GameFilters, { Filters } from '@/components/games/GameFilters';
-import HeroSection from '@/components/layout/HeroSection';
+import HeroSection from '@/components/marketing/HeroSection'; // Corrected import path
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, SlidersHorizontal, Loader2 } from 'lucide-react';
@@ -54,6 +54,7 @@ const fetchProviders = async (): Promise<GameProvider[]> => {
 
 
 const CasinoMainPage = () => {
+  // ... keep existing code (hooks, state variables)
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { 
@@ -62,9 +63,9 @@ const CasinoMainPage = () => {
     isLoading: gamesLoadingFromHook, 
     hasMore: hasMoreFromHook,
     error: gamesErrorFromHook,
-    toggleFavoriteGame,
+    toggleFavoriteGame, // Keep this if used directly, or ensure GameCard handles it via useGames
     favoriteGameIds,
-    getFavoriteGames, // To potentially pre-load favorites
+    // getFavoriteGames, // This was commented out, check if needed
    } = useGames();
 
   const [displayedGames, setDisplayedGames] = useState<DisplayGame[]>([]);
@@ -73,7 +74,7 @@ const CasinoMainPage = () => {
   const [activeFilters, setActiveFilters] = useState<Filters>({
     category: 'all',
     provider: 'all',
-    sortBy: 'popularity',
+    sortBy: 'popularity', // Ensure GameSortOption includes 'popularity' if this is a valid value
     tags: [],
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -89,28 +90,20 @@ const CasinoMainPage = () => {
     queryFn: fetchProviders,
     staleTime: Infinity,
   });
-
+  
   // Initial games load and merging with favorites
   useEffect(() => {
-    // Load initial set of games (e.g., popular or first page)
-    // This can be part of useGames or a separate initial fetch
-    const loadInitial = async () => {
-      // Example: fetchGames({ page: 1, limit: GAMES_PER_PAGE, filters: activeFilters, searchTerm });
-      // For now, using the games from useGames hook directly if it handles initial load
-      // If useGames doesn't load initially, trigger fetchGames here.
-      if (allGamesFromHook.length === 0 && !gamesLoadingFromHook) {
-          fetchGames({ page: 1, limit: GAMES_PER_PAGE, filters: activeFilters, searchTerm });
-      }
-    };
-    loadInitial();
-  }, [fetchGames]); // Removed activeFilters, searchTerm to avoid loop if they are deps of fetchGames
+    if (allGamesFromHook.length === 0 && !gamesLoadingFromHook) {
+        // Ensure fetchGames parameters align with its definition in useGames hook
+        fetchGames({ page: 1, limit: GAMES_PER_PAGE, filters: activeFilters, searchTerm });
+    }
+  }, [fetchGames, allGamesFromHook.length, gamesLoadingFromHook]); // Added dependencies for clarity
 
   useEffect(() => {
-    // Update displayedGames when allGamesFromHook or favoriteGameIds change
     setDisplayedGames(
       allGamesFromHook.map(game => ({
         ...game,
-        isFavorite: favoriteGameIds.has(String(game.id)),
+        isFavorite: favoriteGameIds.has(String(game.id)), // Ensure game.id exists and is stringified
       }))
     );
   }, [allGamesFromHook, favoriteGameIds]);
@@ -136,55 +129,50 @@ const CasinoMainPage = () => {
     }
   };
 
-  const handleGameClick = (game: Game, mode?: "real" | "demo") => { // GamesGrid expects (game: Game) => void
-    console.log("Playing game:", game.title, "Mode:", mode);
-    // If mode is important, GamesGrid's onGameClick might need to pass it or have separate handlers
+  // Ensure handleGameClick matches what GamesGrid expects for onGameClick
+  const handleGameClick = (game: Game) => { 
+    // Removed mode parameter as GamesGrid onGameClick likely doesn't pass it.
+    // If mode is needed, GamesGrid or GameCard needs to handle its selection.
+    console.log("Navigating to game:", game.title);
     navigate(`/casino/game/${game.slug || game.id}`);
   };
   
-  const handleGameDetails = (game: Game) => {
-    console.log("Details for game:", game.title);
-    // Navigate to a game details page or show a modal
-    // navigate(`/casino/game/${game.slug || game.id}/details`);
-    toast.info(`More details for ${game.title} (Not implemented)`);
-  };
+  // handleGameDetails can be passed to GamesGrid if it supports an onGameDetails prop
+  // const handleGameDetails = (game: Game) => { ... };
 
   const isLoading = gamesLoadingFromHook || isLoadingCategories || isLoadingProviders;
 
   const categoryTabsProps = {
-    categories: categories.map(c => ({ id: String(c.id), name: c.name, slug: c.slug })), // Ensure id is string for CategoryTabs
+    categories: categories.map(c => ({ id: String(c.id), name: c.name, slug: c.slug })),
     activeCategory: activeFilters.category,
     onSelectCategory: (slug: string) => handleFilterChange({ ...activeFilters, category: slug }),
   };
 
   const providerCarouselProps = {
-    providers: providers.map(p => ({ id: String(p.id), name: p.name, logo: p.logo, slug: p.slug || String(p.id) })), // Map to expected props
+    // Ensure providers are mapped correctly for ProviderCarousel
+    providers: providers.map(p => ({ id: String(p.id), name: p.name, logo_url: p.logo_url, slug: p.slug || String(p.id) })),
     activeProvider: activeFilters.provider,
     onSelectProvider: (slug: string) => handleFilterChange({ ...activeFilters, provider: slug }),
   };
   
-  // This example for GamesGrid assumes it primarily needs onGameClick.
-  // If onPlayGame and onGameDetails are distinct, GamesGrid interface needs updates.
-  // For now, mapping handleGameClick to onGameClick.
   const gamesGridProps = {
     games: displayedGames,
-    onGameClick: handleGameClick, // Corrected prop name
-    // onGameDetails: handleGameDetails, // If GameGrid supports this
-    loading: gamesLoadingFromHook,
-    // loadingSkeletonCount: GAMES_PER_PAGE, // If GameGrid supports this
+    onGameClick: handleGameClick,
+    loading: gamesLoadingFromHook, // This should be the primary loading for the grid content
     loadMore: loadMoreGames,
     hasMore: hasMoreFromHook,
-    loadingMore: gamesLoadingFromHook && currentPage > 1, // Indicate loading more specifically
+    loadingMore: gamesLoadingFromHook && currentPage > 1, // More specific loading state
+    // emptyMessage: "No games match your criteria. Try adjusting filters.", // Optional: customize
   };
 
-
+  // ... keep existing code (JSX structure for the page)
   return (
     <div className="bg-background text-foreground">
       <HeroSection 
         title="Explore Our Exciting Games"
         subtitle="Dive into a world of adventure and big wins. Find your new favorite!"
-        // ctaText="Browse All Games"
-        // ctaLink="/casino/all"
+        // ctaText="Browse All Games" // These were commented out in original
+        // ctaLink="/casino/all" // These were commented out in original
       />
 
       <div className="container mx-auto px-4 py-8">
@@ -195,7 +183,7 @@ const CasinoMainPage = () => {
               type="search"
               placeholder="Search for games..."
               value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)} // Use handleSearch directly
               className="pl-10 h-12 text-base"
             />
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -205,18 +193,18 @@ const CasinoMainPage = () => {
           </Button>
         </div>
         
-        {/* Desktop Filters (if GameFilters component is used) */}
+        {/* Desktop Filters (Placeholder based on original comments) */}
         {/* <div className="hidden sm:block mb-8">
           <GameFilters 
-            categories={categories}
-            providers={providers}
+            categories={categories} // Ensure GameFilters categories prop matches this structure
+            providers={providers} // Ensure GameFilters providers prop matches this structure
             // tags={[]} // Add tags if used
             onFilterChange={handleFilterChange}
             initialFilters={activeFilters}
           />
         </div> */}
 
-        {/* Mobile Filters Drawer/Modal (placeholder) */}
+        {/* Mobile Filters Drawer/Modal (Placeholder based on original comments) */}
         {/* {showMobileFilters && (
           <div className="sm:hidden mb-6 p-4 bg-card rounded-lg shadow-lg">
             <GameFilters 
@@ -224,7 +212,7 @@ const CasinoMainPage = () => {
               providers={providers}
               onFilterChange={(newFilters) => { handleFilterChange(newFilters); setShowMobileFilters(false); }}
               initialFilters={activeFilters}
-              isMobile
+              isMobile // Assuming GameFilters has an isMobile prop
             />
           </div>
         )} */}
@@ -247,17 +235,21 @@ const CasinoMainPage = () => {
         
         {gamesErrorFromHook && (
           <div className="text-center py-10 text-destructive">
-            <p>Error loading games: {gamesErrorFromHook}</p>
+            <p>Error loading games: {gamesErrorFromHook.message || String(gamesErrorFromHook)}</p> {/* Display error message */}
             <Button onClick={() => fetchGames({ page: 1, limit: GAMES_PER_PAGE, filters: activeFilters, searchTerm })} className="mt-4">Retry</Button>
           </div>
         )}
 
-        <GamesGrid {...gamesGridProps} />
-        
-        {gamesLoadingFromHook && displayedGames.length === 0 && (
+        {/* Display loading for initial fetch OR pass to GamesGrid */}
+        {gamesLoadingFromHook && displayedGames.length === 0 && !gamesErrorFromHook && (
            <div className="flex justify-center items-center py-12">
              <Loader2 className="h-10 w-10 animate-spin text-primary" />
            </div>
+        )}
+        
+        {/* Render GamesGrid only if not initial loading and no error, or let GamesGrid handle its own empty/loading state */}
+        {(!gamesLoadingFromHook || displayedGames.length > 0) && !gamesErrorFromHook && (
+            <GamesGrid {...gamesGridProps} />
         )}
 
       </div>

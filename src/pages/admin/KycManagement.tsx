@@ -1,317 +1,312 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { User as AppUser } from '@/types/user'; // Using AppUser from user.d.ts
-import { KycAttempt, KycDocument, KycStatus, KycDocumentTypeEnum } from '@/types/kyc'; // Corrected imports
-import AdminPageLayout, { AdminPageLayoutProps } from '@/components/layout/AdminPageLayout';
+import React, { useState } from 'react';
+import { format } from 'date-fns';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel, SortingState, ColumnDef } from '@tanstack/react-table';
+import { toast } from 'sonner';
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/ui/data-table";
+import AdminPageLayout from "@/components/layout/AdminPageLayout";
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
-import { Loader2, AlertTriangle, CheckCircle2, XCircle, RefreshCcw, FileText, UserSearch, BadgeHelp } from 'lucide-react';
-import { Badge, BadgeProps } from '@/components/ui/badge'; // Import BadgeProps
-import { Input } from '@/components/ui/input';
+import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
 
-const ITEMS_PER_PAGE = 10;
+import { FileSearch, RefreshCw, Loader2 } from 'lucide-react';
+import { KycStatus, KycDocumentTypeEnum, KycDocument, KycAttempt } from '@/types/kyc';
 
-const getStatusVariant = (status: KycStatus): BadgeProps['variant'] => {
-  switch (status) {
-    case 'approved':
-    case 'verified':
-      return 'success';
-    case 'rejected':
-    case 'failed':
-      return 'destructive';
-    case 'pending_review':
-      return 'secondary'; // Or another color like 'warning' if you add it
-    case 'resubmit_required':
-      return 'outline'; // Or 'warning'
-    default:
-      return 'default';
-  }
-};
+const KycManagementPage = () => {
+  const [filters, setFilters] = useState({ status: '', searchTerm: '' });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState<SortingState>([]);
 
-const KycManagementPage: React.FC = () => {
-  const [kycAttempts, setKycAttempts] = useState<KycAttempt[]>([]);
-  const [users, setUsers] = useState<Record<string, Pick<AppUser, 'id' | 'username' | 'email'>>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedAttempt, setSelectedAttempt] = useState<KycAttempt | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedKycAttempt, setSelectedKycAttempt] = useState<KycAttempt | null>(null);
   const [updateStatus, setUpdateStatus] = useState<KycStatus | ''>('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [adminNotes, setAdminNotes] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalAttempts, setTotalAttempts] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<KycStatus | 'all'>('all');
+  const queryClient = useQueryClient();
 
-
-  const fetchKycAttempts = useCallback(async (page: number) => {
-    setIsLoading(true);
-    try {
-      let query = supabase
-        .from('kyc_attempts')
-        .select('*, user:users(id, username, email)', { count: 'exact' });
-
-      if (searchTerm) {
-         query = query.or(`user_id.ilike.%${searchTerm}%, notes.ilike.%${searchTerm}%`);
-      }
-
-      if (filterStatus !== 'all') {
-        query = query.eq('status', filterStatus);
-      }
+  const { data, isLoading, error, refetch } = useQuery<{ attempts: KycAttempt[], totalCount: number }, Error>({
+    queryKey: ['kycAttempts', filters, pagination],
+    queryFn: async () => {
+      // Replace with actual kycService.getKycAttempts call
+      // This is a placeholder structure
+      console.log("Fetching KYC attempts with filters:", filters, "pagination:", pagination);
+      // Simulate API call
+      // const fetchedData = await kycService.getAllAttempts({ ...filters, ...pagination });
+      // return { attempts: fetchedData.data, totalCount: fetchedData.count };
       
-      const from = (page - 1) * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
+      // Placeholder data for now
+      const mockAttempts: KycAttempt[] = [
+        { id: '1', user_id: 'user123', status: 'pending_review', documents: [{id: 'doc1', user_id: 'user123', document_type: KycDocumentTypeEnum.ID_CARD_FRONT, file_url: '/placeholder.svg', status: 'pending', uploaded_at: new Date().toISOString()}], created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notes: 'First attempt' },
+        { id: '2', user_id: 'user456', status: 'approved', documents: [], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      ];
+      return { attempts: mockAttempts, totalCount: mockAttempts.length };
+    },
+    // keepPreviousData: true, // Consider this for smoother pagination
+  });
 
-      query = query.order('created_at', { ascending: false }).range(from, to);
-      
-      const { data, error, count } = await query;
-      if (error) throw error;
+  const kycAttempts = data?.attempts || [];
+  const totalCount = data?.totalCount || 0;
+  const pageCount = Math.ceil(totalCount / pagination.pageSize);
 
-      const attempts = data as any[]; // Temp cast
-      setKycAttempts(attempts as KycAttempt[]);
-      setTotalAttempts(count || 0);
 
-      const userMap: Record<string, Pick<AppUser, 'id' | 'username' | 'email'>> = {};
-      attempts.forEach(attempt => {
-        if (attempt.user) {
-          userMap[attempt.user_id] = { 
-            id: attempt.user.id, 
-            username: attempt.user.username, 
-            email: attempt.user.email 
-          };
-        }
-      });
-      setUsers(prev => ({...prev, ...userMap}));
+  const updateKycMutation = useMutation({
+    mutationFn: async (payload: { attemptId: string; status: KycStatus; rejectionReason?: string; adminNotes?: string }) => {
+      // Replace with actual kycService.updateKycAttemptStatus call
+      console.log("Updating KYC attempt:", payload);
+      // await kycService.updateAttemptStatus(payload.attemptId, payload.status, payload.rejectionReason, payload.adminNotes);
+      // Simulate update
+      return Promise.resolve();
+    },
+    onSuccess: () => {
+      toast.success('KYC status updated successfully.');
+      queryClient.invalidateQueries({ queryKey: ['kycAttempts'] });
+      setIsModalOpen(false);
+      setSelectedKycAttempt(null);
+      setUpdateStatus('');
+      setRejectionReason('');
+      setAdminNotes('');
+    },
+    onError: (err: Error) => {
+      toast.error(`Failed to update KYC status: ${err.message}`);
+    },
+  });
 
-    } catch (error: any) {
-      toast.error("Failed to load KYC attempts: " + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [searchTerm, filterStatus]);
-
-  useEffect(() => {
-    fetchKycAttempts(currentPage);
-  }, [fetchKycAttempts, currentPage]);
-
-  const handleSelectAttempt = (attempt: KycAttempt) => {
-    setSelectedAttempt(attempt);
-    setUpdateStatus(attempt.status || '');
-    setRejectionReason((attempt as any).rejection_reason || ''); // Assuming rejection_reason might be a field
+  const handleViewDetails = (attempt: KycAttempt) => {
+    setSelectedKycAttempt(attempt);
+    setUpdateStatus(attempt.status); // Pre-fill current status
     setAdminNotes(attempt.notes || '');
+    setRejectionReason(attempt.documents.find(doc => doc.status === 'rejected')?.rejection_reason || ''); // Example prefill
+    setIsModalOpen(true);
   };
 
-  const handleUpdateAttempt = async () => {
-    if (!selectedAttempt || !updateStatus) {
-      toast.error("No attempt selected or status chosen.");
+  const handleSubmitUpdate = () => {
+    if (!selectedKycAttempt || !updateStatus) {
+      toast.error("No KYC attempt selected or status is missing.");
       return;
     }
-    setIsSubmitting(true);
-    try {
-      const updatePayload: Partial<KycAttempt> & { rejection_reason?: string } = {
-        status: updateStatus,
-        notes: adminNotes,
-        updated_at: new Date().toISOString(),
-      };
-      if (updateStatus === 'rejected' || updateStatus === 'resubmit_required') {
-        updatePayload.rejection_reason = rejectionReason;
-      }
-
-      const { error } = await supabase
-        .from('kyc_attempts')
-        .update(updatePayload)
-        .eq('id', selectedAttempt.id);
-      
-      if (error) throw error;
-
-      // Optionally, update user's main kyc_status if you have one on the users table
-      if (updateStatus === 'approved' || updateStatus === 'verified') {
-        await supabase.from('users').update({ kyc_status: updateStatus }).eq('id', selectedAttempt.user_id);
-      }
-
-
-      toast.success("KYC attempt updated successfully.");
-      fetchKycAttempts(currentPage); // Refresh list
-      setSelectedAttempt(prev => prev ? {...prev, ...updatePayload} : null);
-    } catch (error: any) {
-      toast.error("Failed to update KYC attempt: " + error.message);
-    } finally {
-      setIsSubmitting(false);
+    if (updateStatus === 'rejected' && !rejectionReason) {
+      toast.error("Rejection reason is required for rejected status.");
+      return;
     }
+    updateKycMutation.mutate({
+      attemptId: selectedKycAttempt.id,
+      status: updateStatus as KycStatus, // Cast as KycStatus because '' is not valid for mutation
+      rejectionReason: updateStatus === 'rejected' ? rejectionReason : undefined,
+      adminNotes: adminNotes,
+    });
   };
 
-  const kycPageLayoutProps: AdminPageLayoutProps = {
-    title: "KYC Management",
-    headerContent: <p className="text-muted-foreground">Review and manage user KYC submissions.</p>
-  };
-  
-  const allKycStatuses: KycStatus[] = ['not_started', 'pending_review', 'approved', 'rejected', 'resubmit_required', 'verified', 'failed'];
+  const columns: ColumnDef<KycAttempt>[] = [
+    { accessorKey: "id", header: "Attempt ID" },
+    { accessorKey: "user_id", header: "User ID" }, // TODO: Fetch and show username/email
+    { 
+      accessorKey: "status", 
+      header: "Status",
+      cell: ({ row }) => <KycStatusDisplay status={row.original.status} />
+    },
+    { 
+      accessorKey: "documents", 
+      header: "Documents",
+      cell: ({ row }) => row.original.documents.length 
+    },
+    { 
+      accessorKey: "created_at", 
+      header: "Submitted At",
+      cell: ({ row }) => format(new Date(row.original.created_at), "PPpp")
+    },
+    { 
+      accessorKey: "updated_at", 
+      header: "Last Updated",
+      cell: ({ row }) => format(new Date(row.original.updated_at), "PPpp")
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <Button variant="outline" size="sm" onClick={() => handleViewDetails(row.original)}>
+          <FileSearch className="mr-2 h-4 w-4" /> View/Update
+        </Button>
+      ),
+    },
+  ];
 
+  const table = useReactTable({
+    data: kycAttempts,
+    columns,
+    pageCount: pageCount,
+    state: {
+      pagination,
+      sorting,
+    },
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+  });
+
+
+  if (error) return <AdminPageLayout title="KYC Management"><div className="text-red-500 p-4">Error loading KYC attempts: {error.message}</div></AdminPageLayout>;
 
   return (
-    <AdminPageLayout {...kycPageLayoutProps}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* KYC Attempts List */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>KYC Submissions</CardTitle>
-            <div className="mt-4 flex gap-2">
-              <Input 
-                placeholder="Search by User ID or Notes"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-xs"
-              />
-              <Select value={filterStatus} onValueChange={(value) => setFilterStatus(value as KycStatus | 'all')}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  {allKycStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button onClick={() => fetchKycAttempts(1)}><RefreshCcw className="mr-2 h-4 w-4"/>Refresh</Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {isLoading && kycAttempts.length === 0 ? (
-              <div className="flex justify-center items-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : kycAttempts.length === 0 ? (
-              <p className="text-muted-foreground text-center py-10">No KYC attempts found.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Submitted At</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {kycAttempts.map((attempt) => (
-                    <TableRow key={attempt.id} onClick={() => handleSelectAttempt(attempt)} className={`cursor-pointer ${selectedAttempt?.id === attempt.id ? 'bg-muted' : 'hover:bg-muted/50'}`}>
-                      <TableCell>
-                        <div className="font-medium">{users[attempt.user_id]?.username || 'Unknown User'}</div>
-                        <div className="text-xs text-muted-foreground">{users[attempt.user_id]?.email || attempt.user_id}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(attempt.status)} className="capitalize">
-                          {attempt.status.replace(/_/g, ' ')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{new Date(attempt.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleSelectAttempt(attempt); }}>
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-            {/* Pagination */}
-            {totalAttempts > ITEMS_PER_PAGE && (
-              <div className="flex justify-end items-center space-x-2 pt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {currentPage} of {Math.ceil(totalAttempts / ITEMS_PER_PAGE)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalAttempts / ITEMS_PER_PAGE), prev + 1))}
-                  disabled={currentPage === Math.ceil(totalAttempts / ITEMS_PER_PAGE)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+    <AdminPageLayout title="KYC Management" headerActions={<Button onClick={() => refetch()} disabled={isLoading}>{isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />} Refresh Data</Button>}>
+      <div className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 p-4 bg-card rounded-lg shadow">
+          <Input
+            placeholder="Search by User ID or Attempt ID..."
+            value={filters.searchTerm}
+            onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+            className="max-w-sm"
+          />
+          <Select
+            value={filters.status}
+            onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Statuses</SelectItem>
+              {(Object.keys(KycDocumentTypeEnum) as Array<keyof typeof KycDocumentTypeEnum>).map(key => (
+                <SelectItem key={KycDocumentTypeEnum[key]} value={KycDocumentTypeEnum[key]}>
+                  {KycDocumentTypeEnum[key].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={() => { setPagination(prev => ({ ...prev, pageIndex: 0 })); refetch(); }} disabled={isLoading}>
+            Apply Filters
+          </Button>
+        </div>
 
-        {/* KYC Attempt Details and Actions */}
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Attempt Details</CardTitle>
-            {selectedAttempt && <CardDescription>User: {users[selectedAttempt.user_id]?.username || selectedAttempt.user_id}</CardDescription>}
-          </CardHeader>
-          <CardContent>
-            {isSubmitting && <Loader2 className="animate-spin h-5 w-5 mx-auto mb-4" />}
-            {!selectedAttempt ? (
-              <p className="text-muted-foreground text-center py-10">Select an attempt to view details.</p>
-            ) : (
-              <Tabs defaultValue="documents" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                  <TabsTrigger value="actions">Actions</TabsTrigger>
-                </TabsList>
-                <TabsContent value="documents">
-                  <h4 className="font-semibold mb-2 mt-4">Submitted Documents:</h4>
-                  {(selectedAttempt.documents && selectedAttempt.documents.length > 0) ? (
-                    <ul className="space-y-2">
-                      {selectedAttempt.documents.map(doc => (
-                        <li key={doc.id} className="border p-2 rounded-md">
-                          <p className="text-sm font-medium">{doc.document_type.replace(/_/g, ' ').toUpperCase()}</p>
-                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">View Document</a>
-                          <Badge variant={doc.status === 'approved' ? 'success' : doc.status === 'rejected' ? 'destructive' : 'secondary'} className="ml-2 text-xs capitalize">{doc.status}</Badge>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No documents submitted for this attempt.</p>
-                  )}
-                  <h4 className="font-semibold mb-2 mt-4">Current Status:</h4>
-                   <Badge variant={getStatusVariant(selectedAttempt.status)} className="text-base capitalize">
-                    {selectedAttempt.status.replace(/_/g, ' ')}
-                  </Badge>
-                </TabsContent>
-                <TabsContent value="actions" className="space-y-4">
-                  <div>
-                    <Label htmlFor="status-update">Update Status</Label>
-                    <Select value={updateStatus} onValueChange={(val) => setUpdateStatus(val as KycStatus)}>
-                      <SelectTrigger id="status-update"><SelectValue placeholder="Select new status" /></SelectTrigger>
-                      <SelectContent>
-                        {allKycStatuses.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {(updateStatus === 'rejected' || updateStatus === 'resubmit_required') && (
-                    <div>
-                      <Label htmlFor="rejection-reason">Rejection Reason / Resubmit Instructions</Label>
-                      <Textarea id="rejection-reason" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Provide clear reasons or instructions..." />
-                    </div>
-                  )}
-                  <div>
-                    <Label htmlFor="admin-notes">Admin Notes (Internal)</Label>
-                    <Textarea id="admin-notes" value={adminNotes} onChange={e => setAdminNotes(e.target.value)} placeholder="Add internal notes for this attempt..." />
-                  </div>
-                  <Button onClick={handleUpdateAttempt} disabled={isSubmitting || !updateStatus} className="w-full">
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Update KYC Status
-                  </Button>
-                </TabsContent>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
+        {isLoading && kycAttempts.length === 0 ? (
+          <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="ml-2">Loading KYC attempts...</p>
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <DataTable table={table} columns={columns} isLoading={isLoading} />
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Pagination Controls (Simplified example, use DataTable's built-in or custom component) */}
+         <div className="flex items-center justify-end space-x-2 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
+
       </div>
+
+      {/* Modal for Viewing/Updating KYC Attempt */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>KYC Attempt Details: {selectedKycAttempt?.id}</DialogTitle>
+            <DialogDescription>User ID: {selectedKycAttempt?.user_id}</DialogDescription>
+          </DialogHeader>
+          {selectedKycAttempt && (
+            <div className="space-y-4 py-4">
+              <div>
+                <h4 className="font-semibold mb-2">Submitted Documents:</h4>
+                {selectedKycAttempt.documents.length > 0 ? (
+                  <ul className="space-y-2">
+                    {selectedKycAttempt.documents.map(doc => (
+                      <li key={doc.id} className="border p-2 rounded-md">
+                        <p>Type: <Badge variant="secondary">{doc.document_type.replace(/_/g, ' ')}</Badge></p>
+                        <p>Status: <Badge variant={doc.status === 'approved' ? 'default' : doc.status === 'rejected' ? 'destructive' : 'outline'}>{doc.status}</Badge></p>
+                        <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-sm">View Document</a>
+                        {doc.rejection_reason && <p className="text-red-500 text-xs">Reason: {doc.rejection_reason}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="text-muted-foreground">No documents submitted.</p>}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="current-status">Current Status</Label>
+                  <Input id="current-status" value={selectedKycAttempt.status.replace(/_/g, ' ')} readOnly className="bg-muted" />
+                </div>
+                 <div>
+                  <Label htmlFor="update-status">Update Status</Label>
+                  <Select value={updateStatus} onValueChange={(value) => setUpdateStatus(value as KycStatus)}>
+                    <SelectTrigger id="update-status">
+                      <SelectValue placeholder="Select new status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                       {(Object.keys(KycDocumentTypeEnum) as Array<keyof typeof KycDocumentTypeEnum>).map(key => (
+                          <SelectItem key={KycDocumentTypeEnum[key]} value={KycDocumentTypeEnum[key]}>
+                            {KycDocumentTypeEnum[key].replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {updateStatus === 'rejected' && (
+                <div>
+                  <Label htmlFor="rejection-reason">Rejection Reason</Label>
+                  <Textarea
+                    id="rejection-reason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Provide a reason for rejection..."
+                  />
+                </div>
+              )}
+              <div>
+                <Label htmlFor="admin-notes">Admin Notes</Label>
+                <Textarea
+                  id="admin-notes"
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Internal notes for this attempt..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitUpdate} disabled={updateKycMutation.isPending || !updateStatus}>
+              {updateKycMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Update Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminPageLayout>
   );
 };

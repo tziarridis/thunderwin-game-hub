@@ -1,95 +1,46 @@
 
 import React from 'react';
-import { KycRequest, KycStatus, KycStatusEnum } from '@/types/kyc';
+// Removed KycRequest as it's not defined in types/kyc.ts and seems unused
+import { KycStatus } from '@/types/kyc'; // Corrected KycStatusEnum to KycStatus
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '../ui/button';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, RefreshCw, HelpCircle, Loader2 } from 'lucide-react';
 
 interface KycStatusDisplayProps {
-  kycRequest: KycRequest | null;
-  isLoading: boolean;
-  error?: Error | null;
-  onResubmit?: () => void; // Callback to trigger KYC form for resubmission
+  status?: KycStatus | null; // Make status optional to handle undefined
+  className?: string;
 }
 
-const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ kycRequest, isLoading, error, onResubmit }) => {
-  if (isLoading) {
-    return <p>Loading KYC status...</p>;
+const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ status, className }) => {
+  if (status === undefined || status === null) { // Handle undefined or null status
+    return (
+      <Badge variant="outline" className={`flex items-center ${className}`}>
+        <HelpCircle className="mr-1 h-4 w-4" />
+        Unknown
+      </Badge>
+    );
   }
 
-  if (error) {
-    return <p className="text-red-500">Error loading KYC status: {error.message}</p>;
-  }
+  const statusConfig: Record<KycStatus, { label: string; icon: React.ElementType; color: string }> = {
+    not_started: { label: 'Not Started', icon: HelpCircle, color: 'bg-gray-500 hover:bg-gray-500' },
+    pending_review: { label: 'Pending Review', icon: Clock, color: 'bg-yellow-500 hover:bg-yellow-500 text-black' },
+    approved: { label: 'Approved', icon: CheckCircle2, color: 'bg-green-500 hover:bg-green-500' },
+    verified: { label: 'Verified', icon: CheckCircle2, color: 'bg-emerald-500 hover:bg-emerald-500' },
+    rejected: { label: 'Rejected', icon: XCircle, color: 'bg-red-500 hover:bg-red-500' },
+    resubmit_required: { label: 'Resubmit Required', icon: RefreshCw, color: 'bg-orange-500 hover:bg-orange-500' },
+    failed: { label: 'Failed', icon: AlertTriangle, color: 'bg-destructive hover:bg-destructive' },
+    // 'loading' was not in KycStatus, if needed, add it to the type
+  };
 
-  if (!kycRequest) {
-    return <p>No KYC submission found. Please submit your documents for verification.</p>;
-  }
-
-  const { status, rejection_reason, notes, submitted_at, reviewed_at } = kycRequest;
-
-  let statusIcon, statusText, statusColor, statusDescription;
-
-  switch (status) {
-    case KycStatusEnum.APPROVED:
-      statusIcon = <CheckCircle className="h-12 w-12 text-green-500" />;
-      statusText = 'Approved';
-      statusColor = 'text-green-500';
-      statusDescription = 'Your identity has been successfully verified.';
-      break;
-    case KycStatusEnum.REJECTED:
-      statusIcon = <XCircle className="h-12 w-12 text-red-500" />;
-      statusText = 'Rejected';
-      statusColor = 'text-red-500';
-      statusDescription = `Your verification was not successful. ${rejection_reason ? `Reason: ${rejection_reason}` : ''}`;
-      break;
-    case KycStatusEnum.PENDING:
-      statusIcon = <Clock className="h-12 w-12 text-yellow-500" />;
-      statusText = 'Pending Review';
-      statusColor = 'text-yellow-500';
-      statusDescription = 'Your documents have been submitted and are awaiting review.';
-      break;
-    case KycStatusEnum.RESUBMIT:
-      statusIcon = <RefreshCw className="h-12 w-12 text-orange-500" />;
-      statusText = 'Resubmission Required';
-      statusColor = 'text-orange-500';
-      statusDescription = `There was an issue with your submission. ${rejection_reason ? `Details: ${rejection_reason}` : 'Please review and resubmit your documents.'}`;
-      break;
-    default:
-      statusIcon = <AlertCircle className="h-12 w-12 text-gray-500" />;
-      statusText = 'Unknown Status';
-      statusColor = 'text-gray-500';
-      statusDescription = 'There was an issue determining your KYC status. Please contact support.';
-  }
+  const currentStatus = statusConfig[status] || { label: 'Unknown', icon: HelpCircle, color: 'bg-gray-400' };
+  const IconComponent = currentStatus.icon;
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        {statusIcon}
-        <CardTitle className={`mt-4 text-2xl font-semibold ${statusColor}`}>{statusText}</CardTitle>
-        <CardDescription className="mt-2">{statusDescription}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="text-sm text-muted-foreground">
-          <p><strong>Submitted:</strong> {new Date(submitted_at).toLocaleString()}</p>
-          {reviewed_at && <p><strong>Reviewed:</strong> {new Date(reviewed_at).toLocaleString()}</p>}
-        </div>
-        
-        {notes && (status === KycStatusEnum.REJECTED || status === KycStatusEnum.RESUBMIT) && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-sm font-medium text-yellow-700">Reviewer Notes:</p>
-            <p className="text-sm text-yellow-600">{notes}</p>
-          </div>
-        )}
-        
-        {(status === KycStatusEnum.REJECTED || status === KycStatusEnum.RESUBMIT) && onResubmit && (
-          <Button onClick={onResubmit} className="w-full mt-4">
-            Resubmit Documents
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+    <Badge variant="secondary" className={`flex items-center ${currentStatus.color} text-primary-foreground ${className}`}>
+      <IconComponent className="mr-1.5 h-4 w-4" />
+      {currentStatus.label}
+    </Badge>
   );
 };
 
 export default KycStatusDisplay;
+

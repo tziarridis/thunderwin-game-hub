@@ -1,298 +1,341 @@
-
-import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useCallback,
+} from 'react';
+import {
+  AuthError,
+  Session as SupabaseSession,
+  User as SupabaseUser,
+} from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { AuthChangeEvent, Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { toast } from 'sonner';
-// Use User type from user.d.ts for broader compatibility if it's more comprehensive
-// For now, ensuring AppUser has camelCase date fields
-import { User as AppUserTypeDefinition, UserRole } from '@/types/user'; // Added UserRole import
+import {
+  LoginCredentials,
+  RegisterCredentials,
+  User,
+  UserRole,
+} from '@/types'; // Ensure UserRole is imported from @/types (index.d.ts)
 
-
-// Define a more specific User type for your application context if needed
-// This might include fields from your public.users or public.profiles table
-export interface AppUser extends SupabaseUser {
-  // Custom fields from your public.users or public.profiles table
-  username?: string;
-  firstName?: string;
-  lastName?: string;
-  avatarUrl?: string;
-  role?: UserRole | string; // Example: 'admin', 'user', 'affiliate' (from app_metadata or custom table)
-  isActive: boolean; // Added to match User type for components like UserMenu
-  // Add other app-specific user properties here
-
-  // Ensure camelCase versions for compatibility with other User types
-  createdAt?: string;
-  updatedAt?: string;
-
-  // Added from User type for Profile.tsx needs
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-  referralCode?: string;
-  referralLink?: string;
+// ... keep existing code (AppUser interface, AuthContextType interface, AuthContext creation)
+export interface AppUser extends User {
+  // Supabase User properties that are part of Supabase's User object
+  aud: string;
+  // role?: string; // This 'role' is from Supabase token, might differ from app-specific UserRole
+  app_metadata: {
+    provider?: string;
+    providers?: string[];
+    [key: string]: any;
+  };
+  user_metadata: {
+    [key: string]: any;
+  };
+  // Custom fields from your 'users' or 'profiles' table, merged into AppUser
+  // Ensure these are correctly populated in enrichUserWithProfile
+  // UserRole is your application-specific role
+  role?: UserRole; // This should be your application-specific UserRole
+  // Add other fields from your 'users' table that you want in AppUser
+  // For example, if your 'users' table has 'display_name', 'phone_number', etc.
+  // is_banned?: boolean; // Already in User type from user.d.ts
+  // status?: UserStatus; // Already in User type from user.d.ts
+  // isActive: boolean; // Added this to AppUser previously, ensure it's populated
 }
 
-export interface AuthContextType {
+interface AuthContextType {
   user: AppUser | null;
-  session: Session | null;
-  loading: boolean; // Standardized to 'loading'
-  isAdmin: boolean; // Derived from user's role
+  appUser: AppUser | null; // Maintaining for compatibility if used elsewhere
+  isAdmin: boolean;
   isAuthenticated: boolean;
-  updateUserPassword: (password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>; // Standardized to 'signOut'
-  refreshUser: () => Promise<void>;
-  refreshWalletBalance?: () => Promise<void>; // Added for wallet refresh
-  
-  // Added stubs for missing auth methods
-  login?: (credentials: any) => Promise<{ error: any | null }>; // Define args as needed
-  register?: (details: any) => Promise<{ error: any | null }>; // Define args as needed
-  adminLogin?: (credentials: any) => Promise<{ error: any | null }>; // Define args as needed
-  updateProfile?: (profileData: Partial<AppUser>) => Promise<{ error: any | null }>; // Define args as needed
-  error?: string | null; // Added for AdminLogin.tsx
+  loading: boolean;
+  error: string | null;
+  login: (credentials: LoginCredentials) => Promise<{ error: AuthError | null; data: any } | undefined>;
+  register: (credentials: RegisterCredentials) => Promise<{ error: AuthError | null; data: any } | undefined>;
+  logout: () => Promise<void>;
+  adminLogin?: (credentials: LoginCredentials) => Promise<{ error: AuthError | null; data: any } | undefined>; // Optional adminLogin
+  // Add other auth methods as needed
+  fetchAndUpdateUser: () => Promise<void>; // To refresh user data
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ... keep existing code (AuthProvider component up to enrichUserWithProfile)
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true); // Standardized variable name
+  // const [appUser, setAppUser] = useState<AppUser | null>(null); // consider removing if 'user' serves same purpose
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null); // For the 'error' field
 
-  const enrichUser = async (supabaseUser: SupabaseUser | null): Promise<AppUser | null> => {
-    if (!supabaseUser) return null;
 
-    // Initialize AppUser with SupabaseUser fields and isActive
-    let appUser: AppUser = { 
-      ...supabaseUser, 
-      isActive: true, // Default to true, can be refined with actual user status from DB
-      createdAt: supabaseUser.created_at, // Map to camelCase
-      updatedAt: supabaseUser.updated_at, // Map to camelCase
-      // Ensure AppUser fields are initialized if not present on SupabaseUser
-      firstName: supabaseUser.user_metadata?.first_name || undefined,
-      lastName: supabaseUser.user_metadata?.last_name || undefined,
-      avatarUrl: supabaseUser.user_metadata?.avatar_url || undefined,
-    };
+  const enrichUserWithProfile = async (supabaseUser: SupabaseUser): Promise<AppUser> => {
+    // Fetch user profile from your 'users' table (or 'profiles')
+    const { data: profileData, error: profileError } = await supabase
+      .from('users') // Assuming your table is named 'users'
+      .select('*') // Select all columns or specific ones you need
+      .eq('id', supabaseUser.id)
+      .single();
 
-    try {
-      // 1. Fetch from public.users table
-      const { data: publicUserData, error: publicUserError } = await supabase
-        .from('users')
-        .select('username, role, status, first_name, last_name, avatar_url, phone, referralCode, referralLink') // Added more fields, assuming 'role' exists
-        .eq('id', supabaseUser.id) 
-        .single();
-
-      if (publicUserError) {
-        if (publicUserError.code !== 'PGRST116') { // Not found error
-          console.error("Error fetching public user data:", publicUserError);
-        }
-      } else if (publicUserData) {
-        appUser.username = publicUserData.username || appUser.username;
-        appUser.firstName = publicUserData.first_name || appUser.firstName;
-        appUser.lastName = publicUserData.last_name || appUser.lastName;
-        appUser.avatarUrl = publicUserData.avatar_url || appUser.avatarUrl;
-        appUser.role = publicUserData.role || appUser.role; 
-        appUser.phone = publicUserData.phone || appUser.phone;
-        appUser.referralCode = (publicUserData as any).referralCode || appUser.referralCode;
-        appUser.referralLink = (publicUserData as any).referralLink || appUser.referralLink;
-        
-        if (publicUserData.status) {
-            appUser.isActive = publicUserData.status.toLowerCase() === 'active';
-        }
-      }
-      
-      // 2. Get role from app_metadata if not in users table or to override
-      appUser.role = supabaseUser.app_metadata?.role || appUser.role; 
-
-    } catch (error) {
-      console.error("Error enriching user:", error);
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 0 rows
+      console.error('Error fetching user profile:', profileError);
+      // Fallback to Supabase user data only if profile fetch fails critically
     }
     
-    return appUser;
+    // Base properties from Supabase user
+    const baseAppUser: Partial<AppUser> = {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      aud: supabaseUser.aud,
+      // supabaseTokenRole: supabaseUser.role, // Store Supabase's token role if needed separately
+      created_at: supabaseUser.created_at,
+      updated_at: supabaseUser.updated_at || supabaseUser.created_at, // Ensure updated_at is set
+      last_sign_in_at: supabaseUser.last_sign_in_at,
+      app_metadata: supabaseUser.app_metadata || {},
+      user_metadata: supabaseUser.user_metadata || {},
+      // Default values for User interface fields from user.d.ts if not in profile
+      username: null,
+      avatar_url: null,
+      first_name: null,
+      last_name: null,
+      role: undefined, // This will be overridden by profileData if present
+      status: 'active', // Default status
+      is_verified: supabaseUser.email_confirmed_at ? true : false,
+      is_banned: false, // Default, override from profileData
+      balance: 0,
+      currency: 'USD',
+      vipLevel: 0,
+      isActive: true, // Default, override from profileData
+      // Fields from the extended User type in user.d.ts
+      name: supabaseUser.user_metadata?.full_name || supabaseUser.email,
+      avatar: supabaseUser.user_metadata?.avatar_url,
+      joined: supabaseUser.created_at,
+      phone: supabaseUser.phone,
+      lastLogin: supabaseUser.last_sign_in_at,
+      favoriteGames: [],
+      profile: {}, // Default, override from profileData
+      isStaff: false, // Default, override from profileData
+      isAdmin: false, // Default, override from profileData and role check
+      roles: [], // Default, override from profileData
+      kycStatus: 'not_started', // Default, override from profileData
+      referralCode: undefined,
+      referralLink: undefined,
+    };
+
+    // Merge profile data if available
+    const enrichedUser = {
+      ...baseAppUser,
+      ...(profileData || {}), // Spread profileData, ensure its fields match AppUser/User
+      // Ensure crucial fields like `role` from profileData are correctly mapped if names differ
+      role: profileData?.role as UserRole || baseAppUser.role, // Explicitly cast profileData.role
+      isActive: profileData?.is_active ?? baseAppUser.isActive,
+      username: profileData?.username || supabaseUser.email, // Prefer profile username
+      avatar_url: profileData?.avatar_url || supabaseUser.user_metadata?.avatar_url,
+      first_name: profileData?.first_name,
+      last_name: profileData?.last_name,
+      status: profileData?.status || baseAppUser.status,
+      is_banned: profileData?.is_banned ?? baseAppUser.is_banned,
+      isAdmin: (profileData?.role === 'admin' || profileData?.roles?.includes('admin')) ?? false,
+    } as AppUser; // Cast to AppUser
+
+    console.log("Enriched user in AuthContext:", enrichedUser);
+    return enrichedUser;
   };
+
+  const fetchAndUpdateUser = useCallback(async () => {
+    console.log("AuthContext: fetchAndUpdateUser called");
+    setLoading(true);
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      console.error("AuthContext: Error getting session:", sessionError);
+      setUser(null);
+      // setAppUser(null);
+      setIsAdmin(false);
+      setLoading(false);
+      setError(sessionError.message);
+      return;
+    }
+    
+    if (session && session.user) {
+      try {
+        const enriched = await enrichUserWithProfile(session.user);
+        setUser(enriched);
+        // setAppUser(enriched);
+        setIsAdmin(enriched.role === 'admin' || (Array.isArray(enriched.roles) && enriched.roles.includes('admin')));
+        setError(null);
+      } catch (e: any) {
+        console.error("AuthContext: Error enriching user profile:", e);
+        // Fallback to Supabase user data if enrichment fails
+        const fallbackUser = { 
+            ...session.user, 
+            id: session.user.id, // ensure id is there
+            email: session.user.email || '',
+            role: undefined, // No app role if profile fails
+            isActive: true, // Default
+            // ... other necessary defaults from AppUser/User
+         } as AppUser; // This cast might be risky without all fields
+        setUser(fallbackUser); 
+        // setAppUser(fallbackUser);
+        setIsAdmin(false); // Cannot determine admin status if profile fails
+        setError("Failed to load full user profile.");
+      }
+    } else {
+      setUser(null);
+      // setAppUser(null);
+      setIsAdmin(false);
+    }
+    setLoading(false);
+  }, []);
 
 
   useEffect(() => {
-    setLoading(true);
-    supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => { // Renamed to avoid conflict
-      setSession(currentSession);
-      const appUser = await enrichUser(currentSession?.user ?? null);
-      setUser(appUser);
-      setIsAdmin(appUser?.app_metadata?.role === 'admin' || appUser?.role === 'admin'); 
-      setLoading(false);
+    fetchAndUpdateUser(); // Initial fetch
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log("AuthContext: Auth state changed", _event, session);
+      if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED' || _event === 'TOKEN_REFRESHED') {
+        if (session && session.user) {
+          const enriched = await enrichUserWithProfile(session.user);
+          setUser(enriched);
+          // setAppUser(enriched);
+          setIsAdmin(enriched.role === 'admin' || (Array.isArray(enriched.roles) && enriched.roles.includes('admin')));
+        } else {
+           // This case might happen if session becomes null after an event
+           setUser(null);
+          // setAppUser(null);
+           setIsAdmin(false);
+        }
+      } else if (_event === 'SIGNED_OUT') {
+        setUser(null);
+        // setAppUser(null);
+        setIsAdmin(false);
+      }
+      // setLoading(false); // Moved loading(false) to fetchAndUpdateUser
     });
 
-    // Setup auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event: AuthChangeEvent, currentSession: Session | null) => { // Renamed to avoid conflict
-        setLoading(true);
-        setSession(currentSession);
-        const appUser = await enrichUser(currentSession?.user ?? null);
-        setUser(appUser);
-        setIsAdmin(appUser?.app_metadata?.role === 'admin' || appUser?.role === 'admin');
-        setLoading(false);
-      }
-    );
-
-    // Cleanup subscription on unmount
     return () => {
-      authListener.subscription.unsubscribe();
+      authListener?.subscription?.unsubscribe();
     };
-  }, []);
+  }, [fetchAndUpdateUser]);
+  // ... keep existing code (login, register, logout, adminLogin functions)
 
-  const updateUserPassword = async (password: string) => {
+  const login = async (credentials: LoginCredentials) => {
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    if (error) {
-      toast.error(error.message);
-      setAuthError(error.message);
-    } else {
-      toast.success('Password updated successfully.');
-      setAuthError(null);
+    setError(null);
+    const { data, error: signInError } = await supabase.auth.signInWithPassword(credentials);
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return { error: signInError, data: null };
+    }
+    if (data.user) {
+      // enrichUserWithProfile is called by onAuthStateChange listener or fetchAndUpdateUser
+      await fetchAndUpdateUser(); // Explicitly refresh after login
     }
     setLoading(false);
-    return { error };
+    return { error: null, data };
   };
 
-  const signOut = async () => { // Standardized function name
+  const register = async (credentials: RegisterCredentials) => {
     setLoading(true);
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setIsAdmin(false);
+    setError(null);
+    const { data, error: signUpError } = await supabase.auth.signUp(credentials);
+    if (signUpError) {
+      setError(signUpError.message);
+      setLoading(false);
+      return { error: signUpError, data: null };
+    }
+    // After successful Supabase sign-up, you might need to create a corresponding
+    // record in your public 'users' (or 'profiles') table.
+    if (data.user) {
+      try {
+        const { error: profileInsertError } = await supabase
+          .from('users') // Your public users table
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            username: credentials.username || data.user.email?.split('@')[0], // Or from form
+            role: 'user', // Default role
+            status: 'pending_verification', // Or 'active' if email verification is not strict initially
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_active: true, // Or based on email verification
+            // Add any other default fields for your 'users' table
+          });
+
+        if (profileInsertError) {
+          console.error("Error creating user profile:", profileInsertError);
+          // Potentially roll back Supabase auth user or notify admin,
+          // for now, we proceed, but auth state listener will fetch this partial profile.
+          setError("Registration partially failed (profile creation). Please contact support.");
+          // User is still signed up in Supabase auth, listener will handle enrichment
+        }
+        // enrichUserWithProfile will be called by onAuthStateChange or fetchAndUpdateUser
+        await fetchAndUpdateUser(); // Explicitly refresh after registration
+      } catch (e: any) {
+         console.error("Error in post-registration profile creation:", e);
+         setError("Registration process encountered an issue.");
+      }
+    }
     setLoading(false);
-    setAuthError(null);
-    toast.success("Signed out successfully.");
+    return { error: null, data }; // Return Supabase response
+  };
+
+  const logout = async () => {
+    setLoading(true);
+    setError(null);
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) {
+      setError(signOutError.message);
+    }
+    // setUser and setIsAdmin are handled by the onAuthStateChange listener
+    setLoading(false);
   };
   
-  const refreshUser = async () => {
+  const adminLogin = async (credentials: LoginCredentials) => {
     setLoading(true);
-    setAuthError(null);
-    // Corrected: refreshSession doesn't directly return user, need getUser after
-    const { error: refreshError } = await supabase.auth.refreshSession();
-    
-    if (refreshError) {
-        console.error("Error refreshing user session:", refreshError.message);
-        setAuthError(refreshError.message);
-        if (refreshError.message.includes('Invalid refresh token')) { // More robust check
-             await signOut();
-        }
-    } else {
-        const { data: { user: currentSupabaseUserFromAuth }, error: getUserError } = await supabase.auth.getUser();
-        if (getUserError) {
-            console.error("Error getting user after session refresh:", getUserError.message);
-            setAuthError(getUserError.message);
-        } else {
-            const appUser = await enrichUser(currentSupabaseUserFromAuth);
-            setUser(appUser);
-            setIsAdmin(appUser?.app_metadata?.role === 'admin' || appUser?.role === 'admin');
-        }
+    setError(null);
+    const { data, error: signInError } = await supabase.auth.signInWithPassword(credentials);
+
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return { error: signInError, data: null };
+    }
+
+    if (data.user) {
+      const enrichedUser = await enrichUserWithProfile(data.user);
+      if (enrichedUser.role === 'admin' || (Array.isArray(enrichedUser.roles) && enrichedUser.roles.includes('admin'))) {
+        // setUser(enrichedUser); // Listener will do this
+        // setIsAdmin(true);
+        await fetchAndUpdateUser(); // Ensure state is updated by listener or explicitly
+        setLoading(false);
+        return { error: null, data };
+      } else {
+        await supabase.auth.signOut(); // Sign out if not an admin
+        const notAdminError = { name: "AuthError", message: "User is not an administrator." } as AuthError;
+        setError(notAdminError.message);
+        setUser(null);
+        setIsAdmin(false);
+        setLoading(false);
+        return { error: notAdminError, data: null };
+      }
     }
     setLoading(false);
-  };
-
-  // New function to refresh wallet balance
-  const refreshWalletBalance = async () => {
-    if (!user?.id) return;
-    setAuthError(null);
-    try {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('balance, currency, vip_level, vip_points')
-        .eq('user_id', user.id) 
-        .single();
-        
-      if (error) {
-        console.error("Error fetching wallet balance:", error);
-        toast.error("Could not refresh wallet balance.");
-        return;
-      }
-      
-      if (data) {
-        // TODO: Update user context or a dedicated wallet context if wallet data is stored there.
-        // For now, just a success toast.
-        // Example: setUser(prevUser => prevUser ? ({...prevUser, wallet: data }) : null);
-        toast.success("Wallet balance refreshed");
-      }
-    } catch (error) {
-      console.error("Error in refreshWalletBalance:", error);
-      // toast.error("An error occurred while refreshing wallet balance.");
-    }
-  };
-
-  // Stub implementations for missing auth functions
-  const login = async (credentials: any) => { 
-    console.warn("AuthContext: login function is a stub.", credentials);
-    toast.info("Login functionality not fully implemented yet.");
-    // Example: const { error } = await supabase.auth.signInWithPassword(credentials); setAuthError(error?.message || null); return { error };
-    return { error: null };
-  };
-  const register = async (details: any) => {
-    console.warn("AuthContext: register function is a stub.", details);
-    toast.info("Registration functionality not fully implemented yet.");
-    // Example: const { error } = await supabase.auth.signUp(details); setAuthError(error?.message || null); return { error };
-    return { error: null };
-  };
-  const adminLogin = async (credentials: any) => {
-    console.warn("AuthContext: adminLogin function is a stub.", credentials);
-    toast.info("Admin login functionality not fully implemented yet.");
-    // This would likely involve checking role after a normal login
-    return { error: null };
-  };
-   const updateProfile = async (profileData: Partial<AppUser>) => {
-    console.warn("AuthContext: updateProfile function is a stub.", profileData);
-    if (!user?.id) return { error: { message: "User not authenticated" }};
-    setLoading(true);
-    setAuthError(null);
-    try {
-        const { data, error } = await supabase
-            .from('users') // Or 'profiles' depending on your table
-            .update(profileData)
-            .eq('id', user.id)
-            .select()
-            .single();
-
-        if (error) throw error;
-        
-        // Re-enrich user data after profile update
-        const { data: { user: currentSupabaseUserFromAuth } } = await supabase.auth.getUser();
-        const appUser = await enrichUser(currentSupabaseUserFromAuth);
-        setUser(appUser);
-
-        toast.success("Profile updated successfully.");
-        setLoading(false);
-        return { error: null };
-
-    } catch (err: any) {
-        toast.error(`Failed to update profile: ${err.message}`);
-        setAuthError(err.message);
-        setLoading(false);
-        return { error: err };
-    }
+    // Should not reach here if data.user is null and no error, but as a fallback:
+    return { error: {name: "AuthError", message: "Admin login failed."} as AuthError, data: null };
   };
 
 
-  const value = {
-    user,
-    session,
-    loading, 
-    isAdmin,
-    isAuthenticated: !!user,
-    updateUserPassword,
-    signOut, 
-    refreshUser,
-    refreshWalletBalance,
-    login,
-    register,
-    adminLogin,
-    updateProfile,
-    error: authError,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, appUser: user, isAdmin, isAuthenticated: !!user, loading, error, login, register, logout, adminLogin, fetchAndUpdateUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
-
+// ... keep existing code (useAuth hook, export AuthProvider)
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -301,3 +344,4 @@ export const useAuth = () => {
   return context;
 };
 
+export { AuthProvider };
