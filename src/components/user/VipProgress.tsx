@@ -1,13 +1,13 @@
 
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
-import { wallet } from '@/types/wallet';
+import { Wallet } from '@/types';
 
 interface VipProgressProps {
   currentLevel?: number;
   currentPoints?: number;
   pointsToNextLevel?: number;
-  wallet?: wallet;
+  wallet?: Wallet;
 }
 
 const VipProgress: React.FC<VipProgressProps> = ({ 
