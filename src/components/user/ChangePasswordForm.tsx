@@ -6,7 +6,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useAuth } from '@/contexts/AuthContext'; // Ensure useAuth is imported
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
@@ -23,7 +23,7 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 
 const ChangePasswordForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { updateUserPassword } = useAuth(); // Get updateUserPassword from context
+  const { updateUserPassword } = useAuth();
 
   const form = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),

@@ -36,8 +36,8 @@ export interface Transaction {
   user_id: string;
   amount: number;
   currency: string;
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment';
-  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
+  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected' | 'processing';
   created_at: string;
   updated_at: string;
   provider_transaction_id?: string;
@@ -45,6 +45,8 @@ export interface Transaction {
   description?: string;
   game_id?: string;
   round_id?: string;
+  date?: string; // For backward compatibility
+  player_id?: string; // For backward compatibility
 }
 
 // Export DateRange type

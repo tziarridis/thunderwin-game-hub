@@ -2,23 +2,25 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { LoginCredentials, RegisterCredentials, AppUser } from '@/types';
+import { LoginCredentials, RegisterCredentials, AppUser, User as AppUserType } from '@/types';
 
 interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   isLoading: boolean;
-  loading: boolean; // Add backward compatibility
+  loading: boolean; // Backward compatibility
   isAuthenticated: boolean;
   isAdmin: boolean;
   error: string | null;
   signIn: (credentials: LoginCredentials) => Promise<{ error?: AuthError }>;
-  login: (credentials: LoginCredentials) => Promise<{ error?: AuthError }>; // Add backward compatibility
+  login: (credentials: LoginCredentials) => Promise<{ error?: AuthError }>; // Backward compatibility
   adminLogin: (credentials: LoginCredentials) => Promise<{ error?: AuthError }>;
   signUp: (credentials: RegisterCredentials) => Promise<{ error?: AuthError }>;
-  register: (credentials: RegisterCredentials) => Promise<{ error?: AuthError }>; // Add backward compatibility
+  register: (credentials: RegisterCredentials) => Promise<{ error?: AuthError }>; // Backward compatibility
   signOut: () => Promise<void>;
   refreshWalletBalance: () => Promise<void>;
+  updateUserPassword: (newPassword: string) => Promise<{ error?: AuthError }>;
+  fetchAndUpdateUser: (userData: Partial<AppUserType>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,8 +39,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: session.user.id,
           email: session.user.email || '',
+          username: session.user.user_metadata?.username || session.user.email?.split('@')[0],
           user_metadata: session.user.user_metadata,
           app_metadata: session.user.app_metadata,
+          created_at: new Date().toISOString(), // Default value to satisfy type requirement
         });
       }
       setIsLoading(false);
@@ -53,8 +57,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser({
           id: session.user.id,
           email: session.user.email || '',
+          username: session.user.user_metadata?.username || session.user.email?.split('@')[0],
           user_metadata: session.user.user_metadata,
           app_metadata: session.user.app_metadata,
+          created_at: new Date().toISOString(), // Default value to satisfy type requirement
         });
       } else {
         setUser(null);
@@ -68,7 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (credentials: LoginCredentials) => {
     try {
       setError(null);
-      const { error } = await supabase.auth.signInWithPassword(credentials);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
       if (error) {
         setError(error.message);
         return { error };
@@ -123,9 +132,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('Refreshing wallet balance...');
   };
 
+  const updateUserPassword = async (newPassword: string) => {
+    try {
+      setError(null);
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        setError(error.message);
+        return { error };
+      }
+      return {};
+    } catch (err: any) {
+      setError(err.message);
+      return { error: err };
+    }
+  };
+
+  const fetchAndUpdateUser = async (userData: Partial<AppUserType>) => {
+    try {
+      setError(null);
+      // For now, this is a mock implementation
+      // In a real app, you'd update the user profile in the database
+      console.log('Updating user data:', userData);
+      setUser(prev => prev ? { ...prev, ...userData } : null);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   const isAuthenticated = !!session;
   const isAdmin = user?.app_metadata?.role === 'admin' || false;
 
+  // Create context value object with all methods
   const value: AuthContextType = {
     user,
     session,
@@ -141,6 +178,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     register: signUp, // Backward compatibility
     signOut,
     refreshWalletBalance,
+    updateUserPassword,
+    fetchAndUpdateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -153,3 +192,6 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// Export AppUser type for components that need it
+export type { AppUser };

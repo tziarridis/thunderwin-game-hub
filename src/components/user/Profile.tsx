@@ -35,7 +35,7 @@ const Profile: React.FC = () => {
   if (authError) {
     return (
       <div className="container mx-auto py-8 px-4 text-center">
-        <p className="text-red-500">Error loading profile: {authError.message}</p>
+        <p className="text-red-500">Error loading profile: {authError}</p>
         <Button onClick={() => window.location.reload()} className="mt-4">Try Again</Button>
       </div>
     );

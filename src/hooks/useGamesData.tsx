@@ -28,6 +28,7 @@ const mapDbGameToGame = (dbGame: DbGame): Game => ({
   description: dbGame.description || '',
   image_url: dbGame.cover || '',
   provider_id: dbGame.provider_id,
+  provider_slug: dbGame.provider_slug || 'unknown',
   category_id: dbGame.category_slugs?.[0] || '',
   status: dbGame.status as GameStatusEnum,
   rtp: Number(dbGame.rtp) || 0,
@@ -51,6 +52,7 @@ export const useGamesData = ({
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(initialOffset);
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
 
   const fetchGames = useCallback(async (currentOffset: number, replace: boolean = false) => {
     try {
@@ -72,8 +74,10 @@ export const useGamesData = ({
 
       if (replace) {
         setGames(fetchedGames);
+        setFilteredGames(fetchedGames);
       } else {
         setGames(prev => [...prev, ...fetchedGames]);
+        setFilteredGames(prev => [...prev, ...fetchedGames]);
       }
       
       setTotalCount(count || 0);
@@ -107,14 +111,47 @@ export const useGamesData = ({
     fetchGames(0, true);
   }, [fetchGames]);
 
+  // Add filter games functionality
+  const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
+    if (!games.length) return;
+    
+    let filtered = [...games];
+    
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(game => 
+        game.title.toLowerCase().includes(search) || 
+        game.provider_slug?.toLowerCase().includes(search)
+      );
+    }
+    
+    if (categorySlug) {
+      filtered = filtered.filter(game => 
+        game.category_id === categorySlug || 
+        (Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlug))
+      );
+    }
+    
+    if (providerSlug) {
+      filtered = filtered.filter(game => 
+        game.provider_slug === providerSlug || 
+        String(game.provider_id) === providerSlug
+      );
+    }
+    
+    setFilteredGames(filtered);
+  }, [games]);
+
   return {
     games,
+    filteredGames,
     loading,
     error,
     totalCount,
     hasMore,
     loadMore,
-    refresh
+    refresh,
+    filterGames
   };
 };
 

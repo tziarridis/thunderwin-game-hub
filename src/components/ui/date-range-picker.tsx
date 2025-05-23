@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { DateRange } from 'react-day-picker';
+import { DateRange as DayPickerDateRange } from 'react-day-picker';
+import { DateRange as AppDateRange } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -9,10 +10,10 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface DateRangePickerProps {
-  range?: DateRange;
-  date?: DateRange; // Add backward compatibility
-  onUpdate?: (values: { range?: DateRange }) => void;
-  onDateChange?: (newRange: DateRange) => void; // Add backward compatibility
+  range?: AppDateRange;
+  date?: DayPickerDateRange; // Add backward compatibility
+  onUpdate?: (values: { range?: AppDateRange }) => void;
+  onDateChange?: (newRange: DayPickerDateRange) => void; // Add backward compatibility
   className?: string;
 }
 
@@ -25,9 +26,9 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 }) => {
   const currentRange = range || date;
   
-  const handleUpdate = (newRange?: DateRange) => {
+  const handleUpdate = (newRange?: DayPickerDateRange) => {
     if (onUpdate) {
-      onUpdate({ range: newRange });
+      onUpdate({ range: newRange as AppDateRange });
     }
     if (onDateChange && newRange) {
       onDateChange(newRange);
@@ -66,7 +67,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             initialFocus
             mode="range"
             defaultMonth={currentRange?.from}
-            selected={currentRange}
+            selected={currentRange as DayPickerDateRange}
             onSelect={handleUpdate}
             numberOfMonths={2}
             className="pointer-events-auto"

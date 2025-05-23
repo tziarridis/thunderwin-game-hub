@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { useAuth, AppUser } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import UserStats from '@/components/user/UserStats';
 import UserActivity from '@/components/user/UserActivity';
 import VipProgress from '@/components/user/VipProgress';
@@ -10,12 +10,12 @@ import UserPageLoadingSkeleton from '@/components/user/UserPageLoadingSkeleton';
 import { toast } from 'sonner';
 
 const UserDashboard: React.FC = () => {
-  const { user, isLoading, error, fetchAndUpdateUser } = useAuth(); // Use isLoading
+  const { user, isLoading, error, fetchAndUpdateUser } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (error) {
-      toast.error(`Error loading user data: ${error.message}`);
+      toast.error(`Error loading user data: ${error}`);
     }
   }, [error]);
 
@@ -36,7 +36,7 @@ const UserDashboard: React.FC = () => {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Welcome, {user.username || user.email}!</h1>
       
-      <UserStats user={user as AppUser} />
+      <UserStats user={user} />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UserActivity />
