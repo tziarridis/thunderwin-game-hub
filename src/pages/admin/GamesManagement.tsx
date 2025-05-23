@@ -1,57 +1,64 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { ColumnDef, SortingState, getCoreRowModel, getSortedRowModel, getPaginationRowModel, useReactTable, Table as ReactTableType } from "@tanstack/react-table";
+import { ColumnDef, SortingState, getCoreRowModel, getSortedRowModel, getPaginationRowModel, useReactTable, Table as ReactTableInstance } from "@tanstack/react-table"; // Renamed Table to ReactTableInstance
 import { gameService } from '@/services/gameService';
-import { Game, GameCategory, GameProvider as ProviderType, DbGame } from '@/types';
+import { Game, GameCategory, GameProvider as ProviderType, DbGame } from '@/types'; // Game should be DbGame or a display version
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DataTable } from '@/components/ui/data-table'; // DataTableProps removed
-import GameForm from '@/components/admin/GameForm'; // GameFormProps removed
+import { DataTable } from '@/components/ui/data-table';
+import GameForm from '@/components/admin/GameForm';
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
 import { toast } from 'sonner';
 import { PlusCircle, Search, Edit, Trash2, RefreshCw, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 // Mock data fetching functions (replace with actual service calls)
+// These should ideally come from a service or be part of gameService
 const fetchCategories = async (): Promise<GameCategory[]> => {
-  // Placeholder: Replace with actual service call
-  return [{ id: '1', name: 'Slots', slug: 'slots', description: '', game_count: 10 }];
+  const { data, error } = await gameService.getGameCategories(); // Assuming this service method exists
+  if (error) throw new Error('Failed to fetch categories');
+  return data || [];
 };
 
 const fetchProviders = async (): Promise<ProviderType[]> => {
-  // Placeholder: Replace with actual service call
-  return [{ id: '1', name: 'Provider A', slug: 'provider-a', logoUrl: '' }];
+ const { data, error } = await gameService.getGameProviders(); // Assuming this service method exists
+  if (error) throw new Error('Failed to fetch providers');
+  return data || [];
 };
+
+
+type GamesQueryResponse = { games: DbGame[], totalCount: number }; // Use DbGame for consistency with form
 
 const GamesManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<Game | Partial<Game> | null>(null);
+  const [selectedGame, setSelectedGame] = useState<DbGame | Partial<DbGame> | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [sorting, setSorting] = useState<SortingState>([]);
 
-  const { data: gamesData, isLoading: isLoadingGames, refetch: refetchGames } = useQuery<{ games: Game[], totalCount: number }, Error, { games: Game[], totalCount: number }, QueryKey>({
+  const { data: gamesData, isLoading: isLoadingGames, refetch: refetchGames } = useQuery<GamesQueryResponse, Error, GamesQueryResponse, QueryKey>({
     queryKey: ['adminGames', searchTerm, pagination, sorting] as QueryKey,
-    queryFn: async (): Promise<{ games: Game[], totalCount: number }> => {
+    queryFn: async (): Promise<GamesQueryResponse> => {
       const filters = { 
-        search: searchTerm, 
+        search: searchTerm || undefined, 
         limit: pagination.pageSize, 
         offset: pagination.pageIndex * pagination.pageSize,
         sortBy: sorting.length > 0 ? sorting[0].id : undefined,
         sortOrder: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
       };
-      const result = await gameService.getAllGames(filters);
-      const total = result.totalCount ?? result.count ?? result.games.length;
-      return { games: result.games, totalCount: total };
+      const result = await gameService.getAllGames(filters); // Assuming getAllGames returns { games: DbGame[], count: number } or similar
+      const gamesList = result.games || (Array.isArray(result) ? result : []); // Handle if result is just an array
+      const total = result.count ?? result.totalCount ?? gamesList.length; // Adjusted to check for count or totalCount
+      return { games: gamesList, totalCount: total };
     },
   });
 
   const games = gamesData?.games || [];
   const totalCount = gamesData?.totalCount || 0;
-  const pageCount = Math.ceil(totalCount / pagination.pageSize);
+  const pageCount = totalCount > 0 ? Math.ceil(totalCount / pagination.pageSize) : 0;
   
   const { data: categories, isLoading: isLoadingCategories } = useQuery<GameCategory[], Error>({
     queryKey: ['gameCategories'],
@@ -72,17 +79,28 @@ const GamesManagementPage: React.FC = () => {
       } else {
         const createData = { ...gameData };
         delete createData.id; 
-        return gameService.createGame(createData as Omit<DbGame, 'id' | 'created_at' | 'updated_at'>);
+        // Ensure all required fields for creation are present
+        const requiredFields: Omit<DbGame, 'id' | 'created_at' | 'updated_at' | 'provider' | 'categories' | 'tags' | 'features' | 'volatility' | 'type' | 'providerName' | 'category_slugs'> = {
+            title: createData.title || 'Untitled Game',
+            slug: createData.slug || `untitled-game-${Date.now()}`,
+            provider_id: String(createData.provider_id) || '', // must be string
+            status: createData.status || 'active', // default status
+            // Add other required fields with defaults if necessary
+            rtp: createData.rtp || 0,
+            image_url: createData.image_url || '',
+        };
+
+        return gameService.createGame(requiredFields as Omit<DbGame, 'id' | 'created_at' | 'updated_at'>);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      toast.success(`Game ${selectedGame && (selectedGame as Game).id ? 'updated' : 'created'} successfully!`);
+      toast.success(`Game ${selectedGame && (selectedGame as DbGame).id ? 'updated' : 'created'} successfully!`);
       setIsFormOpen(false);
       setSelectedGame(null);
     },
     onError: (error: Error) => {
-      toast.error(`Failed to ${selectedGame && (selectedGame as Game).id ? 'update' : 'create'} game: ${error.message}`);
+      toast.error(`Failed to ${selectedGame && (selectedGame as DbGame).id ? 'update' : 'create'} game: ${error.message}`);
     },
   });
 
@@ -104,54 +122,51 @@ const GamesManagementPage: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleEdit = (game: Game) => {
+  const handleEdit = (game: DbGame) => {
     setSelectedGame(game);
     setIsFormOpen(true);
   };
 
-  const handleDelete = (game: Game) => {
+  const handleDelete = (game: DbGame) => {
     setSelectedGame(game);
     setIsConfirmDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (selectedGame && (selectedGame as Game).id) {
-      deleteGameMutation.mutate(String((selectedGame as Game).id));
+    if (selectedGame && (selectedGame as DbGame).id) {
+      deleteGameMutation.mutate(String((selectedGame as DbGame).id));
     }
   };
 
   const handleSubmitForm = (values: Partial<DbGame>) => {
     const gameDataToSubmit: Partial<DbGame> = {
         ...values,
-        // Ensure provider_id is string or undefined. If it's an object, extract id.
         provider_id: typeof values.provider_id === 'object' && values.provider_id !== null 
                        ? String((values.provider_id as ProviderType)?.id) 
                        : (values.provider_id ? String(values.provider_id) : undefined),
         rtp: values.rtp ? Number(values.rtp) : undefined,
-        // Ensure category_ids are strings if they exist
         category_ids: values.category_ids ? (values.category_ids as (string[] | GameCategory[])).map(cat => typeof cat === 'string' ? cat : cat.id) : undefined,
     };
-    if (selectedGame && (selectedGame as Game).id) {
-        gameDataToSubmit.id = String((selectedGame as Game).id);
+    if (selectedGame && (selectedGame as DbGame).id) {
+        gameDataToSubmit.id = String((selectedGame as DbGame).id);
     }
     createOrUpdateGameMutation.mutate(gameDataToSubmit);
   };
 
-  const columns: ColumnDef<Game>[] = [
+  const columns: ColumnDef<DbGame>[] = [
     { accessorKey: "id", header: "ID", cell: ({ row }) => <span className="truncate w-20 block">{String(row.original.id)}</span> },
     { accessorKey: "title", header: "Title" },
     { 
-      accessorKey: "providerName", 
+      accessorKey: "provider.name", // Access nested provider name
       header: "Provider", 
-      // Ensure provider relation is handled, and fallback to provider_id if name is not available
       cell: ({row}) => row.original.provider?.name || row.original.providerName || String(row.original.provider_id) || 'N/A'
     },
     { 
-      accessorKey: "categories", // Assuming categories might be an array of objects or slugs
+      accessorKey: "categories", 
       header: "Categories", 
       cell: ({row}) => {
-        if (row.original.categories && Array.isArray(row.original.categories)) {
-          return row.original.categories.map(cat => typeof cat === 'string' ? cat : (cat as GameCategory).name).join(', ');
+        if (row.original.categories && Array.isArray(row.original.categories) && row.original.categories.length > 0) {
+          return row.original.categories.map(cat => (cat as GameCategory).name).join(', ');
         }
         return row.original.category_slugs?.join(', ') || 'N/A';
       }
@@ -196,7 +211,9 @@ const GamesManagementPage: React.FC = () => {
     </div>
   );
   
-  const AnyGameForm = GameForm as any; // Cast GameForm to any to bypass GameFormProps issues
+  // GameForm is read-only, so we assume its props are { initialData, onSubmit, onCancel, categories, providers, isLoading }
+  // The type cast to `any` for GameForm is a workaround for potential prop type mismatches with the read-only component.
+  const AnyGameForm = GameForm as any;
 
   return (
     <AdminPageLayout title="Games Management" headerActions={pageHeaderActions}>
@@ -212,25 +229,25 @@ const GamesManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table as ReactTableType<Game>} columns={columns as any} isLoading={isLoadingGames || isLoadingCategories || isLoadingProviders} />
+      <DataTable columns={columns} data={games} isLoading={isLoadingGames || isLoadingCategories || isLoadingProviders} />
 
       {isFormOpen && (
-        <AnyGameForm // Use the casted component
+        <AnyGameForm 
           onCancel={() => setIsFormOpen(false)}
           onSubmit={handleSubmitForm}
-          initialData={selectedGame as Partial<DbGame>} // Cast selectedGame to Partial<DbGame>
+          initialData={selectedGame as Partial<DbGame>}
           categories={categories || []}
           providers={providers || []}
           isLoading={createOrUpdateGameMutation.isPending}
         />
       )}
 
-      {selectedGame && (selectedGame as Game).id && (
+      {selectedGame && (selectedGame as DbGame).id && (
         <ConfirmationDialog
           isOpen={isConfirmDeleteDialogOpen}
           onClose={() => setIsConfirmDeleteDialogOpen(false)} 
           title="Delete Game"
-          description={`Are you sure you want to delete "${(selectedGame as Game).title}"? This action cannot be undone.`}
+          description={`Are you sure you want to delete "${(selectedGame as DbGame).title}"? This action cannot be undone.`}
           onConfirm={confirmDelete}
           confirmText="Delete"
           isLoading={deleteGameMutation.isPending}

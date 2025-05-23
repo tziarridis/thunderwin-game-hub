@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { promotionService } from '@/services/promotionService'; 
-import { Promotion } from '@/types';
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
+import { promotionsService } from '@/services/promotionService'; // Corrected: promotionsService
+import { Promotion, PromotionFormValues } from '@/types'; // PromotionFormValues if defined, or use Partial<Promotion>
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard';
-import PromotionForm from '@/components/admin/promotions/PromotionForm'; // Assuming this exists
+import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard'; // Assuming this exists and is correct
+import PromotionForm from '@/components/admin/promotions/PromotionForm'; // Assuming this exists and is correct
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
@@ -15,24 +15,27 @@ const AdminPromotionsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | Partial<Promotion> | null>(null); // Allow Partial for new
+  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | Partial<Promotion> | null>(null);
 
-  const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error>({
-    queryKey: ['adminPromotions'],
-    queryFn: promotionService.getAllPromotions, // Assuming this fetches all for admin
+  const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error, Promotion[], QueryKey>({
+    queryKey: ['adminPromotions'] as QueryKey,
+    queryFn: promotionsService.getAllPromotions, // Ensure this method returns Promotion[]
   });
 
   const mutation = useMutation({
-    mutationFn: async (promoData: Promotion | Partial<Promotion>) => {
-      if ((promoData as Promotion).id) {
-        return promotionService.updatePromotion((promoData as Promotion).id, promoData as Partial<Promotion>);
+    mutationFn: async (promoData: PromotionFormValues | Partial<Promotion>) => { // Use a defined form values type or Partial<Promotion>
+      // Assert promoData has an id if it's an update
+      const currentId = (promoData as Promotion).id;
+      if (currentId) {
+        return promotionsService.updatePromotion(currentId, promoData as Partial<Promotion>);
       } else {
-        return promotionService.createPromotion(promoData as Omit<Promotion, 'id' | 'created_at' | 'updated_at'>);
+        // For creation, ensure the type matches createPromotion's expected input
+        return promotionsService.createPromotion(promoData as Omit<Promotion, 'id' | 'created_at' | 'updated_at'>);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminPromotions'] });
-      toast.success(`Promotion ${(selectedPromotion as Promotion)?.id ? 'updated' : 'created'} successfully!`);
+      toast.success(`Promotion ${selectedPromotion && (selectedPromotion as Promotion).id ? 'updated' : 'created'} successfully!`);
       setIsFormOpen(false);
       setSelectedPromotion(null);
     },
@@ -42,7 +45,7 @@ const AdminPromotionsPage: React.FC = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (promoId: string) => promotionService.deletePromotion(promoId),
+    mutationFn: (promoId: string) => promotionsService.deletePromotion(promoId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['adminPromotions'] });
       toast.success('Promotion deleted successfully!');
@@ -75,7 +78,7 @@ const AdminPromotionsPage: React.FC = () => {
     }
   };
 
-  const handleSubmitForm = (values: Promotion | Partial<Promotion>) => {
+  const handleSubmitForm = (values: PromotionFormValues | Partial<Promotion>) => {
     mutation.mutate(values);
   };
 
@@ -84,8 +87,12 @@ const AdminPromotionsPage: React.FC = () => {
       <Button onClick={handleAddNew}>
         <PlusCircle className="mr-2 h-4 w-4" /> Create Promotion
       </Button>
-      <Button onClick={() => refetch()} variant="outline" disabled={isLoading || mutation.isPending || deleteMutation.isPending}>
-        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+      <Button 
+        onClick={() => refetch()} 
+        variant="outline" 
+        disabled={isLoading || mutation.isPending || deleteMutation.isPending}
+      >
+        {isLoading || mutation.isPending || deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
         Refresh
       </Button>
     </div>
@@ -94,45 +101,59 @@ const AdminPromotionsPage: React.FC = () => {
   if (isLoading) {
     return (
       <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
-        <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+        <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
       </AdminPageLayout>
     );
   }
+  
+  // Assuming PromotionForm is read-only and has props: isOpen, onClose, onSubmit, initialData, isLoading
+  const AnyPromotionForm = PromotionForm as any;
+  const AnyAdminPromotionCard = AdminPromotionCard as any;
+
 
   return (
     <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
+      {promotions.length === 0 && !isLoading && (
+        <div className="text-center py-10">
+          <p className="text-muted-foreground text-lg">No promotions found.</p>
+          <p className="text-sm text-muted-foreground">Click "Create Promotion" to get started.</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {promotions.map((promo) => (
-          <AdminPromotionCard 
-            key={promo.id} 
-            promotion={promo} 
+          <AnyAdminPromotionCard
+            key={promo.id}
+            promotion={promo}
             onEdit={() => handleEdit(promo)}
             onDelete={() => handleDelete(promo)}
+            // Pass any other required props for AdminPromotionCard
           />
         ))}
       </div>
 
       {isFormOpen && (
-        <PromotionForm
-          isOpen={isFormOpen} // Pass isOpen prop
-          onClose={() => setIsFormOpen(false)}
+        <AnyPromotionForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)} // Common prop for closing dialogs
           onSubmit={handleSubmitForm}
-          initialData={selectedPromotion}
+          initialData={selectedPromotion} // Pass the selected promotion
           isLoading={mutation.isPending}
-          // isEditing={!!(selectedPromotion && (selectedPromotion as Promotion).id)} // Pass isEditing prop
+          // Add other required props for PromotionForm here if known
         />
       )}
-      
+
       {selectedPromotion && (selectedPromotion as Promotion).id && (
-         <ConfirmationDialog
-            isOpen={isConfirmOpen} // Pass isOpen prop
-            onOpenChange={setIsConfirmOpen} // Pass onOpenChange prop
-            title="Delete Promotion"
-            description={`Are you sure you want to delete "${(selectedPromotion as Promotion).title}"?`}
-            onConfirm={confirmDelete}
-            isLoading={deleteMutation.isPending}
-            isDestructive={true}
-            confirmText="Delete"
+        <ConfirmationDialog
+          isOpen={isConfirmOpen}
+          onClose={() => setIsConfirmOpen(false)} // Use onClose
+          title="Delete Promotion"
+          description={`Are you sure you want to delete "${(selectedPromotion as Promotion).title}"? This action cannot be undone.`}
+          onConfirm={confirmDelete}
+          isLoading={deleteMutation.isPending}
+          isDestructive // Keep if this is a valid prop for your ConfirmationDialog
+          confirmText="Delete"
         />
       )}
     </AdminPageLayout>

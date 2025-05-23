@@ -1,38 +1,41 @@
+
 // src/types/kyc.ts
-export type KycStatus = 'not_started' | 'pending_review' | 'approved' | 'rejected' | 'resubmit_required' | 'verified' | 'failed';
+
+export enum KycStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  RESUBMIT_REQUIRED = 'resubmit_required',
+  // Add other statuses as needed
+}
 
 export enum KycDocumentTypeEnum {
-  ID_CARD_FRONT = 'id_card_front',
-  ID_CARD_BACK = 'id_card_back',
   PASSPORT = 'passport',
-  DRIVING_LICENSE_FRONT = 'driving_license_front',
-  DRIVING_LICENSE_BACK = 'driving_license_back',
+  DRIVERS_LICENSE = 'drivers_license',
+  NATIONAL_ID = 'national_id',
   UTILITY_BILL = 'utility_bill',
-  BANK_STATEMENT = 'bank_statement',
-  PROOF_OF_ADDRESS = 'proof_of_address', // Generic proof of address
-  SELFIE = 'selfie', // Added Selfie
+  // Add other document types as needed
 }
 
-export interface KycDocument {
+export interface KycRequest {
   id: string;
-  user_id: string;
-  document_type: KycDocumentTypeEnum;
-  file_url: string;
-  status: 'pending' | 'approved' | 'rejected';
-  uploaded_at: string;
-  reviewed_at?: string;
-  rejection_reason?: string;
-}
-
-export interface KycAttempt {
-  id: string;
-  user_id: string;
+  user_id: string; // Ensure this field exists
   status: KycStatus;
-  documents: KycDocument[];
+  document_type?: KycDocumentTypeEnum | string; // Make it flexible
+  documents: Array<{ url: string; type: string }>; // Example structure
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
-  notes?: string;
+  // Add any other relevant fields for a KYC request
+  admin_notes?: string;
+  reviewed_by?: string; // Admin user ID
 }
 
-// Make sure this file is re-exported in src/types/index.d.ts
-// e.g. export * from './kyc';
+// Represents the data structure for submitting a KYC request
+export interface KycSubmission {
+  document_type: KycDocumentTypeEnum | string;
+  // This would typically include file uploads, which are complex.
+  // For now, let's assume file URLs or identifiers are passed.
+  document_urls: string[]; 
+  additional_info?: string;
+}
