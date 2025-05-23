@@ -5,32 +5,25 @@ import { Button } from "@/components/ui/button";
 import { useGames } from '@/hooks/useGames';
 import { Game } from '@/types';
 import { scrollToTop } from '@/utils/scrollUtils';
-// Import the correct GameSectionLoading component
 import GameSectionLoading from '@/components/casino/GameSectionLoading';
-
-// Update the import to use the new component name
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
 
 const Crash = () => {
-  const { games, loading, error } = useGames();
+  const { games, isLoadingGames, gamesError } = useGames();
   const [crashGames, setCrashGames] = useState<Game[]>([]);
   const navigate = useNavigate();
 
-  // Add a retry loading function
   const retryLoading = () => {
-    // We're manually implementing this since it doesn't exist in useGames
     window.location.reload();
   };
 
   useEffect(() => {
     if (games) {
-      // Filter crash games if needed
       const filteredGames = games.filter(game => game.category === 'crash');
       setCrashGames(filteredGames);
     }
   }, [games]);
 
-  // Use the renamed component
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
       <div className="container mx-auto px-4 py-8 pt-20">
@@ -41,9 +34,9 @@ const Crash = () => {
           </p>
         </div>
         
-        {loading ? (
+        {isLoadingGames ? (
           <GameSectionLoading />
-        ) : error ? (
+        ) : gamesError ? (
           <div className="text-center py-12">
             <p className="text-xl mb-4">Failed to load crash games.</p>
             <Button onClick={retryLoading}>Retry</Button>

@@ -1,28 +1,77 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-// import { promotionService } from '@/services/promotionService'; // Real service
-import { Promotion, PromotionType } from '@/types'; // Ensure PromotionType is imported
+import { Promotion, PromotionType } from '@/types';
 import PromotionCard from '@/components/promotions/PromotionCard';
 import AppLayout from '@/components/layout/AppLayout';
 import { Loader2, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-// import { bonusService } from '@/services/bonusService'; // If claiming directly creates a UserBonus
 
 // Mock services
 const mockPromotionService = {
   getAvailablePromotions: async (): Promise<Promotion[]> => {
     await new Promise(res => setTimeout(res, 500));
     return [
-      { id: 'promo1', title: 'Grand Welcome Offer', description: 'Get a massive bonus on your first deposit to kickstart your adventure.', type: 'deposit_bonus' as PromotionType, valid_from: new Date(Date.now() - 86400000*2).toISOString() , valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), cta_text: 'Claim Bonus', image_url: '/placeholder.svg', code: 'GRAND150', min_deposit: 20, bonus_percentage: 150, max_bonus_amount: 300, wagering_requirement: 35 },
-      { id: 'promo2', title: 'Weekly Free Spins Fiesta', description: 'Enjoy 75 free spins every Monday on our featured slot game!', type: 'free_spins' as PromotionType, valid_from: new Date(Date.now() - 86400000*1).toISOString(), valid_until: new Date(Date.now() + 86400000 * 5).toISOString(), cta_text: 'Get Your Spins', image_url: '/placeholder.svg', free_spins_count: 75, wagering_requirement: 25, terms_and_conditions_url: '#' },
-      { id: 'promo3', title: 'Weekend Cashback', description: 'Get 10% cashback on your net losses over the weekend.', type: 'cashback_offer' as PromotionType, valid_from: new Date(Date.now() - 86400000*0).toISOString(), valid_until: new Date(Date.now() + 86400000 * 2).toISOString(), cta_text: 'Opt-In', value: 10, terms_and_conditions_url: '#' },
-      { id: 'promo4', title: 'Upcoming Tournament', description: 'Join our upcoming slots tournament with a huge prize pool!', type: 'tournament' as PromotionType, valid_from: new Date(Date.now() + 86400000 * 3).toISOString(), valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), cta_text: 'Learn More', image_url: '/placeholder.svg', terms_and_conditions_url: '#' },
+      { 
+        id: 'promo1', 
+        title: 'Grand Welcome Offer', 
+        description: 'Get a massive bonus on your first deposit to kickstart your adventure.', 
+        type: 'deposit_bonus' as PromotionType, 
+        status: 'active' as const,
+        valid_from: new Date(Date.now() - 86400000*2).toISOString(), 
+        valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), 
+        cta_text: 'Claim Bonus', 
+        image_url: '/placeholder.svg', 
+        code: 'GRAND150', 
+        min_deposit: 20, 
+        bonus_percentage: 150, 
+        max_bonus_amount: 300, 
+        wagering_requirement: 35 
+      },
+      { 
+        id: 'promo2', 
+        title: 'Weekly Free Spins Fiesta', 
+        description: 'Enjoy 75 free spins every Monday on our featured slot game!', 
+        type: 'free_spins' as PromotionType, 
+        status: 'active' as const,
+        valid_from: new Date(Date.now() - 86400000*1).toISOString(), 
+        valid_until: new Date(Date.now() + 86400000 * 5).toISOString(), 
+        cta_text: 'Get Your Spins', 
+        image_url: '/placeholder.svg', 
+        free_spins_count: 75, 
+        wagering_requirement: 25, 
+        terms_and_conditions_url: '#' 
+      },
+      { 
+        id: 'promo3', 
+        title: 'Weekend Cashback', 
+        description: 'Get 10% cashback on your net losses over the weekend.', 
+        type: 'cashback_offer' as PromotionType, 
+        status: 'active' as const,
+        valid_from: new Date(Date.now() - 86400000*0).toISOString(), 
+        valid_until: new Date(Date.now() + 86400000 * 2).toISOString(), 
+        cta_text: 'Opt-In', 
+        value: 10, 
+        terms_and_conditions_url: '#' 
+      },
+      { 
+        id: 'promo4', 
+        title: 'Upcoming Tournament', 
+        description: 'Join our upcoming slots tournament with a huge prize pool!', 
+        type: 'tournament' as PromotionType, 
+        status: 'active' as const,
+        valid_from: new Date(Date.now() + 86400000 * 3).toISOString(), 
+        valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), 
+        cta_text: 'Learn More', 
+        image_url: '/placeholder.svg', 
+        terms_and_conditions_url: '#' 
+      },
     ];
   }
 };
-const mockBonusService = { // For claim action
+
+const mockBonusService = {
   claimBonus: async (userId: string, bonusCodeOrId: string): Promise<any> => {
     await new Promise(res => setTimeout(res, 1000));
     if (bonusCodeOrId === 'EXPIRED') throw new Error("This promotion is expired or invalid.");
@@ -31,8 +80,7 @@ const mockBonusService = { // For claim action
 };
 
 const promotionService = mockPromotionService;
-const bonusService = mockBonusService; // Assuming claim actions use bonus service
-
+const bonusService = mockBonusService;
 
 const PromotionsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -40,7 +88,7 @@ const PromotionsPage: React.FC = () => {
 
   const { data: promotions, isLoading, error } = useQuery<Promotion[], Error>({
     queryKey: ['allPromotions'],
-    queryFn: promotionService.getAvailablePromotions, // Or a different method if needed
+    queryFn: promotionService.getAvailablePromotions,
   });
 
   const handleClaimPromotion = async (promotion: Promotion) => {
@@ -48,14 +96,13 @@ const PromotionsPage: React.FC = () => {
       toast.error("Please log in to claim promotions.");
       return;
     }
-    if (promotion.id === claimingPromoId) return; // Already claiming this one
+    if (promotion.id === claimingPromoId) return;
 
     setClaimingPromoId(promotion.id);
     try {
       const claimIdentifier = promotion.code || promotion.id;
-      await bonusService.claimBonus(user.id, claimIdentifier); // Assuming claim through bonus service
+      await bonusService.claimBonus(user.id, claimIdentifier);
       toast.success(`Successfully claimed "${promotion.title}"!`);
-      // Potentially refetch user bonuses or promotions if list should update
     } catch (err: any) {
       toast.error(err.message || `Failed to claim "${promotion.title}".`);
     } finally {
@@ -64,11 +111,8 @@ const PromotionsPage: React.FC = () => {
   };
   
   const handleShowDetails = (promotion: Promotion) => {
-    // Navigate to a details page or show a modal
     toast.info(`Displaying details for: ${promotion.title} (UI not implemented)`);
-    // navigate(`/promotions/${promotion.id}`);
   };
-
 
   if (isLoading) {
     return (
@@ -131,4 +175,3 @@ const PromotionsPage: React.FC = () => {
 };
 
 export default PromotionsPage;
-

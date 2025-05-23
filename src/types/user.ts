@@ -50,8 +50,10 @@ export interface User extends UserProfile {
 // App user with auth data
 export interface AppUser extends User {
   username?: string;
-  role?: string;
+  role?: UserRole;
   vip_level?: number;
+  vipLevel?: number;
+  vipPoints?: number;
 }
 
 // Display user (simplified)
@@ -89,4 +91,25 @@ export interface UserSettings {
   time_format: '12h' | '24h';
   created_at: string;
   updated_at: string;
+}
+
+// Wallet type
+export interface WalletType {
+  id: string;
+  userId: string;
+  user_id: string;
+  balance: number;
+  currency: string;
+  symbol: string;
+  vipLevel: number;
+  vipPoints?: number;
+  bonusBalance?: number;
+  cryptoBalance?: number;
+  demoBalance?: number;
+  isActive: boolean;
+  lastTransactionDate?: Date;
+  hide_balance: boolean;
+  total_bet: number;
+  total_won: number;
+  total_lose: number;
 }

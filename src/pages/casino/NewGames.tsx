@@ -1,24 +1,25 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import GameCard from '@/components/games/GameCard';
 import { useGames } from '@/hooks/useGames';
-import { Game, GameCategory } from '@/types'; // GameCategory from useGames context
+import { Game, GameCategory } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, FilterX } from 'lucide-react';
-import { Button } from '@/components/ui/button'; // For Load More
-import { useNavigate } from 'react-router-dom'; // For navigation on play
-import { toast } from 'sonner'; // For notifications
-import { useAuth } from '@/contexts/AuthContext'; // For auth status
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ITEMS_PER_PAGE = 18;
 
 const NewGames = () => {
   const { 
-    categories, // GameCategory[] from context {id, name, slug, icon}
+    categories,
     games, 
-    isLoading: loading, 
-    error, 
+    isLoadingGames, 
+    gamesError, 
     favoriteGameIds, 
     toggleFavoriteGame,
     launchGame 
@@ -30,135 +31,124 @@ const NewGames = () => {
 
   const newGames = React.useMemo(() => {
     return games
-      .filter(game => game.isNew) // Ensure isNew is correctly mapped
+      .filter(game => game.isNew)
       .sort((a, b) => new Date(b.releaseDate || b.created_at || 0).getTime() - new Date(a.releaseDate || a.created_at || 0).getTime());
   }, [games]);
 
-  const gamesToDisplayFilteredByCategory = React.useMemo(() => {
-    if (activeCategorySlug === 'all') {
-      return newGames;
+  const gamesToDisplay = React.useMemo(() => {
+    let filtered = newGames;
+    
+    if (activeCategorySlug !== 'all') {
+      filtered = newGames.filter(game => 
+        game.category_id === activeCategorySlug ||
+        (Array.isArray(game.category_slugs) && game.category_slugs.includes(activeCategorySlug))
+      );
     }
-    return newGames.filter(game => 
-      (Array.isArray(game.category_slugs) && game.category_slugs.includes(activeCategorySlug)) || 
-      game.category === activeCategorySlug || // Fallback for older data
-      game.categoryName === activeCategorySlug // Fallback for display name
-    );
-  }, [newGames, activeCategorySlug]);
-
-  const gamesToDisplayPaginated = React.useMemo(() => {
-    return gamesToDisplayFilteredByCategory.slice(0, visibleCount);
-  }, [gamesToDisplayFilteredByCategory, visibleCount]);
+    
+    return filtered.slice(0, visibleCount);
+  }, [newGames, activeCategorySlug, visibleCount]);
 
   const hasMore = React.useMemo(() => {
-    return visibleCount < gamesToDisplayFilteredByCategory.length;
-  }, [visibleCount, gamesToDisplayFilteredByCategory.length]);
+    let totalFiltered = newGames;
+    if (activeCategorySlug !== 'all') {
+      totalFiltered = newGames.filter(game => 
+        game.category_id === activeCategorySlug ||
+        (Array.isArray(game.category_slugs) && game.category_slugs.includes(activeCategorySlug))
+      );
+    }
+    return visibleCount < totalFiltered.length;
+  }, [newGames, activeCategorySlug, visibleCount]);
 
-  const loadMoreGames = () => {
+  const loadMore = () => {
     setVisibleCount(prev => prev + ITEMS_PER_PAGE);
   };
 
-  React.useEffect(() => {
-    setVisibleCount(ITEMS_PER_PAGE); // Reset pagination on category change
-  }, [activeCategorySlug]);
-
-  const handlePlayGame = async (game: Game) => {
-    if (!isAuthenticated) {
-      toast.error("Please log in to play.");
-      navigate('/login');
-      return;
-    }
+  const handleGameClick = async (game: Game) => {
     try {
-      const gameUrl = await launchGame(game, { mode: 'real' });
+      const mode = isAuthenticated ? 'real' : 'demo';
+      const gameUrl = await launchGame(game, { mode });
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
-        toast.error("Could not launch game.");
+        navigate(`/casino/game/${game.slug || game.id}`);
       }
-    } catch (e: any) {
-      toast.error("Error launching game: " + e.message);
+    } catch (error: any) {
+      toast.error(`Error launching game: ${error.message}`);
     }
   };
 
-
-  if (loading && gamesToDisplayPaginated.length === 0) {
+  if (isLoadingGames) {
     return (
-      <div className="container mx-auto py-6 px-2 sm:px-4 md:px-6 lg:px-8">
-        <Skeleton className="h-8 w-1/3 mb-6 bg-slate-700" />
-        <Skeleton className="h-10 w-full mb-6 bg-slate-700" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg bg-slate-700" />)}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-full rounded-lg" />
+          ))}
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (gamesError) {
     return (
-      <div className="container mx-auto py-10 px-4 text-center">
-        <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Error Loading Games</h2>
-        <p className="text-muted-foreground">{String(error)}</p>
+      <div className="container mx-auto px-4 py-8 text-center">
+        <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <p className="text-red-500 mb-4">Error loading new games: {String(gamesError)}</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     );
   }
 
-  // Filter categories to only show those that have new games
-  const relevantCategories = categories.filter(cat => 
-    newGames.some(game => 
-      (Array.isArray(game.category_slugs) && game.category_slugs.includes(cat.slug)) || 
-      game.category === cat.slug ||
-      game.categoryName === cat.slug
-    )
-  );
-
   return (
-    <div className="container mx-auto py-6 px-2 sm:px-4 md:px-6 lg:px-8">
-      <h1 className="text-3xl font-bold mb-6">Newest Games</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6 text-center">New Games</h1>
       
-      {relevantCategories.length > 0 && (
-        <Tabs defaultValue="all" onValueChange={setActiveCategorySlug} className="mb-6">
-          <ScrollArea className="w-full whitespace-nowrap rounded-md border border-border">
-            <TabsList className="p-2 bg-card">
-              <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">All New</TabsTrigger>
-              {relevantCategories.map((category: GameCategory) => ( // Explicitly type category from context
-                <TabsTrigger key={category.id || category.slug} value={category.slug} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+      <Tabs value={activeCategorySlug} onValueChange={setActiveCategorySlug} className="w-full">
+        <div className="mb-6">
+          <ScrollArea className="w-full whitespace-nowrap">
+            <TabsList className="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground">
+              <TabsTrigger value="all" className="px-4">All Categories</TabsTrigger>
+              {categories.map((category) => (
+                <TabsTrigger key={category.id} value={category.slug} className="px-4">
                   {category.name}
                 </TabsTrigger>
               ))}
             </TabsList>
             <ScrollBar orientation="horizontal" />
           </ScrollArea>
-        </Tabs>
-      )}
-
-      {gamesToDisplayPaginated.length > 0 ? (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {gamesToDisplayPaginated.map((game) => (
-              <GameCard
-                key={game.id}
-                game={game}
-                isFavorite={favoriteGameIds.has(String(game.id))}
-                onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
-                onPlay={() => handlePlayGame(game)}
-              />
-            ))}
-          </div>
-          {hasMore && (
-            <div className="text-center mt-8">
-              <Button onClick={loadMoreGames} variant="outline" disabled={loading}>
-                {loading ? 'Loading...' : 'Load More New Games'}
-              </Button>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-10">
-           <FilterX className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-xl text-muted-foreground">No new games found {activeCategorySlug !== 'all' ? `in this category` : ''}.</p>
-          <p className="mt-2 text-sm text-muted-foreground">Check back later or explore other categories!</p>
         </div>
-      )}
+
+        <TabsContent value={activeCategorySlug} className="mt-6">
+          {gamesToDisplay.length === 0 ? (
+            <div className="text-center py-12">
+              <FilterX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No new games found in this category.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                {gamesToDisplay.map((game) => (
+                  <GameCard 
+                    key={game.id}
+                    game={game}
+                    onPlay={handleGameClick}
+                    onToggleFavorite={toggleFavoriteGame}
+                    isFavorite={favoriteGameIds.has(String(game.id))}
+                  />
+                ))}
+              </div>
+              
+              {hasMore && (
+                <div className="text-center mt-8">
+                  <Button onClick={loadMore} variant="outline">
+                    Load More Games
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

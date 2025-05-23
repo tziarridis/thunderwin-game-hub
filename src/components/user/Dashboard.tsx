@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import UserPageLoadingSkeleton from '@/components/user/UserPageLoadingSkeleton';
 import { toast } from 'sonner';
+import { AppUser } from '@/types';
 
 const UserDashboard: React.FC = () => {
   const { user, isLoading, error, fetchAndUpdateUser } = useAuth();
@@ -32,11 +33,17 @@ const UserDashboard: React.FC = () => {
     );
   }
 
+  // Convert AppUser to User format for UserStats component
+  const userForStats: AppUser = {
+    ...user,
+    role: user.role || 'user'
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Welcome, {user.username || user.email}!</h1>
       
-      <UserStats user={user} />
+      <UserStats user={userForStats} />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UserActivity />

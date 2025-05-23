@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Game, DbGame, GameStatusEnum } from '@/types/game';
-import { gameService } from '@/services/gameService';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface UseGamesDataProps {
@@ -36,6 +36,37 @@ const mapDbGameToGame = (dbGame: DbGame): Game => ({
   updated_at: dbGame.updated_at || new Date().toISOString()
 });
 
+// Mock game service for getAllGames
+const mockGameService = {
+  getAllGames: async (options: any = {}): Promise<GamesResult> => {
+    const { limit = 100, offset = 0 } = options;
+    
+    try {
+      let query = supabase.from('games').select('*, providers:provider_id(*)', { count: 'exact' });
+      
+      // Apply pagination
+      query = query.range(offset, offset + limit - 1);
+      
+      const { data, error, count } = await query;
+      
+      if (error) throw error;
+      
+      // Map DB games to Game interface
+      const mappedGames = (data || []).map((dbGame: any) => {
+        return mapDbGameToGame(dbGame);
+      });
+      
+      return { 
+        games: mappedGames,
+        count: count || 0
+      };
+    } catch (error) {
+      console.error('Error fetching games:', error);
+      return { games: [], count: 0 };
+    }
+  }
+};
+
 export const useGamesData = ({
   category,
   provider,
@@ -58,7 +89,7 @@ export const useGamesData = ({
     try {
       setLoading(true);
       
-      const result = await gameService.getAllGames({
+      const result = await mockGameService.getAllGames({
         limit,
         offset: currentOffset,
         category,
@@ -69,7 +100,7 @@ export const useGamesData = ({
         latest,
       });
       
-      const fetchedGames = result.games.map(mapDbGameToGame);
+      const fetchedGames = result.games;
       const count = result.count;
 
       if (replace) {

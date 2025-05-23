@@ -1,137 +1,255 @@
 
-import React from 'react';
-import { useForm, SubmitHandler, FieldValues, UseFormRegister } from 'react-hook-form'; // Ensure FieldValues is imported
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea'; // Assuming Textarea might be used
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
-import { KycDocumentType } from '@/types/kyc'; // Assuming this type exists for document types
+import { Upload, FileText, CheckCircle } from 'lucide-react';
+import { KycDocumentTypeEnum, KycStatusEnum } from '@/types/kyc';
 
-// Define the Zod schema for KYC form validation
-const kycFormSchema = z.object({
-  fullName: z.string().min(3, "Full name must be at least 3 characters"),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date of birth must be YYYY-MM-DD"),
-  addressLine1: z.string().min(5, "Address is too short"),
-  city: z.string().min(2, "City name is too short"),
-  postalCode: z.string().min(3, "Postal code is too short"),
-  country: z.string().min(2, "Country name is too short"),
-  documentType: z.nativeEnum(KycDocumentType), // Use nativeEnum for string enums
-  documentNumber: z.string().min(5, "Document number is too short"),
-  documentFile: z.custom<FileList>().refine(files => files && files.length > 0, "Document file is required."),
-  // Add more fields as necessary
-});
-
-export type KycFormValues = z.infer<typeof kycFormSchema>; // This will extend FieldValues by default if schema is complex enough
-
-interface KycFormProps {
-  onSubmit: (data: KycFormValues, documentFile: File) => Promise<void>;
-  isLoading: boolean;
-  initialData?: Partial<KycFormValues>;
+interface KycFormData {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  documentType: string;
+  documentNumber: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  country: string;
 }
 
-const KycForm: React.FC<KycFormProps> = ({ onSubmit, isLoading, initialData }) => {
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<KycFormValues>({
-    resolver: zodResolver(kycFormSchema),
-    defaultValues: initialData || { documentType: KycDocumentType.ID_CARD }, // Set a default document type
+const KycForm: React.FC = () => {
+  const [formData, setFormData] = useState<KycFormData>({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    documentType: '',
+    documentNumber: '',
+    address: '',
+    city: '',
+    postalCode: '',
+    country: ''
   });
+  
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedFile = watch("documentFile");
+  const documentTypes = Object.values(KycDocumentTypeEnum);
 
-  const handleFormSubmit: SubmitHandler<KycFormValues> = async (data) => {
-    if (data.documentFile && data.documentFile.length > 0) {
-      await onSubmit(data, data.documentFile[0]);
-    } else {
-      toast.error("Please select a document file to upload.");
+  const handleInputChange = (field: keyof KycFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      toast.success(`${newFiles.length} file(s) uploaded successfully`);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      // Mock submission
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success('KYC documents submitted successfully! Review typically takes 1-3 business days.');
+      
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        dateOfBirth: '',
+        documentType: '',
+        documentNumber: '',
+        address: '',
+        city: '',
+        postalCode: '',
+        country: ''
+      });
+      setUploadedFiles([]);
+    } catch (error) {
+      toast.error('Failed to submit KYC documents. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {/* Personal Details Section */}
-      <fieldset className="space-y-4 p-4 border rounded-md">
-        <legend className="text-lg font-semibold px-1">Personal Details</legend>
-        <div>
-          <Label htmlFor="fullName">Full Name</Label>
-          <Input id="fullName" {...register("fullName")} className="bg-input" />
-          {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="dateOfBirth">Date of Birth (YYYY-MM-DD)</Label>
-          <Input id="dateOfBirth" type="date" {...register("dateOfBirth")} className="bg-input" />
-          {errors.dateOfBirth && <p className="text-sm text-destructive mt-1">{errors.dateOfBirth.message}</p>}
-        </div>
-      </fieldset>
+    <div className="container mx-auto py-8 px-4 max-w-2xl">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Identity Verification (KYC)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Please provide the required documents to verify your identity and comply with regulations.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-      {/* Address Section */}
-      <fieldset className="space-y-4 p-4 border rounded-md">
-        <legend className="text-lg font-semibold px-1">Address</legend>
-        <div>
-          <Label htmlFor="addressLine1">Address Line 1</Label>
-          <Input id="addressLine1" {...register("addressLine1")} className="bg-input" />
-          {errors.addressLine1 && <p className="text-sm text-destructive mt-1">{errors.addressLine1.message}</p>}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
+              <Label htmlFor="dateOfBirth">Date of Birth</Label>
+              <Input
+                id="dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="documentType">Document Type</Label>
+                <Select value={formData.documentType} onValueChange={(value) => handleInputChange('documentType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {documentTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="documentNumber">Document Number</Label>
+                <Input
+                  id="documentNumber"
+                  value={formData.documentNumber}
+                  onChange={(e) => handleInputChange('documentNumber', e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={formData.address}
+                onChange={(e) => handleInputChange('address', e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
                 <Label htmlFor="city">City</Label>
-                <Input id="city" {...register("city")} className="bg-input" />
-                {errors.city && <p className="text-sm text-destructive mt-1">{errors.city.message}</p>}
-            </div>
-            <div>
+                <Input
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => handleInputChange('city', e.target.value)}
+                  required
+                />
+              </div>
+              <div>
                 <Label htmlFor="postalCode">Postal Code</Label>
-                <Input id="postalCode" {...register("postalCode")} className="bg-input" />
-                {errors.postalCode && <p className="text-sm text-destructive mt-1">{errors.postalCode.message}</p>}
-            </div>
-            <div>
+                <Input
+                  id="postalCode"
+                  value={formData.postalCode}
+                  onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                  required
+                />
+              </div>
+              <div>
                 <Label htmlFor="country">Country</Label>
-                <Input id="country" {...register("country")} className="bg-input" />
-                {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
+                <Input
+                  id="country"
+                  value={formData.country}
+                  onChange={(e) => handleInputChange('country', e.target.value)}
+                  required
+                />
+              </div>
             </div>
-        </div>
-      </fieldset>
-      
-      {/* Document Upload Section */}
-      <fieldset className="space-y-4 p-4 border rounded-md">
-        <legend className="text-lg font-semibold px-1">Document Upload</legend>
-        <div>
-          <Label htmlFor="documentType">Document Type</Label>
-          <Select
-            onValueChange={(value) => setValue("documentType", value as KycDocumentType)}
-            defaultValue={initialData?.documentType || KycDocumentType.ID_CARD}
-          >
-            <SelectTrigger className="bg-input">
-              <SelectValue placeholder="Select document type" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.values(KycDocumentType).map(type => (
-                <SelectItem key={type} value={type}>{type.replace('_', ' ')}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.documentType && <p className="text-sm text-destructive mt-1">{errors.documentType.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="documentNumber">Document Number</Label>
-          <Input id="documentNumber" {...register("documentNumber")} className="bg-input" />
-          {errors.documentNumber && <p className="text-sm text-destructive mt-1">{errors.documentNumber.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="documentFile">Upload Document</Label>
-          <Input id="documentFile" type="file" {...register("documentFile")} className="bg-input file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90" />
-          {selectedFile && selectedFile.length > 0 && <p className="text-xs text-muted-foreground mt-1">Selected: {selectedFile[0].name}</p>}
-          {errors.documentFile && <p className="text-sm text-destructive mt-1">{errors.documentFile.message}</p>}
-        </div>
-      </fieldset>
 
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Submit KYC Information
-      </Button>
-    </form>
+            <div>
+              <Label>Upload Documents</Label>
+              <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-600 mb-2">
+                  Upload clear photos of your documents (front and back if applicable)
+                </p>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <Button type="button" variant="outline" onClick={() => document.getElementById('file-upload')?.click()}>
+                  Choose Files
+                </Button>
+              </div>
+              
+              {uploadedFiles.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <Label>Uploaded Files:</Label>
+                  {uploadedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">{file.name}</span>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)}>
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Submit KYC Documents
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

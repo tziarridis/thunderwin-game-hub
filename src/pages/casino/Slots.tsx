@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useGames } from '@/hooks/useGames';
 import { Game, GameProvider as ProviderType, GameCategory } from '@/types'; 
@@ -15,10 +16,8 @@ const ITEMS_PER_PAGE = 24;
 const Slots = () => {
   const { 
     games: allGames, 
-    isLoading: isLoadingGamesGlobal, 
-    error: gamesErrorGlobal, 
-    filterGames, 
-    filteredGames, 
+    isLoadingGames, 
+    gamesError, 
     providers: gameProvidersFromContext, 
     categories: gameCategoriesFromContext, 
     launchGame 
@@ -28,18 +27,36 @@ const Slots = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProviderSlug, setSelectedProviderSlug] = useState<string | undefined>(undefined);
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   
   const slotsCategorySlug = useMemo(() => {
     const slotsCat = gameCategoriesFromContext.find(cat => cat.name.toLowerCase().includes('slots') || cat.slug.toLowerCase().includes('slots'));
     return slotsCat?.slug || 'slots'; 
   }, [gameCategoriesFromContext]);
 
+  // Filter games based on search and provider
   useEffect(() => {
-    if (slotsCategorySlug) {
-      filterGames(searchTerm, slotsCategorySlug, selectedProviderSlug);
-    }
-    setVisibleCount(ITEMS_PER_PAGE); 
-  }, [searchTerm, selectedProviderSlug, slotsCategorySlug, filterGames]);
+    let filtered = allGames.filter(game => {
+      // Filter by slots category
+      const isSlot = game.category_id === slotsCategorySlug || 
+                    (Array.isArray(game.category_slugs) && game.category_slugs.includes(slotsCategorySlug));
+      
+      // Filter by search term
+      const matchesSearch = !searchTerm || 
+                           game.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           game.provider_slug?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Filter by provider
+      const matchesProvider = !selectedProviderSlug || 
+                             game.provider_slug === selectedProviderSlug ||
+                             String(game.provider_id) === selectedProviderSlug;
+      
+      return isSlot && matchesSearch && matchesProvider;
+    });
+    
+    setFilteredGames(filtered);
+    setVisibleCount(ITEMS_PER_PAGE);
+  }, [searchTerm, selectedProviderSlug, slotsCategorySlug, allGames]);
 
   const displayedGames = useMemo(() => {
     return filteredGames.slice(0, visibleCount);
@@ -76,7 +93,7 @@ const Slots = () => {
     }
   };
 
-  if (gamesErrorGlobal) return <p className="text-red-500 text-center py-10">Error loading slot games: {String(gamesErrorGlobal)}</p>;
+  if (gamesError) return <p className="text-red-500 text-center py-10">Error loading slot games: {String(gamesError)}</p>;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -111,7 +128,7 @@ const Slots = () => {
         </Select>
       </div>
 
-      {isLoadingGamesGlobal && displayedGames.length === 0 ? (
+      {isLoadingGames && displayedGames.length === 0 ? (
          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
            {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-lg bg-slate-700" />)}
          </div>
@@ -123,19 +140,19 @@ const Slots = () => {
           />
           {hasMore && (
             <div className="text-center mt-8">
-              <Button onClick={loadMoreGames} variant="outline" disabled={isLoadingGamesGlobal}>
-                {isLoadingGamesGlobal ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</>) : 'Load More Slots'}
+              <Button onClick={loadMoreGames} variant="outline" disabled={isLoadingGames}>
+                {isLoadingGames ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</>) : 'Load More Slots'}
               </Button>
             </div>
           )}
-          {!isLoadingGamesGlobal && displayedGames.length === 0 && (searchTerm || selectedProviderSlug) && (
+          {!isLoadingGames && displayedGames.length === 0 && (searchTerm || selectedProviderSlug) && (
             <div className="text-center py-10">
               <FilterX className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground">No slot games match your current filters.</p>
               <Button variant="link" onClick={() => { setSearchTerm(''); setSelectedProviderSlug(undefined); }}>Clear filters</Button>
             </div>
           )}
-           {!isLoadingGamesGlobal && displayedGames.length === 0 && !searchTerm && !selectedProviderSlug && (
+           {!isLoadingGames && displayedGames.length === 0 && !searchTerm && !selectedProviderSlug && (
             <div className="text-center py-10">
               <p className="text-muted-foreground">No slot games available at the moment.</p>
             </div>

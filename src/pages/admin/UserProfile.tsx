@@ -1,154 +1,155 @@
 
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { userService } from '@/services/userService';
-import { User, UserRole, KycStatus as KycStatusEnum } from '@/types';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import UserInfoForm from '@/components/admin/UserInfoForm';
-import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { ArrowLeft, Edit, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from 'date-fns';
+import { User, UserRole } from '@/types';
 
-const availableRoles: UserRole[] = ['user', 'admin', 'support', 'manager', 'vip_player', 'affiliate'];
-const availableStatuses: User['status'][] = ['active', 'inactive', 'pending_verification', 'banned', 'restricted'];
+// Mock user data
+const mockUser: User = {
+  id: '1',
+  email: 'user@example.com',
+  username: 'testuser',
+  role: UserRole.USER,
+  balance: 1000,
+  status: 'active',
+  created_at: new Date().toISOString()
+};
 
-const AdminUserProfilePage: React.FC = () => {
-  const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [isEditingInfo, setIsEditingInfo] = useState(false);
+const roleOptions = [
+  { value: UserRole.USER, label: 'User' },
+  { value: UserRole.ADMIN, label: 'Admin' },
+  { value: UserRole.SUPPORT, label: 'Support' },
+  { value: UserRole.MANAGER, label: 'Manager' },
+  { value: UserRole.VIP_PLAYER, label: 'VIP Player' },
+  { value: UserRole.AFFILIATE, label: 'Affiliate' }
+];
 
-  const { data: user, isLoading, error } = useQuery<User, Error>({
-    queryKey: ['adminUser', userId],
-    queryFn: () => userService.getUserById(userId!),
-    enabled: !!userId,
-  });
+const UserProfile: React.FC = () => {
+  const [user, setUser] = useState<User>(mockUser);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState<User>(mockUser);
 
-  const updateUserMutation = useMutation({
-    mutationFn: (updatedData: Partial<User>) => userService.updateUser(userId!, updatedData),
-    onSuccess: (updatedUser) => {
-      queryClient.setQueryData(['adminUser', userId], updatedUser);
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
-      toast.success('User profile updated successfully!');
-      setIsEditingInfo(false);
-    },
-    onError: (updateError: Error) => {
-      toast.error(`Failed to update user: ${updateError.message}`);
-    },
-  });
-
-  if (isLoading) return <AdminPageLayout title="User Profile"><div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></AdminPageLayout>;
-  if (error) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">Error loading user: {error.message}</div></AdminPageLayout>;
-  if (!user) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">User not found.</div></AdminPageLayout>;
-
-  const handleInfoSubmit = async (userData: User): Promise<void> => {
-    updateUserMutation.mutate(userData);
+  const handleEdit = () => {
+    setIsEditing(true);
+    setFormData(user);
   };
 
-  const breadcrumbs = [
-      { label: "Admin", href: "/admin" },
-      { label: "Users", href: "/admin/users" },
-      { label: user.username || user.email || userId! }
-  ];
+  const handleCancel = () => {
+    setIsEditing(false);
+    setFormData(user);
+  };
 
-  const headerActions = (
-    <div className="flex gap-2">
-        <Button variant="outline" onClick={() => setIsEditingInfo(!isEditingInfo)} disabled={updateUserMutation.isPending}>
-            <Edit className="mr-2 h-4 w-4" /> {isEditingInfo ? 'Cancel Edit' : 'Edit User Info'}
-        </Button>
-    </div>
-  );
+  const handleSave = async () => {
+    try {
+      // Mock save operation
+      setUser(formData);
+      setIsEditing(false);
+      toast.success('User profile updated successfully');
+    } catch (error) {
+      toast.error('Failed to update user profile');
+    }
+  };
+
+  const handleInputChange = (field: keyof User, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
   return (
-    <AdminPageLayout title={`User Profile: ${user.username || user.email}`} breadcrumbs={breadcrumbs} headerActions={headerActions}>
-      <Button variant="ghost" onClick={() => navigate('/admin/users')} className="mb-4">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users List
-      </Button>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-                <span>{user.username || 'N/A'}</span>
-                <Badge variant={user.is_active ? 'default' : 'destructive'}>{user.is_active ? 'Active' : 'Inactive'}</Badge>
-            </CardTitle>
-            <CardDescription>{user.email}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p><strong>ID:</strong> {user.id}</p>
-            <p><strong>Role:</strong> <Badge variant="secondary">{user.role || 'N/A'}</Badge></p>
-            <p><strong>Status:</strong> <Badge variant={user.status === 'active' ? 'default' : 'outline'}>{user.status || 'N/A'}</Badge></p>
-            <p><strong>Joined:</strong> {format(new Date(user.created_at), 'PPpp')}</p>
-            <p><strong>Last Login:</strong> {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'PPpp') : 'N/A'}</p>
-            <p><strong>KYC Status:</strong> <KycStatusDisplay status={user.kyc_status as KycStatusEnum || 'not_started'} /></p>
-            <p><strong>Balance:</strong> {user.balance?.toFixed(2) || '0.00'} {user.currency || 'N/A'}</p>
-          </CardContent>
-        </Card>
-
-        <div className="md:col-span-2">
-          {isEditingInfo ? (
-            <Card>
-              <CardHeader><CardTitle>Edit User Information</CardTitle></CardHeader>
-              <CardContent>
-                <UserInfoForm 
-                    initialData={{
-                        username: user.username || '',
-                        email: user.email || '',
-                        first_name: user.first_name || '',
-                        last_name: user.last_name || '',
-                        role: user.role,
-                        status: user.status,
-                        is_active: user.is_active,
-                        is_banned: user.is_banned,
-                        is_verified: user.is_verified,
-                    }} 
-                    onSubmit={handleInfoSubmit} 
-                    isLoading={updateUserMutation.isPending}
-                    availableRoles={availableRoles}
-                    availableUserStatuses={availableStatuses}
+    <div className="container mx-auto py-8 px-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>User Profile</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="username">Username</Label>
+              {isEditing ? (
+                <Input
+                  id="username"
+                  value={formData.username || ''}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
                 />
-              </CardContent>
-            </Card>
-          ) : (
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                <TabsTrigger value="activity">Activity Log</TabsTrigger>
-                <TabsTrigger value="settings">User Settings</TabsTrigger>
-              </TabsList>
-              <TabsContent value="overview" className="mt-4">
-                <Card>
-                  <CardHeader><CardTitle>Detailed Information</CardTitle></CardHeader>
-                  <CardContent>
-                    <p><strong>First Name:</strong> {user.first_name || 'N/A'}</p>
-                    <p><strong>Last Name:</strong> {user.last_name || 'N/A'}</p>
-                    <p><strong>Phone:</strong> {user.phone_number || 'N/A'}</p>
-                    <p><strong>Date of Birth:</strong> {user.date_of_birth ? format(new Date(user.date_of_birth), 'PP') : 'N/A'}</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              <TabsContent value="transactions" className="mt-4">
-                <p>User transactions list placeholder.</p>
-              </TabsContent>
-              <TabsContent value="activity" className="mt-4">
-                <p>User activity log placeholder.</p>
-              </TabsContent>
-              <TabsContent value="settings" className="mt-4">
-                <p>User specific settings and controls placeholder (e.g., limits, 2FA status).</p>
-              </TabsContent>
-            </Tabs>
-          )}
-        </div>
-      </div>
-    </AdminPageLayout>
+              ) : (
+                <p className="mt-1">{user.username}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="email">Email</Label>
+              {isEditing ? (
+                <Input
+                  id="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                />
+              ) : (
+                <p className="mt-1">{user.email}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="role">Role</Label>
+              {isEditing ? (
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => handleInputChange('role', value as UserRole)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="mt-1 capitalize">{user.role}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="balance">Balance</Label>
+              {isEditing ? (
+                <Input
+                  id="balance"
+                  type="number"
+                  value={formData.balance || 0}
+                  onChange={(e) => handleInputChange('balance', parseFloat(e.target.value))}
+                />
+              ) : (
+                <p className="mt-1">${user.balance || 0}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2">
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave}>
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <Button onClick={handleEdit}>
+                Edit Profile
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
-export default AdminUserProfilePage;
+export default UserProfile;
