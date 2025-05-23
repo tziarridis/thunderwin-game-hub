@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Moon, Sun, Menu, LogOut, User, Settings, HelpCircle, Home, Plus, LayoutDashboard } from 'lucide-react';
+import { Moon, Sun, Menu, LogOut, User, Settings, HelpCircle, Home, Plus, LayoutDashboard, Gift, LogIn } from 'lucide-react'; // Added Gift, LogIn
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,11 +18,11 @@ const AppHeader = () => {
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout, isAdmin } = useAuth(); // Changed signOut to logout
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await logout(); // Use logout from AuthContext
+      await logout();
       // navigate('/'); // or to login page
     } catch (error) {
       console.error("Logout failed:", error);

@@ -49,8 +49,13 @@ const UserDashboard: React.FC = () => {
       <UserStats user={user as AppUser} /> {/* Cast to AppUser if UserStats expects it */}
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UserActivity userId={user.id} />
-        <VipProgress userId={user.id} />
+        {/* UserActivity does not take userId prop based on its definition */}
+        <UserActivity /> 
+        {/* VipProgress does not take userId prop based on its definition, it takes wallet or direct points/level */}
+        <VipProgress 
+            currentLevel={user.vip_level_id ? parseInt(user.vip_level_id) : undefined} // Example: adapt if vip_level_id is not number
+            currentPoints={user.user_metadata?.vip_points} // Example: adapt based on where vip_points are stored
+        />
       </div>
 
       {/* Quick Actions or Links */}

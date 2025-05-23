@@ -1,7 +1,7 @@
 
-import { KycStatus, UserRole as AppUserRole } from './'; // Import KycStatus and AppUserRole from index.d.ts or kyc.ts/user.ts respectively
-
-// Define UserRole here if not already in a central place or imported
+// Ensure KycStatus is imported or defined if used by DisplayUser or User
+// import { KycStatus } from './kyc'; 
+// For UserRole, define it here and export. Remove any circular imports of it.
 export type UserRole = 'user' | 'admin' | 'support' | 'manager' | 'vip_player' | 'affiliate'; // Add other roles as needed
 
 export interface LoginCredentials {
@@ -17,8 +17,8 @@ export interface RegisterCredentials {
   phone?: string;
   password?: string;
   username?: string;
-  firstName?: string;
-  lastName?: string;
+  firstName?: string; // Changed from first_name for consistency with common frontend patterns
+  lastName?: string;  // Changed from last_name
   // Add other fields required for registration
 }
 
@@ -60,13 +60,13 @@ export interface DisplayUser {
   joinedDate?: string; // Formatted date
   lastLogin?: string; // Formatted date
   isOnline?: boolean;
-  kycStatus?: KycStatus;
+  // kycStatus?: KycStatus; // Uncomment if KycStatus is available
   vipLevel?: number | string; // Display representation
 }
 
 // For AuthContext or similar contexts providing user state
 export interface UserContextType {
-  user: User | null; // Using the more comprehensive User type
+  user: User | null; // Using the more comprehensive User type from index.d.ts
   isAuthenticated: boolean;
   isLoading: boolean;
   error?: string | null;

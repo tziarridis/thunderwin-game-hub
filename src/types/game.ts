@@ -1,4 +1,3 @@
-
 // Game Enums (can be extended)
 export enum GameStatusEnum {
   ACTIVE = "active",
@@ -35,12 +34,12 @@ export interface GameProvider {
   id: string | number;
   name: string;
   slug: string;
-  logoUrl?: string;
+  logoUrl?: string; // Changed from logo_url to match common usage
   description?: string;
-  isActive?: boolean;
+  isActive?: boolean; // Added from original type, ensure it's desired
   games_count?: number;
-  status?: 'active' | 'inactive' | 'coming_soon';
-  games?: Game[];
+  status?: 'active' | 'inactive' | 'coming_soon'; // from original
+  games?: Game[]; // from original
 }
 
 // Game Category
@@ -49,12 +48,13 @@ export interface GameCategory {
   name: string;
   slug: string;
   description?: string;
-  icon?: string;
-  image_url?: string;
-  parent_id?: string | number;
-  order?: number;
-  icon_svg?: string;
-  game_ids?: string[];
+  icon?: string; // from original
+  image_url?: string; // from original
+  parent_id?: string | number; // from original
+  order?: number; // from original
+  icon_svg?: string; // from original
+  game_ids?: string[]; // from original
+  game_count?: number; // Added to match usage in GamesManagement mock
 }
 
 // Game Launch Options
@@ -121,49 +121,66 @@ export interface Game {
 }
 
 // Database Game Structure
+// This is DbGame that was causing import issues, ensure it's defined or aliased correctly.
+// If this is intended to be different from GameDBModel in database.ts, define it fully.
+// Assuming DbGame from game.ts is the one intended in GamesManagement.tsx.
 export interface DbGame {
-  id: string;
-  game_id: string;
-  game_name: string;
+  id: string; // Changed from bigint to string for consistency if supabase returns string UUIDs primarily
+  game_id: string; // External game identifier
+  title?: string; // game_name often used as title
+  game_name: string; 
   slug?: string;
-  provider_id?: string | null;
-  provider_slug?: string | null;
-  game_type?: string | null;
-  category_slugs?: string[] | null;
+  
+  provider_id?: string | number | null; // Can be UUID string or number depending on DB schema for providers table
+  provider_slug?: string | null; // Denormalized for easier querying/display
+  // provider?: { id?: string; name: string; slug?: string } | null; // Relation, if joined
+
+  game_type?: string | null; // e.g., 'slot', 'table_game', 'live_casino'
+  category_slugs?: string[] | null; // Array of slugs if game belongs to multiple categories
+  // category_id?: string | number | null; // If single category relation
+
   description?: string | null;
-  cover?: string | null;
-  banner_url?: string | null;
-  banner?: string | null;
-  image_url?: string | null;
-  rtp?: number | string | null;
+  cover?: string | null; // URL to cover image
+  banner_url?: string | null; // URL to banner image
+  banner?: string | null; // Alternative if banner_url is not used
+  image_url?: string | null; // General image URL
+
+  rtp?: number | string | null; // Can be number or string like "96.5%"
   volatility?: GameVolatility | string | null;
-  lines?: number | null;
+  lines?: number | null; // Paylines for slots
+
   min_bet?: number | null;
   max_bet?: number | null;
-  features?: string[] | null;
-  tags?: string[] | null;
-  themes?: string[] | null;
+
+  features?: string[] | null; // e.g., ['freespins', 'jackpot', 'bonus_buy']
+  tags?: string[] | null; // e.g., ['popular', 'new', 'exclusive']
+  themes?: string[] | null; // e.g., ['egypt', 'adventure', 'fruits']
+
   is_popular?: boolean | null;
   is_new?: boolean | null;
   is_featured?: boolean | null;
-  show_home?: boolean | null;
-  status?: GameStatus | string | null;
-  release_date?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-  game_code?: string | null;
-  distribution?: string | null;
-  technology?: string | null;
-  game_server_url?: string | null;
+  show_home?: boolean | null; // If game should be shown on homepage
+
+  status?: GameStatus | string | null; // 'active', 'inactive', 'maintenance', etc.
+  release_date?: string | null; // ISO date string
+
+  created_at?: string | null; // ISO date string
+  updated_at?: string | null; // ISO date string
+
+  game_code?: string | null; // Specific code from provider
+  distribution?: string | null; // e.g. 'mobile', 'desktop', 'all'
+  technology?: string | null; // e.g. 'HTML5', 'Flash'
+  game_server_url?: string | null; // URL for game server if applicable
+
   has_lobby?: boolean | null;
   is_mobile?: boolean | null;
   has_freespins?: boolean | null;
-  has_tables?: boolean | null;
-  only_demo?: boolean | null;
-  only_real?: boolean | null;
-  views?: number | null;
-  providers?: { id?: string; name: string; slug: string } | null;
-  title?: string;
-  
-  [key: string]: any; // For flexibility with database fields
+  has_tables?: boolean | null; // For table games specifically
+  only_demo?: boolean | null; // If game is only available in demo mode
+  only_real?: boolean | null; // If game is only available in real money mode
+
+  views?: number | null; // View count
+
+  // For flexibility with database fields that might not be strictly typed above
+  [key: string]: any; 
 }
