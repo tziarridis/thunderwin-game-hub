@@ -14,9 +14,9 @@ const mockUser: User = {
   email: 'user@example.com',
   username: 'testuser',
   role: UserRole.USER,
-  balance: 1000,
   status: 'active',
-  created_at: new Date().toISOString()
+  created_at: new Date().toISOString(),
+  balance: 1000, // Added balance property
 };
 
 const roleOptions = [

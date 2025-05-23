@@ -21,6 +21,7 @@ interface AuthContextType {
   refreshWalletBalance: () => Promise<void>;
   updateUserPassword: (newPassword: string) => Promise<{ error?: AuthError }>;
   fetchAndUpdateUser: (userData: Partial<AppUserType>) => Promise<void>;
+  wallet?: any; // Added for backward compatibility
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,20 +31,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<any>(null);
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        setUser({
+        const userData: AppUser = {
           id: session.user.id,
           email: session.user.email || '',
           username: session.user.user_metadata?.username || session.user.email?.split('@')[0],
           user_metadata: session.user.user_metadata,
           app_metadata: session.user.app_metadata,
           created_at: new Date().toISOString(), // Default value to satisfy type requirement
-        });
+        };
+        setUser(userData);
       }
       setIsLoading(false);
     });
@@ -54,14 +57,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        setUser({
+        const userData: AppUser = {
           id: session.user.id,
           email: session.user.email || '',
           username: session.user.user_metadata?.username || session.user.email?.split('@')[0],
           user_metadata: session.user.user_metadata,
           app_metadata: session.user.app_metadata,
           created_at: new Date().toISOString(), // Default value to satisfy type requirement
-        });
+        };
+        setUser(userData);
       } else {
         setUser(null);
       }
@@ -104,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           data: {
             username: credentials.username,
+            confirmPassword: credentials.confirmPassword // Adding confirmPassword to user_metadata
           },
         },
       });
@@ -180,6 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshWalletBalance,
     updateUserPassword,
     fetchAndUpdateUser,
+    wallet, // Added for backward compatibility
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

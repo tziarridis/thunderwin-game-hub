@@ -1,64 +1,87 @@
+
 import React from 'react';
-import { WalletType } from '@/types/wallet'; // Corrected: Ensure WalletType is from wallet.ts
 import { Button } from '@/components/ui/button';
-import { Wallet, RefreshCw, Eye, EyeOff } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
+import { RefreshCw, CreditCard, Send } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { WalletType } from '@/types/wallet';
 
 interface WalletBalanceProps {
   wallet: WalletType | null;
-  isLoading?: boolean;
-  onRefresh?: () => void;
-  className?: string;
+  isLoading: boolean;
+  onRefresh: () => void;
 }
 
-const WalletBalance: React.FC<WalletBalanceProps> = ({ wallet, isLoading, onRefresh, className }) => {
-  const [isVisible, setIsVisible] = React.useState(true);
-
-  const toggleVisibility = () => setIsVisible(!isVisible);
-
-  const formatCurrency = (amount: number, currencySymbol: string) => {
-    return `${currencySymbol}${amount.toFixed(2)}`;
-  };
+const WalletBalance: React.FC<WalletBalanceProps> = ({ wallet, isLoading, onRefresh }) => {
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
-      <div className={`bg-card p-4 rounded-lg shadow flex items-center justify-between ${className}`}>
-        <div>
-          <Skeleton className="h-5 w-24 mb-1" />
-          <Skeleton className="h-8 w-32" />
-        </div>
-        <Skeleton className="h-10 w-10 rounded-full" />
-      </div>
+      <Card>
+        <CardContent className="p-6 animate-pulse">
+          <div className="h-6 bg-muted rounded mb-2 w-1/3"></div>
+          <div className="h-8 bg-muted rounded mb-4 w-2/3"></div>
+          <div className="flex space-x-2">
+            <div className="h-10 bg-muted rounded w-24"></div>
+            <div className="h-10 bg-muted rounded w-24"></div>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!wallet) {
     return (
-      <div className={`bg-card p-4 rounded-lg shadow text-muted-foreground ${className}`}>
-        Wallet not available.
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-muted-foreground">Wallet information not available</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className={`bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-4 rounded-lg shadow-lg flex items-center justify-between ${className}`}>
-      <div>
-        <p className="text-sm opacity-80">Main Balance ({wallet.currency})</p>
-        <p className="text-2xl font-bold">
-          {isVisible ? formatCurrency(wallet.balance, wallet.symbol) : `${wallet.symbol}••••••`}
-        </p>
-      </div>
-      <div className="flex items-center space-x-2">
-        <Button variant="ghost" size="icon" onClick={toggleVisibility} className="text-primary-foreground hover:bg-white/20">
-          {isVisible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-        </Button>
-        {onRefresh && (
-          <Button variant="ghost" size="icon" onClick={onRefresh} className="text-primary-foreground hover:bg-white/20">
-            <RefreshCw className="h-5 w-5" />
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-sm font-medium text-muted-foreground">Your Balance</span>
+          <Button variant="ghost" size="sm" onClick={onRefresh} className="h-8">
+            <RefreshCw className="mr-1 h-4 w-4" />
+            Refresh
           </Button>
+        </div>
+        
+        <div className="mb-4">
+          <span className="text-3xl font-bold">
+            {wallet.symbol}{wallet.balance.toFixed(2)}
+          </span>
+        </div>
+        
+        {wallet.bonusBalance && wallet.bonusBalance > 0 && (
+          <div className="mb-4">
+            <span className="text-sm font-medium text-muted-foreground">Bonus Balance</span>
+            <p className="text-xl font-semibold">
+              {wallet.symbol}{wallet.bonusBalance.toFixed(2)}
+            </p>
+          </div>
         )}
-      </div>
-    </div>
+        
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => navigate('/payment/deposit')} className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            Deposit
+          </Button>
+          <Button 
+            onClick={() => navigate('/payment/withdrawal')} 
+            variant="outline" 
+            className="gap-2"
+          >
+            <Send className="h-4 w-4" />
+            Withdraw
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

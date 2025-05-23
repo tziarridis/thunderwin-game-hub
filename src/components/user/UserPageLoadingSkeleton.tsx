@@ -1,29 +1,33 @@
 
-import React from 'react';
+import React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const UserPageLoadingSkeleton: React.FC = () => {
-  return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <Skeleton className="h-24 w-24 rounded-full" />
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-      </div>
-      
-      <div className="grid gap-4 md:grid-cols-3">
-        <Skeleton className="h-24 w-full rounded-lg" />
-        <Skeleton className="h-24 w-full rounded-lg" />
-        <Skeleton className="h-24 w-full rounded-lg" />
-      </div>
+interface UserPageLoadingSkeletonProps {
+  title?: string;
+}
 
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-1/3" />
-        <Skeleton className="h-12 w-full rounded-lg" />
-        <Skeleton className="h-12 w-full rounded-lg" />
-        <Skeleton className="h-12 w-full rounded-lg" />
+const UserPageLoadingSkeleton: React.FC<UserPageLoadingSkeletonProps> = ({ title }) => {
+  return (
+    <div className="container mx-auto p-6">
+      {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
+      <div className="space-y-6">
+        <div className="bg-card rounded-lg p-6 shadow-md">
+          <Skeleton className="h-8 w-1/3 mb-4" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+          </div>
+        </div>
+        
+        <div className="bg-card rounded-lg p-6 shadow-md">
+          <Skeleton className="h-8 w-1/4 mb-4" />
+          <div className="space-y-3">
+            <Skeleton className="h-12 rounded" />
+            <Skeleton className="h-12 rounded" />
+            <Skeleton className="h-12 rounded" />
+          </div>
+        </div>
       </div>
     </div>
   );

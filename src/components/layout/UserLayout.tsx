@@ -1,40 +1,16 @@
 
-import React from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import MobileTabBar from "@/components/layout/MobileTabBar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ResponsiveContainer } from "@/components/ui/responsive-container";
+import React from 'react';
 
-interface UserLayoutProps {
+export interface UserLayoutProps {
   children: React.ReactNode;
-  fullWidth?: boolean;
-  hideMobileNav?: boolean;
-  className?: string;
+  title?: string;
 }
 
-const UserLayout = ({ 
-  children, 
-  fullWidth = false, 
-  hideMobileNav = false,
-  className 
-}: UserLayoutProps) => {
-  const isMobile = useIsMobile();
-  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  
+const UserLayout: React.FC<UserLayoutProps> = ({ children, title }) => {
   return (
-    <div className="min-h-screen bg-casino-thunder-darker">
-      <ScrollArea className="h-screen pb-16">
-        <div className={`pt-20 pb-24 ${className || ''}`}>
-          {fullWidth ? (
-            children
-          ) : (
-            <ResponsiveContainer>
-              {children}
-            </ResponsiveContainer>
-          )}
-        </div>
-        {/* Mobile menu is now handled by AppLayout */}
-      </ScrollArea>
+    <div className="container mx-auto p-6">
+      {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
+      {children}
     </div>
   );
 };

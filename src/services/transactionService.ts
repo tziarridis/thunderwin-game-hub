@@ -14,8 +14,11 @@ export const transactionService = {
         status: 'completed',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        description: 'Deposit transaction'
+        description: 'Deposit transaction',
+        date: new Date().toISOString() // Added for backward compatibility
       }
     ] as Transaction[];
   }
 };
+
+export const getUserTransactions = transactionService.getUserTransactions;

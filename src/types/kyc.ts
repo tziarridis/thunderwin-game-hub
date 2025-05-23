@@ -1,49 +1,47 @@
 
-export enum KycStatusEnum {
-  PENDING = "pending",
-  UNDER_REVIEW = "under_review",
-  APPROVED = "approved",
-  REJECTED = "rejected",
-  EXPIRED = "expired",
-  RESUBMIT_REQUIRED = "resubmit_required"
-}
+export type KycDocumentType = 'passport' | 'driver_license' | 'national_id' | 'other';
 
-export enum KycDocumentTypeEnum {
-  PASSPORT = "passport",
-  DRIVERS_LICENSE = "drivers_license",
-  NATIONAL_ID = "national_id",
-  UTILITY_BILL = "utility_bill",
-  BANK_STATEMENT = "bank_statement"
-}
-
-export type KycStatus = `${KycStatusEnum}`;
-export type KycDocumentType = `${KycDocumentTypeEnum}`;
+export type KycStatus = 'not_started' | 'pending' | 'approved' | 'rejected' | 'resubmit_required' | 'verified' | 'not_submitted';
 
 export interface KycDocument {
   id: string;
   type: KycDocumentType;
-  file_url: string;
+  front_url: string;
+  back_url?: string;
   status: KycStatus;
-  uploaded_at: string;
-}
-
-export interface KycData {
-  id: string;
-  user_id: string;
-  status: KycStatus;
-  documents: KycDocument[];
-  submitted_at?: string;
-  reviewed_at?: string;
-  notes?: string;
+  rejection_reason?: string;
 }
 
 export interface KycRequest {
   id: string;
   user_id: string;
-  document_type: string;
-  document_front_url?: string | null;
-  document_back_url?: string | null;
   status: KycStatus;
+  documents: KycDocument[];
   created_at: string;
   updated_at: string;
+  rejection_reason?: string;
+}
+
+export interface KycAttempt {
+  id: string;
+  user_id: string;
+  status: KycStatus;
+  documents?: KycDocument[];
+  notes?: string;
+  created_at: string;
+}
+
+export interface KycFormProps {
+  onKycSubmitted?: (requestId: string) => void;
+  onSuccess?: () => void;
+  onError?: (errorMessage: string) => void;
+  userId?: string;
+  existingDocuments?: KycDocument[];
+}
+
+export interface KycStatusDisplayProps {
+  status?: KycStatus;
+  kycStatus?: KycStatus;
+  kycRequest?: KycRequest;
+  onResubmit?: () => void;
 }

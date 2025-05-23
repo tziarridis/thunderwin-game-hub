@@ -1,53 +1,35 @@
 
-export interface VIPLevel {
+export interface VipLevel {
   id: string;
+  level: number;
   name: string;
-  required_points: number;
-  benefits: { description: string }[];
+  points_required: number;
+  cashback_rate: number;
+  weekly_bonus: number;
+  monthly_bonus: number;
+  birthday_bonus: number;
+  personal_manager: boolean;
+  withdrawal_limit: number;
+  icon?: string;
   created_at: string;
   updated_at: string;
 }
 
-export interface UserBonus {
-  id: string;
+export interface VipProgression {
   user_id: string;
-  bonus_id: string;
-  amount?: number;
-  status: 'active' | 'used' | 'expired' | 'available';
-  created_at: string;
-  updated_at: string;
-  activated_at?: string;
-  expires_at?: string;
-  progress?: number;
-  bonus_details?: {
-    name: string;
-    type: string;
-    amount: number;
-    currency: string;
-  };
+  current_level: number;
+  current_level_name: string;
+  points: number;
+  points_to_next_level: number;
+  next_level: number;
+  next_level_name: string;
+  progress_percentage: number;
 }
 
-export interface Bonus {
+export interface VipBenefit {
   id: string;
   name: string;
-  type: BonusType;
-  amount: number;
-  currency: string;
-  status: BonusStatus;
-  terms: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export enum BonusType {
-  DEPOSIT_MATCH = 'deposit_match',
-  FREE_SPINS = 'free_spins',
-  CASHBACK = 'cashback',
-  WELCOME = 'welcome'
-}
-
-export enum BonusStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  EXPIRED = 'expired'
+  description: string;
+  icon: string;
+  vip_level_id: string;
 }

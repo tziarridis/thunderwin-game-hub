@@ -1,43 +1,34 @@
 
 import React from 'react';
 import { Progress } from '@/components/ui/progress';
-import { Wallet } from '@/types/wallet';
+import { Trophy } from 'lucide-react';
 
-interface VipProgressProps {
-  currentLevel?: number;
-  currentPoints?: number;
-  pointsToNextLevel?: number;
-  wallet?: Wallet;
+export interface VipProgressProps {
+  currentLevel: number;
+  currentPoints: number;
+  pointsToNextLevel: number;
 }
 
-const VipProgress: React.FC<VipProgressProps> = ({ 
-  currentLevel, 
-  currentPoints, 
-  pointsToNextLevel,
-  wallet
+const VipProgress: React.FC<VipProgressProps> = ({
+  currentLevel,
+  currentPoints,
+  pointsToNextLevel
 }) => {
-  // If wallet prop is provided, use its values
-  const level = currentLevel !== undefined ? currentLevel : wallet?.vip_level || 0;
-  const points = currentPoints !== undefined ? currentPoints : wallet?.vip_points || 0;
-  
-  // Default points needed if not provided
-  const pointsNeeded = pointsToNextLevel || 100;
-  
-  // Ensure we don't divide by zero and cap at 100%
-  const progressPercentage = pointsNeeded > 0 
-    ? Math.min(100, Math.round((points / pointsNeeded) * 100)) 
-    : 0;
-  
+  const progressPercentage = Math.min(100, (currentPoints / pointsToNextLevel) * 100);
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center text-sm">
-        <div>
-          <span className="font-semibold">Level {level}</span>
-          <span className="text-muted-foreground"> • {points} points</span>
-        </div>
-        <div className="text-muted-foreground">{pointsNeeded - points} points to Level {level + 1}</div>
+    <div className="bg-card p-4 rounded-lg shadow">
+      <div className="flex items-center gap-2 mb-2">
+        <Trophy className="h-5 w-5 text-yellow-500" />
+        <h3 className="font-semibold">VIP Level {currentLevel}</h3>
       </div>
-      <Progress value={progressPercentage} className="h-2" />
+      
+      <Progress value={progressPercentage} className="h-2 mb-2" />
+      
+      <div className="flex justify-between items-center text-sm">
+        <span className="text-muted-foreground">{currentPoints} points</span>
+        <span className="text-muted-foreground">{pointsToNextLevel} required for level {currentLevel + 1}</span>
+      </div>
     </div>
   );
 };

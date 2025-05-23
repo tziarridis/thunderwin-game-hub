@@ -1,38 +1,58 @@
 
-// src/types/bonus.ts
-
 export enum BonusType {
-  DEPOSIT_MATCH = 'DEPOSIT_MATCH',
-  FREE_SPINS = 'FREE_SPINS',
-  CASHBACK = 'CASHBACK',
-  NO_DEPOSIT = 'NO_DEPOSIT',
-  LOYALTY_REWARD = 'LOYALTY_REWARD',
+  DEPOSIT = 'deposit',
+  FREE_SPINS = 'free_spins',
+  CASHBACK = 'cashback',
+  NO_DEPOSIT = 'no_deposit',
+  REFER_FRIEND = 'refer_friend',
+  BIRTHDAY = 'birthday',
+  CUSTOM = 'custom'
 }
 
 export enum BonusStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  EXPIRED = 'EXPIRED',
-  UPCOMING = 'UPCOMING',
-  DRAFT = 'DRAFT',
+  ACTIVE = 'active',
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  EXPIRED = 'expired',
+  CANCELED = 'canceled',
+  CLAIMED = 'claimed'
 }
 
 export interface Bonus {
-  id?: string; // Optional for creation
-  name: string;
+  id: string;
+  user_id: string;
+  promotion_id?: string;
   type: BonusType;
-  status: BonusStatus;
-  amount?: number | string; // Can be fixed amount or percentage string e.g., "50%"
-  currency?: string; // e.g., USD, EUR
-  wagering_requirement?: number; // e.g., 35 for 35x
+  name: string;
   description?: string;
-  terms?: string;
-  valid_from?: string; // ISO date string
-  valid_until?: string; // ISO date string
-  max_bonus_amount?: number;
+  amount: number;
+  currency: string;
+  status: BonusStatus;
+  wagering_requirement: number;
+  wagering_remaining: number;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  game_restrictions?: string[];
+  max_conversion?: number;
+  min_odds?: number;
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: BonusType;
+  amount: number;
+  currency: string;
+  wagering_requirement: number;
+  valid_days: number;
   min_deposit?: number;
-  applicable_games?: string[]; // Array of game IDs or slugs
-  promo_code?: string;
-  created_at?: string;
-  updated_at?: string;
+  max_bonus?: number;
+  created_at: string;
+  updated_at: string;
+  game_restrictions?: string[];
+  max_conversion?: number;
+  min_odds?: number;
+  vip_level_required?: number;
 }

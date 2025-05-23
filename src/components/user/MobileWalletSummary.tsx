@@ -1,42 +1,60 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, RefreshCw } from 'lucide-react';
-import { WalletType } from '@/types/wallet';
+import { RefreshCw } from 'lucide-react';
 
 export interface MobileWalletSummaryProps {
-  wallet?: WalletType | null;
+  wallet: any;
   showRefresh?: boolean;
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<void>;
+  user?: any;
 }
 
 const MobileWalletSummary: React.FC<MobileWalletSummaryProps> = ({
   wallet,
   showRefresh = false,
-  onRefresh
+  onRefresh,
+  user
 }) => {
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      await onRefresh();
+    }
+  };
+
+  if (!wallet) {
+    return (
+      <div className="bg-card p-4 rounded-lg shadow animate-pulse">
+        <div className="h-6 bg-muted rounded mb-2 w-1/3"></div>
+        <div className="h-8 bg-muted rounded mb-4 w-2/3"></div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Wallet className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Balance</p>
-              <p className="text-lg font-semibold">
-                {wallet?.symbol || '$'}{wallet?.balance?.toFixed(2) || '0.00'}
-              </p>
-            </div>
-          </div>
-          {showRefresh && onRefresh && (
-            <Button variant="ghost" size="sm" onClick={onRefresh}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          )}
+    <div className="bg-card p-4 rounded-lg shadow">
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-muted-foreground">Balance</span>
+        {showRefresh && onRefresh && (
+          <Button variant="ghost" size="icon" onClick={handleRefresh} className="h-6 w-6">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      
+      <div className="flex items-baseline">
+        <span className="text-2xl font-bold">
+          {wallet.symbol || '$'}{wallet.balance?.toFixed(2) || '0.00'}
+        </span>
+      </div>
+
+      {wallet.bonusBalance > 0 && (
+        <div className="mt-1 text-sm">
+          <span className="text-muted-foreground">Bonus: </span>
+          <span className="font-medium">{wallet.symbol || '$'}{wallet.bonusBalance.toFixed(2)}</span>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 

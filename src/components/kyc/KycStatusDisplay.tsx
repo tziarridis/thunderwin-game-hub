@@ -1,51 +1,56 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, XCircle, AlertTriangle } from 'lucide-react';
-import { KycStatusEnum } from '@/types/kyc';
+import { Button } from '@/components/ui/button';
+import { KycStatusDisplayProps, KycStatus } from '@/types/kyc';
 
-interface KycStatusDisplayProps {
-  status: string;
-  className?: string;
-}
+const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ 
+  status, 
+  kycStatus,
+  kycRequest,
+  onResubmit 
+}) => {
+  const displayStatus = status || kycStatus || 'not_submitted';
 
-const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ status, className }) => {
-  const statusConfig: Record<string, { label: string, icon: React.FC<any>, color: string }> = {
-    "pending": {
-      label: 'Pending Review',
-      icon: Clock,
-      color: 'bg-yellow-500 text-white',
-    },
-    "approved": {
-      label: 'Approved',
-      icon: CheckCircle,
-      color: 'bg-green-500 text-white',
-    },
-    "rejected": {
-      label: 'Rejected',
-      icon: XCircle,
-      color: 'bg-red-500 text-white',
-    },
-    "resubmit_required": {
-      label: 'Resubmit Required',
-      icon: AlertTriangle,
-      color: 'bg-orange-500 text-white',
-    },
+  const getStatusColor = (status: KycStatus) => {
+    switch(status) {
+      case 'approved':
+      case 'verified':
+        return 'bg-green-500 hover:bg-green-600';
+      case 'pending':
+        return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'rejected':
+      case 'resubmit_required':
+        return 'bg-red-500 hover:bg-red-600';
+      default:
+        return 'bg-gray-500 hover:bg-gray-600';
+    }
   };
 
-  const config = statusConfig[status] || {
-    label: 'Unknown',
-    icon: AlertTriangle,
-    color: 'bg-gray-500 text-white',
+  const getStatusLabel = (status: KycStatus) => {
+    switch(status) {
+      case 'approved': return 'Verified';
+      case 'verified': return 'Verified';
+      case 'pending': return 'Pending Review';
+      case 'rejected': return 'Rejected';
+      case 'resubmit_required': return 'Resubmission Required';
+      case 'not_submitted': return 'Not Submitted';
+      default: return 'Not Started';
+    }
   };
-
-  const IconComponent = config.icon;
 
   return (
-    <Badge className={`${config.color} ${className}`}>
-      <IconComponent className="mr-1 h-3 w-3" />
-      {config.label}
-    </Badge>
+    <div className="flex items-center space-x-2">
+      <Badge className={getStatusColor(displayStatus as KycStatus)}>
+        {getStatusLabel(displayStatus as KycStatus)}
+      </Badge>
+      
+      {(displayStatus === 'rejected' || displayStatus === 'resubmit_required') && onResubmit && (
+        <Button variant="outline" size="sm" onClick={onResubmit}>
+          Resubmit
+        </Button>
+      )}
+    </div>
   );
 };
 
