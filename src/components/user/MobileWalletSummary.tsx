@@ -2,12 +2,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { AppUser } from '@/types/user';
 
 export interface MobileWalletSummaryProps {
   wallet: any;
   showRefresh?: boolean;
   onRefresh?: () => Promise<void>;
-  user?: any;
+  user?: AppUser;
 }
 
 const MobileWalletSummary: React.FC<MobileWalletSummaryProps> = ({

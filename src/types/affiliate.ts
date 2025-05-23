@@ -40,6 +40,8 @@ export type AffiliateStats = {
   conversionRate: number;
 };
 
+export type AffiliateStatSummary = AffiliateStats;
+
 export type AffiliateLink = {
   id: string;
   code: string;
@@ -56,3 +58,21 @@ export type AffiliateEarning = {
   referredUser: string;
   date: string;
 };
+
+export interface AffiliateUser {
+  id: string;
+  username: string;
+  email: string;
+  affiliate_code: string;
+  total_referrals: number;
+  commission_earned: number;
+  status: string;
+  created_at: string;
+}
+
+export interface AffiliateCommissionTier {
+  id: string;
+  min_referrals: number;
+  commission_rate: number;
+  name: string;
+}

@@ -44,4 +44,5 @@ export interface KycStatusDisplayProps {
   kycStatus?: KycStatus;
   kycRequest?: KycRequest;
   onResubmit?: () => void;
+  title?: string;
 }

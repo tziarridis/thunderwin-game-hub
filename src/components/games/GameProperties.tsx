@@ -1,65 +1,33 @@
 
 import React from 'react';
-import { Game, GameVolatilityEnum } from '@/types/game';
-import { Badge } from '@/components/ui/badge';
-import { Tag, Percent, BarChart3, Zap, CalendarDays, Info as InfoIcon } from 'lucide-react';
+import { Game } from '@/types';
 
-interface GamePropertiesProps {
+export interface GamePropertiesProps {
   game: Game;
 }
 
 const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
-  const properties = [
-    { label: 'RTP', value: game.rtp ? `${game.rtp}%` : 'N/A', icon: <Percent className="w-4 h-4 mr-1" /> },
-    { label: 'Volatility', value: game.volatility || 'N/A', icon: <BarChart3 className="w-4 h-4 mr-1" />, variant: game.volatility ? (
-        game.volatility === GameVolatilityEnum.LOW ? 'green' :
-        game.volatility === GameVolatilityEnum.MEDIUM ? 'yellow' :
-        game.volatility === GameVolatilityEnum.HIGH ? 'red' :
-        game.volatility === GameVolatilityEnum.LOW_MEDIUM ? 'blue' :
-        game.volatility === GameVolatilityEnum.MEDIUM_HIGH ? 'purple' : 'default'
-      ) : 'default' as any
-    },
-    { label: 'Paylines', value: game.lines || 'N/A', icon: <Zap className="w-4 h-4 mr-1" /> },
-    { label: 'Release Date', value: game.releaseDate ? new Date(game.releaseDate).toLocaleDateString() : 'N/A', icon: <CalendarDays className="w-4 h-4 mr-1" /> },
-    { label: 'Provider', value: game.providerName || game.provider?.name || 'N/A', icon: <InfoIcon className="w-4 h-4 mr-1" /> },
-  ];
-
   return (
-    <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
-      {properties.map(prop => (
-        <div key={prop.label} className="bg-card p-3 rounded-lg shadow">
-          <div className="text-xs text-muted-foreground flex items-center mb-1">
-            {prop.icon}
-            {prop.label}
-          </div>
-          <Badge 
-            variant={prop.variant || 'secondary'}
-            className={
-              prop.variant === 'green' ? 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/30' :
-              prop.variant === 'yellow' ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30' :
-              prop.variant === 'red' ? 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/30' :
-              prop.variant === 'blue' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/30' :
-              prop.variant === 'purple' ? 'bg-purple-500/20 text-purple-700 dark:text-purple-400 border-purple-500/30' :
-              ''
-            }
-          >
-            {prop.value}
-          </Badge>
+    <div className="bg-card p-4 rounded-lg">
+      <h3 className="font-semibold mb-3">Game Properties</h3>
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span className="text-muted-foreground">RTP:</span>
+          <span className="ml-2">{game.rtp || 'N/A'}%</span>
         </div>
-      ))}
-      {game.tags && Array.isArray(game.tags) && game.tags.length > 0 && (
-        <div className="md:col-span-3 bg-card p-3 rounded-lg shadow">
-          <div className="text-xs text-muted-foreground flex items-center mb-1">
-            <Tag className="w-4 h-4 mr-1" />
-            Tags
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(game.tags as string[]).map(tag => (
-              <Badge key={tag} variant="outline">{String(tag)}</Badge>
-            ))}
-          </div>
+        <div>
+          <span className="text-muted-foreground">Type:</span>
+          <span className="ml-2">{game.game_type || 'N/A'}</span>
         </div>
-      )}
+        <div>
+          <span className="text-muted-foreground">Technology:</span>
+          <span className="ml-2">{game.technology || 'N/A'}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground">Mobile:</span>
+          <span className="ml-2">{game.is_mobile ? 'Yes' : 'No'}</span>
+        </div>
+      </div>
     </div>
   );
 };

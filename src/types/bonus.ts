@@ -1,6 +1,7 @@
 
 export enum BonusType {
   DEPOSIT = 'deposit',
+  DEPOSIT_MATCH = 'deposit_match',
   FREE_SPINS = 'free_spins',
   CASHBACK = 'cashback',
   NO_DEPOSIT = 'no_deposit',
@@ -36,6 +37,7 @@ export interface Bonus {
   game_restrictions?: string[];
   max_conversion?: number;
   min_odds?: number;
+  terms?: string;
 }
 
 export interface BonusTemplate {
@@ -55,4 +57,5 @@ export interface BonusTemplate {
   max_conversion?: number;
   min_odds?: number;
   vip_level_required?: number;
+  terms?: string;
 }

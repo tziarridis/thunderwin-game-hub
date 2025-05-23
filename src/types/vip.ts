@@ -13,6 +13,8 @@ export interface VipLevel {
   icon?: string;
   created_at: string;
   updated_at: string;
+  required_points?: number;
+  benefits?: VipBenefit[];
 }
 
 export interface VipProgression {
@@ -33,3 +35,6 @@ export interface VipBenefit {
   icon: string;
   vip_level_id: string;
 }
+
+// Type alias for backward compatibility
+export type VIPLevel = VipLevel;
