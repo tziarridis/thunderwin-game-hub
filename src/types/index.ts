@@ -16,10 +16,12 @@ export type {
   UserSettings,
   LoginCredentials,
   RegisterCredentials,
-  UserRole,
   DisplayUser,
   SupabaseAuthUser
 } from './user';
+
+// Re-export UserRole enum
+export { UserRole } from './user';
 
 // Re-export types AND enums from promotion.ts
 export * from './promotion';

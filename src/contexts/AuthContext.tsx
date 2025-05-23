@@ -13,6 +13,7 @@ export interface AuthContextType {
   register?: (credentials: any) => Promise<any>;
   logout?: () => Promise<void>;
   signOut?: () => Promise<void>;
+  adminLogin?: (credentials: any) => Promise<any>;
   updateUserPassword?: (newPassword: string) => Promise<void>;
   fetchAndUpdateUser?: () => Promise<void>;
   wallet?: any;
@@ -33,6 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: UserRole.ADMIN,
     status: 'active',
     created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     is_active: true,
     balance: 1000,
     currency: 'USD',
@@ -73,6 +75,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearTimeout(timer);
   }, []);
 
+  const login = async (credentials: any) => {
+    try {
+      // Mock login
+      setUser(demoAdminUser);
+      return { user: demoAdminUser };
+    } catch (err) {
+      console.error('Login error:', err);
+      throw err;
+    }
+  };
+
+  const adminLogin = async (credentials: any) => {
+    try {
+      // Mock admin login
+      setUser(demoAdminUser);
+      return { user: demoAdminUser };
+    } catch (err) {
+      console.error('Admin login error:', err);
+      throw err;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      setUser(null);
+      setError(null);
+    } catch (err) {
+      console.error('Logout error:', err);
+      throw err;
+    }
+  };
+
   const signOut = async () => {
     try {
       setUser(null);
@@ -111,6 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading,
     isAdmin: user?.role === UserRole.ADMIN,
     error,
+    login,
+    adminLogin,
+    logout,
     signOut,
     updateUserPassword,
     fetchAndUpdateUser,

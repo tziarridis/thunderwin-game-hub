@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { Game } from '@/types/game';
 import { toast } from 'sonner';
@@ -18,11 +17,13 @@ interface SearchOptions {
 interface GamesContextType {
   games: Game[];
   isLoadingGames: boolean;
+  isLoading: boolean;
   gamesError: string | null;
   favoriteGameIds: Set<string>;
   toggleFavoriteGame: (gameId: string) => void;
   launchGame: (game: Game, options?: any) => Promise<string | null>;
   getFeaturedGames?: (count?: number) => Promise<Game[]>;
+  getGameLaunchUrl?: (game: Game, options?: any) => Promise<string | null>;
   handlePlayGame?: (game: Game, mode?: string) => void;
   handleGameDetails?: (game: Game) => void;
   searchGames: (query: string) => Game[];
@@ -193,6 +194,18 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return allGames.filter(game => game.is_featured).slice(0, count);
   }, [allGames]);
 
+  const getGameLaunchUrl = useCallback(async (game: Game, options?: any): Promise<string | null> => {
+    try {
+      console.log('Getting game launch URL for:', game.name || game.game_name, 'with options:', options);
+      // Mock game launch URL
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return `https://demo-game-url.com/${game.slug || game.id}`;
+    } catch (error) {
+      console.error('Error getting game launch URL:', error);
+      throw new Error('Failed to get game launch URL');
+    }
+  }, []);
+
   const searchGames = useCallback((query: string): Game[] => {
     if (!query.trim()) return memoizedGames;
     
@@ -241,11 +254,13 @@ export const GamesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const value: GamesContextType = {
     games: memoizedGames,
     isLoadingGames,
+    isLoading: isLoadingGames,
     gamesError,
     favoriteGameIds,
     toggleFavoriteGame,
     launchGame,
     getFeaturedGames,
+    getGameLaunchUrl,
     handlePlayGame,
     handleGameDetails,
     searchGames,

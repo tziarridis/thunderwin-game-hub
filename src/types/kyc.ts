@@ -11,7 +11,9 @@ export const KycStatusEnum = {
   RESUBMIT_REQUIRED: 'resubmit_required' as const,
   VERIFIED: 'verified' as const,
   NOT_SUBMITTED: 'not_submitted' as const,
-};
+} as const;
+
+export type KycStatusEnumType = typeof KycStatusEnum[keyof typeof KycStatusEnum];
 
 export interface KycDocument {
   id: string;
@@ -32,6 +34,9 @@ export interface KycRequest {
   created_at: string;
   updated_at: string;
   rejection_reason?: string;
+  // Add missing properties for components
+  document_front_url?: string;
+  document_back_url?: string;
 }
 
 export interface KycAttempt {
