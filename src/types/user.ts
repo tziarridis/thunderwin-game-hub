@@ -1,94 +1,89 @@
 
-// User role types
 export enum UserRole {
-  ADMIN = "admin",
-  USER = "user",
-  SUPPORT = "support",
-  MANAGER = "manager",
-  VIP_PLAYER = "vip_player",
-  AFFILIATE = "affiliate"
+  ADMIN = 'admin',
+  MODERATOR = 'moderator', 
+  USER = 'user',
+  VIP = 'vip',
+  SUPPORT = 'support',
+  AFFILIATE = 'affiliate'
 }
 
-// Auth user from Supabase
-export interface SupabaseAuthUser {
-  id: string;
-  email: string;
-  user_metadata: any;
-  app_metadata: any;
-}
+export type UserRoleType = UserRole;
 
-// Base user profile
-export interface UserProfile {
-  id: string;
-  username?: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  avatar_url?: string;
-  created_at: string;
-  updated_at?: string;
-  phone_number?: string;
-  status?: 'active' | 'inactive' | 'pending_verification' | 'banned' | 'restricted';
-  is_active?: boolean;
-  is_verified?: boolean;
-}
-
-// Extended user profile with app-specific fields
-export interface User extends UserProfile {
-  role?: UserRole;
-  balance?: number;
-  vip_level_id?: string;
-  is_banned?: boolean;
-  kyc_status?: string;
-  currency?: string;
-  user_metadata?: Record<string, any>;
-  app_metadata?: Record<string, any>;
-  last_sign_in_at?: string;
-  date_of_birth?: string;
-}
-
-// App user with auth data
-export interface AppUser extends User {
-  username?: string;
-  role?: UserRole;
-  vip_level?: number;
-  vipLevel?: number;
-  vipPoints?: number;
-}
-
-// Display user (simplified)
-export interface DisplayUser {
+export interface User {
   id: string;
   username: string;
   email: string;
   avatar?: string;
-  role: string;
-  status: string;
+  created_at: string;
+  updated_at: string;
+  role?: UserRole;
+  status?: string;
+  name?: string;
 }
 
-// Login credentials
-export interface LoginCredentials {
-  email: string;
-  password: string;
-  phone?: string;
-}
-
-// Register credentials
-export interface RegisterCredentials {
-  email: string;
-  password: string;
+export interface AppUser {
+  id: string;
   username: string;
+  email: string;
+  avatar?: string;
+  created_at: string;
+  updated_at: string;
+  role?: UserRole;
+  status?: string;
+  name?: string;
 }
 
-// User settings
+export interface UserProfile {
+  id: string;
+  user_id?: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface UserSettings {
   id: string;
   user_id: string;
-  theme: 'light' | 'dark' | 'system';
-  notifications_enabled: boolean;
   language: string;
   currency: string;
-  time_format: '12h' | '24h';
+  timezone: string;
+  notifications_enabled: boolean;
+  email_notifications: boolean;
+  sms_notifications: boolean;
+  two_factor_enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterCredentials {
+  username: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface DisplayUser {
+  id: string;
+  username?: string;
+  email?: string;
+  avatar?: string;
+  role?: UserRole;
+  status?: string;
+}
+
+export interface SupabaseAuthUser {
+  id: string;
+  email?: string;
+  user_metadata?: {
+    username?: string;
+    avatar_url?: string;
+  };
 }

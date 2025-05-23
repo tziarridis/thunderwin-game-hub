@@ -60,13 +60,17 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
 
   React.useEffect(() => {
     if (initialData) {
-      reset({
+      const resetData: Partial<PromotionFormValues> = {
         ...initialData,
         valid_from: initialData.valid_from ? new Date(initialData.valid_from).toISOString().split('T')[0] : '',
         valid_until: initialData.valid_until ? new Date(initialData.valid_until).toISOString().split('T')[0] : '',
         type: initialData.type || PromotionType.DEPOSIT_BONUS,
         status: (initialData.status as PromotionStatus) || PromotionStatus.PENDING,
-      });
+        target_audience: typeof initialData.target_audience === 'string' 
+          ? Object.values(PromotionAudience).find(val => val === initialData.target_audience) as PromotionAudience
+          : initialData.target_audience,
+      };
+      reset(resetData);
     } else {
         reset({
             title: '',
@@ -158,6 +162,24 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
               <Input id="valid_until" type="date" {...register('valid_until')} />
               {errors.valid_until && <p className="text-red-500 text-xs mt-1">{errors.valid_until.message}</p>}
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="target_audience">Target Audience</Label>
+            <Controller
+              name="target_audience"
+              control={control}
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <SelectTrigger id="target_audience">
+                    <SelectValue placeholder="Select target audience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getEnumOptions(PromotionAudience).map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           <div>

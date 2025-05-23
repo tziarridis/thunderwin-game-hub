@@ -10,6 +10,14 @@ export type GameStatus = "active" | "inactive" | "maintenance" | "pending_review
 
 export type GameVolatility = "low" | "medium" | "high" | "low-medium" | "medium-high";
 
+export enum GameVolatilityEnum {
+  LOW = "low",
+  MEDIUM = "medium", 
+  HIGH = "high",
+  LOW_MEDIUM = "low-medium",
+  MEDIUM_HIGH = "medium-high"
+}
+
 export type GameTag = string;
 
 export interface DbGame {
@@ -62,6 +70,7 @@ export interface DbGame {
   release_date?: string;
   distribution?: string;
   game_type?: string;
+  title?: string;
 }
 
 export interface Game {
@@ -80,6 +89,7 @@ export interface Game {
   providerName?: string;
   category_id?: string;
   categoryName?: string;
+  category?: string;
   category_slugs?: string[];
   status: GameStatusEnum;
   rtp: number;
@@ -89,6 +99,7 @@ export interface Game {
   is_popular?: boolean;
   isPopular?: boolean;
   isNew?: boolean;
+  is_new?: boolean;
   show_home?: boolean;
   mobile_supported?: boolean;
   desktop_supported?: boolean;
@@ -117,6 +128,22 @@ export interface Game {
   lines?: number;
   releaseDate?: string;
   game_code?: string;
+  demo_url?: string;
+  external_url?: string;
+  is_mobile_compatible?: boolean;
+  has_lobby?: boolean;
+  is_mobile?: boolean;
+  has_freespins?: boolean;
+  has_tables?: boolean;
+  views?: number;
+  default_bet?: number;
+  currencies_accepted?: string;
+  languages_supported?: string;
+  technology?: string;
+  launch_url_template?: string;
+  api_integration_type?: string;
+  aggregator_game_id?: string;
+  aggregator_provider_id?: string;
 }
 
 export interface GameLaunchOptions {
@@ -134,7 +161,11 @@ export interface GameProvider {
   name: string;
   slug?: string;
   logo?: string;
+  logoUrl?: string;
   status?: string;
+  description?: string;
+  isActive?: boolean;
+  game_ids?: string[];
 }
 
 export interface GameCategory {

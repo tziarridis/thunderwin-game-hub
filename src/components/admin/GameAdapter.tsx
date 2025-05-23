@@ -1,15 +1,15 @@
 
-import { Game, DbGame, GameStatus, GameVolatility, GameTag } from '@/types/game';
+import { Game, DbGame, GameStatus, GameVolatility, GameTag, GameStatusEnum } from '@/types/game';
 
 // Maps a DbGame (from Supabase 'games' table) to a Game (for frontend UI)
 export const mapDbGameToGameAdapter = (dbGame: any): Game => {
-  // Helper to safely cast string to GameStatus
-  const parseGameStatus = (statusStr: string | null | undefined): GameStatus => {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked'];
-    if (statusStr && validStatuses.includes(statusStr as GameStatus)) {
-      return statusStr as GameStatus;
+  // Helper to safely cast string to GameStatusEnum
+  const parseGameStatus = (statusStr: string | null | undefined): GameStatusEnum => {
+    const validStatuses = Object.values(GameStatusEnum);
+    if (statusStr && validStatuses.includes(statusStr as GameStatusEnum)) {
+      return statusStr as GameStatusEnum;
     }
-    return 'inactive'; 
+    return GameStatusEnum.INACTIVE; 
   };
 
   const parseGameVolatility = (volStr: string | null | undefined): GameVolatility | undefined => {
@@ -45,6 +45,7 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
               (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined),
 
     categoryName: dbGame.game_type || undefined, 
+    category: dbGame.game_type || undefined,
     category_slugs: Array.isArray(dbGame.category_slugs) 
       ? dbGame.category_slugs 
       : (typeof dbGame.category_slugs === 'string' ? [dbGame.category_slugs] : []),
@@ -61,6 +62,7 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
     
     isPopular: dbGame.is_popular ?? dbGame.is_featured ?? false,
     isNew: dbGame.is_new ?? false, 
+    is_new: dbGame.is_new ?? false,
     is_featured: dbGame.is_featured ?? false,
     show_home: dbGame.show_home ?? false, 
 
@@ -69,7 +71,7 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
     max_bet: dbGame.max_bet ?? undefined, 
     
     features: Array.isArray(dbGame.features) ? dbGame.features : [],
-    tags: Array.isArray(dbGame.tags) ? dbGame.tags : [], 
+    tags: Array.isArray(dbGame.tags) ? dbGame.tags.map((tag: any) => typeof tag === 'string' ? tag : String(tag)) : [], 
     themes: Array.isArray(dbGame.themes) ? dbGame.themes : [],
     
     releaseDate: dbGame.release_date || dbGame.created_at || undefined, 
@@ -80,8 +82,16 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
     only_demo: dbGame.only_demo ?? false,
     only_real: dbGame.only_real ?? false,
     provider_id: String(dbGame.provider_id || ''),
-    created_at: dbGame.created_at,
-    updated_at: dbGame.updated_at,
+    created_at: dbGame.created_at || new Date().toISOString(),
+    updated_at: dbGame.updated_at || new Date().toISOString(),
+    demo_url: dbGame.demo_url || undefined,
+    external_url: dbGame.external_url || undefined,
+    is_mobile_compatible: dbGame.is_mobile || dbGame.mobile_supported ?? true,
+    has_lobby: dbGame.has_lobby ?? false,
+    is_mobile: dbGame.is_mobile ?? true,
+    has_freespins: dbGame.has_freespins ?? false,
+    has_tables: dbGame.has_tables ?? false,
+    views: dbGame.views ?? 0,
   };
 };
 
@@ -133,11 +143,7 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   // Convert Game.tags to DbGame.tags
   if (game.tags) {
     if (Array.isArray(game.tags)) {
-      dbGame.tags = game.tags.map(tag => {
-        if (typeof tag === 'string') return tag;
-        if (typeof tag === 'object' && tag && 'slug' in tag) return tag.slug;
-        return String(tag);
-      });
+      dbGame.tags = game.tags.map(tag => String(tag));
     }
   }
   
@@ -149,13 +155,8 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.game_code) dbGame.game_code = String(game.game_code);
   
   if (game.status) {
-    const validStatuses: GameStatus[] = ['active', 'inactive', 'maintenance', 'pending_review', 'draft', 'archived', 'pending', 'blocked'];
-    if (validStatuses.includes(game.status)) {
-      dbGame.status = game.status;
-    } else {
-      console.warn(`Invalid status value: ${game.status}`);
-      dbGame.status = 'inactive'; 
-    }
+    // Convert GameStatusEnum to string for database
+    dbGame.status = game.status;
   }
 
   if (game.only_demo !== undefined) dbGame.only_demo = game.only_demo;

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Game, GameVolatilityEnum } from '@/types/game';
 import { Badge } from '@/components/ui/badge';
-import { Tag, Percent, BarChart3, Zap, CalendarDays, Info as InfoIcon } from 'lucide-react'; // Added InfoIcon
+import { Tag, Percent, BarChart3, Zap, CalendarDays, Info as InfoIcon } from 'lucide-react';
 
 interface GamePropertiesProps {
   game: Game;
@@ -54,8 +54,8 @@ const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
             Tags
           </div>
           <div className="flex flex-wrap gap-2">
-            {(game.tags as string[]).map(tag => ( // Assuming tags are strings for now
-              <Badge key={tag} variant="outline">{typeof tag === 'object' ? (tag as any).name : tag}</Badge>
+            {(game.tags as string[]).map(tag => (
+              <Badge key={tag} variant="outline">{String(tag)}</Badge>
             ))}
           </div>
         </div>
