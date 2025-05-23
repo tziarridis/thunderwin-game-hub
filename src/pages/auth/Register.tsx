@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, UserPlus } from 'lucide-react';
-import { RegisterCredentials } from '@/types'; // Import RegisterCredentials
+import { RegisterCredentials } from '@/types';
 
 const RegisterPage: React.FC = () => {
-  const { register, loading, error: authError, isAuthenticated } = useAuth();
+  const { signUp, isLoading, error: authError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -20,7 +20,7 @@ const RegisterPage: React.FC = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/'); // Redirect if already logged in
+      navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
@@ -36,26 +36,17 @@ const RegisterPage: React.FC = () => {
     }
 
     const credentials: RegisterCredentials = { email, username, password };
-    const result = await register(credentials);
+    const result = await signUp(credentials);
 
     if (result && !result.error) {
       toast.success('Registration successful! Please check your email to verify your account (if applicable).');
-      // Supabase might auto-login or require email verification.
-      // AuthContext listener should handle session update.
-      // We can navigate to login or home. If email verification is on, user might not be fully "authenticated" yet by app logic.
-      navigate('/'); // Or '/login' if post-registration login is preferred
+      navigate('/');
     } else if (result && result.error) {
       toast.error(result.error.message || 'Registration failed. Please try again.');
     } else if (!result) {
         toast.error('Registration failed. An unexpected error occurred.');
     }
   };
-  
-  React.useEffect(() => {
-    if (authError) {
-      // toast.error(authError); 
-    }
-  }, [authError]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-dark to-casino-darker p-4">
@@ -84,8 +75,8 @@ const RegisterPage: React.FC = () => {
               <Input id="confirmPassword" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="h-11 text-base"/>
             </div>
              {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
-            <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5"/>}
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <UserPlus className="mr-2 h-5 w-5"/>}
               Sign Up
             </Button>
           </form>

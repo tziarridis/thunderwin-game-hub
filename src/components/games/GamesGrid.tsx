@@ -10,6 +10,7 @@ export interface GameGridProps {
   onToggleFavorite?: (gameId: string | number, isFavorite: boolean) => void;
   loading?: boolean;
   loadMoreGames?: () => void;
+  loadMore?: () => void; // Add backward compatibility
   hasMore?: boolean;
   loadingMore?: boolean;
   emptyMessage?: string;
@@ -21,6 +22,7 @@ const GamesGrid: React.FC<GameGridProps> = ({
   onToggleFavorite,
   loading = false,
   loadMoreGames,
+  loadMore,
   hasMore = false,
   loadingMore = false,
   emptyMessage = "No games found."
@@ -40,6 +42,8 @@ const GamesGrid: React.FC<GameGridProps> = ({
       </div>
     );
   }
+
+  const handleLoadMore = loadMoreGames || loadMore;
 
   return (
     <div>
@@ -67,10 +71,10 @@ const GamesGrid: React.FC<GameGridProps> = ({
         ))}
       </div>
       
-      {hasMore && loadMoreGames && (
+      {hasMore && handleLoadMore && (
         <div className="text-center mt-8">
           <Button
-            onClick={loadMoreGames}
+            onClick={handleLoadMore}
             disabled={loadingMore}
             variant="outline"
           >

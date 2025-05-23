@@ -8,17 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, LogIn } from 'lucide-react';
-import { LoginCredentials } from '@/types'; // Import LoginCredentials
+import { LoginCredentials } from '@/types';
 
 const LoginPage: React.FC = () => {
-  const { login, loading, error: authError, isAuthenticated } = useAuth();
+  const { signIn, isLoading, error: authError, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate('/'); // Redirect if already logged in
+      navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
@@ -30,28 +30,17 @@ const LoginPage: React.FC = () => {
     }
     
     const credentials: LoginCredentials = { email, password };
-    const result = await login(credentials);
+    const result = await signIn(credentials);
 
     if (result && !result.error) {
       toast.success('Logged in successfully!');
-      navigate('/'); // Redirect to dashboard or home on successful login
+      navigate('/');
     } else if (result && result.error) {
-      // AuthError's message is already handled by AuthContext's setError,
-      // but we can show a toast here too.
       toast.error(result.error.message || 'Login failed. Please check your credentials.');
-    } else if (!result) { // Should not happen if login always returns object
+    } else if (!result) {
         toast.error('Login failed. An unexpected error occurred.');
     }
   };
-  
-  // Display authError from context if it exists
-  React.useEffect(() => {
-    if (authError) {
-      // toast.error(authError); // AuthContext might already show its own errors via a global Toaster
-      // Clear error in context after showing? Or let context manage its display.
-    }
-  }, [authError]);
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-dark to-casino-darker p-4">
@@ -88,14 +77,14 @@ const LoginPage: React.FC = () => {
               />
             </div>
             {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
-            <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
               Sign In
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col items-center space-y-2">
-           <Link to="/forgot-password" // Assuming a forgot password route
+           <Link to="/forgot-password"
             className="text-sm text-primary hover:underline"
           >
             Forgot your password?

@@ -10,15 +10,30 @@ import { cn } from '@/lib/utils';
 
 interface DateRangePickerProps {
   range?: DateRange;
-  onUpdate: (values: { range?: DateRange }) => void;
+  date?: DateRange; // Add backward compatibility
+  onUpdate?: (values: { range?: DateRange }) => void;
+  onDateChange?: (newRange: DateRange) => void; // Add backward compatibility
   className?: string;
 }
 
 export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   range,
+  date,
   onUpdate,
+  onDateChange,
   className
 }) => {
+  const currentRange = range || date;
+  
+  const handleUpdate = (newRange?: DateRange) => {
+    if (onUpdate) {
+      onUpdate({ range: newRange });
+    }
+    if (onDateChange && newRange) {
+      onDateChange(newRange);
+    }
+  };
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
@@ -28,18 +43,18 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !range && "text-muted-foreground"
+              !currentRange && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {range?.from ? (
-              range.to ? (
+            {currentRange?.from ? (
+              currentRange.to ? (
                 <>
-                  {format(range.from, "LLL dd, y")} -{" "}
-                  {format(range.to, "LLL dd, y")}
+                  {format(currentRange.from, "LLL dd, y")} -{" "}
+                  {format(currentRange.to, "LLL dd, y")}
                 </>
               ) : (
-                format(range.from, "LLL dd, y")
+                format(currentRange.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date range</span>
@@ -50,9 +65,9 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={range?.from}
-            selected={range}
-            onSelect={(newRange) => onUpdate({ range: newRange })}
+            defaultMonth={currentRange?.from}
+            selected={currentRange}
+            onSelect={handleUpdate}
             numberOfMonths={2}
             className="pointer-events-auto"
           />

@@ -41,6 +41,7 @@ export interface Transaction {
   created_at: string;
   updated_at: string;
   provider_transaction_id?: string;
+  provider?: string;
   description?: string;
   game_id?: string;
   round_id?: string;

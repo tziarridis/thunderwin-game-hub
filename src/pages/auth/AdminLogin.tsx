@@ -8,17 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, ShieldCheck } from 'lucide-react';
-import { LoginCredentials } from '@/types'; // Import LoginCredentials
+import { LoginCredentials } from '@/types';
 
 const AdminLoginPage: React.FC = () => {
-  const { adminLogin, loading, error: authError, isAdmin, isAuthenticated } = useAuth();
+  const { adminLogin, isLoading, error: authError, isAdmin, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   React.useEffect(() => {
     if (isAuthenticated && isAdmin) {
-      navigate('/admin/dashboard'); // Redirect if already logged in as admin
+      navigate('/admin/dashboard');
     }
   }, [isAuthenticated, isAdmin, navigate]);
 
@@ -45,12 +45,6 @@ const AdminLoginPage: React.FC = () => {
         toast.error('Admin login failed. An unexpected error occurred.');
     }
   };
-  
-  React.useEffect(() => {
-    if (authError) {
-      // toast.error(authError);
-    }
-  }, [authError]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
@@ -87,8 +81,8 @@ const AdminLoginPage: React.FC = () => {
               />
             </div>
             {authError && <p className="text-sm text-red-400 text-center">{authError}</p>}
-            <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
+            <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
               Sign In as Admin
             </Button>
           </form>

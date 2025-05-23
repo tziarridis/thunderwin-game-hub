@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Game, DbGame } from '@/types/game';
+import { Game, DbGame, GameStatusEnum } from '@/types/game';
 import { gameService } from '@/services/gameService';
 import { toast } from 'sonner';
 
@@ -29,8 +29,8 @@ const mapDbGameToGame = (dbGame: DbGame): Game => ({
   image_url: dbGame.cover || '',
   provider_id: dbGame.provider_id,
   category_id: dbGame.category_slugs?.[0] || '',
-  status: dbGame.status,
-  rtp: dbGame.rtp || 0,
+  status: dbGame.status as GameStatusEnum,
+  rtp: Number(dbGame.rtp) || 0,
   created_at: dbGame.created_at || new Date().toISOString(),
   updated_at: dbGame.updated_at || new Date().toISOString()
 });
