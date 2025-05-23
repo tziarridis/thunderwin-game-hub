@@ -1,14 +1,14 @@
+
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-// import { pragmaticPlayService } from '@/services/pragmaticPlayService'; // Assuming this service exists
-import { Transaction, DateRange } from '@/types'; // Ensure DateRange is exported from types
+import { useQuery, QueryKey } from '@tanstack/react-query'; // Added QueryKey
+import { Transaction, DateRange } from '@/types'; 
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef, useReactTable, getCoreRowModel } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/ui/date-range-picker'; // Ensure this exists
+import { DateRangePicker } from '@/components/ui/date-range-picker'; 
 import { format } from 'date-fns';
 import { RefreshCw, Loader2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
@@ -25,9 +25,7 @@ const mockPragmaticPlayService = {
     limit?: number; 
   }): Promise<{ transactions: Transaction[], totalCount: number }> => {
     console.log("Fetching mock PP transactions with params:", params);
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 500));
-    // Return mock data - adjust fields to match Transaction type
     const mockTx: Transaction[] = [
       { id: 'tx123', user_id: params.userId || 'user1', amount: 100, currency: 'USD', type: 'bet', status: 'completed', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), provider_transaction_id: 'pp_tx_abc' },
       { id: 'tx124', user_id: params.userId || 'user2', amount: 50, currency: 'USD', type: 'win', status: 'completed', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), provider_transaction_id: 'pp_tx_def' },
@@ -35,7 +33,7 @@ const mockPragmaticPlayService = {
     return { transactions: mockTx.filter(tx => !params.status || params.status === 'all' || tx.status === params.status), totalCount: mockTx.length };
   }
 };
-const pragmaticPlayService = mockPragmaticPlayService; // Use mock if real service not ready
+const pragmaticPlayService = mockPragmaticPlayService;
 
 
 const PPTransactionsPage: React.FC = () => {
@@ -48,8 +46,8 @@ const PPTransactionsPage: React.FC = () => {
     limit: 10,
   });
 
-  const { data: transactionsData, isLoading, refetch } = useQuery<{ transactions: Transaction[], totalCount: number }, Error>({
-    queryKey: ['ppTransactions', filters],
+  const { data: transactionsData, isLoading, refetch } = useQuery<{ transactions: Transaction[], totalCount: number }, Error, { transactions: Transaction[], totalCount: number }, QueryKey>({
+    queryKey: ['ppTransactions', filters] as QueryKey,
     queryFn: () => pragmaticPlayService.getTransactions({
       userId: filters.userId || undefined,
       status: filters.status === 'all' ? undefined : filters.status,
@@ -59,8 +57,10 @@ const PPTransactionsPage: React.FC = () => {
       page: filters.page,
       limit: filters.limit,
     }),
-    onError: (error) => {
-        toast.error(`Failed to load Pragmatic Play transactions: ${error.message}`);
+    meta: { // onError moved to meta for v5
+      onError: (error: Error) => {
+          toast.error(`Failed to load Pragmatic Play transactions: ${error.message}`);
+      }
     }
   });
 
@@ -76,7 +76,6 @@ const PPTransactionsPage: React.FC = () => {
     { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => `${row.original.amount} ${row.original.currency}` },
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <Badge variant={row.original.status === 'completed' ? 'default' : 'secondary'}>{row.original.status}</Badge> },
     { accessorKey: 'created_at', header: 'Timestamp', cell: ({ row }) => format(new Date(row.original.created_at), 'PPpp') },
-    // Add more columns as needed (e.g., gameId, roundId)
   ];
 
   const table = useReactTable({
@@ -118,10 +117,9 @@ const PPTransactionsPage: React.FC = () => {
             value={filters.userId}
             onChange={e => handleFilterChange('userId', e.target.value)}
           />
-          {/* Add Selects for status and type if needed */}
           <DateRangePicker
             date={filters.dateRange}
-            onDateChange={(range) => handleFilterChange('dateRange', range)} // Adjusted prop
+            onDateChange={(range) => handleFilterChange('dateRange', range)}
             className="w-full"
           />
           <Button onClick={() => refetch()} disabled={isLoading} className="w-full lg:w-auto">
@@ -130,7 +128,7 @@ const PPTransactionsPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table} columns={columns} isLoading={isLoading} />
+      <DataTable table={table} columns={columns as any} isLoading={isLoading} /> {/* Cast columns to any as a temp fix */}
     </AdminPageLayout>
   );
 };

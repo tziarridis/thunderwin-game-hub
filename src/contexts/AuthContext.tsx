@@ -12,17 +12,15 @@ import {
   User as SupabaseUser,
 } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-// Importing User, LoginCredentials, RegisterCredentials, UserRole from @/types (index.d.ts which re-exports from user.d.ts)
-import { User, LoginCredentials, RegisterCredentials, UserRole } from '@/types'; 
+import { User, LoginCredentials, RegisterCredentials, UserRole, UserStatus, KycStatus } from '@/types'; 
 
-// AppUser now directly uses the structure of User from @/types,
-// and adds Supabase specific metadata.
-// It ensures all fields from the main User type (like created_at, updated_at, is_active) are present.
 export interface AppUser extends User {
-  aud: string; // Supabase specific
+  aud: string; 
   app_metadata: SupabaseUser['app_metadata'];
   user_metadata: SupabaseUser['user_metadata'];
-  // role, created_at, updated_at, is_active etc. are inherited from User type from @/types
+  // Ensure all non-optional fields from User are here or handled
+  // isActive, createdAt, updatedAt are now part of User type from @/types
+  // and User makes `is_active` non-optional, `created_at` and `updated_at` non-optional.
 }
 
 interface AuthContextType {
@@ -47,39 +45,41 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isAdminState, setIsAdminState] = useState(false); // Renamed to avoid conflict with isAdmin on user object
+  const [isAdminState, setIsAdminState] = useState(false);
 
   const enrichUserWithProfile = async (supabaseUser: SupabaseUser): Promise<AppUser> => {
     const { data: profileData, error: profileError } = await supabase
-      .from('users') // This is your public 'users' table, not auth.users
+      .from('users') 
       .select('*')
-      .eq('id', supabaseUser.id) // Assuming your public.users.id links to auth.users.id
+      .eq('id', supabaseUser.id)
       .single();
 
-    if (profileError && profileError.code !== 'PGRST116') { // PGRST116: 0 rows
+    if (profileError && profileError.code !== 'PGRST116') { 
       console.error('Error fetching user profile from public.users:', profileError);
     }
     
-    // Construct AppUser ensuring all fields from User (from @/types) are covered
+    const baseCreatedAt = supabaseUser.created_at || new Date().toISOString();
+    const baseUpdatedAt = supabaseUser.updated_at || baseCreatedAt;
+
     const enrichedUser: AppUser = {
       // Fields from SupabaseUser
       id: supabaseUser.id,
       aud: supabaseUser.aud,
       email: supabaseUser.email || null,
-      created_at: supabaseUser.created_at || new Date().toISOString(), // Default if not present
-      updated_at: supabaseUser.updated_at || supabaseUser.created_at || new Date().toISOString(), // Default
-      last_sign_in_at: supabaseUser.last_sign_in_at || null,
       app_metadata: supabaseUser.app_metadata || {},
       user_metadata: supabaseUser.user_metadata || {},
+      last_sign_in_at: supabaseUser.last_sign_in_at || null,
       
-      // Fields from your public 'users' table (profileData) or defaults
-      // These should align with the 'User' type definition in src/types/index.d.ts
+      // Fields from User type (src/types/index.d.ts), prioritizing profileData or defaults
       username: profileData?.username || supabaseUser.email?.split('@')[0] || null,
       avatar_url: profileData?.avatar_url || supabaseUser.user_metadata?.avatar_url || null,
       first_name: profileData?.first_name || null,
       last_name: profileData?.last_name || null,
-      role: profileData?.role as UserRole || undefined, // Cast to your UserRole type
-      status: profileData?.status || 'active', // Default to 'active'
+      role: profileData?.role as UserRole || undefined,
+      created_at: profileData?.created_at || baseCreatedAt,
+      updated_at: profileData?.updated_at || baseUpdatedAt,
+      
+      status: (profileData?.status as UserStatus) || 'active',
       is_active: profileData?.is_active ?? (profileData?.status === 'active') ?? (!!supabaseUser.email_confirmed_at),
       is_banned: profileData?.is_banned ?? false,
       balance: profileData?.balance ?? 0,
@@ -90,30 +90,16 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       date_of_birth: profileData?.date_of_birth,
       address: profileData?.address,
       is_staff: profileData?.is_staff ?? false,
-      // is_admin flag from User type, determined by role
       is_admin: (profileData?.role === 'admin' || (Array.isArray(profileData?.roles) && profileData.roles.includes('admin'))) ?? false,
       roles: profileData?.roles || (profileData?.role ? [profileData.role as UserRole] : []),
-      kyc_status: profileData?.kyc_status || 'not_started',
+      kyc_status: (profileData?.kyc_status as KycStatus) || 'not_started',
+      is_verified: profileData?.is_verified ?? !!supabaseUser.email_confirmed_at,
       referral_code: profileData?.referral_code,
-      referred_by: profileData?.referred_by, // Added if in User type
-       // Ensure all other fields from User type (src/types/index.d.ts) are present
-       // Example: if User has `settings: UserSettings`, provide it:
-       // settings: profileData?.settings || {}, 
+      referred_by: profileData?.referred_by,
     };
     
-    // Override with profileData specifics again if there were direct matches
-    // This ensures profileData takes precedence for fields that exist on both.
-    const finalUser = { ...enrichedUser, ...profileData } as AppUser;
-    // Ensure critical fields like 'id', 'email', 'created_at', 'updated_at', 'is_active' are correctly set.
-    finalUser.id = supabaseUser.id; // always from supabaseUser
-    finalUser.email = supabaseUser.email || null; // always from supabaseUser
-    finalUser.created_at = profileData?.created_at || supabaseUser.created_at || new Date().toISOString();
-    finalUser.updated_at = profileData?.updated_at || supabaseUser.updated_at || finalUser.created_at;
-    finalUser.is_active = profileData?.is_active ?? (profileData?.status === 'active') ?? !!supabaseUser.email_confirmed_at;
-
-
-    console.log("Enriched user in AuthContext:", finalUser);
-    return finalUser;
+    console.log("Enriched user in AuthContext:", enrichedUser);
+    return enrichedUser;
   };
   
   const fetchAndUpdateUser = useCallback(async () => {
@@ -138,22 +124,27 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         setError(null);
       } catch (e: any) {
         console.error("AuthContext: Error enriching user profile:", e);
-        // Fallback to Supabase user data if enrichment fails, ensuring AppUser structure
+        const fallbackCreatedAt = session.user.created_at || new Date().toISOString();
         const fallbackUser: AppUser = { 
             id: session.user.id,
             email: session.user.email || null,
             aud: session.user.aud,
-            created_at: session.user.created_at || new Date().toISOString(),
-            updated_at: session.user.updated_at || session.user.created_at || new Date().toISOString(),
+            created_at: fallbackCreatedAt,
+            updated_at: session.user.updated_at || fallbackCreatedAt,
             last_sign_in_at: session.user.last_sign_in_at || null,
             app_metadata: session.user.app_metadata || {},
             user_metadata: session.user.user_metadata || {},
             role: undefined, 
             username: session.user.email?.split('@')[0] || null,
             status: 'active',
-            is_active: true, // default active
-            // Ensure all other required User fields are here with defaults
+            is_active: true, 
             is_admin: false,
+            // Ensure all other required User fields are here with defaults
+            avatar_url: null,
+            first_name: null,
+            last_name: null,
+            kyc_status: 'not_started',
+            is_verified: !!session.user.email_confirmed_at,
          };
         setUser(fallbackUser); 
         setIsAdminState(false);
@@ -166,7 +157,6 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setLoading(false);
   }, []);
 
-
   useEffect(() => {
     fetchAndUpdateUser(); 
 
@@ -174,7 +164,10 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       console.log("AuthContext: Auth state changed", _event, session);
       if (_event === 'SIGNED_IN' || _event === 'USER_UPDATED' || _event === 'TOKEN_REFRESHED') {
         if (session && session.user) {
-          await fetchAndUpdateUser();
+          // Use setTimeout to avoid potential deadlocks with Supabase calls within onAuthStateChange
+          setTimeout(() => {
+            fetchAndUpdateUser();
+          }, 0);
         } else {
            setUser(null);
            setIsAdminState(false);
@@ -199,9 +192,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setLoading(false);
       return { error: signInError, data: null };
     }
-    if (data.user) {
-      await fetchAndUpdateUser(); 
-    }
+    // onAuthStateChange listener will call fetchAndUpdateUser
     setLoading(false);
     return { error: null, data };
   };
@@ -215,7 +206,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       options: {
         data: {
           username: credentials.username || credentials.email?.split('@')[0],
-          first_name: credentials.firstName, // Use consistent naming
+          first_name: credentials.firstName,
           last_name: credentials.lastName,
         }
       }
@@ -228,29 +219,26 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
     if (data.user) {
       try {
-        // Insert into your public 'users' table
+        const nowISO = new Date().toISOString();
         const { error: profileInsertError } = await supabase
           .from('users') 
           .insert({
-            id: data.user.id, // Link to auth.users.id
+            id: data.user.id, 
             email: data.user.email,
             username: credentials.username || data.user.email?.split('@')[0],
             first_name: credentials.firstName,
             last_name: credentials.lastName,
-            role: 'user', // Default role
-            status: 'pending_verification', // Or 'active' if email confirmation is off
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            is_active: true, // Or false if email verification is on
+            role: 'user', 
+            status: 'pending_verification', 
+            created_at: nowISO, // ensure this matches DB expectation
+            updated_at: nowISO, // ensure this matches DB expectation
+            is_active: true, 
           });
 
         if (profileInsertError) {
           console.error("Error creating user profile in public.users:", profileInsertError);
-          // Potentially sign out the user or mark for cleanup if profile creation is critical
-          // setError("Registration partially failed (profile creation). Please contact support.");
-          // For now, proceed, but log error. fetchAndUpdateUser will try to get what it can.
         }
-        await fetchAndUpdateUser(); 
+        // onAuthStateChange listener will call fetchAndUpdateUser
       } catch (e: any) {
          console.error("Error in post-registration profile creation:", e);
          setError("Registration process encountered an issue creating profile details.");
@@ -283,26 +271,31 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
 
     if (data.user) {
-      // fetchAndUpdateUser will perform enrichment and set isAdminState
-      await fetchAndUpdateUser(); 
+      // Fetch and update user, which will set user state and isAdminState
+      await fetchAndUpdateUser();
       
-      // After fetchAndUpdateUser, 'user' state should be updated. Check its admin status.
-      // This relies on 'user' state being promptly updated by fetchAndUpdateUser.
-      // A brief timeout or check might be needed if state update isn't immediate enough.
-      const currentAuthUser = user; // Check the state 'user' after update
-      if (currentAuthUser && (currentAuthUser.is_admin || currentAuthUser.role === 'admin' || (Array.isArray(currentAuthUser.roles) && currentAuthUser.roles.includes('admin')))) {
+      // Need to check the state *after* it has been updated by fetchAndUpdateUser.
+      // This is tricky because state updates are asynchronous.
+      // A more robust way is to re-fetch the user data here and check admin status directly.
+      const tempEnrichedUser = await enrichUserWithProfile(data.user);
+
+      if (tempEnrichedUser && (tempEnrichedUser.is_admin || tempEnrichedUser.role === 'admin' || (Array.isArray(tempEnrichedUser.roles) && tempEnrichedUser.roles.includes('admin')))) {
+        // User is admin, state is already set by fetchAndUpdateUser via listener or direct call.
         setLoading(false);
         return { error: null, data };
       } else {
+        // Not an admin, sign out immediately
         await supabase.auth.signOut(); 
         const notAdminError = { name: "AuthError", message: "User is not an administrator." } as AuthError;
         setError(notAdminError.message);
-        // user and isAdminState will be reset by listener
+        setUser(null); // Explicitly clear user
+        setIsAdminState(false); // Explicitly clear admin state
         setLoading(false);
         return { error: notAdminError, data: null };
       }
     }
-    setLoading(false); // Should ideally not be reached if data.user is null after successful signIn
+    // This case should ideally not be reached if signInWithPassword was successful but data.user was null.
+    setLoading(false); 
     return { error: {name: "AuthError", message: "Admin login failed or user data unavailable."} as AuthError, data: null };
   };
 
@@ -327,7 +320,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     <AuthContext.Provider value={{ 
       user, 
       appUser: user, 
-      isAdmin: isAdminState, // Use the local isAdminState
+      isAdmin: isAdminState, 
       isAuthenticated: !!user, 
       loading, 
       error, 

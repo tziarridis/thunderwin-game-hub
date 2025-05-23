@@ -1,10 +1,11 @@
 // Ensure these are available or defined in user.d.ts and re-exported here if needed
-export type { LoginCredentials, RegisterCredentials, UserRole, UserProfile, UserContextType, DisplayUser } from './user'; 
+export type { LoginCredentials, RegisterCredentials, UserRole, UserProfile, UserContextType, DisplayUser, SupabaseAuthUser } from './user.d'; 
 export type { Wallet, WalletContextType, Transaction as WalletTransaction, CoinBalance } from './wallet'; // Assuming WalletTransaction is an alias if Transaction is generic
-export type { KycStatus, KycDocument, KycAttempt, KycRequest } from './kyc';
+export type { KycStatus, KycDocument, KycAttempt, KycRequest, KycDocumentTypeEnum } from './kyc';
 export type { Bonus, UserBonus, BonusType, BonusStatus } from './bonus';
 export type { Promotion, PromotionType } from './promotion';
-export type { Game, GameCategory, GameProvider, GameTag, DisplayGame, GameSession, GameLaunchOptions, FavoriteGame } from './game';
+// Game types - Ensure DbGame is also exported if used directly elsewhere
+export type { Game, GameCategory, GameProvider, GameTag, GameLaunchOptions, GameStatus, GameVolatility, DbGame, GameStatusEnum, GameVolatilityEnum } from './game'; // Added DbGame, GameStatus, GameVolatility
 export type { Transaction, TransactionStatus, TransactionType, DateRange } from './transaction'; // Added DateRange
 export type { VIPLevel, VIPBenefit } from './vip';
 export type { SiteSettings } from './settings';
@@ -39,7 +40,7 @@ export interface User {
   // Status & Flags
   status?: UserStatus; // e.g., 'active', 'inactive', 'banned'
   is_banned?: boolean;
-  is_active?: boolean; // General active status
+  is_active: boolean; // General active status - ensure this is not optional if AppUser requires it
 
   // Gaming related
   favorite_game_ids?: string[];
@@ -73,6 +74,12 @@ export interface User {
 }
 
 export type UserStatus = 'active' | 'inactive' | 'pending_verification' | 'banned' | 'restricted' | 'deleted';
+
+// Re-export from user.ts as well if those are intended for broader use
+// For example, if UserProfile from user.ts is different from UserProfile in user.d.ts
+// import { UserProfile as UserProfileFromUserTs } from './user';
+// export type { UserProfileFromUserTs };
+
 
 declare global {
   interface Window {
