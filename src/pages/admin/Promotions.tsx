@@ -19,7 +19,7 @@ const AdminPromotionsPage: React.FC = () => {
 
   const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error, Promotion[], QueryKey>({
     queryKey: ['adminPromotions'] as QueryKey,
-    queryFn: () => promotionsService.getPromotions(), // Use getPromotions instead of getAllPromotions
+    queryFn: () => promotionsService.getAllPromotions(),
   });
 
   const mutation = useMutation({
@@ -28,7 +28,7 @@ const AdminPromotionsPage: React.FC = () => {
       if (currentId) {
         return promotionsService.updatePromotion(currentId, promoData as Partial<Promotion>);
       } else {
-        return promotionsService.createPromotion(promoData as Omit<Promotion, 'id' | 'created_at' | 'updated_at'>);
+        return promotionsService.createPromotion(promoData as PromotionFormValues);
       }
     },
     onSuccess: () => {
@@ -106,9 +106,6 @@ const AdminPromotionsPage: React.FC = () => {
     );
   }
 
-  const AnyPromotionForm = PromotionForm as any;
-  const AnyAdminPromotionCard = AdminPromotionCard as any;
-
   return (
     <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
       {promotions.length === 0 && !isLoading && (
@@ -119,7 +116,7 @@ const AdminPromotionsPage: React.FC = () => {
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {promotions.map((promo) => (
-          <AnyAdminPromotionCard
+          <AdminPromotionCard
             key={promo.id}
             promotion={promo}
             onEdit={() => handleEdit(promo)}
@@ -129,7 +126,7 @@ const AdminPromotionsPage: React.FC = () => {
       </div>
 
       {isFormOpen && (
-        <AnyPromotionForm
+        <PromotionForm
           isOpen={isFormOpen}
           onClose={() => setIsFormOpen(false)}
           onSubmit={handleSubmitForm}
@@ -142,11 +139,11 @@ const AdminPromotionsPage: React.FC = () => {
         <ConfirmationDialog
           isOpen={isConfirmOpen}
           onClose={() => setIsConfirmOpen(false)}
+          onConfirm={confirmDelete}
           title="Delete Promotion"
           description={`Are you sure you want to delete "${(selectedPromotion as Promotion).title}"? This action cannot be undone.`}
-          onConfirm={confirmDelete}
-          isLoading={deleteMutation.isPending}
           confirmText="Delete"
+          isLoading={deleteMutation.isPending}
         />
       )}
     </AdminPageLayout>

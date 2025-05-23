@@ -15,31 +15,27 @@ interface AdminPromotionCardProps {
 }
 
 const promotionTypeIcons: Record<PromotionType, React.ElementType> = {
-  deposit_bonus: Percent,
-  free_spins: Gift,
-  cashback_offer: DollarSign, // Corrected from 'cashback'
-  tournament: Users, // Assuming 'tournament' maps to Users icon
-  special_event: Info, // Assuming 'special_event' maps to Info icon
-  welcome_offer: Gift, // Assuming 'welcome_offer' maps to Gift icon
-  reload_bonus: Percent, // Assuming 'reload_bonus' maps to Percent icon
+  [PromotionType.DEPOSIT_BONUS]: Percent,
+  [PromotionType.FREE_SPINS]: Gift,
+  [PromotionType.CASHBACK]: DollarSign,
+  [PromotionType.TOURNAMENT]: Users,
+  [PromotionType.LOYALTY_REWARD]: Info,
 };
 
 const promotionTypeColors: Record<PromotionType, string> = {
-  deposit_bonus: 'bg-blue-500',
-  free_spins: 'bg-green-500',
-  cashback_offer: 'bg-yellow-500 text-black', // Corrected key
-  tournament: 'bg-purple-500',
-  special_event: 'bg-indigo-500',
-  welcome_offer: 'bg-teal-500',
-  reload_bonus: 'bg-sky-500',
+  [PromotionType.DEPOSIT_BONUS]: 'bg-blue-500',
+  [PromotionType.FREE_SPINS]: 'bg-green-500',
+  [PromotionType.CASHBACK]: 'bg-yellow-500 text-black',
+  [PromotionType.TOURNAMENT]: 'bg-purple-500',
+  [PromotionType.LOYALTY_REWARD]: 'bg-indigo-500',
 };
 
 const promotionStatusColors: Record<PromotionStatus, string> = {
-  active: 'bg-green-500',
-  inactive: 'bg-gray-500',
-  upcoming: 'bg-blue-500',
-  expired: 'bg-red-500',
-  draft: 'bg-yellow-400 text-black',
+  [PromotionStatus.ACTIVE]: 'bg-green-500',
+  [PromotionStatus.INACTIVE]: 'bg-gray-500',
+  [PromotionStatus.UPCOMING]: 'bg-blue-500',
+  [PromotionStatus.EXPIRED]: 'bg-red-500',
+  [PromotionStatus.DRAFT]: 'bg-yellow-400 text-black',
 };
 
 const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEdit, onDelete, onToggleActive }) => {
@@ -50,11 +46,11 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
       <CardHeader className="p-4">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold line-clamp-2">{promotion.title}</CardTitle>
-          {onToggleActive && (
+          {onToggleActive && promotion.is_active !== undefined && (
              <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onToggleActive(promotion.id, !promotion.is_active)}
+                onClick={() => onToggleActive(promotion.id!, !promotion.is_active)}
                 className={`ml-2 ${promotion.is_active ? 'text-green-500 hover:text-green-700' : 'text-red-500 hover:text-red-700'}`}
                 title={promotion.is_active ? "Deactivate Promotion" : "Activate Promotion"}
               >
@@ -74,12 +70,12 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
         </div>
       </CardHeader>
       <CardContent className="p-4 text-sm text-muted-foreground space-y-2 flex-grow">
-        <p className="line-clamp-3">{promotion.description}</p> {/* Used description instead of short_description */}
+        <p className="line-clamp-3">{promotion.description}</p>
         
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <div className="flex items-center">
             <CalendarDays className="h-3 w-3 mr-1.5 text-primary" />
-            <span>Valid: {format(new Date(promotion.valid_from), 'MMM dd, yyyy')} - {format(new Date(promotion.valid_until), 'MMM dd, yyyy')}</span> {/* Used valid_from and valid_until */}
+            <span>Valid: {format(new Date(promotion.valid_from || new Date()), 'MMM dd, yyyy')} - {format(new Date(promotion.valid_until || new Date()), 'MMM dd, yyyy')}</span>
           </div>
           {promotion.code && (
             <div className="flex items-center">
@@ -87,7 +83,7 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
             </div>
           )}
           {promotion.value !== undefined && (
-            <div>Value: {promotion.value}{promotion.type === 'cashback_offer' || promotion.type === 'deposit_bonus' ? '%' : ''}</div>
+            <div>Value: {promotion.value}{promotion.type === PromotionType.CASHBACK || promotion.type === PromotionType.DEPOSIT_BONUS ? '%' : ''}</div>
           )}
           {promotion.bonus_percentage !== undefined && (
             <div>Bonus: {promotion.bonus_percentage}%</div>
@@ -111,13 +107,12 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
             </div>
           )}
         </div>
-
       </CardContent>
       <CardFooter className="p-4 bg-muted/50 flex justify-end space-x-2">
         <Button variant="outline" size="sm" onClick={() => onEdit(promotion)}>
           <Edit3 className="mr-1 h-4 w-4" /> Edit
         </Button>
-        <Button variant="destructive" size="sm" onClick={() => onDelete(promotion.id)}>
+        <Button variant="destructive" size="sm" onClick={() => onDelete(promotion.id!)}>
           <Trash2 className="mr-1 h-4 w-4" /> Delete
         </Button>
       </CardFooter>
@@ -126,4 +121,3 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
 };
 
 export default AdminPromotionCard;
-

@@ -10,7 +10,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User } from '@/types';
 import { toast } from 'sonner';
-// import { userService } from '@/services/userService'; // Assuming you have a userService
 
 const userFormSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -42,7 +41,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
       full_name: user?.user_metadata?.full_name || '',
       avatar_url: user?.user_metadata?.avatar_url || '',
       role: user?.role || 'user', // default to 'user'
-      status: user?.status || 'active',
+      status: (user?.status as 'active' | 'inactive' | 'banned') || 'active',
       kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
       currency: user?.user_metadata?.currency || 'USD',
       language: user?.user_metadata?.language || 'en',
@@ -58,7 +57,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
         full_name: user.user_metadata?.full_name || '',
         avatar_url: user.user_metadata?.avatar_url || '',
         role: user.role || 'user',
-        status: user.status || 'active',
+        status: (user.status as 'active' | 'inactive' | 'banned') || 'active',
         kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
         currency: user.user_metadata?.currency || 'USD',
         language: user.user_metadata?.language || 'en',
@@ -104,7 +103,10 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
       </div>
       <div>
         <Label htmlFor="status">Status</Label>
-        <Select onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned')} defaultValue={form.getValues('status')}>
+        <Select 
+          onValueChange={(value) => form.setValue('status', value as 'active' | 'inactive' | 'banned')} 
+          defaultValue={form.getValues('status')}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
@@ -117,7 +119,10 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
       </div>
       <div>
         <Label htmlFor="kyc_status">KYC Status</Label>
-        <Select onValueChange={(value) => form.setValue('kyc_status', value as 'verified' | 'pending' | 'rejected' | 'not_submitted')} defaultValue={form.getValues('kyc_status')}>
+        <Select 
+          onValueChange={(value) => form.setValue('kyc_status', value as 'verified' | 'pending' | 'rejected' | 'not_submitted')} 
+          defaultValue={form.getValues('kyc_status')}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select KYC status" />
           </SelectTrigger>
@@ -151,4 +156,3 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
 };
 
 export default UserForm;
-

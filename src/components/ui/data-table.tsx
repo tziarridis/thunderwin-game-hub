@@ -9,13 +9,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+export interface DataTableColumn<TData> {
+  header: string;
+  accessorKey: string;
+  cell?: (row: TData) => React.ReactNode;
+}
+
 export interface DataTableProps<TData> {
   data: TData[];
-  columns: {
-    header: string;
-    accessorKey: string;
-    cell?: (row: TData) => React.ReactNode;
-  }[];
+  columns: DataTableColumn<TData>[];
 }
 
 export function DataTable<TData>({ data, columns }: DataTableProps<TData>) {

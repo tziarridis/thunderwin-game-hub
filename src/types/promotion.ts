@@ -17,12 +17,21 @@ export enum PromotionStatus {
   DRAFT = 'DRAFT',
 }
 
+export enum PromotionAudience {
+  ALL_PLAYERS = 'ALL_PLAYERS',
+  NEW_PLAYERS = 'NEW_PLAYERS',
+  EXISTING_PLAYERS = 'EXISTING_PLAYERS',
+  VIP_PLAYERS = 'VIP_PLAYERS',
+  INACTIVE_PLAYERS = 'INACTIVE_PLAYERS',
+}
+
 export interface Promotion {
   id?: string;
   title: string;
   description?: string;
   type: PromotionType;
   status: PromotionStatus;
+  is_active?: boolean;
   bonus_amount?: number | string;
   currency?: string;
   wagering_requirement?: number;
@@ -39,6 +48,14 @@ export interface Promotion {
   priority?: number;
   created_at?: string;
   updated_at?: string;
+  // Additional fields needed by components
+  value?: number;
+  bonus_percentage?: number;
+  free_spins_count?: number;
+  code?: string;
+  cta_text?: string;
+  terms_and_conditions_url?: string;
+  target_audience?: PromotionAudience;
 }
 
 export interface PromotionFormValues {
@@ -46,6 +63,7 @@ export interface PromotionFormValues {
   description?: string;
   type: PromotionType;
   status: PromotionStatus;
+  is_active?: boolean;
   bonus_amount?: number | string;
   currency?: string;
   wagering_requirement?: number;
@@ -60,6 +78,14 @@ export interface PromotionFormValues {
   banner_url?: string;
   featured?: boolean;
   priority?: number;
+  // Additional fields
+  value?: number;
+  bonus_percentage?: number;
+  free_spins_count?: number;
+  code?: string;
+  cta_text?: string;
+  terms_and_conditions_url?: string;
+  target_audience?: PromotionAudience;
 }
 
 export interface PromotionFilter {
@@ -67,4 +93,10 @@ export interface PromotionFilter {
   type?: PromotionType;
   featured?: boolean;
   active_only?: boolean;
+}
+
+export interface ClaimPromotionResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
 }

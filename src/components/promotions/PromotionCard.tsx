@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Promotion } from '@/types/promotion';
+import { Promotion, PromotionType } from '@/types/promotion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +19,8 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onClaim, onDet
     description,
     type,
     image_url,
-    valid_from, // Use valid_from
-    valid_until, // Use valid_until
+    valid_from,
+    valid_until,
     value,
     bonus_percentage,
     free_spins_count,
@@ -33,12 +33,12 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onClaim, onDet
   } = promotion;
 
   const Icon = 
-    type === 'deposit_bonus' ? Percent :
-    type === 'free_spins' ? Gift :
-    type === 'cashback_offer' ? DollarSign : Info;
+    type === PromotionType.DEPOSIT_BONUS ? Percent :
+    type === PromotionType.FREE_SPINS ? Gift :
+    type === PromotionType.CASHBACK ? DollarSign : Info;
 
-  const startDate = new Date(valid_from);
-  const endDate = new Date(valid_until);
+  const startDate = new Date(valid_from || new Date());
+  const endDate = new Date(valid_until || new Date());
   
   const isExpired = isPast(endDate);
   const isUpcoming = isFuture(startDate);
@@ -52,7 +52,6 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onClaim, onDet
   } else if (isActiveNow) {
      statusBadge = <Badge variant="secondary" className="bg-green-500 text-white absolute top-2 right-2">Active</Badge>;
   }
-
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 h-full bg-card">
@@ -79,7 +78,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onClaim, onDet
               {isUpcoming ? `Starts: ${format(startDate, 'MMM dd, yyyy')}` : `Valid until: ${format(endDate, 'MMM dd, yyyy')}`}
             </span>
           </div>
-          {value !== undefined && <p>Value: {value}{type === 'cashback_offer' ? '%' : ''}</p>}
+          {value !== undefined && <p>Value: {value}{type === PromotionType.CASHBACK ? '%' : ''}</p>}
           {bonus_percentage !== undefined && <p>Bonus: {bonus_percentage}% {max_bonus_amount ? `(up to $${max_bonus_amount})` : ''}</p>}
           {free_spins_count !== undefined && <p>Free Spins: {free_spins_count}</p>}
           {min_deposit !== undefined && <p>Min. Deposit: ${min_deposit}</p>}
@@ -117,4 +116,3 @@ const PromotionCard: React.FC<PromotionCardProps> = ({ promotion, onClaim, onDet
 };
 
 export default PromotionCard;
-

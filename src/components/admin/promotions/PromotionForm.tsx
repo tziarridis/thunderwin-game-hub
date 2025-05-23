@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Promotion, PromotionStatus, PromotionType, PromotionAudience } from '@/types/promotion'; // Ensure PromotionType is imported
+import { Promotion, PromotionStatus, PromotionType, PromotionAudience } from '@/types/promotion';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -51,8 +51,8 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
         ...initialData,
         valid_from: initialData.valid_from ? new Date(initialData.valid_from).toISOString().split('T')[0] : '',
         valid_until: initialData.valid_until ? new Date(initialData.valid_until).toISOString().split('T')[0] : '',
-        type: initialData.type || PromotionType.DEPOSIT_BONUS, // Default if not set
-        status: initialData.status || PromotionStatus.DRAFT, // Default if not set
+        type: initialData.type || PromotionType.DEPOSIT_BONUS,
+        status: initialData.status || PromotionStatus.DRAFT,
     } : {
         title: '',
         description: '',
@@ -91,8 +91,10 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
   };
   
   // Helper to get enum values for select options
-  const getEnumOptions = (enumObj: any) => Object.values(enumObj).map(value => ({ label: String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), value: String(value) }));
-
+  const getEnumOptions = (enumObj: any) => Object.values(enumObj).map(value => ({ 
+    label: String(value).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), 
+    value: String(value) 
+  }));
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -170,15 +172,6 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
             {errors.image_url && <p className="text-red-500 text-xs mt-1">{errors.image_url.message}</p>}
           </div>
 
-          {/* Add more fields as needed based on Promotion type (value, bonus_percentage, etc.) */}
-          {/* For example:
-          <div>
-            <Label htmlFor="value">Value (e.g., cashback %)</Label>
-            <Input id="value" type="number" {...register('value', { valueAsNumber: true })} />
-            {errors.value && <p className="text-red-500 text-xs mt-1">{errors.value.message}</p>}
-          </div>
-          */}
-          
           <div className="flex items-center space-x-2">
             <Controller
                 name="is_active"
