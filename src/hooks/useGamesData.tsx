@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Game } from '@/types/game';
+import { Game, DbGame } from '@/types/game';
 import { gameService } from '@/services/gameService';
 import { toast } from 'sonner';
 
@@ -19,6 +19,21 @@ interface GamesResult {
   games: Game[];
   count: number;
 }
+
+// Function to map DbGame to Game
+const mapDbGameToGame = (dbGame: DbGame): Game => ({
+  id: dbGame.id,
+  title: dbGame.title || dbGame.game_name || 'Untitled Game',
+  slug: dbGame.game_code || dbGame.id,
+  description: dbGame.description || '',
+  image_url: dbGame.cover || '',
+  provider_id: dbGame.provider_id,
+  category_id: dbGame.category_slugs?.[0] || '',
+  status: dbGame.status,
+  rtp: dbGame.rtp || 0,
+  created_at: dbGame.created_at || new Date().toISOString(),
+  updated_at: dbGame.updated_at || new Date().toISOString()
+});
 
 export const useGamesData = ({
   category,
@@ -52,7 +67,7 @@ export const useGamesData = ({
         latest,
       });
       
-      const fetchedGames = result.games;
+      const fetchedGames = result.games.map(mapDbGameToGame);
       const count = result.count;
 
       if (replace) {
@@ -103,7 +118,5 @@ export const useGamesData = ({
   };
 };
 
-// Aliased export to satisfy read-only components that import `useGames` from this file path
 export { useGamesData as useGames };
-
 export default useGamesData;

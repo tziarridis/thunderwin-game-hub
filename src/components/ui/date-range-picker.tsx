@@ -61,3 +61,6 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     </div>
   );
 };
+
+// Export alias for backward compatibility
+export const DatePickerWithRange = DateRangePicker;

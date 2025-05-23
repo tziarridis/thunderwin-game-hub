@@ -1,77 +1,86 @@
 
+import React from 'react';
 import { Game } from '@/types';
-import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
-import { Loader2, FilterX } from 'lucide-react';
-import { useGames } from '@/hooks/useGames';
+import { Loader2 } from 'lucide-react';
 
-interface GamesGridProps {
-  games: Game[];
+export interface GameGridProps {
+  games: (Game & { isFavorite?: boolean })[];
+  onGameClick: (game: Game, mode?: 'real' | 'demo') => void;
+  onToggleFavorite?: (gameId: string | number, isFavorite: boolean) => void;
   loading?: boolean;
-  onGameClick?: (game: Game) => void; 
-  emptyMessage?: string;
-  loadMore?: () => void;
+  loadMoreGames?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
+  emptyMessage?: string;
 }
 
-const GamesGrid = ({
+const GamesGrid: React.FC<GameGridProps> = ({
   games,
-  loading = false,
   onGameClick,
-  emptyMessage = "No games found",
-  loadMore,
+  onToggleFavorite,
+  loading = false,
+  loadMoreGames,
   hasMore = false,
-  loadingMore = false
-}: GamesGridProps) => {
-  const { favoriteGameIds, toggleFavoriteGame } = useGames();
-
-  if (loading) {
+  loadingMore = false,
+  emptyMessage = "No games found."
+}) => {
+  if (loading && games.length === 0) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-  
-  if (!loading && (!games || games.length === 0)) {
+
+  if (games.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-        <FilterX className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">{emptyMessage}</p>
+      <div className="text-center py-12">
+        <p className="text-muted-foreground text-lg">{emptyMessage}</p>
       </div>
     );
   }
-  
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
         {games.map((game) => (
-          <GameCard 
-            key={String(game.id)}
-            game={game}
-            isFavorite={favoriteGameIds.has(String(game.id))}
-            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
-            onPlay={onGameClick ? () => onGameClick(game) : undefined}
-          />
+          <div
+            key={game.id}
+            className="bg-card rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => onGameClick(game)}
+          >
+            <div className="aspect-[3/4] bg-muted">
+              <img
+                src={game.image_url || '/placeholder.svg'}
+                alt={game.title}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-2">
+              <h3 className="font-medium text-sm truncate">{game.title}</h3>
+              <p className="text-xs text-muted-foreground truncate">
+                {game.provider_id || 'Unknown Provider'}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
       
-      {loadMore && hasMore && (
-        <div className="flex justify-center pt-4 pb-8">
-          <Button 
-            variant="outline" 
-            onClick={loadMore}
+      {hasMore && loadMoreGames && (
+        <div className="text-center mt-8">
+          <Button
+            onClick={loadMoreGames}
             disabled={loadingMore}
-            className="min-w-[140px]"
+            variant="outline"
           >
             {loadingMore ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
+                Loading More...
               </>
             ) : (
-              "Load More Games"
+              'Load More Games'
             )}
           </Button>
         </div>

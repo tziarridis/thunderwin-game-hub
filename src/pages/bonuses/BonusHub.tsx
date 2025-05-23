@@ -2,17 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
-// import { bonusService } from '@/services/bonusService'; // Real service
-// import { promotionService } from '@/services/promotionService'; // Real service
-import { Bonus, UserBonus, Promotion, PromotionType } from '@/types'; // Make sure PromotionType is exported
+import { UserBonus, Promotion, PromotionType } from '@/types';
 import PromotionCard from '@/components/promotions/PromotionCard';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { AlertCircle, CheckCircle, Gift, Loader2, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import AppLayout from '@/components/layout/AppLayout'; // Or UserLayout if preferred
+import { format } from 'date-fns';
+import AppLayout from '@/components/layout/AppLayout';
 
 // Mock services
 const mockBonusService = {
@@ -30,21 +30,22 @@ const mockBonusService = {
     return { id: 'ub_new', bonus_id: bonusCodeOrId, user_id: userId, status: 'active', activated_at: new Date().toISOString(), expires_at: new Date(Date.now() + 86400000 * 3).toISOString(), progress: 0, bonus_details: { name: `Claimed: ${bonusCodeOrId}`, type: 'deposit_match', amount: 10, currency: 'USD'} };
   }
 };
+
 const mockPromotionService = {
   getAvailablePromotions: async (): Promise<Promotion[]> => {
     await new Promise(res => setTimeout(res, 500));
     return [
-      { id: 'p1', title: '100% Deposit Bonus', description: 'Double your first deposit up to $100.', type: 'deposit_bonus' as PromotionType, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 14).toISOString(), cta_text: 'Claim Now', code: 'WELCOME100', min_deposit: 10, bonus_percentage: 100, max_bonus_amount: 100, wagering_requirement: 30 },
-      { id: 'p2', title: '50 Free Spins on Starburst', description: 'Get 50 Free Spins when you sign up.', type: 'free_spins' as PromotionType, valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 7).toISOString(), cta_text: 'Get Spins', free_spins_count: 50 },
+      { id: 'p1', title: '100% Deposit Bonus', description: 'Double your first deposit up to $100.', type: 'deposit_bonus' as PromotionType, status: 'active', valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 14).toISOString(), cta_text: 'Claim Now', code: 'WELCOME100', min_deposit: 10, bonus_percentage: 100, max_bonus_amount: 100, wagering_requirement: 30 },
+      { id: 'p2', title: '50 Free Spins on Starburst', description: 'Get 50 Free Spins when you sign up.', type: 'free_spins' as PromotionType, status: 'active', valid_from: new Date().toISOString(), valid_until: new Date(Date.now() + 86400000 * 7).toISOString(), cta_text: 'Get Spins', free_spins_count: 50 },
     ];
   }
 };
+
 const bonusService = mockBonusService;
 const promotionService = mockPromotionService;
 
-
 const BonusHubPage: React.FC = () => {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [bonusCode, setBonusCode] = useState('');
   const [isClaiming, setIsClaiming] = useState(false);
@@ -76,7 +77,7 @@ const BonusHubPage: React.FC = () => {
     try {
       await bonusService.claimBonus(user.id, bonusCode.trim());
       setBonusCode('');
-      refetchActiveBonuses(); // Refresh active bonuses list
+      refetchActiveBonuses();
     } catch (error: any) {
       toast.error(error.message || "Failed to claim bonus.");
     } finally {
@@ -89,9 +90,8 @@ const BonusHubPage: React.FC = () => {
       toast.error("Please log in to claim promotions.");
       return;
     }
-    setIsClaiming(true); // Use a generic claiming state or specific per-promotion
+    setIsClaiming(true);
     try {
-      // If promotion has a code, use it. Otherwise, it might be ID-based claim.
       const claimIdentifier = promotion.code || promotion.id;
       await bonusService.claimBonus(user.id, claimIdentifier);
       toast.success(`Promotion "${promotion.title}" claimed!`);
@@ -103,9 +103,14 @@ const BonusHubPage: React.FC = () => {
     }
   };
 
-
   if (authLoading || (isLoadingActiveBonuses && isLoadingPromotions && !activeBonuses && !availablePromotions)) {
-    return <AppLayout><div className="flex justify-center items-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div></AppLayout>;
+    return (
+      <AppLayout>
+        <div className="flex justify-center items-center h-screen">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
   }
 
   return (
@@ -131,7 +136,7 @@ const BonusHubPage: React.FC = () => {
                   placeholder="Enter bonus code" 
                   value={bonusCode}
                   onChange={(e) => setBonusCode(e.target.value.toUpperCase())}
-                  className="input flex-grow bg-card border border-input rounded-md px-3 py-2 text-sm" // Basic input styling
+                  className="input flex-grow bg-card border border-input rounded-md px-3 py-2 text-sm"
                 />
                 <Button onClick={handleClaimBonusCode} disabled={isClaiming || !bonusCode.trim()} className="w-full sm:w-auto">
                   {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
@@ -150,7 +155,6 @@ const BonusHubPage: React.FC = () => {
                     key={promo.id} 
                     promotion={promo} 
                     onClaim={user ? () => handleClaimPromotion(promo) : undefined}
-                    // onDetails can navigate to a promotion details page or show a modal
                     onDetails={(p) => toast.info(`Details for ${p.title} (Not implemented)`)} 
                   />
                 ))}
@@ -188,7 +192,6 @@ const BonusHubPage: React.FC = () => {
                           </div>
                         </div>
                       )}
-                      {/* Add more details like terms or actions */}
                     </CardContent>
                   </Card>
                 ))}

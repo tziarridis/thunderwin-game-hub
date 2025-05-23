@@ -12,10 +12,19 @@ export interface UserBonus {
   id: string;
   user_id: string;
   bonus_id: string;
-  amount: number;
-  status: 'active' | 'used' | 'expired';
+  amount?: number;
+  status: 'active' | 'used' | 'expired' | 'available';
   created_at: string;
   updated_at: string;
+  activated_at?: string;
+  expires_at?: string;
+  progress?: number;
+  bonus_details?: {
+    name: string;
+    type: string;
+    amount: number;
+    currency: string;
+  };
 }
 
 export interface Bonus {

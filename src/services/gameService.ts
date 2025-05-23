@@ -14,6 +14,56 @@ export const gameService = {
     }
   },
 
+  getGameById: async (gameId: string): Promise<DbGame> => {
+    console.log(`gameService: Fetching game by ID ${gameId}`);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Mock game data
+      return {
+        id: gameId,
+        game_name: 'Sample Game',
+        title: 'Sample Game Title',
+        description: 'A sample game description',
+        status: 'active' as any,
+        provider_slug: 'sample-provider',
+        category_slugs: ['slots'],
+        rtp: 96.5,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as DbGame;
+    } catch (error: any) {
+      console.error('Error fetching game by ID:', error.message);
+      throw error;
+    }
+  },
+
+  getGameBySlug: async (slug: string): Promise<DbGame> => {
+    console.log(`gameService: Fetching game by slug ${slug}`);
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Mock game data
+      return {
+        id: 'game-' + slug,
+        game_name: 'Sample Game',
+        title: 'Sample Game Title',
+        description: 'A sample game description',
+        status: 'active' as any,
+        provider_slug: 'sample-provider',
+        category_slugs: ['slots'],
+        rtp: 96.5,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as DbGame;
+    } catch (error: any) {
+      console.error('Error fetching game by slug:', error.message);
+      throw error;
+    }
+  },
+
   getGameCategories: async (): Promise<GameCategory[]> => {
     console.log('gameService: Fetching game categories');
     
