@@ -13,6 +13,17 @@ export interface Affiliate {
 }
 
 export interface AffiliateData {
+  id?: string;
+  user_id?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  tracking_code?: string;
+  website_url?: string;
+  status?: string;
+  commission_type?: string;
+  default_commission_rate?: number;
+  commission_tiers?: AffiliateCommissionTier[];
   affiliate: Affiliate;
   totalReferrals: number;
   activeReferrals: number;
@@ -38,6 +49,10 @@ export type AffiliateStats = {
   pendingCommission: number;
   totalEarned: number;
   conversionRate: number;
+  totalAffiliates: number;
+  activeAffiliates: number;
+  pendingAffiliates: number;
+  totalCommissionPaid: number;
 };
 
 export type AffiliateStatSummary = AffiliateStats;
@@ -61,12 +76,21 @@ export type AffiliateEarning = {
 
 export interface AffiliateUser {
   id: string;
+  user_id?: string;
+  userId?: string;
   username: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   affiliate_code: string;
+  tracking_code?: string;
+  website_url?: string;
   total_referrals: number;
   commission_earned: number;
   status: string;
+  commission_type?: string;
+  default_commission_rate?: number;
+  commission_tiers?: AffiliateCommissionTier[];
   created_at: string;
 }
 
@@ -75,4 +99,7 @@ export interface AffiliateCommissionTier {
   min_referrals: number;
   commission_rate: number;
   name: string;
+  threshold?: number;
+  rate?: number;
+  type?: string;
 }

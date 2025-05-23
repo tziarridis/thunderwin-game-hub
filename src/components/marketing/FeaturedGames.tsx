@@ -1,10 +1,10 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Game } from '@/types/game';
-import { useGamesData } from '@/hooks/useGamesData';
+import { useGames } from '@/hooks/useGames';
 import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronRight, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Carousel,
@@ -14,7 +14,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { toast } from 'sonner';
-import { useGames } from '@/hooks/useGames';
 
 interface FeaturedGamesProps {
   title?: string;
@@ -29,79 +28,89 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
   categorySlug,
   tag 
 }) => {
-  const { games: allGames, isLoading, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
+  const { games: allGames, isLoadingGames, favoriteGameIds, toggleFavoriteGame, launchGame } = useGames();
   const [filteredGamesToShow, setFilteredGamesToShow] = useState<Game[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (allGames.length > 0) {
-      let tempFiltered = [...allGames]; 
+  // Memoize filtered games to prevent unnecessary recalculations
+  const filteredGames = useMemo(() => {
+    if (!allGames.length) return [];
+    
+    let tempFiltered = [...allGames];
 
-      if (categorySlug) {
-        tempFiltered = tempFiltered.filter(g => 
-            (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
-            g.categoryName === categorySlug // Fallback
-        );
-      }
-      
-      if (tag) {
-        switch (tag.toLowerCase()) {
-          case 'featured':
-            tempFiltered = tempFiltered.filter(g => g.is_featured);
-            break;
-          case 'popular':
-            tempFiltered = tempFiltered.filter(g => g.isPopular);
-            break;
-          case 'new':
-            tempFiltered = tempFiltered.filter(g => g.isNew);
-            break;
-          default:
-            // Make sure g.tags is an array and contains the tag
-            tempFiltered = tempFiltered.filter(g => {
-              // Safely check if tags is an array and contains the tag string
-              return Array.isArray(g.tags) && g.tags.some(t => {
-                // Handle both string tags and GameTag objects
-                if (typeof t === 'string') {
-                  return t === tag;
-                } else if (typeof t === 'object' && t && 'slug' in t) {
-                  return t.slug === tag;
-                }
-                return false;
-              });
-            });
-            break;
-        }
-      } else if (!categorySlug) { 
-        tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
-      }
-      
-      if (tag === 'new') {
-        tempFiltered.sort((a,b) => {
-          const dateA = a.releaseDate || a.created_at || '0';
-          const dateB = b.releaseDate || b.created_at || '0';
-          return new Date(dateB).getTime() - new Date(dateA).getTime();
-        });
-      }
-
-      setFilteredGamesToShow(tempFiltered.slice(0, count));
+    if (categorySlug) {
+      tempFiltered = tempFiltered.filter(g => 
+        (Array.isArray(g.category_slugs) && g.category_slugs.includes(categorySlug)) || 
+        g.categoryName === categorySlug || 
+        g.category_name === categorySlug
+      );
     }
+    
+    if (tag) {
+      switch (tag.toLowerCase()) {
+        case 'featured':
+          tempFiltered = tempFiltered.filter(g => g.is_featured);
+          break;
+        case 'popular':
+          tempFiltered = tempFiltered.filter(g => g.isPopular);
+          break;
+        case 'new':
+          tempFiltered = tempFiltered.filter(g => g.isNew);
+          break;
+        default:
+          tempFiltered = tempFiltered.filter(g => {
+            return Array.isArray(g.tags) && g.tags.some(t => {
+              if (typeof t === 'string') {
+                return t === tag;
+              } else if (typeof t === 'object' && t && 'slug' in t) {
+                return (t as any).slug === tag;
+              }
+              return false;
+            });
+          });
+          break;
+      }
+    } else if (!categorySlug) { 
+      tempFiltered = tempFiltered.filter(g => g.is_featured || g.isPopular);
+    }
+    
+    if (tag === 'new') {
+      tempFiltered.sort((a, b) => {
+        const dateA = a.releaseDate || a.created_at || '0';
+        const dateB = b.releaseDate || b.created_at || '0';
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
+    }
+
+    return tempFiltered.slice(0, count);
   }, [allGames, count, categorySlug, tag]);
 
+  useEffect(() => {
+    setFilteredGamesToShow(filteredGames);
+  }, [filteredGames]);
+
   const handlePlayGame = async (game: Game) => {
+    if (isProcessing) return;
+    
     try {
+      setIsProcessing(true);
       const gameUrl = await launchGame(game, { mode: 'real' });
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
         navigate(`/casino/game/${game.slug || game.id}`);
       }
-    } catch (e:any) {
-      toast.error(`Error launching game: ${(e as Error).message}`);
+    } catch (e: any) {
+      console.error('Error launching game:', e);
+      toast.error(`Error launching game: ${e.message}`);
       navigate(`/casino/game/${game.slug || game.id}`); 
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  if (isLoading && filteredGamesToShow.length === 0) {
+  if (isLoadingGames && filteredGamesToShow.length === 0) {
     return (
       <div className="py-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
@@ -110,7 +119,7 @@ const FeaturedGames: React.FC<FeaturedGamesProps> = ({
     );
   }
 
-  if (!isLoading && filteredGamesToShow.length === 0) {
+  if (!isLoadingGames && filteredGamesToShow.length === 0) {
     return null; 
   }
 

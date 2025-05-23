@@ -1,7 +1,9 @@
 import { useEffect } from "react";
-import { Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./components/layout/AdminLayout";
+import ErrorBoundary from "./components/ErrorBoundary";
+// ... keep existing imports
 import CasinoMain from "./pages/casino/CasinoMain";
 import LiveCasino from "./pages/casino/LiveCasino";
 import Slots from "./pages/casino/Slots";
@@ -56,12 +58,16 @@ import { Toaster } from "./components/ui/sonner";
 
 function App() {
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "dark";
-    document.documentElement.classList.toggle("dark", savedTheme === "dark");
+    try {
+      const savedTheme = localStorage.getItem("theme") || "dark";
+      document.documentElement.classList.toggle("dark", savedTheme === "dark");
+    } catch (error) {
+      console.error('Error setting theme:', error);
+    }
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       <Toaster richColors position="top-right" />
       <Routes>
         {/* Main App Routes using AppLayout which now contains all navigation elements */}
@@ -143,7 +149,7 @@ function App() {
         {/* 404 route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </>
+    </ErrorBoundary>
   );
 }
 
