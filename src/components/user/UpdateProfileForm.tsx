@@ -1,112 +1,134 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
-
-const profileSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters').optional(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  avatar_url: z.string().url('Invalid URL format').optional(),
-});
-
-type ProfileFormData = z.infer<typeof profileSchema>;
+import { Loader2 } from 'lucide-react';
 
 const UpdateProfileForm: React.FC = () => {
-  const { user, fetchAndUpdateUser } = useAuth();
-
-  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
-    defaultValues: {
-      username: user?.username || '',
-      first_name: user?.first_name || '',
-      last_name: user?.last_name || '',
-      avatar_url: user?.avatar_url || '',
-    },
+  const { user, fetchAndUpdateUser, isLoading } = useAuth();
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    username: '',
+    avatar_url: '',
   });
+  const [updating, setUpdating] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
-      reset({
-        username: user.username || '',
+      setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
+        username: user.username || '',
         avatar_url: user.avatar_url || '',
       });
     }
-  }, [user, reset]);
+  }, [user]);
 
-  const onSubmit = async (data: ProfileFormData) => {
-    if (!user) {
-      toast.error('You must be logged in to update your profile.');
-      return;
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-    const updates: Partial<ProfileFormData> = {};
-    if (data.username && data.username !== user.username) updates.username = data.username;
-    if (data.first_name && data.first_name !== user.first_name) updates.first_name = data.first_name;
-    if (data.last_name && data.last_name !== user.last_name) updates.last_name = data.last_name;
-    if (data.avatar_url && data.avatar_url !== user.avatar_url) updates.avatar_url = data.avatar_url;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
 
-    if (Object.keys(updates).length === 0) {
-      toast.info('No changes to save.');
-      return;
-    }
-    
-    // Here, 'users' is assumed to be your public table storing user profiles, linked by id to auth.users
-    const { error } = await supabase
-      .from('users') // Or 'profiles' if that's your table name
-      .update(updates)
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error(`Failed to update profile: ${error.message}`);
-    } else {
+    setUpdating(true);
+    try {
+      await fetchAndUpdateUser(formData);
       toast.success('Profile updated successfully!');
-      await fetchAndUpdateUser(); // Refresh user data in AuthContext
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      toast.error('Failed to update profile. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Update Profile</CardTitle>
-        <CardDescription>Update your personal information.</CardDescription>
+        <CardDescription>
+          Update your personal information below.
+        </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name</Label>
+              <Input
+                id="first_name"
+                name="first_name"
+                type="text"
+                value={formData.first_name}
+                onChange={handleInputChange}
+                placeholder="Enter your first name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input
+                id="last_name"
+                name="last_name"
+                type="text"
+                value={formData.last_name}
+                onChange={handleInputChange}
+                placeholder="Enter your last name"
+              />
+            </div>
+          </div>
+          
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
-            <Input id="username" {...register('username')} />
-            {errors.username && <p className="text-sm text-red-500">{errors.username.message}</p>}
+            <Input
+              id="username"
+              name="username"
+              type="text"
+              value={formData.username}
+              onChange={handleInputChange}
+              placeholder="Enter your username"
+            />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="first_name">First Name</Label>
-            <Input id="first_name" {...register('first_name')} />
-            {errors.first_name && <p className="text-sm text-red-500">{errors.first_name.message}</p>}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="last_name">Last Name</Label>
-            <Input id="last_name" {...register('last_name')} />
-            {errors.last_name && <p className="text-sm text-red-500">{errors.last_name.message}</p>}
-          </div>
+          
           <div className="space-y-2">
             <Label htmlFor="avatar_url">Avatar URL</Label>
-            <Input id="avatar_url" type="url" {...register('avatar_url')} />
-            {errors.avatar_url && <p className="text-sm text-red-500">{errors.avatar_url.message}</p>}
+            <Input
+              id="avatar_url"
+              name="avatar_url"
+              type="url"
+              value={formData.avatar_url}
+              onChange={handleInputChange}
+              placeholder="Enter avatar URL"
+            />
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          <Button type="submit" disabled={updating || isLoading}>
+            {updating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              'Update Profile'
+            )}
           </Button>
         </CardFooter>
       </form>

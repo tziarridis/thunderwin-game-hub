@@ -1,7 +1,13 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, AuthError, User as SupabaseAuthUser, SignInWithPasswordCredentials, SignUpWithPasswordCredentials } from '@supabase/supabase-js';
-import { LoginCredentials, RegisterCredentials, UserProfile, UserRole, AppUser, User } from '@/types'; // Ensure AppUser and User are imported
+import { LoginCredentials, RegisterCredentials, UserProfile, UserRole, User } from '@/types';
+
+// Export AppUser type
+export interface AppUser extends User {
+  // Additional app-specific properties can be added here
+}
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -11,42 +17,36 @@ interface AuthContextType {
   user: AppUser | null;
   session: Session | null;
   isAuthenticated: boolean;
-  isLoading: boolean; // Renamed from 'loading' for consistency or ensure 'loading' is used if preferred
+  isLoading: boolean; // Use isLoading consistently
   error: AuthError | null;
   signIn: (credentials: LoginCredentials) => Promise<{ user: AppUser | null, session: Session | null, error: AuthError | null }>;
   signUp: (credentials: RegisterCredentials) => Promise<{ user: AppUser | null, session: Session | null, error: AuthError | null }>;
-  signOut: () => Promise<void>; // Renamed from 'logout' to match Supabase, or keep 'logout' and map it
+  signOut: () => Promise<void>; // Use signOut instead of logout
   sendPasswordResetEmail: (email: string) => Promise<{ error: AuthError | null }>;
   updateUserPassword: (password: string) => Promise<{ user: AppUser | null, error: AuthError | null }>;
   fetchUserProfile: (supabaseUser: SupabaseAuthUser) => Promise<AppUser | null>;
-  isAdmin: boolean; // Added isAdmin
-  fetchAndUpdateUser: (updates: Partial<AppUser>) => Promise<void>; // Added fetchAndUpdateUser
+  isAdmin: boolean;
+  fetchAndUpdateUser: (updates: Partial<AppUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Export AppUser if it's defined and used within this file primarily
-// However, it's better to define AppUser in types/user.ts and import it.
-// For now, assuming AppUser is correctly imported from '@/types'.
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Use isLoading consistently
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
 
   const fetchUserProfile = useCallback(async (supabaseUser: SupabaseAuthUser): Promise<AppUser | null> => {
     try {
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles') // or 'users' table if that's where extended info is
+        .from('profiles')
         .select('*')
-        .eq('id', supabaseUser.id) // Assuming 'profiles' table has 'id' matching auth.users.id
+        .eq('id', supabaseUser.id)
         .single();
 
       if (profileError) {
         console.warn('Error fetching user profile details:', profileError.message);
-        // Return a user object with at least Supabase auth data
-        // Fallback to creating a user object from Supabase user data
         const partialUser: AppUser = {
           id: supabaseUser.id,
           email: supabaseUser.email,
@@ -56,17 +56,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           app_metadata: supabaseUser.app_metadata,
           user_metadata: supabaseUser.user_metadata,
           phone: supabaseUser.phone,
-          role: supabaseUser.app_metadata?.role as UserRole || 'user', // default role
+          role: supabaseUser.app_metadata?.role as UserRole || 'user',
+          username: null,
+          is_active: true,
         };
         return partialUser;
       }
       
-      // Combine Supabase auth user with profile data
       const appUser: AppUser = {
-        ...supabaseUser, // Includes id, email, created_at, etc. from auth
-        ...profileData,  // Includes fields from your 'profiles' or 'users' table
-        // Ensure 'role' is correctly sourced, e.g., from profileData.role or supabaseUser.app_metadata.role
+        ...supabaseUser,
+        ...profileData,
         role: (profileData as any)?.role || supabaseUser.app_metadata?.role as UserRole || 'user',
+        is_active: true,
       };
       console.log("Fetched AppUser:", appUser);
       return appUser;
@@ -123,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (credentials.email) {
       authCredentials = {
         email: credentials.email,
-        password: credentials.password as string, // Ensure password is not undefined
+        password: credentials.password as string,
       };
     } else if (credentials.phone) {
        if (!credentials.phone) { 
@@ -134,7 +135,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       authCredentials = {
         phone: credentials.phone,
-        password: credentials.password as string, // Ensure password is not undefined
+        password: credentials.password as string,
       };
     } else {
       setIsLoading(false);
@@ -179,15 +180,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     const { email, password, phone, ...metaData } = credentials;
     
-    let signupOptions: SignUpWithPasswordCredentials = { email: email as string, password: password as string };
-    if (phone) signupOptions.phone = phone;
+    let signupOptions: SignUpWithPasswordCredentials = { 
+      email: email as string, 
+      password: password as string 
+    };
     
-    // Ensure metaData is structured for options.data
     const dataForOptions: Record<string, any> = {};
     if (metaData.username) dataForOptions.username = metaData.username;
     if (metaData.first_name) dataForOptions.first_name = metaData.first_name;
     if (metaData.last_name) dataForOptions.last_name = metaData.last_name;
-    // Add any other metadata fields from RegisterCredentials
     
     if (Object.keys(dataForOptions).length > 0) {
       signupOptions.options = { data: dataForOptions };
@@ -202,7 +203,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     if (data.user) {
-        if (data.session) { // Auto-confirm might be on, or using phone auth
+        if (data.session) {
             const appUser = await fetchUserProfile(data.user);
              if (appUser) {
                 setUser(appUser);
@@ -215,14 +216,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setIsLoading(false);
                 return { user: null, session: data.session, error: profileError };
             }
-        } else { // Email confirmation likely required
+        } else {
             setIsLoading(false);
-            // Create a partial AppUser for return, indicating confirmation pending
             const partialAppUser: AppUser = {
                 id: data.user.id,
                 email: data.user.email,
                 created_at: data.user.created_at,
-                // other fields will be null or undefined until profile is fetched
+                username: null,
+                is_active: true,
             };
             return { user: partialAppUser, session: null, error: null };
         }
@@ -289,21 +290,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return;
     setIsLoading(true);
     try {
-      // Example: Update user_metadata in Supabase Auth
       if (updates.user_metadata) {
         const { data: updatedAuthUser, error: updateAuthError } = await supabase.auth.updateUser({
           data: updates.user_metadata
         });
         if (updateAuthError) throw updateAuthError;
         if (updatedAuthUser.user) {
-           // Now update your local 'profiles' or 'users' table
             const { error: profileUpdateError } = await supabase
-              .from('profiles') // or 'users'
+              .from('profiles')
               .update({ 
                 first_name: updates.first_name, 
                 last_name: updates.last_name,
                 avatar_url: updates.avatar_url,
-                // ... any other fields from AppUser that are in 'profiles'
                })
               .eq('id', updatedAuthUser.user.id);
 
@@ -313,20 +311,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser(refreshedUser);
         }
       } else {
-        // If only updating fields in the 'profiles' table not in auth.user_metadata
          const { error: profileUpdateError } = await supabase
-            .from('profiles') // or 'users'
+            .from('profiles')
             .update({ 
               first_name: updates.first_name, 
               last_name: updates.last_name,
               avatar_url: updates.avatar_url,
-              // ... any other fields from AppUser that are in 'profiles'
               })
-            .eq('id', user.id); // Assuming user.id matches the 'profiles' table id
+            .eq('id', user.id);
 
           if (profileUpdateError) throw profileUpdateError;
           
-          // Re-fetch the supabase auth user to combine with updated profile
           const {data: {user: currentSupabaseUser}} = await supabase.auth.getUser();
           if(currentSupabaseUser){
             const refreshedUser = await fetchUserProfile(currentSupabaseUser);
@@ -347,16 +342,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     session,
     isAuthenticated: !!user && !!session,
-    isLoading, // use isLoading
+    isLoading,
     error,
     signIn,
     signUp,
-    signOut, // use signOut
+    signOut,
     sendPasswordResetEmail,
     updateUserPassword,
     fetchUserProfile,
-    isAdmin, // add isAdmin
-    fetchAndUpdateUser, // add fetchAndUpdateUser
+    isAdmin,
+    fetchAndUpdateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

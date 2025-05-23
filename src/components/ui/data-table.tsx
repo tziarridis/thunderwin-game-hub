@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface DataTableProps<TData> {
+export interface DataTableProps<TData> {
   data: TData[];
   columns: {
     header: string;

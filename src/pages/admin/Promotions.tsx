@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { promotionsService } from '@/services/promotionService'; // Corrected: promotionsService
-import { Promotion, PromotionFormValues } from '@/types'; // PromotionFormValues if defined, or use Partial<Promotion>
+import { promotionsService } from '@/services/promotionService';
+import { Promotion, PromotionFormValues } from '@/types';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard'; // Assuming this exists and is correct
-import PromotionForm from '@/components/admin/promotions/PromotionForm'; // Assuming this exists and is correct
+import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard';
+import PromotionForm from '@/components/admin/promotions/PromotionForm';
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
@@ -19,17 +19,15 @@ const AdminPromotionsPage: React.FC = () => {
 
   const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error, Promotion[], QueryKey>({
     queryKey: ['adminPromotions'] as QueryKey,
-    queryFn: promotionsService.getAllPromotions, // Ensure this method returns Promotion[]
+    queryFn: () => promotionsService.getPromotions(), // Use getPromotions instead of getAllPromotions
   });
 
   const mutation = useMutation({
-    mutationFn: async (promoData: PromotionFormValues | Partial<Promotion>) => { // Use a defined form values type or Partial<Promotion>
-      // Assert promoData has an id if it's an update
+    mutationFn: async (promoData: PromotionFormValues | Partial<Promotion>) => {
       const currentId = (promoData as Promotion).id;
       if (currentId) {
         return promotionsService.updatePromotion(currentId, promoData as Partial<Promotion>);
       } else {
-        // For creation, ensure the type matches createPromotion's expected input
         return promotionsService.createPromotion(promoData as Omit<Promotion, 'id' | 'created_at' | 'updated_at'>);
       }
     },
@@ -58,7 +56,7 @@ const AdminPromotionsPage: React.FC = () => {
   });
 
   const handleAddNew = () => {
-    setSelectedPromotion({}); // For new promotion
+    setSelectedPromotion({});
     setIsFormOpen(true);
   };
 
@@ -107,11 +105,9 @@ const AdminPromotionsPage: React.FC = () => {
       </AdminPageLayout>
     );
   }
-  
-  // Assuming PromotionForm is read-only and has props: isOpen, onClose, onSubmit, initialData, isLoading
+
   const AnyPromotionForm = PromotionForm as any;
   const AnyAdminPromotionCard = AdminPromotionCard as any;
-
 
   return (
     <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
@@ -128,7 +124,6 @@ const AdminPromotionsPage: React.FC = () => {
             promotion={promo}
             onEdit={() => handleEdit(promo)}
             onDelete={() => handleDelete(promo)}
-            // Pass any other required props for AdminPromotionCard
           />
         ))}
       </div>
@@ -136,23 +131,21 @@ const AdminPromotionsPage: React.FC = () => {
       {isFormOpen && (
         <AnyPromotionForm
           isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)} // Common prop for closing dialogs
+          onClose={() => setIsFormOpen(false)}
           onSubmit={handleSubmitForm}
-          initialData={selectedPromotion} // Pass the selected promotion
+          initialData={selectedPromotion}
           isLoading={mutation.isPending}
-          // Add other required props for PromotionForm here if known
         />
       )}
 
       {selectedPromotion && (selectedPromotion as Promotion).id && (
         <ConfirmationDialog
           isOpen={isConfirmOpen}
-          onClose={() => setIsConfirmOpen(false)} // Use onClose
+          onClose={() => setIsConfirmOpen(false)}
           title="Delete Promotion"
           description={`Are you sure you want to delete "${(selectedPromotion as Promotion).title}"? This action cannot be undone.`}
           onConfirm={confirmDelete}
           isLoading={deleteMutation.isPending}
-          isDestructive // Keep if this is a valid prop for your ConfirmationDialog
           confirmText="Delete"
         />
       )}

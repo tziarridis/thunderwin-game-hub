@@ -1,60 +1,62 @@
+
 import React from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Home, Compass, Heart, User, Menu } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { LogOut, User } from 'lucide-react';
+import { toast } from 'sonner';
 
-interface MobileNavBarProps {
-  onOpenMenu: () => void;
-}
-
-const MobileNavBar = ({ onOpenMenu }: MobileNavBarProps) => {
+const MobileNavBar = () => {
+  const { user, isAuthenticated, signOut } = useAuth(); // Use signOut
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
-  const { user, isAuthenticated, logout } = useAuth();
 
   const handleLogout = async () => {
-    await logout();
-    // navigate('/login'); or similar
+    try {
+      await signOut(); // Use signOut
+      toast.success("Logged out successfully.");
+      navigate('/');
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast.error("Logout failed. Please try again.");
+    }
   };
-  
-  if (!isMobile) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-casino-thunder-darker border-t border-casino-thunder-dark z-50">
-      <div className="container mx-auto flex justify-around items-center h-16">
-        <NavLink to="/" className={({ isActive }) => isActive ? "text-primary" : "text-white/50 hover:text-white"} >
-          <div className="flex flex-col items-center">
-            <Home className="h-6 w-6" />
-            <span className="text-xs">Home</span>
-          </div>
-        </NavLink>
-        <NavLink to="/casino/main" className={({ isActive }) => isActive ? "text-primary" : "text-white/50 hover:text-white"}>
-          <div className="flex flex-col items-center">
-            <Compass className="h-6 w-6" />
-            <span className="text-xs">Casino</span>
-          </div>
-        </NavLink>
-        <NavLink to="/casino/favorites" className={({ isActive }) => isActive ? "text-primary" : "text-white/50 hover:text-white"}>
-          <div className="flex flex-col items-center">
-            <Heart className="h-6 w-6" />
-            <span className="text-xs">Favorites</span>
-          </div>
-        </NavLink>
-        {isAuthenticated ? (
-          <NavLink to="/profile" className={({ isActive }) => isActive ? "text-primary" : "text-white/50 hover:text-white"}>
-            <div className="flex flex-col items-center">
-              <User className="h-6 w-6" />
-              <span className="text-xs">Profile</span>
+    <div className="fixed bottom-0 left-0 right-0 bg-casino-thunder-darker border-t border-casino-thunder-dark p-4 flex items-center justify-between md:hidden z-50">
+      <div className="flex items-center space-x-4">
+        {isAuthenticated && user ? (
+          <>
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={user.avatar_url || "https://github.com/shadcn.png"} alt={user.username || "User"} />
+              <AvatarFallback>{user.username?.slice(0, 2).toUpperCase() || user.email?.slice(0,2).toUpperCase() || 'U'}</AvatarFallback>
+            </Avatar>
+            <div className="text-sm">
+              <p className="font-medium">{user.username || user.email}</p>
+              <p className="text-xs text-muted-foreground">Welcome back!</p>
             </div>
-          </NavLink>
+          </>
         ) : (
-          <Button variant="ghost" onClick={() => navigate('/login')}>Login</Button>
+          <div className="text-sm">
+            <p className="font-medium">Guest User</p>
+            <p className="text-xs text-muted-foreground">Please login</p>
+          </div>
         )}
-        <Button variant="ghost" onClick={onOpenMenu}>
-          <Menu className="h-6 w-6 text-white/50 hover:text-white" />
-        </Button>
+      </div>
+      
+      <div className="flex items-center space-x-2">
+        {isAuthenticated ? (
+          <>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
+              <User className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </>
+        ) : (
+          <Button onClick={() => navigate('/login')}>Login</Button>
+        )}
       </div>
     </div>
   );
