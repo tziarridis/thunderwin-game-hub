@@ -1,11 +1,10 @@
-
 import React, { useState, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'; // Added QueryKey
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { kycService } from '@/services/kycService';
-import { KycAttempt, KycStatus as KycStatusType, User, KycRequest } from '@/types';
+import { KycAttempt, KycStatus as KycStatusType, User, KycRequest } from '@/types/index.d'; // Import KycRequest from index.d.ts
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef, useReactTable, getCoreRowModel } from '@tanstack/react-table';
+import { DataTable, DataTableProps } from '@/components/ui/data-table'; // DataTableProps
+import { ColumnDef, useReactTable, getCoreRowModel, Table as ReactTableType } from '@tanstack/react-table'; // Added Table
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,17 +25,16 @@ const kycStatusOptions: { value: KycStatusType | 'all'; label: string }[] = [
   { value: 'verified', label: 'Verified' },
 ];
 
-
 const KycManagementPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ userId: '', status: 'all' as KycStatusType | 'all', page: 0, limit: 10 });
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedKycAttempt, setSelectedKycAttempt] = useState<KycAttempt | null>(null);
 
+
   const { data: kycData, isLoading, refetch } = useQuery<{ requests: KycRequest[], totalCount: number }, Error, { requests: KycRequest[], totalCount: number }, QueryKey>({
     queryKey: ['kycRequests', filters] as QueryKey,
     queryFn: async () => {
-        // Ensure kycService.getAllKycRequests takes 'page' or adjust call
         const serviceParams: { userId?: string; status?: KycStatusType; page?: number; limit?: number } = {
           limit: filters.limit,
           page: filters.page,
@@ -44,16 +42,21 @@ const KycManagementPage: React.FC = () => {
         if (filters.userId) serviceParams.userId = filters.userId;
         if (filters.status !== 'all') serviceParams.status = filters.status;
 
+        // Assuming kycService.getAllKycRequests returns { requests: KycRequest[], totalCount: number }
+        // If it returns KycRequest[] and a separate count, adjust here.
+        // For now, assume it matches the type. If getAllKycRequests returns just KycRequest[]:
+        // const requests = await kycService.getAllKycRequests(serviceParams);
+        // return { requests, totalCount: requests.length }; // This would be a mock totalCount.
+        // The service MUST return totalCount for proper pagination.
         const result = await kycService.getAllKycRequests(serviceParams);
-        // Assuming result is { requests: KycRequest[], totalCount: number }
         return result; 
     },
   });
 
-  // Adapt KycRequest[] to KycAttempt[] if DataTable columns are strictly KycAttempt
-  // For now, we'll assume KycRequest can be cast or is similar enough for display.
-  // Or, update columns to work with KycRequest type.
-  const attempts = (kycData?.requests || []) as unknown as KycAttempt[];
+  // The type KycAttempt might be different from KycRequest.
+  // If columns are for KycAttempt, this cast might be problematic.
+  // For now, we assume KycRequest can be displayed by columns meant for KycAttempt.
+  const requestsToDisplay = (kycData?.requests || []) as KycRequest[]; // Use KycRequest for data
   const totalCount = kycData?.totalCount || 0;
   const pageCount = Math.ceil(totalCount / filters.limit);
 
@@ -70,23 +73,26 @@ const KycManagementPage: React.FC = () => {
     },
   });
 
-  const handleViewDetails = (attempt: KycAttempt) => {
-    setSelectedKycAttempt(attempt);
+  const handleViewDetails = (request: KycRequest) => { // Changed param type to KycRequest
+    // If KycAttempt is truly needed for modal, map KycRequest to KycAttempt or adjust modal.
+    // For now, casting to KycAttempt for the modal.
+    setSelectedKycAttempt(request as unknown as KycAttempt); 
     setIsDetailsModalOpen(true);
   };
   
-  const handleUpdateStatus = (attemptId: string, status: KycStatusType, remarks?: string) => {
+  const handleUpdateStatus = (requestId: string, status: KycStatusType, remarks?: string) => { // Changed param name
     const adminId = "current_admin_user_id_placeholder"; 
-    updateKycStatusMutation.mutate({ attemptId, status, remarks, adminId });
+    updateKycStatusMutation.mutate({ attemptId: requestId, status, remarks, adminId });
   };
 
-  const columns: ColumnDef<KycAttempt>[] = [ // Or KycRequest if types are aligned
-    { accessorKey: 'id', header: 'Attempt ID', cell: ({ row }) => <span className="truncate w-20 block">{row.original.id}</span> },
+  // Columns should be ColumnDef<KycRequest> if data is KycRequest[]
+  const columns: ColumnDef<KycRequest>[] = [
+    { accessorKey: 'id', header: 'Request ID', cell: ({ row }) => <span className="truncate w-20 block">{row.original.id}</span> },
     { 
       accessorKey: 'user_id', 
       header: 'User ID / Email',
       cell: ({ row }) => {
-        const user = (row.original as any).user as User; 
+        const user = row.original.user as User; // User associated with KycRequest
         return user ? (
             <div className="flex flex-col">
                 <span>{user.username || user.email || row.original.user_id}</span>
@@ -101,14 +107,14 @@ const KycManagementPage: React.FC = () => {
       cell: ({ row }) => <KycStatusDisplay status={row.original.status} />
     },
     { 
-      accessorKey: 'document_type',
+      accessorKey: 'document_type', // This was KycAttempt specific. KycRequest might have documents array
       header: 'Doc Type(s)',
       cell: ({ row }) => {
-        const attempt = row.original as KycAttempt;
-        if (attempt.documents && attempt.documents.length > 0) {
-          return attempt.documents.map(doc => doc.document_type).join(', ');
+        // Accessing documents on KycRequest
+        if (row.original.documents && row.original.documents.length > 0) {
+          return row.original.documents.map(doc => doc.document_type).join(', ');
         }
-        return (attempt as any).document_type || 'N/A'; 
+        return 'N/A'; 
       }
     },
     { 
@@ -119,12 +125,13 @@ const KycManagementPage: React.FC = () => {
     { 
       accessorKey: 'reviewed_at', 
       header: 'Reviewed At', 
-      cell: ({ row }) => (row.original as any).reviewed_at ? format(new Date((row.original as any).reviewed_at), 'PPpp') : (row.original.updated_at !== row.original.created_at ? format(new Date(row.original.updated_at), 'PPpp') : 'N/A')
+      cell: ({ row }) => row.original.reviewed_at ? format(new Date(row.original.reviewed_at), 'PPpp') : (row.original.updated_at !== row.original.created_at ? format(new Date(row.original.updated_at), 'PPpp') : 'N/A')
     },
     { 
-      accessorKey: 'reviewed_by', 
+      accessorKey: 'reviewed_by_admin_id', // Assuming KycRequest has reviewed_by_admin_id
       header: 'Reviewed By',
-      cell: ({row}) => (row.original as any).reviewed_by_admin?.username || (row.original as any).admin_id || 'N/A'
+      // cell: ({row}) => (row.original as any).reviewed_by_admin?.username || (row.original as any).admin_id || 'N/A' // Needs actual admin relation
+      cell: ({row}) => row.original.reviewed_by_admin_id || 'N/A'
     },
     {
       id: 'actions',
@@ -140,7 +147,7 @@ const KycManagementPage: React.FC = () => {
   ];
 
   const table = useReactTable({
-    data: attempts,
+    data: requestsToDisplay, // Use KycRequest[]
     columns,
     pageCount: pageCount,
     state: { pagination: { pageIndex: filters.page, pageSize: filters.limit } },
@@ -164,7 +171,7 @@ const KycManagementPage: React.FC = () => {
   );
 
   return (
-    <AdminPageLayout title="KYC Management" headerActions={pageHeaderActions}> {/* Changed to headerActions */}
+    <AdminPageLayout title="KYC Management" headerActions={pageHeaderActions}>
       <div className="p-4 bg-card rounded-lg shadow mb-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input 
@@ -174,7 +181,7 @@ const KycManagementPage: React.FC = () => {
           />
           <Select 
             value={filters.status} 
-            onValueChange={(value: KycStatusType | 'all') => handleFilterChange('status', value as string)} // Cast to string
+            onValueChange={(value: KycStatusType | 'all') => handleFilterChange('status', value as string)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Filter by Status" />
@@ -191,9 +198,9 @@ const KycManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table} columns={columns as any} isLoading={isLoading} /> {/* Cast columns to any as a temp fix */}
+      <DataTable table={table as ReactTableType<KycRequest>} columns={columns} isLoading={isLoading} />
 
-      {isDetailsModalOpen && selectedKycAttempt && (
+      {isDetailsModalOpen && selectedKycAttempt && ( // selectedKycAttempt is used for the modal
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card p-6 rounded-lg shadow-xl max-w-lg w-full">
             <h2 className="text-xl font-semibold mb-4">KYC Attempt Details (ID: {selectedKycAttempt.id})</h2>
@@ -201,14 +208,13 @@ const KycManagementPage: React.FC = () => {
             <p>Status: <KycStatusDisplay status={selectedKycAttempt.status} /></p>
             <p>Document Type: {(selectedKycAttempt as any).document_type || selectedKycAttempt.documents?.map(d => d.document_type).join(', ') || 'N/A'}</p>
             <p>Submitted: {format(new Date(selectedKycAttempt.created_at), 'PPpp')}</p>
-            {/* Display more details, documents, etc. */}
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>Close</Button>
               {selectedKycAttempt.status === 'pending_review' && (
                 <>
                   <Button 
-                    variant="default" // Changed from success
-                    className="bg-green-500 hover:bg-green-600 text-white" // Keep custom styles for color
+                    variant="default"
+                    className="bg-green-500 hover:bg-green-600 text-white"
                     onClick={() => handleUpdateStatus(selectedKycAttempt.id, 'approved', 'Looks good.')}
                     disabled={updateKycStatusMutation.isPending}
                   >

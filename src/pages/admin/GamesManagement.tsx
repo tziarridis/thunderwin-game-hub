@@ -1,14 +1,13 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query'; // Added QueryKey
-import { ColumnDef, SortingState, getCoreRowModel, getSortedRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
+import { ColumnDef, SortingState, getCoreRowModel, getSortedRowModel, getPaginationRowModel, useReactTable, Table as ReactTableType } from "@tanstack/react-table"; // Added Table
 import { gameService } from '@/services/gameService';
-import { Game, GameCategory, GameProvider as ProviderType, DbGame } from '@/types';
+import { Game, GameCategory, GameProvider as ProviderType, DbGame } from '@/types'; // Game is from index.d.ts -> game.ts
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DataTable } from '@/components/ui/data-table';
-import GameForm from '@/components/admin/GameForm';
+import { DataTable, DataTableProps } from '@/components/ui/data-table'; // DataTableProps
+import GameForm, { GameFormProps } from '@/components/admin/GameForm'; // GameFormProps
 import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
 import { toast } from 'sonner';
 import { PlusCircle, Search, Edit, Trash2, RefreshCw, Loader2 } from 'lucide-react';
@@ -46,8 +45,8 @@ const GamesManagementPage: React.FC = () => {
         sortOrder: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
       };
       const result = await gameService.getAllGames(filters); 
-      // Ensure the service returns totalCount, not count or transform it here
-      return { games: result.games, totalCount: result.totalCount || result.games.length }; 
+      // Ensure the service returns totalCount, or transform if it returns count
+      return { games: result.games, totalCount: result.count || result.totalCount || result.games.length }; // Adjusted to check for count or totalCount
     },
   });
 
@@ -64,6 +63,7 @@ const GamesManagementPage: React.FC = () => {
     queryKey: ['gameProviders'],
     queryFn: fetchProviders,
   });
+
 
   const createOrUpdateGameMutation = useMutation({
     mutationFn: async (gameData: Partial<DbGame>) => {
@@ -188,7 +188,7 @@ const GamesManagementPage: React.FC = () => {
   );
   
   return (
-    <AdminPageLayout title="Games Management" headerActions={pageHeaderActions}> {/* Changed to 'headerActions' prop */}
+    <AdminPageLayout title="Games Management" headerActions={pageHeaderActions}>
       <div className="mb-4 flex items-center gap-2">
         <div className="relative flex-grow">
           <Input
@@ -201,13 +201,13 @@ const GamesManagementPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table} columns={columns as any} isLoading={isLoadingGames || isLoadingCategories || isLoadingProviders} /> {/* Cast columns to any as a temp fix for complex type issue */}
+      <DataTable table={table as ReactTableType<Game>} columns={columns} isLoading={isLoadingGames || isLoadingCategories || isLoadingProviders} /> {/* Explicitly type table and columns */}
 
       {isFormOpen && (
         <GameForm
-          onCancel={() => setIsFormOpen(false)} // Changed from onClose
-          onSubmit={handleSubmitForm}
-          initialData={selectedGame as Partial<DbGame>} // GameForm expects initialData
+          onCancel={() => setIsFormOpen(false)}
+          onSubmit={handleSubmitForm} // Assuming GameFormProps takes 'onSubmit'
+          initialData={selectedGame as Partial<DbGame>}
           categories={categories || []}
           providers={providers || []}
           isLoading={createOrUpdateGameMutation.isPending}
@@ -222,7 +222,6 @@ const GamesManagementPage: React.FC = () => {
           description={`Are you sure you want to delete "${(selectedGame as Game).title}"? This action cannot be undone.`}
           onConfirm={confirmDelete}
           confirmText="Delete"
-          // isDestructive={true} // Removed as it's not a valid prop
           isLoading={deleteGameMutation.isPending}
         />
       )}

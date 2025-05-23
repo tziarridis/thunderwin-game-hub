@@ -1,7 +1,7 @@
 // Ensure these are available or defined in user.d.ts and re-exported here if needed
 export type { LoginCredentials, RegisterCredentials, UserRole, UserProfile, UserContextType, DisplayUser, SupabaseAuthUser } from './user.d'; 
 export type { Wallet, WalletContextType, Transaction as WalletTransaction, CoinBalance } from './wallet'; // Assuming WalletTransaction is an alias if Transaction is generic
-export type { KycStatus, KycDocument, KycAttempt, KycRequest, KycDocumentTypeEnum } from './kyc';
+export type { KycStatus, KycDocument, KycAttempt, KycRequest, KycDocumentTypeEnum } from './kyc'; // KycRequest added here
 export type { Bonus, UserBonus, BonusType, BonusStatus } from './bonus';
 export type { Promotion, PromotionType } from './promotion';
 // Game types - Ensure DbGame is also exported if used directly elsewhere
@@ -24,7 +24,7 @@ export interface User {
   avatar_url?: string | null;
   first_name?: string | null;
   last_name?: string | null;
-  role?: UserRole; // Application-specific role
+  role?: UserRole; // Application-specific role from user.d.ts
   created_at: string; // Changed to string (ISO date string)
   updated_at: string; // Changed to string (ISO date string)
   last_sign_in_at?: string | null;
@@ -34,20 +34,19 @@ export interface User {
   currency?: string; // e.g., 'USD'
 
   // KYC
-  kyc_status?: KycStatus;
+  kyc_status?: KycStatus; // from kyc.ts
   is_verified?: boolean; // Email or KYC verified
 
   // Status & Flags
-  status?: UserStatus; // e.g., 'active', 'inactive', 'banned'
+  status?: UserStatus; // e.g., 'active', 'inactive', 'banned' - from user.d.ts
   is_banned?: boolean;
-  is_active: boolean; // General active status - ensure this is not optional if AppUser requires it
+  is_active: boolean; // General active status - ensure this is not optional
 
   // Gaming related
   favorite_game_ids?: string[];
   vip_level_id?: string; // Reference to VIPLevel
   
   // Extended profile data (can be in a separate 'profiles' table)
-  // Already in UserProfile, but some might be denormalized on User for quick access
   phone_number?: string;
   date_of_birth?: string; // ISO date string
   address?: {
@@ -74,12 +73,7 @@ export interface User {
 }
 
 export type UserStatus = 'active' | 'inactive' | 'pending_verification' | 'banned' | 'restricted' | 'deleted';
-
-// Re-export from user.ts as well if those are intended for broader use
-// For example, if UserProfile from user.ts is different from UserProfile in user.d.ts
-// import { UserProfile as UserProfileFromUserTs } from './user';
-// export type { UserProfileFromUserTs };
-
+// UserRole is defined and exported from user.d.ts
 
 declare global {
   interface Window {

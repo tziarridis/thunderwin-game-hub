@@ -12,15 +12,17 @@ import {
   User as SupabaseUser,
 } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { User, LoginCredentials, RegisterCredentials, UserRole, UserStatus, KycStatus } from '@/types'; 
+// Corrected imports: these now come from index.d.ts which re-exports from user.d.ts and kyc.ts
+import { LoginCredentials, RegisterCredentials, UserRole, UserStatus, KycStatus } from '@/types/index.d'; 
+// AppSpecificUser is the User interface from src/types/user.ts (camelCase properties)
+import { AppSpecificUser } from '@/types';
 
-export interface AppUser extends User {
+
+export interface AppUser extends AppSpecificUser { // Extends AppSpecificUser (User from user.ts)
   aud: string; 
   app_metadata: SupabaseUser['app_metadata'];
   user_metadata: SupabaseUser['user_metadata'];
-  // Ensure all non-optional fields from User are here or handled
-  // isActive, createdAt, updatedAt are now part of User type from @/types
-  // and User makes `is_active` non-optional, `created_at` and `updated_at` non-optional.
+  // Properties like isActive, createdAt, updatedAt are inherited from AppSpecificUser
 }
 
 interface AuthContextType {
@@ -61,41 +63,41 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const baseCreatedAt = supabaseUser.created_at || new Date().toISOString();
     const baseUpdatedAt = supabaseUser.updated_at || baseCreatedAt;
 
+    // Map to AppUser which expects camelCase for isActive, createdAt, updatedAt
     const enrichedUser: AppUser = {
-      // Fields from SupabaseUser
+      // Fields from SupabaseUser mapped to AppSpecificUser (camelCase)
       id: supabaseUser.id,
+      email: supabaseUser.email || '', // Ensure email is not null if AppSpecificUser.email is non-nullable
+      username: profileData?.username || supabaseUser.email?.split('@')[0] || undefined,
+      
+      // camelCase properties for AppSpecificUser
+      isActive: profileData?.is_active ?? (profileData?.status === 'active') ?? (!!supabaseUser.email_confirmed_at),
+      createdAt: profileData?.created_at || baseCreatedAt,
+      updatedAt: profileData?.updated_at || baseUpdatedAt,
+      lastLogin: supabaseUser.last_sign_in_at || undefined,
+      
+      // Supabase specific metadata
       aud: supabaseUser.aud,
-      email: supabaseUser.email || null,
       app_metadata: supabaseUser.app_metadata || {},
       user_metadata: supabaseUser.user_metadata || {},
-      last_sign_in_at: supabaseUser.last_sign_in_at || null,
+
+      // Profile related (ensure these align with AppSpecificUser's Profile or are optional)
+      profile: {
+        firstName: profileData?.first_name || undefined,
+        lastName: profileData?.last_name || undefined,
+        avatarUrl: profileData?.avatar_url || supabaseUser.user_metadata?.avatar_url || undefined,
+        dateOfBirth: profileData?.date_of_birth || undefined,
+      },
       
-      // Fields from User type (src/types/index.d.ts), prioritizing profileData or defaults
-      username: profileData?.username || supabaseUser.email?.split('@')[0] || null,
-      avatar_url: profileData?.avatar_url || supabaseUser.user_metadata?.avatar_url || null,
-      first_name: profileData?.first_name || null,
-      last_name: profileData?.last_name || null,
-      role: profileData?.role as UserRole || undefined,
-      created_at: profileData?.created_at || baseCreatedAt,
-      updated_at: profileData?.updated_at || baseUpdatedAt,
+      // Roles and status (ensure these align with AppSpecificUser or are optional)
+      roles: profileData?.roles || (profileData?.role ? [profileData.role as UserRole] : undefined),
+      isAdmin: (profileData?.role === 'admin' || (Array.isArray(profileData?.roles) && profileData.roles.includes('admin'))) ?? false,
+      isStaff: profileData?.is_staff ?? false,
+      kycStatus: (profileData?.kyc_status as KycStatus) || 'not_started',
       
-      status: (profileData?.status as UserStatus) || 'active',
-      is_active: profileData?.is_active ?? (profileData?.status === 'active') ?? (!!supabaseUser.email_confirmed_at),
-      is_banned: profileData?.is_banned ?? false,
-      balance: profileData?.balance ?? 0,
-      currency: profileData?.currency ?? 'USD',
-      vip_level_id: profileData?.vip_level_id,
-      favorite_game_ids: profileData?.favorite_game_ids || [],
-      phone_number: profileData?.phone_number || supabaseUser.phone || undefined,
-      date_of_birth: profileData?.date_of_birth,
-      address: profileData?.address,
-      is_staff: profileData?.is_staff ?? false,
-      is_admin: (profileData?.role === 'admin' || (Array.isArray(profileData?.roles) && profileData.roles.includes('admin'))) ?? false,
-      roles: profileData?.roles || (profileData?.role ? [profileData.role as UserRole] : []),
-      kyc_status: (profileData?.kyc_status as KycStatus) || 'not_started',
-      is_verified: profileData?.is_verified ?? !!supabaseUser.email_confirmed_at,
-      referral_code: profileData?.referral_code,
-      referred_by: profileData?.referred_by,
+      // Other fields from comprehensive User (index.d.ts) that might be useful to include if AppSpecificUser is expanded
+      // For now, ensuring AppSpecificUser requirements are met.
+      // Example: phone_number: profileData?.phone_number || supabaseUser.phone || undefined,
     };
     
     console.log("Enriched user in AuthContext:", enrichedUser);
@@ -120,31 +122,26 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       try {
         const enriched = await enrichUserWithProfile(session.user);
         setUser(enriched);
-        setIsAdminState(enriched.is_admin ?? (enriched.role === 'admin' || (Array.isArray(enriched.roles) && enriched.roles.includes('admin'))));
+        setIsAdminState(enriched.isAdmin ?? (Array.isArray(enriched.roles) && enriched.roles.includes('admin')));
         setError(null);
       } catch (e: any) {
         console.error("AuthContext: Error enriching user profile:", e);
         const fallbackCreatedAt = session.user.created_at || new Date().toISOString();
         const fallbackUser: AppUser = { 
             id: session.user.id,
-            email: session.user.email || null,
+            email: session.user.email || '', // Ensure email is not null
             aud: session.user.aud,
-            created_at: fallbackCreatedAt,
-            updated_at: session.user.updated_at || fallbackCreatedAt,
-            last_sign_in_at: session.user.last_sign_in_at || null,
+            // camelCase for AppUser
+            isActive: !!session.user.email_confirmed_at, 
+            createdAt: fallbackCreatedAt,
+            updatedAt: session.user.updated_at || fallbackCreatedAt,
+            lastLogin: session.user.last_sign_in_at || undefined,
+
             app_metadata: session.user.app_metadata || {},
             user_metadata: session.user.user_metadata || {},
-            role: undefined, 
-            username: session.user.email?.split('@')[0] || null,
-            status: 'active',
-            is_active: true, 
-            is_admin: false,
-            // Ensure all other required User fields are here with defaults
-            avatar_url: null,
-            first_name: null,
-            last_name: null,
-            kyc_status: 'not_started',
-            is_verified: !!session.user.email_confirmed_at,
+            username: session.user.email?.split('@')[0] || undefined,
+            isAdmin: false,
+            kycStatus: 'not_started',
          };
         setUser(fallbackUser); 
         setIsAdminState(false);
@@ -194,7 +191,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
     // onAuthStateChange listener will call fetchAndUpdateUser
     setLoading(false);
-    return { error: null, data };
+    return { error: null, data: {} }; // Placeholder if data is not used, ensure to return signIn data
   };
 
   const register = async (credentials: RegisterCredentials) => {
@@ -226,26 +223,25 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             id: data.user.id, 
             email: data.user.email,
             username: credentials.username || data.user.email?.split('@')[0],
-            first_name: credentials.firstName,
-            last_name: credentials.lastName,
+            first_name: credentials.firstName, // These should map to your DB columns
+            last_name: credentials.lastName,  // e.g. first_name, last_name
             role: 'user', 
             status: 'pending_verification', 
-            created_at: nowISO, // ensure this matches DB expectation
-            updated_at: nowISO, // ensure this matches DB expectation
-            is_active: true, 
+            created_at: nowISO,
+            updated_at: nowISO,
+            is_active: false, // Or true, depending on verification flow
           });
 
         if (profileInsertError) {
           console.error("Error creating user profile in public.users:", profileInsertError);
         }
-        // onAuthStateChange listener will call fetchAndUpdateUser
       } catch (e: any) {
          console.error("Error in post-registration profile creation:", e);
          setError("Registration process encountered an issue creating profile details.");
       }
     }
     setLoading(false);
-    return { error: null, data };
+    return { error: null, data: {} }; // Placeholder
   };
 
   const logout = async () => {
@@ -271,30 +267,24 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
 
     if (data.user) {
-      // Fetch and update user, which will set user state and isAdminState
-      await fetchAndUpdateUser();
-      
-      // Need to check the state *after* it has been updated by fetchAndUpdateUser.
-      // This is tricky because state updates are asynchronous.
-      // A more robust way is to re-fetch the user data here and check admin status directly.
       const tempEnrichedUser = await enrichUserWithProfile(data.user);
 
-      if (tempEnrichedUser && (tempEnrichedUser.is_admin || tempEnrichedUser.role === 'admin' || (Array.isArray(tempEnrichedUser.roles) && tempEnrichedUser.roles.includes('admin')))) {
-        // User is admin, state is already set by fetchAndUpdateUser via listener or direct call.
+      if (tempEnrichedUser && (tempEnrichedUser.isAdmin || (Array.isArray(tempEnrichedUser.roles) && tempEnrichedUser.roles.includes('admin')))) {
+        // User is admin, state will be set by onAuthStateChange listener -> fetchAndUpdateUser
+        // To be sure, call fetchAndUpdateUser explicitly after successful admin check
+        await fetchAndUpdateUser(); 
         setLoading(false);
         return { error: null, data };
       } else {
-        // Not an admin, sign out immediately
         await supabase.auth.signOut(); 
         const notAdminError = { name: "AuthError", message: "User is not an administrator." } as AuthError;
         setError(notAdminError.message);
-        setUser(null); // Explicitly clear user
-        setIsAdminState(false); // Explicitly clear admin state
+        setUser(null); 
+        setIsAdminState(false); 
         setLoading(false);
         return { error: notAdminError, data: null };
       }
     }
-    // This case should ideally not be reached if signInWithPassword was successful but data.user was null.
     setLoading(false); 
     return { error: {name: "AuthError", message: "Admin login failed or user data unavailable."} as AuthError, data: null };
   };

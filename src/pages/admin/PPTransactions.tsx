@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
-import { useQuery, QueryKey } from '@tanstack/react-query'; // Added QueryKey
-import { Transaction, DateRange } from '@/types'; 
+import { useQuery, QueryKey } from '@tanstack/react-query';
+import { Transaction, DateRange } from '@/types/index.d'; // Import from index.d.ts
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef, useReactTable, getCoreRowModel } from '@tanstack/react-table';
+import { DataTable, DataTableProps } from '@/components/ui/data-table'; // DataTableProps
+import { ColumnDef, useReactTable, getCoreRowModel, Table as ReactTableType } from '@tanstack/react-table'; // Added Table
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +34,6 @@ const mockPragmaticPlayService = {
 };
 const pragmaticPlayService = mockPragmaticPlayService;
 
-
 const PPTransactionsPage: React.FC = () => {
   const [filters, setFilters] = useState({
     userId: '',
@@ -57,7 +55,7 @@ const PPTransactionsPage: React.FC = () => {
       page: filters.page,
       limit: filters.limit,
     }),
-    meta: { // onError moved to meta for v5
+    meta: { 
       onError: (error: Error) => {
           toast.error(`Failed to load Pragmatic Play transactions: ${error.message}`);
       }
@@ -77,6 +75,7 @@ const PPTransactionsPage: React.FC = () => {
     { accessorKey: 'status', header: 'Status', cell: ({ row }) => <Badge variant={row.original.status === 'completed' ? 'default' : 'secondary'}>{row.original.status}</Badge> },
     { accessorKey: 'created_at', header: 'Timestamp', cell: ({ row }) => format(new Date(row.original.created_at), 'PPpp') },
   ];
+
 
   const table = useReactTable({
     data: transactions,
@@ -128,7 +127,7 @@ const PPTransactionsPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table} columns={columns as any} isLoading={isLoading} /> {/* Cast columns to any as a temp fix */}
+      <DataTable table={table as ReactTableType<Transaction>} columns={columns} isLoading={isLoading} />
     </AdminPageLayout>
   );
 };

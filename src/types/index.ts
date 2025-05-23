@@ -8,8 +8,10 @@ export * from './kyc';
 // Re-export all types from affiliate.ts
 export * from './affiliate';
 
-// Re-export types from new user.ts (will be created next)
-export * from './user';
+// Re-export types from new user.ts.
+// Explicitly export to avoid ambiguity if global User exists.
+export type { UserProfile as UserProfileFromUserFile, User as AppSpecificUser, UserSettings } from './user';
+
 
 // Re-export types from new promotion.ts (will be created next)
 export * from './promotion';
@@ -21,3 +23,4 @@ export * from './promotion';
 // export interface AppConfig {
 //   theme: 'dark' | 'light';
 // }
+
