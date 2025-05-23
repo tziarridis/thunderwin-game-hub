@@ -13,7 +13,7 @@ export * from './affiliate';
 export type { UserProfile as UserProfileFromUserFile, User as AppSpecificUser, UserSettings } from './user';
 
 
-// Re-export types from new promotion.ts (will be created next)
+// Re-export types AND enums from promotion.ts
 export * from './promotion';
 
 // Add any other general types here if they don't fit elsewhere,
@@ -23,4 +23,3 @@ export * from './promotion';
 // export interface AppConfig {
 //   theme: 'dark' | 'light';
 // }
-
