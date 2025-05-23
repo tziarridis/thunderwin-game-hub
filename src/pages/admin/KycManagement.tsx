@@ -1,199 +1,276 @@
-
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { KycRequest, KycStatus } from '@/types';
-import { kycService } from '@/services/kycService';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable, DataTableColumn } from '@/components/ui/data-table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import React, { useState, useEffect } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { toast } from 'sonner';
-import { RefreshCw, CheckCircle, XCircle, Eye, Loader2, Filter } from 'lucide-react';
+import { Copy, Edit, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
 
-type KycQueryResponse = { requests: KycRequest[], totalCount: number };
+import { KycRequest, KycStatusEnum } from '@/types';
+import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
 
-const KycManagementPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [filters, setFilters] = useState({
-    status: 'all',
-    userId: '',
-    pageIndex: 0,
-    pageSize: 10,
-  });
+const KycManagement = () => {
+  const [requests, setRequests] = useState<KycRequest[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const { data: kycData, isLoading, refetch } = useQuery<KycQueryResponse, Error, KycQueryResponse, QueryKey>({
-    queryKey: ['kycRequests', filters] as QueryKey,
-    queryFn: async (): Promise<KycQueryResponse> => {
-      const params: any = {
-        page: filters.pageIndex,
-        limit: filters.pageSize,
-      };
-      if (filters.status !== 'all') params.status = filters.status as KycStatus;
-      if (filters.userId) params.user_id = filters.userId;
-      
-      const result = await kycService.getAllKycRequests(params);
-      return result;
-    },
-    meta: {
-      onError: (error: Error) => {
-        toast.error(`Failed to load KYC requests: ${error.message}`);
+  useEffect(() => {
+    // Mock data for KYC requests
+    const mockRequests: KycRequest[] = [
+      {
+        id: '1',
+        user_id: 'user1',
+        document_type: 'passport',
+        document_front_url: 'https://example.com/passport1_front.jpg',
+        document_back_url: 'https://example.com/passport1_back.jpg',
+        status: KycStatusEnum.PENDING,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       },
+      {
+        id: '2',
+        user_id: 'user2',
+        document_type: 'national_id',
+        document_front_url: 'https://example.com/national_id2_front.jpg',
+        document_back_url: 'https://example.com/national_id2_back.jpg',
+        status: KycStatusEnum.APPROVED,
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+        updated_at: new Date(Date.now() - 86400000).toISOString(),
+      },
+      {
+        id: '3',
+        user_id: 'user3',
+        document_type: 'drivers_license',
+        document_front_url: 'https://example.com/drivers_license3_front.jpg',
+        document_back_url: 'https://example.com/drivers_license3_back.jpg',
+        status: KycStatusEnum.REJECTED,
+        created_at: new Date(Date.now() - 172800000).toISOString(),
+        updated_at: new Date(Date.now() - 172800000).toISOString(),
+      },
+      {
+        id: '4',
+        user_id: 'user4',
+        document_type: 'passport',
+        document_front_url: 'https://example.com/passport4_front.jpg',
+        document_back_url: 'https://example.com/passport4_back.jpg',
+        status: KycStatusEnum.RESUBMIT_REQUIRED,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ];
+    setRequests(mockRequests);
+  }, []);
+
+  const handleStatusChange = async (requestId: string, newStatus: KycStatusEnum) => {
+    setLoading(true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    setRequests(requests.map(req =>
+      req.id === requestId ? { ...req, status: newStatus, updated_at: new Date().toISOString() } : req
+    ));
+    toast.success(`KYC request ${requestId} status updated to ${newStatus}`);
+    setLoading(false);
+  };
+
+  const handleCopyUserId = (userId: string) => {
+    navigator.clipboard.writeText(userId);
+    toast.success('User ID copied to clipboard!');
+  };
+
+  const handleDeleteRequest = async (requestId: string) => {
+    setSelectedRequestId(requestId);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const confirmDeleteRequest = async () => {
+    if (selectedRequestId) {
+      setLoading(true);
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setRequests(requests.filter(req => req.id !== selectedRequestId));
+      toast.success(`KYC request ${selectedRequestId} deleted successfully`);
+      setIsDeleteAlertOpen(false);
+      setSelectedRequestId(null);
+      setLoading(false);
     }
-  });
-
-  const kycRequests = kycData?.requests || [];
-  const totalCount = kycData?.totalCount || 0;
-  const pageCount = totalCount > 0 ? Math.ceil(totalCount / filters.pageSize) : 0;
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status, adminId, rejectionReason }: { id: string; status: KycStatus; adminId?: string; rejectionReason?: string }) => 
-      kycService.updateKycRequestStatus(id, status, adminId, rejectionReason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['kycRequests'] });
-      toast.success('KYC status updated successfully.');
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to update KYC status: ${error.message}`);
-    },
-  });
-  
-  const handleViewDetails = (request: KycRequest) => {
-    toast.info(`Viewing details for KYC ID: ${request.id} (User ID: ${request.user_id}) - UI not implemented.`);
-    console.log("KYC Request Details:", request);
-  };
-  
-  const columns: DataTableColumn<KycRequest>[] = [
-    { 
-      accessorKey: 'id', 
-      header: 'Attempt ID', 
-      cell: (row) => <span className="text-xs">{row.id}</span> 
-    },
-    { 
-      accessorKey: 'user_id', 
-      header: 'User ID', 
-      cell: (row) => <span className="text-xs">{row.user_id}</span> 
-    },
-    { 
-      accessorKey: 'document_type', 
-      header: 'Doc Type', 
-      cell: (row) => <Badge variant="outline">{String(row.document_type || 'N/A').toUpperCase()}</Badge>
-    },
-    { 
-      accessorKey: 'status', 
-      header: 'Status',
-      cell: (row) => {
-        const status = row.status;
-        let badgeVariant: "default" | "secondary" | "destructive" | "outline" = "outline";
-        let badgeClass = "";
-        if (status === KycStatus.APPROVED) { badgeVariant = 'default'; badgeClass="bg-green-500 hover:bg-green-600"; }
-        else if (status === KycStatus.REJECTED) badgeVariant = 'destructive';
-        else if (status === KycStatus.PENDING) { badgeVariant = 'secondary'; badgeClass="bg-yellow-500 hover:bg-yellow-600"; }
-        else if (status === KycStatus.RESUBMIT_REQUIRED) { badgeVariant = 'secondary'; badgeClass="bg-blue-500 hover:bg-blue-600"; }
-        return <Badge variant={badgeVariant} className={badgeClass}>{String(status).toUpperCase()}</Badge>;
-      }
-    },
-    { 
-      accessorKey: 'created_at', 
-      header: 'Submitted', 
-      cell: (row) => format(new Date(row.created_at), 'MMM d, yyyy HH:mm') 
-    },
-    { 
-      accessorKey: 'updated_at', 
-      header: 'Updated', 
-      cell: (row) => format(new Date(row.updated_at), 'MMM d, yyyy HH:mm') 
-    },
-    {
-      accessorKey: 'actions',
-      header: 'Actions',
-      cell: (row) => (
-        <div className="space-x-1">
-          <Button variant="outline" size="sm" onClick={() => handleViewDetails(row)}>
-            <Eye className="mr-1 h-3 w-3" /> View
-          </Button>
-          {row.status === KycStatus.PENDING && (
-            <>
-              <Button 
-                variant="default"
-                size="sm" 
-                onClick={() => updateStatusMutation.mutate({ id: row.id, status: KycStatus.APPROVED })}
-                disabled={updateStatusMutation.isPending}
-                className="bg-green-500 hover:bg-green-600 text-white"
-              >
-                <CheckCircle className="mr-1 h-3 w-3" /> Approve
-              </Button>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={() => {
-                  updateStatusMutation.mutate({ id: row.id, status: KycStatus.REJECTED, rejectionReason: "Generic rejection" })
-                }}
-                disabled={updateStatusMutation.isPending}
-              >
-                <XCircle className="mr-1 h-3 w-3" /> Reject
-              </Button>
-            </>
-          )}
-        </div>
-      ),
-    },
-  ];
-
-  const handleFilterChange = (key: keyof typeof filters, value: string | number) => {
-    setFilters(prev => ({ ...prev, [key]: value, pageIndex: 0 }));
   };
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Users" },
-    { label: "KYC Management" },
-  ];
+  const filteredRequests = requests.filter(request => {
+    const searchRegex = new RegExp(searchQuery, 'i');
+    const matchesSearch = searchRegex.test(request.user_id);
 
-  const headerActions = (
-    <Button onClick={() => refetch()} variant="outline" disabled={isLoading || updateStatusMutation.isPending}>
-      {isLoading || updateStatusMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-      Refresh Requests
-    </Button>
-  );
+    const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
+
+    let matchesDate = true;
+    if (dateRange?.from && dateRange?.to) {
+      const requestDate = new Date(request.created_at);
+      matchesDate = requestDate >= dateRange.from && requestDate <= dateRange.to;
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   return (
-    <AdminPageLayout title="KYC Management" breadcrumbs={breadcrumbs} headerActions={headerActions}>
-       <div className="p-4 bg-card rounded-lg shadow mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div>
-            <Label htmlFor="status-filter" className="text-sm font-medium">Status</Label>
-            <Select value={filters.status} onValueChange={(value) => handleFilterChange('status', value)}>
-              <SelectTrigger id="status-filter">
-                <SelectValue placeholder="Filter by status..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.values(KycStatus).map(status => (
-                  <SelectItem key={status} value={status}>{status.toUpperCase().replace('_', ' ')}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="userid-filter" className="text-sm font-medium">User ID</Label>
-            <Input 
-              id="userid-filter"
-              placeholder="Filter by User ID"
-              value={filters.userId}
-              onChange={e => handleFilterChange('userId', e.target.value)}
-            />
-          </div>
-          <Button onClick={() => refetch()} disabled={isLoading} className="w-full md:w-auto self-end">
-            <Filter className="mr-2 h-4 w-4" /> Apply Filters
-          </Button>
-        </div>
+    <div>
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <Input
+          type="text"
+          placeholder="Search by user ID..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <Select
+          value={selectedStatus}
+          onValueChange={setSelectedStatus}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value={KycStatusEnum.PENDING}>Pending</SelectItem>
+            <SelectItem value={KycStatusEnum.APPROVED}>Approved</SelectItem>
+            <SelectItem value={KycStatusEnum.REJECTED}>Rejected</SelectItem>
+            <SelectItem value={KycStatusEnum.RESUBMIT_REQUIRED}>Resubmission Required</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <DataTable columns={columns} data={kycRequests} />
-    </AdminPageLayout>
+
+      <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-6 py-3">ID</TableHead>
+              <TableHead className="px-6 py-3">User ID</TableHead>
+              <TableHead className="px-6 py-3">Document Type</TableHead>
+              <TableHead className="px-6 py-3">Status</TableHead>
+              <TableHead className="px-6 py-3">Created At</TableHead>
+              <TableHead className="px-6 py-3">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredRequests.map((request) => (
+              <TableRow key={request.id}>
+                <TableCell className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                  {request.id}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
+                  <div className="flex items-center gap-2">
+                    {request.user_id}
+                    <Button variant="ghost" size="icon" onClick={() => handleCopyUserId(request.user_id)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
+                  {request.document_type}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
+                  {request.status && (
+                    <KycStatusDisplay status={request.status as string} />
+                  )}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
+                  {format(new Date(request.created_at), 'yyyy-MM-dd HH:mm:ss')}
+                </TableCell>
+                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        Actions
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem>
+                        <Edit className="mr-2 h-4 w-4" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleDeleteRequest(request.id)} className="text-destructive focus:text-destructive-foreground">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Select
+                    value={request.status as string}
+                    onValueChange={(value) => handleStatusChange(request.id, value as KycStatusEnum)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Update status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={KycStatusEnum.PENDING}>Pending</SelectItem>
+                      <SelectItem value={KycStatusEnum.APPROVED}>Approved</SelectItem>
+                      <SelectItem value={KycStatusEnum.REJECTED}>Rejected</SelectItem>
+                      <SelectItem value={KycStatusEnum.RESUBMIT_REQUIRED}>Resubmit Required</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Are you sure you want to delete this KYC request?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedRequestId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={loading} onClick={confirmDeleteRequest}>
+              {loading ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 };
 
-export default KycManagementPage;
+export default KycManagement;

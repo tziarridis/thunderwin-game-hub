@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Wallet, RefreshCw } from 'lucide-react';
-import { WalletType } from '@/types';
+import { WalletType } from '@/types/wallet';
 
 export interface MobileWalletSummaryProps {
   wallet?: WalletType | null;

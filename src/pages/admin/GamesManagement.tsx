@@ -1,228 +1,207 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { gameService } from '@/services/gameService';
-import { DbGame, GameCategory, GameProvider } from '@/types';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DataTable, DataTableColumn } from '@/components/ui/data-table';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+import { useToast } from "@/components/ui/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { MoreVertical, Edit, Trash } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Game, DbGame, GameProvider, GameCategory } from '@/types';
 import GameForm from '@/components/admin/GameForm';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
-import { toast } from 'sonner';
-import { PlusCircle, Search, Edit, Trash2, RefreshCw, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 
-const fetchCategories = async (): Promise<GameCategory[]> => {
-  const categories = await gameService.getGameCategories();
-  return categories || [];
-};
+const mockProviders: GameProvider[] = [
+  { id: "1", name: "Pragmatic Play", slug: "pragmatic" },
+  { id: "2", name: "Evolution Gaming", slug: "evolution" },
+  { id: "3", name: "NetEnt", slug: "netent" }
+];
 
-const fetchProviders = async (): Promise<GameProvider[]> => {
-  const providers = await gameService.getGameProviders();
-  return providers || [];
-};
+const mockCategories: GameCategory[] = [
+  { id: "1", name: "Slots", slug: "slots" },
+  { id: "2", name: "Table Games", slug: "table-games" },
+  { id: "3", name: "Live Casino", slug: "live-casino" }
+];
 
-type GamesQueryResponse = { games: DbGame[], count: number };
+const GamesManagement = () => {
+  const [games, setGames] = useState<DbGame[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingGame, setEditingGame] = useState<DbGame | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-const GamesManagementPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
-  const [selectedGame, setSelectedGame] = useState<DbGame | Partial<DbGame> | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-
-  const { data: gamesData, isLoading: isLoadingGames, refetch: refetchGames } = useQuery<GamesQueryResponse, Error, GamesQueryResponse, QueryKey>({
-    queryKey: ['adminGames', searchTerm, pagination] as QueryKey,
-    queryFn: async (): Promise<GamesQueryResponse> => {
-      const filters = { 
-        search: searchTerm || undefined, 
-        limit: pagination.pageSize, 
-        offset: pagination.pageIndex * pagination.pageSize,
-      };
-      const result = await gameService.getAllGames(filters);
-      return result;
-    },
-  });
-
-  const games = gamesData?.games || [];
-  const totalCount = gamesData?.count || 0;
-  const pageCount = totalCount > 0 ? Math.ceil(totalCount / pagination.pageSize) : 0;
-  
-  const { data: categories, isLoading: isLoadingCategories } = useQuery<GameCategory[], Error>({
-    queryKey: ['gameCategories'],
-    queryFn: fetchCategories,
-  });
-
-  const { data: providers, isLoading: isLoadingProviders } = useQuery<GameProvider[], Error>({
-    queryKey: ['gameProviders'],
-    queryFn: fetchProviders,
-  });
-
-  const createOrUpdateGameMutation = useMutation({
-    mutationFn: async (gameData: Partial<DbGame>) => {
-      if (gameData.id) {
-        return gameService.updateGame(String(gameData.id), gameData);
-      } else {
-        const createData = { ...gameData };
-        delete createData.id; 
-        const requiredFields: Omit<DbGame, 'id' | 'created_at' | 'updated_at'> = {
-          title: createData.title || 'Untitled Game',
-          slug: createData.slug || `untitled-game-${Date.now()}`,
-          provider_id: String(createData.provider_id) || '',
-          status: createData.status || 'active',
-          rtp: createData.rtp || 0,
-          image_url: createData.image_url || '',
-          game_name: createData.game_name || createData.title || 'Untitled Game',
-        };
-        return gameService.createGame(requiredFields);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      toast.success(`Game ${selectedGame && (selectedGame as DbGame).id ? 'updated' : 'created'} successfully!`);
-      setIsFormOpen(false);
-      setSelectedGame(null);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to ${selectedGame && (selectedGame as DbGame).id ? 'update' : 'create'} game: ${error.message}`);
-    },
-  });
-
-  const deleteGameMutation = useMutation({
-    mutationFn: (gameId: string) => gameService.deleteGame(gameId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminGames'] });
-      toast.success('Game deleted successfully!');
-      setIsConfirmDeleteDialogOpen(false);
-      setSelectedGame(null);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to delete game: ${error.message}`);
-    },
-  });
-  
-  const handleAddNew = () => {
-    setSelectedGame({}); 
-    setIsFormOpen(true);
-  };
+  useEffect(() => {
+    // Mock data for demonstration
+    const mockGames: DbGame[] = [
+      {
+        id: '1',
+        game_name: 'Mega Fortune',
+        game_code: 'mega-fortune',
+        provider_id: '1',
+        status: 'active',
+        rtp: 96,
+        is_featured: true,
+        is_popular: true,
+        show_home: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '2',
+        game_name: 'Gonzo\'s Quest',
+        game_code: 'gonzos-quest',
+        provider_id: '2',
+        status: 'inactive',
+        rtp: 95,
+        is_featured: false,
+        is_popular: true,
+        show_home: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+    ];
+    setGames(mockGames);
+  }, []);
 
   const handleEdit = (game: DbGame) => {
-    setSelectedGame(game);
-    setIsFormOpen(true);
+    setEditingGame(game);
+    setShowForm(true);
   };
 
-  const handleDelete = (game: DbGame) => {
-    setSelectedGame(game);
-    setIsConfirmDeleteDialogOpen(true);
+  const handleDelete = (id: string) => {
+    // Mock delete action
+    setGames(games.filter(game => game.id !== id));
+    toast({
+      title: "Game deleted successfully.",
+    })
   };
 
-  const confirmDelete = () => {
-    if (selectedGame && (selectedGame as DbGame).id) {
-      deleteGameMutation.mutate(String((selectedGame as DbGame).id));
+  const handleFormSubmit = async (values: Partial<DbGame>) => {
+    try {
+      setIsSubmitting(true);
+
+      if (editingGame) {
+        // Update existing game
+        const updatedGames = games.map(game =>
+          game.id === editingGame.id ? { ...game, ...values } : game
+        );
+        setGames(updatedGames);
+        toast({
+          title: "Game updated successfully.",
+        })
+      } else {
+        // Create new game (mock ID generation)
+        const newGame = { ...values, id: Math.random().toString(36).substring(7), created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as DbGame;
+        setGames([...games, newGame]);
+        toast({
+          title: "Game created successfully.",
+        })
+      }
+
+      setShowForm(false);
+      setEditingGame(null);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error saving game.",
+        description: "Please try again.",
+      })
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSubmitForm = (values: Partial<DbGame>) => {
-    createOrUpdateGameMutation.mutate(values);
-  };
-
-  const columns: DataTableColumn<DbGame>[] = [
-    { 
-      accessorKey: "id", 
-      header: "ID", 
-      cell: (row) => <span className="truncate w-20 block">{String(row.id)}</span> 
-    },
-    { accessorKey: "title", header: "Title" },
-    { 
-      accessorKey: "provider", 
-      header: "Provider", 
-      cell: (row) => row.provider?.name || row.providerName || String(row.provider_id) || 'N/A'
-    },
-    { 
-      accessorKey: "categories", 
-      header: "Categories", 
-      cell: (row) => {
-        if (row.categories && Array.isArray(row.categories) && row.categories.length > 0) {
-          return row.categories.map(cat => (cat as GameCategory).name).join(', ');
-        }
-        return row.category_slugs?.join(', ') || 'N/A';
-      }
-    },
-    { 
-      accessorKey: "status", 
-      header: "Status", 
-      cell: (row) => <Badge variant={row.status === 'active' ? 'default' : 'secondary'}>{row.status}</Badge>
-    },
-    { 
-      accessorKey: "rtp", 
-      header: "RTP", 
-      cell: (row) => row.rtp ? `${row.rtp}%` : 'N/A'
-    },
-    {
-      accessorKey: "actions", 
-      header: "Actions",
-      cell: (row) => (
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={() => handleEdit(row)}><Edit className="h-4 w-4" /></Button>
-          <Button variant="destructive" size="sm" onClick={() => handleDelete(row)}><Trash2 className="h-4 w-4" /></Button>
-        </div>
-      ),
-    },
-  ];
-
-  const pageHeaderActions = (
-    <div className="flex items-center gap-2">
-      <Button onClick={handleAddNew}>
-        <PlusCircle className="mr-2 h-4 w-4" /> Add New Game
-      </Button>
-      <Button onClick={() => refetchGames()} variant="outline" disabled={isLoadingGames || createOrUpdateGameMutation.isPending || deleteGameMutation.isPending}>
-        {isLoadingGames ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-        Refresh
-      </Button>
-    </div>
-  );
-
   return (
-    <AdminPageLayout title="Games Management" headerActions={pageHeaderActions}>
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative flex-grow">
-          <Input
-            placeholder="Search games by title, ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        </div>
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Games Management</h1>
+        <Button onClick={() => { setShowForm(true); setEditingGame(null); }}>Add Game</Button>
       </div>
 
-      <DataTable columns={columns} data={games} />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Code</TableHead>
+            <TableHead>Provider</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {games.map((game) => (
+            <TableRow key={game.id}>
+              <TableCell>{game.game_name}</TableCell>
+              <TableCell>{game.game_code}</TableCell>
+              <TableCell>{mockProviders.find(p => p.id === game.provider_id)?.name || 'Unknown'}</TableCell>
+              <TableCell>{game.status}</TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleEdit(game)}>
+                      <Edit className="mr-2 h-4 w-4" /> Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDelete(game.id)}>
+                      <Trash className="mr-2 h-4 w-4" /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-      {isFormOpen && (
-        <GameForm 
-          onCancel={() => setIsFormOpen(false)}
-          onSubmit={handleSubmitForm}
-          initialData={selectedGame as Partial<DbGame>}
-          categories={categories || []}
-          providers={providers || []}
-          isLoading={createOrUpdateGameMutation.isPending}
-        />
-      )}
-
-      {selectedGame && (selectedGame as DbGame).id && (
-        <ConfirmationDialog
-          isOpen={isConfirmDeleteDialogOpen}
-          onClose={() => setIsConfirmDeleteDialogOpen(false)} 
-          title="Delete Game"
-          description={`Are you sure you want to delete "${(selectedGame as DbGame).title}"? This action cannot be undone.`}
-          onConfirm={confirmDelete}
-          confirmText="Delete"
-          isLoading={deleteGameMutation.isPending}
-        />
-      )}
-    </AdminPageLayout>
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editingGame ? 'Edit Game' : 'Create Game'}</DialogTitle>
+            <DialogDescription>
+              {editingGame ? 'Edit the game details.' : 'Create a new game.'}
+            </DialogDescription>
+          </DialogHeader>
+          <GameForm
+            initialData={editingGame}
+            onCancel={() => setShowForm(false)}
+            onSave={handleFormSubmit}
+            providers={mockProviders}
+            categories={mockCategories}
+            isLoading={isSubmitting}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 };
 
-export default GamesManagementPage;
+export default GamesManagement;

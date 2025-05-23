@@ -30,6 +30,9 @@ export * from './bonus';
 // Re-export VIP types
 export * from './vip';
 
+// Re-export wallet types
+export * from './wallet';
+
 // Define Transaction type with all required fields
 export interface Transaction {
   id: string;

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import UserPageLoadingSkeleton from '@/components/user/UserPageLoadingSkeleton';
 import { toast } from 'sonner';
-import { AppUser } from '@/types';
+import { AppUser, UserRole } from '@/types';
 
 const UserDashboard: React.FC = () => {
   const { user, isLoading, error, fetchAndUpdateUser } = useAuth();
@@ -36,7 +36,7 @@ const UserDashboard: React.FC = () => {
   // Convert AppUser to User format for UserStats component
   const userForStats: AppUser = {
     ...user,
-    role: user.role || 'user'
+    role: user.role || UserRole.USER
   };
 
   return (

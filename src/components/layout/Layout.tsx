@@ -16,7 +16,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
   return (
     <>
       <ScrollToTop />
-      {children || <AppLayout />}
+      {children || <Outlet />}
     </>
   );
 };

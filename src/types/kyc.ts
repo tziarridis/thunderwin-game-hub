@@ -4,7 +4,8 @@ export enum KycStatusEnum {
   UNDER_REVIEW = "under_review",
   APPROVED = "approved",
   REJECTED = "rejected",
-  EXPIRED = "expired"
+  EXPIRED = "expired",
+  RESUBMIT_REQUIRED = "resubmit_required"
 }
 
 export enum KycDocumentTypeEnum {
@@ -34,4 +35,15 @@ export interface KycData {
   submitted_at?: string;
   reviewed_at?: string;
   notes?: string;
+}
+
+export interface KycRequest {
+  id: string;
+  user_id: string;
+  document_type: string;
+  document_front_url?: string | null;
+  document_back_url?: string | null;
+  status: KycStatus;
+  created_at: string;
+  updated_at: string;
 }

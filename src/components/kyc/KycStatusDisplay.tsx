@@ -2,38 +2,38 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, XCircle, AlertTriangle } from 'lucide-react';
-import { KycStatus } from '@/types/kyc';
+import { KycStatusEnum } from '@/types/kyc';
 
 interface KycStatusDisplayProps {
-  status: KycStatus | string;
+  status: string;
   className?: string;
 }
 
 const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ status, className }) => {
-  const statusConfig = {
-    [KycStatus.PENDING]: {
+  const statusConfig: Record<string, { label: string, icon: React.FC<any>, color: string }> = {
+    "pending": {
       label: 'Pending Review',
       icon: Clock,
       color: 'bg-yellow-500 text-white',
     },
-    [KycStatus.APPROVED]: {
+    "approved": {
       label: 'Approved',
       icon: CheckCircle,
       color: 'bg-green-500 text-white',
     },
-    [KycStatus.REJECTED]: {
+    "rejected": {
       label: 'Rejected',
       icon: XCircle,
       color: 'bg-red-500 text-white',
     },
-    [KycStatus.RESUBMIT_REQUIRED]: {
+    "resubmit_required": {
       label: 'Resubmit Required',
       icon: AlertTriangle,
       color: 'bg-orange-500 text-white',
     },
   };
 
-  const config = statusConfig[status as KycStatus] || {
+  const config = statusConfig[status] || {
     label: 'Unknown',
     icon: AlertTriangle,
     color: 'bg-gray-500 text-white',

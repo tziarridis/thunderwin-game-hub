@@ -1,3 +1,4 @@
+
 // Assuming other wallet related types might be here, or can be added.
 
 export interface Wallet {
@@ -17,42 +18,25 @@ export interface Wallet {
   total_bet?: number;
   total_won?: number;
   total_lose?: number;
-  // Add other existing fields from your DB or app logic
 }
 
-// Moved WalletType from index.d.ts to here for proper export
+// WalletType used in MobileWalletSummary component
 export interface WalletType {
   id: string; 
-  userId: string; // Note: often user_id in DB, ensure mapping if needed
+  userId: string;
+  user_id: string;
   balance: number;
   currency: string;
   symbol: string; 
   vipLevel: number;
-  vipPoints: number;
-  bonusBalance: number; 
-  cryptoBalance: number; 
-  demoBalance: number; 
+  vipPoints?: number;
+  bonusBalance?: number; 
+  cryptoBalance?: number; 
+  demoBalance?: number; 
   isActive: boolean; 
-  lastTransactionDate: Date | null; 
+  lastTransactionDate?: Date; 
   hide_balance: boolean; 
-  // active: boolean; // This was duplicated, removed one. isActive covers it.
   total_bet: number; 
   total_won: number; 
   total_lose: number; 
-  user_id: string; 
-}
-
-// You might also have other wallet-related types like:
-export interface WalletTransaction {
-  id: string;
-  wallet_id: string;
-  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund'; // Added 'adjustment'
-  amount: number;
-  currency: string;
-  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
-  created_at: string;
-  updated_at: string;
-  description?: string; // Optional description
-  provider?: string; // Optional provider
-  // ... other transaction details
 }

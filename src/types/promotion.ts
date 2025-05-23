@@ -9,6 +9,20 @@ export enum PromotionType {
   VIP_BONUS = "vip_bonus"
 }
 
+export enum PromotionStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  EXPIRED = "expired",
+  PENDING = "pending"
+}
+
+export enum PromotionAudience {
+  ALL = "all",
+  NEW_USERS = "new_users",
+  EXISTING_USERS = "existing_users",
+  VIP = "vip"
+}
+
 export interface Promotion {
   id: string;
   title: string;
@@ -29,4 +43,9 @@ export interface Promotion {
   terms_and_conditions_url?: string;
   created_at?: string;
   updated_at?: string;
+  target_audience?: string;
+}
+
+export interface PromotionFormValues extends Omit<Promotion, 'id' | 'created_at' | 'updated_at'> {
+  id?: string;
 }

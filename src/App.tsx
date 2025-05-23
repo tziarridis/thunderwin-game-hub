@@ -1,7 +1,7 @@
 
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
-import AppLayout from "./components/layout/AppLayout"; // Using AppLayout consistently
+import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./components/layout/AdminLayout";
 import CasinoMain from "./pages/casino/CasinoMain";
 import LiveCasino from "./pages/casino/LiveCasino";
@@ -66,7 +66,7 @@ function App() {
       <Toaster richColors position="top-right" />
       <Routes>
         {/* Main App Routes using AppLayout which now contains all navigation elements */}
-        <Route path="/" element={<AppLayout />}>
+        <Route element={<AppLayout><Outlet /></AppLayout>}>
           <Route index element={<Index />} />
           {/* Casino Routes */}
           <Route path="casino">
