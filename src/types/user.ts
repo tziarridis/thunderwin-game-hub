@@ -15,11 +15,24 @@ export interface User {
   username: string;
   email: string;
   avatar?: string;
+  avatar_url?: string;
+  first_name?: string;
+  last_name?: string;
   created_at: string;
   updated_at: string;
   role?: UserRole;
   status?: string;
   name?: string;
+  vip_level_id?: string;
+  user_metadata?: {
+    username?: string;
+    avatar_url?: string;
+    currency?: string;
+    language?: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+  };
 }
 
 export interface AppUser {
@@ -27,11 +40,24 @@ export interface AppUser {
   username: string;
   email: string;
   avatar?: string;
+  avatar_url?: string;
+  first_name?: string;
+  last_name?: string;
   created_at: string;
   updated_at: string;
   role?: UserRole;
   status?: string;
   name?: string;
+  vip_level_id?: string;
+  user_metadata?: {
+    username?: string;
+    avatar_url?: string;
+    currency?: string;
+    language?: string;
+    full_name?: string;
+    first_name?: string;
+    last_name?: string;
+  };
 }
 
 export interface UserProfile {
@@ -75,6 +101,7 @@ export interface DisplayUser {
   username?: string;
   email?: string;
   avatar?: string;
+  avatar_url?: string;
   role?: UserRole;
   status?: string;
 }

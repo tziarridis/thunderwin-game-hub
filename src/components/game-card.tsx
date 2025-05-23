@@ -1,100 +1,95 @@
 
-// This is a basic game card, consider using EnhancedGameCard for richer features
-// or ensure its props and logic are updated if it's meant to be different.
 import React from 'react';
-import { Game, GameTag } from '@/types'; // Ensure GameTag is imported if used
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { PlayCircle, Info, Heart } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useGames } from '@/hooks/useGames'; // Assuming this hook provides favorite logic
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Play, Heart } from 'lucide-react';
 
 interface GameCardProps {
-  game: Game;
-  onPlayClick: (game: Game, mode: 'real' | 'demo') => void;
-  onDetailsClick?: (game: Game) => void;
-  className?: string;
+  game: {
+    id: string | number;
+    title: string;
+    image?: string;
+    provider?: string;
+    isNew?: boolean;
+    isFeatured?: boolean;
+    slug?: string;
+  };
+  onPlay?: () => void;
+  onFavorite?: () => void;
+  isFavorite?: boolean;
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game, onPlayClick, onDetailsClick, className }) => {
-  const { isAuthenticated } = useAuth();
-  // Assuming useGames provides toggleFavoriteGame and favoriteGameIds
-  const { favoriteGameIds, toggleFavoriteGame } = useGames(); 
-  
-  const isFavorite = favoriteGameIds.has(String(game.id)) || (game.game_id ? favoriteGameIds.has(game.game_id) : false);
-
-  const handleFavoriteToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!isAuthenticated) {
-        toast.info("Please log in to favorite games.");
-        return;
-    }
-    toggleFavoriteGame(String(game.id || game.game_id)); // Pass string ID
-  };
-
-  const canPlayDemo = !game.only_real || (game.tags && game.tags.some(t => {
-    if (typeof t === 'string') return t === 'demo_playable';
-    if (typeof t === 'object' && t !== null && 'slug' in t) return (t as GameTag).slug === 'demo_playable'; // GameTag object check
-    return false;
-  })) || game.only_demo;
-
-  const canPlayReal = isAuthenticated && !game.only_demo;
+const GameCard: React.FC<GameCardProps> = ({ 
+  game, 
+  onPlay, 
+  onFavorite, 
+  isFavorite = false 
+}) => {
+  const gameSlug = typeof game.slug === 'string' ? game.slug : String(game.id);
 
   return (
-    <Card className={cn("overflow-hidden group", className)} onClick={onDetailsClick ? () => onDetailsClick(game) : undefined}>
-      <CardHeader className="p-0 relative">
-        <AspectRatio ratio={4 / 3} onClick={!onDetailsClick ? () => onPlayClick(game, canPlayReal ? 'real' : 'demo') : undefined}>
-          <img
-            src={game.image || game.image_url || game.cover || '/placeholder.svg'}
-            alt={game.title}
-            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => (e.currentTarget.src = '/placeholder.svg')}
-          />
-        </AspectRatio>
-        {isAuthenticated && (
-             <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 z-10 bg-black/30 hover:bg-primary text-white hover:text-white rounded-full"
-                onClick={handleFavoriteToggle}
-                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            >
-                <Heart className={cn("h-5 w-5", isFavorite ? "fill-red-500 text-red-500" : "text-white")} />
-            </Button>
-        )}
+    <Card className="group hover:shadow-lg transition-shadow duration-200">
+      <div className="relative">
+        <img
+          src={game.image || '/placeholder.svg'}
+          alt={game.title}
+          className="w-full h-48 object-cover rounded-t-lg"
+        />
+        
         {game.isNew && (
-          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">NEW</div>
+          <Badge className="absolute top-2 left-2 bg-green-500">
+            New
+          </Badge>
         )}
-      </CardHeader>
-      <CardContent className="p-3">
-        <CardTitle 
-            className="text-md font-semibold truncate group-hover:text-primary transition-colors cursor-pointer"
-            onClick={onDetailsClick ? () => onDetailsClick(game) : () => onPlayClick(game, canPlayReal ? 'real' : 'demo')}
+        
+        {game.isFeatured && (
+          <Badge className="absolute top-2 right-2 bg-yellow-500">
+            Featured
+          </Badge>
+        )}
+        
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-t-lg">
+          <Button onClick={onPlay} size="lg" className="gap-2">
+            <Play className="h-4 w-4" />
+            Play Now
+          </Button>
+        </div>
+      </div>
+      
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1">
+            <h3 className="font-semibold text-sm truncate" title={game.title}>
+              {game.title}
+            </h3>
+            {game.provider && (
+              <p className="text-xs text-muted-foreground">{game.provider}</p>
+            )}
+          </div>
+          
+          {onFavorite && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={onFavorite}
+            >
+              <Heart 
+                className={`h-4 w-4 ${isFavorite ? 'fill-red-500 text-red-500' : ''}`} 
+              />
+            </Button>
+          )}
+        </div>
+        
+        <Button 
+          onClick={onPlay} 
+          className="w-full" 
+          size="sm"
         >
-            {game.title}
-        </CardTitle>
-        <p className="text-xs text-muted-foreground truncate">
-          {game.providerName || game.provider_slug || 'Unknown Provider'}
-        </p>
+          Play
+        </Button>
       </CardContent>
-      <CardFooter className="p-3 pt-0 grid grid-cols-2 gap-2">
-        {canPlayReal && (
-            <Button onClick={(e) => { e.stopPropagation(); onPlayClick(game, 'real');}} size="sm" className="w-full">
-                <PlayCircle className="mr-1 h-4 w-4" /> Real
-            </Button>
-        )}
-        {canPlayDemo && (
-            <Button onClick={(e) => { e.stopPropagation(); onPlayClick(game, 'demo');}} variant={canPlayReal ? "outline" : "default"} size="sm" className="w-full">
-                <PlayCircle className="mr-1 h-4 w-4" /> Demo
-            </Button>
-        )}
-         {!canPlayReal && !canPlayDemo && (
-            <p className="text-xs text-muted-foreground col-span-full text-center pt-1">Unavailable</p>
-        )}
-      </CardFooter>
     </Card>
   );
 };

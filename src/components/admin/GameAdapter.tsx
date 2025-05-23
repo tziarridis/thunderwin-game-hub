@@ -60,7 +60,7 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
     
     volatility: parseGameVolatility(dbGame.volatility),
     
-    isPopular: dbGame.is_popular ?? dbGame.is_featured ?? false,
+    isPopular: dbGame.is_popular ?? (dbGame.is_featured ?? false),
     isNew: dbGame.is_new ?? false, 
     is_new: dbGame.is_new ?? false,
     is_featured: dbGame.is_featured ?? false,
@@ -86,7 +86,7 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
     updated_at: dbGame.updated_at || new Date().toISOString(),
     demo_url: dbGame.demo_url || undefined,
     external_url: dbGame.external_url || undefined,
-    is_mobile_compatible: dbGame.is_mobile || dbGame.mobile_supported ?? true,
+    is_mobile_compatible: dbGame.is_mobile ?? (dbGame.mobile_supported ?? true),
     has_lobby: dbGame.has_lobby ?? false,
     is_mobile: dbGame.is_mobile ?? true,
     has_freespins: dbGame.has_freespins ?? false,
