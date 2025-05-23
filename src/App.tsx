@@ -1,6 +1,5 @@
-
 import { useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, Outlet } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./components/layout/AdminLayout";
 import CasinoMain from "./pages/casino/CasinoMain";

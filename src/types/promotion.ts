@@ -44,6 +44,7 @@ export interface Promotion {
   created_at?: string;
   updated_at?: string;
   target_audience?: string;
+  is_active?: boolean;
 }
 
 export interface PromotionFormValues extends Omit<Promotion, 'id' | 'created_at' | 'updated_at'> {

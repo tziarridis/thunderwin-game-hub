@@ -1,3 +1,4 @@
+
 export enum GameStatusEnum {
   ACTIVE = "active",
   INACTIVE = "inactive",
@@ -5,22 +6,33 @@ export enum GameStatusEnum {
   COMING_SOON = "coming_soon"
 }
 
+export type GameStatus = "active" | "inactive" | "maintenance" | "pending_review" | "draft" | "archived" | "pending" | "blocked";
+
+export type GameVolatility = "low" | "medium" | "high" | "low-medium" | "medium-high";
+
+export type GameTag = string;
+
 export interface DbGame {
   id: string;
   game_name: string;
   game_code: string;
+  game_id?: string;
+  slug?: string;
   provider_id: string;
   provider_slug?: string;
   category_slugs?: string[];
   status: string;
   rtp: number;
   cover?: string;
+  image_url?: string;
+  banner_url?: string;
   images?: string[];
   description?: string;
   created_at?: string;
   updated_at?: string;
   is_featured?: boolean;
   is_popular?: boolean;
+  is_new?: boolean;
   show_home?: boolean;
   mobile_supported?: boolean;
   desktop_supported?: boolean;
@@ -46,17 +58,28 @@ export interface DbGame {
   reels?: number;
   symbols?: string[];
   features?: string[];
+  lines?: number;
+  release_date?: string;
+  distribution?: string;
+  game_type?: string;
 }
 
 export interface Game {
   id: string;
+  game_id?: string;
   title: string;
-  slug: string;
+  slug?: string;
   description: string;
-  image_url: string;
+  image_url?: string;
+  image?: string;
+  cover?: string;
+  bannerUrl?: string;
   provider_id: string;
   provider_slug?: string;
-  category_id: string;
+  provider?: { name: string; slug: string; id?: string };
+  providerName?: string;
+  category_id?: string;
+  categoryName?: string;
   category_slugs?: string[];
   status: GameStatusEnum;
   rtp: number;
@@ -64,6 +87,8 @@ export interface Game {
   updated_at: string;
   is_featured?: boolean;
   is_popular?: boolean;
+  isPopular?: boolean;
+  isNew?: boolean;
   show_home?: boolean;
   mobile_supported?: boolean;
   desktop_supported?: boolean;
@@ -72,7 +97,7 @@ export interface Game {
   only_real?: boolean;
   only_demo?: boolean;
   extra_elements?: string[];
-  tags?: string[];
+  tags?: GameTag[];
   game_options?: string[];
   blocked_countries?: string[];
   license_info?: string;
@@ -83,12 +108,15 @@ export interface Game {
   min_bet?: number;
   max_bet?: number;
   max_win?: number;
-  volatility?: string;
+  volatility?: GameVolatility;
   themes?: string[];
   paylines?: number;
   reels?: number;
   symbols?: string[];
   features?: string[];
+  lines?: number;
+  releaseDate?: string;
+  game_code?: string;
 }
 
 export interface GameLaunchOptions {

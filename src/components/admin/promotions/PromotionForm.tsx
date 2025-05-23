@@ -47,20 +47,14 @@ export interface PromotionFormProps {
 const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit, initialData, isLoading }) => {
   const { control, handleSubmit, register, formState: { errors }, reset } = useForm<PromotionFormValues>({
     resolver: zodResolver(promotionSchema),
-    defaultValues: initialData ? {
-        ...initialData,
-        valid_from: initialData.valid_from ? new Date(initialData.valid_from).toISOString().split('T')[0] : '',
-        valid_until: initialData.valid_until ? new Date(initialData.valid_until).toISOString().split('T')[0] : '',
-        type: initialData.type || PromotionType.DEPOSIT_BONUS,
-        status: initialData.status || PromotionStatus.DRAFT,
-    } : {
-        title: '',
-        description: '',
-        type: PromotionType.DEPOSIT_BONUS,
-        status: PromotionStatus.DRAFT,
-        is_active: true,
-        valid_from: new Date().toISOString().split('T')[0],
-        valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default to 7 days from now
+    defaultValues: {
+      title: '',
+      description: '',
+      type: PromotionType.DEPOSIT_BONUS,
+      status: PromotionStatus.PENDING,
+      is_active: true,
+      valid_from: new Date().toISOString().split('T')[0],
+      valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     },
   });
 
@@ -71,14 +65,14 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
         valid_from: initialData.valid_from ? new Date(initialData.valid_from).toISOString().split('T')[0] : '',
         valid_until: initialData.valid_until ? new Date(initialData.valid_until).toISOString().split('T')[0] : '',
         type: initialData.type || PromotionType.DEPOSIT_BONUS,
-        status: initialData.status || PromotionStatus.DRAFT,
+        status: (initialData.status as PromotionStatus) || PromotionStatus.PENDING,
       });
     } else {
         reset({
             title: '',
             description: '',
             type: PromotionType.DEPOSIT_BONUS,
-            status: PromotionStatus.DRAFT,
+            status: PromotionStatus.PENDING,
             is_active: true,
             valid_from: new Date().toISOString().split('T')[0],
             valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -184,7 +178,6 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
                 Is Active
             </Label>
           </div>
-
 
           <DialogFooter>
             <DialogClose asChild>
