@@ -3,24 +3,20 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
-import { User, UserRole, KycStatus as KycStatusEnum } from '@/types'; // KycStatus aliased to KycStatusEnum
+import { User, UserRole, KycStatus as KycStatusEnum } from '@/types';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import UserInfoForm from '@/components/admin/UserInfoForm'; // For editing basic info
-// import UserTransactionsTable from '@/components/admin/UserTransactionsTable'; // If exists
-// import UserActivityLog from '@/components/admin/UserActivityLog'; // If exists
-import KycStatusDisplay from '@/components/kyc/KycStatusDisplay'; // Corrected import
+import UserInfoForm from '@/components/admin/UserInfoForm';
+import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Ban, CheckCircle, Edit, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
 
-// Define available roles for selection
 const availableRoles: UserRole[] = ['user', 'admin', 'support', 'manager', 'vip_player', 'affiliate'];
 const availableStatuses: User['status'][] = ['active', 'inactive', 'pending_verification', 'banned', 'restricted'];
-
 
 const AdminUserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -38,7 +34,7 @@ const AdminUserProfilePage: React.FC = () => {
     mutationFn: (updatedData: Partial<User>) => userService.updateUser(userId!, updatedData),
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(['adminUser', userId], updatedUser);
-      queryClient.invalidateQueries({ queryKey: ['adminUsers'] }); // Invalidate user list if changes affect it
+      queryClient.invalidateQueries({ queryKey: ['adminUsers'] });
       toast.success('User profile updated successfully!');
       setIsEditingInfo(false);
     },
@@ -46,23 +42,13 @@ const AdminUserProfilePage: React.FC = () => {
       toast.error(`Failed to update user: ${updateError.message}`);
     },
   });
-  
-  // Placeholder for other mutations (ban, verify, etc.)
-  // const banUserMutation = useMutation(...);
-  // const verifyUserKycMutation = useMutation(...);
 
   if (isLoading) return <AdminPageLayout title="User Profile"><div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></AdminPageLayout>;
   if (error) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">Error loading user: {error.message}</div></AdminPageLayout>;
   if (!user) return <AdminPageLayout title="User Profile"><div className="text-red-500 p-4">User not found.</div></AdminPageLayout>;
 
-  const handleInfoSubmit = (values: Partial<User>) => {
-    // Ensure role and status are correctly formatted if they come from a form
-    const dataToUpdate: Partial<User> = {
-        ...values,
-        role: values.role || user.role, // Keep original if not changed
-        status: values.status || user.status, // Keep original if not changed
-    };
-    updateUserMutation.mutate(dataToUpdate);
+  const handleInfoSubmit = async (userData: User): Promise<void> => {
+    updateUserMutation.mutate(userData);
   };
 
   const breadcrumbs = [
@@ -76,7 +62,6 @@ const AdminUserProfilePage: React.FC = () => {
         <Button variant="outline" onClick={() => setIsEditingInfo(!isEditingInfo)} disabled={updateUserMutation.isPending}>
             <Edit className="mr-2 h-4 w-4" /> {isEditingInfo ? 'Cancel Edit' : 'Edit User Info'}
         </Button>
-        {/* Add other action buttons like Ban, Verify KYC etc. */}
     </div>
   );
 
@@ -103,7 +88,6 @@ const AdminUserProfilePage: React.FC = () => {
             <p><strong>Last Login:</strong> {user.last_sign_in_at ? format(new Date(user.last_sign_in_at), 'PPpp') : 'N/A'}</p>
             <p><strong>KYC Status:</strong> <KycStatusDisplay status={user.kyc_status as KycStatusEnum || 'not_started'} /></p>
             <p><strong>Balance:</strong> {user.balance?.toFixed(2) || '0.00'} {user.currency || 'N/A'}</p>
-            {/* More fields: VIP Level, etc. */}
           </CardContent>
         </Card>
 
@@ -123,7 +107,6 @@ const AdminUserProfilePage: React.FC = () => {
                         is_active: user.is_active,
                         is_banned: user.is_banned,
                         is_verified: user.is_verified,
-                        // map other relevant fields from User to form if UserInfoForm expects them
                     }} 
                     onSubmit={handleInfoSubmit} 
                     isLoading={updateUserMutation.isPending}
@@ -148,17 +131,14 @@ const AdminUserProfilePage: React.FC = () => {
                     <p><strong>Last Name:</strong> {user.last_name || 'N/A'}</p>
                     <p><strong>Phone:</strong> {user.phone_number || 'N/A'}</p>
                     <p><strong>Date of Birth:</strong> {user.date_of_birth ? format(new Date(user.date_of_birth), 'PP') : 'N/A'}</p>
-                    {/* Display address if available */}
                   </CardContent>
                 </Card>
               </TabsContent>
               <TabsContent value="transactions" className="mt-4">
                 <p>User transactions list placeholder.</p>
-                {/* <UserTransactionsTable userId={userId!} /> */}
               </TabsContent>
               <TabsContent value="activity" className="mt-4">
                 <p>User activity log placeholder.</p>
-                {/* <UserActivityLog userId={userId!} /> */}
               </TabsContent>
               <TabsContent value="settings" className="mt-4">
                 <p>User specific settings and controls placeholder (e.g., limits, 2FA status).</p>

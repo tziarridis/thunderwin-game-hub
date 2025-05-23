@@ -1,82 +1,236 @@
-// Ensure these are available or defined in user.d.ts and re-exported here if needed
-export type { LoginCredentials, RegisterCredentials, UserRole, UserProfile, UserContextType, DisplayUser, SupabaseAuthUser } from './user.d'; 
-export type { Wallet, WalletContextType, Transaction as WalletTransaction, CoinBalance } from './wallet'; // Assuming WalletTransaction is an alias if Transaction is generic
-export type { KycStatus, KycDocument, KycAttempt, KycRequest, KycDocumentTypeEnum } from './kyc'; // KycRequest added here
-export type { Bonus, UserBonus, BonusType, BonusStatus } from './bonus';
-export type { Promotion, PromotionType } from './promotion';
-// Game types - Ensure DbGame is also exported if used directly elsewhere
-export type { Game, GameCategory, GameProvider, GameTag, GameLaunchOptions, GameStatus, GameVolatility, DbGame, GameStatusEnum, GameVolatilityEnum } from './game'; // Added DbGame, GameStatus, GameVolatility
-export type { Transaction, TransactionStatus, TransactionType, DateRange } from './transaction'; // Added DateRange
-export type { VIPLevel, VIPBenefit } from './vip';
-export type { SiteSettings } from './settings';
-export type { Notification } from './notification';
-export type { AffiliateStats, AffiliateLink, AffiliateEarning } from './affiliate';
-export type { SupportTicket, SupportMessage, FaqItem } from './support';
-export type { AppError } from './error';
-export type { CMSContent, Banner, PageContent } from './cms';
+import { Database } from '@/integrations/supabase/types';
 
-// It's common to have a generic User type, ensure it's comprehensive
-// and AppUser in AuthContext extends or uses it.
-export interface User {
-  id: string;
-  username: string | null;
-  email: string | null;
-  avatar_url?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  role?: UserRole; // Application-specific role from user.d.ts
-  created_at: string; // Changed to string (ISO date string)
-  updated_at: string; // Changed to string (ISO date string)
-  last_sign_in_at?: string | null;
-  
-  // Financials
-  balance?: number;
-  currency?: string; // e.g., 'USD'
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-  // KYC
-  kyc_status?: KycStatus; // from kyc.ts
-  is_verified?: boolean; // Email or KYC verified
-
-  // Status & Flags
-  status?: UserStatus; // e.g., 'active', 'inactive', 'banned' - from user.d.ts
-  is_banned?: boolean;
-  is_active: boolean; // General active status - ensure this is not optional
-
-  // Gaming related
-  favorite_game_ids?: string[];
-  vip_level_id?: string; // Reference to VIPLevel
-  
-  // Extended profile data (can be in a separate 'profiles' table)
-  phone_number?: string;
-  date_of_birth?: string; // ISO date string
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postal_code?: string;
-    country?: string;
-  };
-  
-  // Metadata from Supabase or other systems
-  app_metadata?: Record<string, any>;
-  user_metadata?: Record<string, any>;
-
-  // Admin/Staff flags
-  is_staff?: boolean;
-  is_admin?: boolean; // Redundant if role covers this, but can be a quick flag
-  roles?: UserRole[]; // For multiple roles if applicable
-
-  // Other application specific fields
-  referral_code?: string;
-  referred_by?: string;
-  // Add other fields from your 'users' table in Supabase
-}
-
-export type UserStatus = 'active' | 'inactive' | 'pending_verification' | 'banned' | 'restricted' | 'deleted';
-// UserRole is defined and exported from user.d.ts
-
-declare global {
-  interface Window {
-    ethereum?: any;
+export interface Database {
+  public: {
+    Tables: {
+      kyc_requests: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          document_back_url: string | null
+          document_front_url: string | null
+          document_type: Database["public"]["Enums"]["kyc_document_type_enum"] | null
+          id: string
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["kyc_status_enum"] | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_id: string | null
+          created_at?: string
+          document_back_url: string | null
+          document_front_url: string | null
+          document_type?: Database["public"]["Enums"]["kyc_document_type_enum"] | null
+          id?: string
+          rejection_reason: string | null
+          status?: Database["public"]["Enums"]["kyc_status_enum"] | null
+          updated_at?: string
+          user_id: string | null
+        }
+        Update: {
+          admin_id: string | null
+          created_at?: string
+          document_back_url: string | null
+          document_front_url: string | null
+          document_type?: Database["public"]["Enums"]["kyc_document_type_enum"] | null
+          id?: string
+          rejection_reason: string | null
+          status?: Database["public"]["Enums"]["kyc_status_enum"] | null
+          updated_at?: string
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_requests_admin_id_fkey"
+            columns: ["admin_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kyc_requests_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          billing_address: Json | null
+          created_at: string | null
+          email: string | null
+          email_confirmed_at: string | null
+          full_name: string | null
+          id: string
+          is_active: boolean | null
+          is_banned: boolean | null
+          is_email_confirmed: boolean | null
+          is_phone_confirmed: boolean | null
+          is_verified: boolean | null
+          last_ip: string | null
+          last_sign_in_at: string | null
+          phone_number: string | null
+          phone_number_confirmed_at: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          shipping_address: Json | null
+          status: string | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url: string | null
+          billing_address: Json | null
+          created_at?: string | null
+          email: string | null
+          email_confirmed_at: string | null
+          full_name: string | null
+          id: string
+          is_active?: boolean | null
+          is_banned?: boolean | null
+          is_email_confirmed?: boolean | null
+          is_phone_confirmed?: boolean | null
+          is_verified?: boolean | null
+          last_ip: string | null
+          last_sign_in_at: string | null
+          phone_number: string | null
+          phone_number_confirmed_at: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          shipping_address: Json | null
+          status?: string | null
+          updated_at?: string | null
+          username: string | null
+        }
+        Update: {
+          avatar_url: string | null
+          billing_address: Json | null
+          created_at?: string | null
+          email: string | null
+          email_confirmed_at: string | null
+          full_name: string | null
+          id?: string
+          is_active?: boolean | null
+          is_banned?: boolean | null
+          is_email_confirmed?: boolean | null
+          is_phone_confirmed?: boolean | null
+          is_verified?: boolean | null
+          last_ip: string | null
+          last_sign_in_at: string | null
+          phone_number: string | null
+          phone_number_confirmed_at: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          shipping_address: Json | null
+          status?: string | null
+          updated_at?: string | null
+          username: string | null
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      kyc_document_type_enum:
+        | "passport"
+        | "driver_license"
+        | "national_id"
+        | "other"
+      kyc_status_enum:
+        | "not_started"
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "resubmit_required"
+      user_role: "user" | "admin" | "support" | "manager" | "vip_player" | "affiliate"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
+
+export type Tables<
+  T extends keyof Database["public"]["Tables"]
+> = Database["public"]["Tables"][T]["Row"];
+export type Enums<
+  T extends keyof Database["public"]["Enums"]
+> = Database["public"]["Enums"][T];
+
+export type UserRole = Enums<"user_role">;
+export type KycStatus = Enums<"kyc_status_enum">;
+
+export interface DateRange {
+  from?: Date;
+  to?: Date;
+}
+
+export type User = {
+  id: string;
+  email: string;
+  username?: string;
+  role?: UserRole;
+  status?: 'active' | 'inactive' | 'pending_verification' | 'banned' | 'restricted';
+  created_at: string;
+  updated_at?: string;
+  last_sign_in_at?: string;
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  date_of_birth?: string;
+  is_active?: boolean;
+  is_banned?: boolean;
+  is_verified?: boolean;
+  kyc_status?: KycStatus;
+  balance?: number;
+  currency?: string;
+  user_metadata?: {
+    username?: string;
+    full_name?: string;
+    avatar_url?: string;
+    kyc_status?: string;
+    currency?: string;
+    language?: string;
+    vip_level?: number;
+  };
+};
+
+export type Transaction = {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  type: 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'adjustment' | 'refund';
+  status: 'pending' | 'completed' | 'failed' | 'cancelled' | 'approved' | 'rejected';
+  description?: string;
+  provider?: string;
+  provider_transaction_id?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export interface KycRequest {
+  id: string;
+  user_id: string;
+  document_type: string;
+  document_front_url?: string | null;
+  document_back_url?: string | null;
+  status: KycStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Export VIP types
+export * from './vip';

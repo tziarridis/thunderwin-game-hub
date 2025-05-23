@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Transaction } from '@/types';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable, DataTableColumn } from "@/components/ui/data-table";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { format } from "date-fns";
-import { ColumnDef, SortingState, useReactTable, getCoreRowModel, getSortedRowModel, getPaginationRowModel } from "@tanstack/react-table";
+import { SortingState } from "@tanstack/react-table";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FileSearch, Loader2, RefreshCw } from 'lucide-react';
-import { useQuery, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 
 const TransactionsPage: React.FC = () => {
   const [filters, setFilters] = useState({
     userId: '',
-    type: '', // deposit, withdrawal, bet, win, bonus, adjustment, refund
-    status: '', // pending, completed, failed, cancelled, approved, rejected
+    type: '',
+    status: '',
     currency: '',
     minAmount: '',
     maxAmount: '',
@@ -31,60 +31,41 @@ const TransactionsPage: React.FC = () => {
   const { data, isLoading, error: queryError, refetch } = useQuery<{ transactions: Transaction[], totalCount: number }, Error>({
     queryKey: ['adminTransactions', filters, pagination, sorting],
     queryFn: async () => {
-      // const result = await transactionService.getAllTransactions({ /* params */ });
-      // return { transactions: result.data, totalCount: result.count };
-      return { transactions: [], totalCount: 0 }; // Placeholder
+      return { transactions: [], totalCount: 0 };
     },
   });
 
   const transactions = data?.transactions || [];
-  const totalCount = data?.totalCount || 0;
-  const pageCount = Math.ceil(totalCount / pagination.pageSize);
   
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-
-  const columns: ColumnDef<Transaction>[] = [
-    { accessorKey: "id", header: "ID", cell: ({row}) => <div className="truncate w-24">{row.original.id}</div> },
+  const columns: DataTableColumn<Transaction>[] = [
+    { accessorKey: "id", header: "ID", cell: (row) => <div className="truncate w-24">{row.id}</div> },
     { accessorKey: "user_id", header: "User ID" },
-    { accessorKey: "type", header: "Type", cell: ({row}) => <Badge variant="outline">{row.original.type}</Badge>},
-    { accessorKey: "amount", header: "Amount", cell: ({row}) => `${row.original.amount.toFixed(2)} ${row.original.currency}`},
-    { accessorKey: "status", header: "Status", cell: ({row}) => <Badge style={{backgroundColor: getStatusColor(row.original.status)}} className="text-white">{row.original.status}</Badge>},
-    { accessorKey: "created_at", header: "Date", cell: ({row}) => format(new Date(row.original.created_at), "PPpp")},
+    { accessorKey: "type", header: "Type", cell: (row) => <Badge variant="outline">{row.type}</Badge>},
+    { accessorKey: "amount", header: "Amount", cell: (row) => `${row.amount.toFixed(2)} ${row.currency}`},
+    { accessorKey: "status", header: "Status", cell: (row) => <Badge style={{backgroundColor: getStatusColor(row.status)}} className="text-white">{row.status}</Badge>},
+    { accessorKey: "created_at", header: "Date", cell: (row) => format(new Date(row.created_at), "PPpp")},
     {
-        id: "actions",
-        cell: ({ row }) => (
-            <Button variant="outline" size="sm" onClick={() => {setSelectedTransaction(row.original); setIsDetailModalOpen(true);}}>
+        accessorKey: "actions",
+        header: "Actions",
+        cell: (row) => (
+            <Button variant="outline" size="sm" onClick={() => {setSelectedTransaction(row); setIsDetailModalOpen(true);}}>
                 <FileSearch className="mr-2 h-4 w-4" /> Details
             </Button>
         ),
     },
   ];
   
-  const table = useReactTable({
-    data: transactions,
-    columns,
-    pageCount,
-    state: { pagination, sorting },
-    onPaginationChange: setPagination,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: true,
-    manualSorting: true,
-  });
-  
   const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
 
-  const handleDateRangeChange = (range?: DateRange) => {
-    setFilters(prev => ({ ...prev, dateRange: range }));
+  const handleDateRangeChange = (values: { range?: DateRange }) => {
+    setFilters(prev => ({ ...prev, dateRange: values.range }));
   };
   
-  // Helper for status badge color
   const getStatusColor = (status: Transaction['status']) => {
     switch (status) {
       case 'completed': case 'approved': return 'hsl(var(--primary))';
@@ -94,8 +75,8 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
-
   if (queryError) return <AdminPageLayout title="All Transactions"><div className="text-red-500 p-4">Error loading transactions: {queryError.message}</div></AdminPageLayout>;
+  
   return (
     <AdminPageLayout title="All Transactions" breadcrumbs={[{ label: "Admin", href: "/admin" }, { label: "Transactions" }]}>
        <Card className="mb-6">
@@ -120,8 +101,8 @@ const TransactionsPage: React.FC = () => {
             <Input type="number" placeholder="Min Amount" value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} />
             <Input type="number" placeholder="Max Amount" value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} />
              <DateRangePicker
-                date={filters.dateRange}
-                onDateChange={handleDateRangeChange}
+                range={filters.dateRange}
+                onUpdate={handleDateRangeChange}
                 className="col-span-full md:col-span-1 lg:col-span-1 xl:col-span-2"
              />
         </CardContent>
@@ -136,17 +117,7 @@ const TransactionsPage: React.FC = () => {
         </CardFooter>
       </Card>
 
-      {isLoading && transactions.length === 0 ? (
-          <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-        ) : (
-          <DataTable table={table} columns={columns} isLoading={isLoading} />
-       )}
-      
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>Previous</Button>
-        <span>Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}</span>
-        <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>Next</Button>
-      </div>
+      <DataTable columns={columns} data={transactions} />
 
       <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
         <DialogContent className="sm:max-w-md">

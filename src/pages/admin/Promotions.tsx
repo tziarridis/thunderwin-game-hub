@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
 import { promotionsService } from '@/services/promotionService';
@@ -19,7 +18,7 @@ const AdminPromotionsPage: React.FC = () => {
 
   const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error, Promotion[], QueryKey>({
     queryKey: ['adminPromotions'] as QueryKey,
-    queryFn: () => promotionsService.getAllPromotions(),
+    queryFn: () => promotionsService.getPromotions(),
   });
 
   const mutation = useMutation({
@@ -88,9 +87,9 @@ const AdminPromotionsPage: React.FC = () => {
       <Button 
         onClick={() => refetch()} 
         variant="outline" 
-        disabled={isLoading || mutation.isPending || deleteMutation.isPending}
+        disabled={isLoading}
       >
-        {isLoading || mutation.isPending || deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
         Refresh
       </Button>
     </div>

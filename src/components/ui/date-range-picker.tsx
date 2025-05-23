@@ -1,20 +1,24 @@
 
 import React from 'react';
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { DateRange } from "react-day-picker";
-import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-interface DatePickerWithRangeProps {
-  date: DateRange | undefined;
-  onDateChange: (range: DateRange | undefined) => void;
+interface DateRangePickerProps {
+  range?: DateRange;
+  onUpdate: (values: { range?: DateRange }) => void;
   className?: string;
 }
 
-export const DatePickerWithRange: React.FC<DatePickerWithRangeProps> = ({ date, onDateChange, className }) => {
+export const DateRangePicker: React.FC<DateRangePickerProps> = ({
+  range,
+  onUpdate,
+  className
+}) => {
   return (
     <div className={cn("grid gap-2", className)}>
       <Popover>
@@ -24,47 +28,36 @@ export const DatePickerWithRange: React.FC<DatePickerWithRangeProps> = ({ date, 
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              !range && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
+            {range?.from ? (
+              range.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(range.from, "LLL dd, y")} -{" "}
+                  {format(range.to, "LLL dd, y")}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(range.from, "LLL dd, y")
               )
             ) : (
               <span>Pick a date range</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 pointer-events-auto" align="start">
+        <PopoverContent className="w-auto p-0" align="start">
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={onDateChange}
+            defaultMonth={range?.from}
+            selected={range}
+            onSelect={(newRange) => onUpdate({ range: newRange })}
             numberOfMonths={2}
+            className="pointer-events-auto"
           />
         </PopoverContent>
       </Popover>
     </div>
   );
 };
-
-export const DateRangePicker: React.FC<{onUpdate: (values: {range?: DateRange}) => void}> = ({ onUpdate }) => {
-  const [date, setDate] = React.useState<DateRange | undefined>(undefined);
-
-  React.useEffect(() => {
-    onUpdate({ range: date });
-  }, [date, onUpdate]);
-
-  return <DatePickerWithRange date={date} onDateChange={setDate} />;
-};
-
-export { type DateRange };

@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import { useQuery, QueryKey } from '@tanstack/react-query';
-import { Transaction, DateRange } from '@/types/index.d'; // Import from index.d.ts
+import { Transaction, DateRange } from '@/types/index.d';
 import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable, DataTableProps } from '@/components/ui/data-table'; // DataTableProps
-import { ColumnDef, useReactTable, getCoreRowModel, Table as ReactTableType } from '@tanstack/react-table'; // Added Table
+import { DataTable, DataTableColumn } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,6 @@ import { format } from 'date-fns';
 import { RefreshCw, Loader2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Mock pragmaticPlayService if not available
 const mockPragmaticPlayService = {
   getTransactions: async (params: { 
     userId?: string; 
@@ -64,31 +63,16 @@ const PPTransactionsPage: React.FC = () => {
 
   const transactions = transactionsData?.transactions || [];
   const totalCount = transactionsData?.totalCount || 0;
-  const pageCount = Math.ceil(totalCount / filters.limit);
 
-  const columns: ColumnDef<Transaction>[] = [
+  const columns: DataTableColumn<Transaction>[] = [
     { accessorKey: 'id', header: 'Transaction ID' },
     { accessorKey: 'provider_transaction_id', header: 'PP ID' },
     { accessorKey: 'user_id', header: 'User ID' },
-    { accessorKey: 'type', header: 'Type', cell: ({ row }) => <Badge variant="outline">{row.original.type}</Badge> },
-    { accessorKey: 'amount', header: 'Amount', cell: ({ row }) => `${row.original.amount} ${row.original.currency}` },
-    { accessorKey: 'status', header: 'Status', cell: ({ row }) => <Badge variant={row.original.status === 'completed' ? 'default' : 'secondary'}>{row.original.status}</Badge> },
-    { accessorKey: 'created_at', header: 'Timestamp', cell: ({ row }) => format(new Date(row.original.created_at), 'PPpp') },
+    { accessorKey: 'type', header: 'Type', cell: (row) => <Badge variant="outline">{row.type}</Badge> },
+    { accessorKey: 'amount', header: 'Amount', cell: (row) => `${row.amount} ${row.currency}` },
+    { accessorKey: 'status', header: 'Status', cell: (row) => <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>{row.status}</Badge> },
+    { accessorKey: 'created_at', header: 'Timestamp', cell: (row) => format(new Date(row.created_at), 'PPpp') },
   ];
-
-
-  const table = useReactTable({
-    data: transactions,
-    columns,
-    pageCount: pageCount,
-    state: { pagination: { pageIndex: filters.page, pageSize: filters.limit } },
-    onPaginationChange: (updater) => {
-      const newPagination = typeof updater === 'function' ? updater({pageIndex: filters.page, pageSize: filters.limit}) : updater;
-      setFilters(prev => ({ ...prev, page: newPagination.pageIndex, limit: newPagination.pageSize }));
-    },
-    getCoreRowModel: getCoreRowModel(),
-    manualPagination: true,
-  });
 
   const handleFilterChange = (key: keyof typeof filters, value: string | DateRange | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 0 }));
@@ -117,8 +101,8 @@ const PPTransactionsPage: React.FC = () => {
             onChange={e => handleFilterChange('userId', e.target.value)}
           />
           <DateRangePicker
-            date={filters.dateRange}
-            onDateChange={(range) => handleFilterChange('dateRange', range)}
+            range={filters.dateRange}
+            onUpdate={(values) => handleFilterChange('dateRange', values.range)}
             className="w-full"
           />
           <Button onClick={() => refetch()} disabled={isLoading} className="w-full lg:w-auto">
@@ -127,7 +111,7 @@ const PPTransactionsPage: React.FC = () => {
         </div>
       </div>
 
-      <DataTable table={table as ReactTableType<Transaction>} columns={columns} isLoading={isLoading} />
+      <DataTable columns={columns} data={transactions} />
     </AdminPageLayout>
   );
 };
