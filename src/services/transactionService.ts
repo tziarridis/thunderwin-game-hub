@@ -27,6 +27,8 @@ export const transactionService = {
         date: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        balance_before: 50,
+        balance_after: 150,
       }
     ];
     

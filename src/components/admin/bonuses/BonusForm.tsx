@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { Bonus, BonusType, BonusStatus } from '@/types';
+import { Bonus, BonusType, BonusStatus } from '@/types/bonus';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,8 +59,8 @@ const BonusForm: React.FC<BonusFormProps> = ({
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                {Object.values(BonusType).map(type => (
-                  <SelectItem key={type} value={type}>{type}</SelectItem>
+                {Object.entries(BonusType).map(([key, value]) => (
+                  <SelectItem key={key} value={value}>{value}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -80,8 +80,8 @@ const BonusForm: React.FC<BonusFormProps> = ({
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                {Object.values(BonusStatus).map(status => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                {Object.entries(BonusStatus).map(([key, value]) => (
+                  <SelectItem key={key} value={value}>{value}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

@@ -18,4 +18,6 @@ export interface Transaction {
   created_at: string;
   updated_at: string;
   player_id?: string;
+  balance_before?: number;
+  balance_after?: number;
 }

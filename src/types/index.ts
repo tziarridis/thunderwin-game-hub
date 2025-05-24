@@ -107,3 +107,9 @@ export * from './transaction';
 export * from './kyc';
 export * from './wallet';
 export * from './vip';
+export * from './bonus';
+
+// Export commonly needed types
+export type { Bonus, BonusType, BonusStatus, UserBonus } from './bonus';
+export type { PromotionType, PromotionFormValues, PromotionAudience } from './promotion';
+export type { AffiliateUser, AffiliateCommissionTier, AffiliateStatSummary } from './affiliate';
