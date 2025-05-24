@@ -20,10 +20,9 @@ interface GamesResult {
   count: number;
 }
 
-// Function to map DbGame to Game
 const mapDbGameToGame = (dbGame: DbGame): Game => ({
   id: dbGame.id,
-  title: dbGame.title || dbGame.game_name || 'Untitled Game',
+  title: dbGame.game_name || 'Untitled Game',
   slug: dbGame.game_code || dbGame.id,
   description: dbGame.description || '',
   image_url: dbGame.cover || '',
@@ -36,7 +35,6 @@ const mapDbGameToGame = (dbGame: DbGame): Game => ({
   updated_at: dbGame.updated_at || new Date().toISOString()
 });
 
-// Mock game service for getAllGames
 const mockGameService = {
   getAllGames: async (options: any = {}): Promise<GamesResult> => {
     const { limit = 100, offset = 0 } = options;
@@ -44,14 +42,12 @@ const mockGameService = {
     try {
       let query = supabase.from('games').select('*, providers:provider_id(*)', { count: 'exact' });
       
-      // Apply pagination
       query = query.range(offset, offset + limit - 1);
       
       const { data, error, count } = await query;
       
       if (error) throw error;
       
-      // Map DB games to Game interface
       const mappedGames = (data || []).map((dbGame: any) => {
         return mapDbGameToGame(dbGame);
       });
@@ -142,7 +138,6 @@ export const useGamesData = ({
     fetchGames(0, true);
   }, [fetchGames]);
 
-  // Add filter games functionality
   const filterGames = useCallback((searchTerm?: string, categorySlug?: string, providerSlug?: string) => {
     if (!games.length) return;
     

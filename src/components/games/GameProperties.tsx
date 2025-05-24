@@ -1,34 +1,76 @@
 
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Game } from '@/types';
 
 export interface GamePropertiesProps {
   game: Game;
+  provider?: {
+    name: string;
+  };
+  category?: {
+    name: string;
+  };
 }
 
-const GameProperties: React.FC<GamePropertiesProps> = ({ game }) => {
+const GameProperties: React.FC<GamePropertiesProps> = ({ game, provider, category }) => {
   return (
-    <div className="bg-card p-4 rounded-lg">
-      <h3 className="font-semibold mb-3">Game Properties</h3>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <span className="text-muted-foreground">RTP:</span>
-          <span className="ml-2">{game.rtp || 'N/A'}%</span>
+    <Card>
+      <CardHeader>
+        <CardTitle>Game Properties</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          {provider && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Provider</p>
+              <p className="text-sm">{provider.name}</p>
+            </div>
+          )}
+          {category && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Category</p>
+              <p className="text-sm">{category.name}</p>
+            </div>
+          )}
+          {game.rtp && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">RTP</p>
+              <p className="text-sm">{game.rtp}%</p>
+            </div>
+          )}
+          {game.volatility && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Volatility</p>
+              <Badge variant="outline">{game.volatility}</Badge>
+            </div>
+          )}
+          {game.min_bet && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Min Bet</p>
+              <p className="text-sm">${game.min_bet}</p>
+            </div>
+          )}
+          {game.max_bet && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Max Bet</p>
+              <p className="text-sm">${game.max_bet}</p>
+            </div>
+          )}
         </div>
-        <div>
-          <span className="text-muted-foreground">Type:</span>
-          <span className="ml-2">{game.game_type || 'N/A'}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Technology:</span>
-          <span className="ml-2">{game.technology || 'N/A'}</span>
-        </div>
-        <div>
-          <span className="text-muted-foreground">Mobile:</span>
-          <span className="ml-2">{game.is_mobile ? 'Yes' : 'No'}</span>
-        </div>
-      </div>
-    </div>
+        {game.features && game.features.length > 0 && (
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-2">Features</p>
+            <div className="flex flex-wrap gap-2">
+              {game.features.map((feature, index) => (
+                <Badge key={index} variant="secondary">{feature}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

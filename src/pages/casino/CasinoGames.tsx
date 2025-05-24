@@ -1,23 +1,22 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGames } from '@/hooks/useGames';
 import { Game } from '@/types';
 import GamesGrid from '@/components/games/GamesGrid';
-// import GamesGridMobile from '@/components/games/GamesGridMobile'; // Using GamesGrid for both for now
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, FilterX, Loader2 } from 'lucide-react'; // Added Loader2
+import { Search, FilterX, Loader2 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { scrollToTop } from '@/utils/scrollUtils';
 import { useAuth } from '@/contexts/AuthContext';
-// import GameLauncher from '@/components/games/GameLauncher'; // Replaced by useGames launchGame
 import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 24;
 
 const CasinoGames = () => {
-  const { category: categorySlugFromParams } = useParams<{ category: string }>(); // category slug from URL
-  const { games, isLoading: gamesLoading, launchGame, categories: gameCategories } = useGames();
+  const { category: categorySlugFromParams } = useParams<{ category: string }>();
+  const { games, isLoadingGames, launchGame, categories } = useGames();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -25,24 +24,21 @@ const CasinoGames = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   
-  // Determine current category object and name
   const currentCategory = useMemo(() => 
-    gameCategories.find(cat => cat.slug === categorySlugFromParams)
-  , [gameCategories, categorySlugFromParams]);
+    categories.find(cat => cat.slug === categorySlugFromParams)
+  , [categories, categorySlugFromParams]);
 
   const pageTitle = currentCategory?.name || 
     (categorySlugFromParams ? categorySlugFromParams.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') : 'All Games');
 
-
-  // Filter games based on category and search term
   const filteredAndSearchedGames = useMemo(() => {
     let tempGames = [...games];
     
     if (categorySlugFromParams && categorySlugFromParams !== 'all-games') {
       tempGames = tempGames.filter(game => 
         (Array.isArray(game.category_slugs) && game.category_slugs.includes(categorySlugFromParams)) ||
-        game.category === categorySlugFromParams || // Fallback
-        game.categoryName === categorySlugFromParams // Fallback
+        game.category === categorySlugFromParams ||
+        game.categoryName === categorySlugFromParams
       );
     }
     
@@ -70,7 +66,6 @@ const CasinoGames = () => {
 
   const handleLoadMore = () => {
     setLoadingMore(true);
-    // Simulate network delay for UX if needed, or just update state
     setTimeout(() => {
       setCurrentPage(prev => prev + 1);
       setLoadingMore(false);
@@ -89,33 +84,30 @@ const CasinoGames = () => {
       if (gameUrl) {
         window.open(gameUrl, '_blank');
       } else {
-        // Fallback to details page if no direct launch URL
         navigate(`/casino/game/${game.slug || game.id}`);
         scrollToTop();
       }
     } catch (error: any) {
       toast.error(`Could not launch game: ${error.message}`);
-      navigate(`/casino/game/${game.slug || game.id}`); // Fallback
+      navigate(`/casino/game/${game.slug || game.id}`);
       scrollToTop();
     }
   };
 
-  // Reset page on category or search term change
   useEffect(() => {
     setCurrentPage(1);
   }, [categorySlugFromParams, searchTerm]);
   
-  const GridComponent = GamesGrid; // Could switch between GamesGrid and GamesGridMobile based on isMobile
+  const GridComponent = GamesGrid;
 
   return (
     <div className="relative bg-casino-thunder-darker min-h-screen">
-      <div className="container mx-auto px-4 py-8 pt-20"> {/* Added pt-20 for fixed header */}
+      <div className="container mx-auto px-4 py-8 pt-20">
         <div className="text-center mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4">{pageTitle}</h1>
-          {/* Descriptive text can be dynamic based on categorySlugFromParams */}
         </div>
         
-        <div className="relative mb-6 sticky top-16 bg-background/80 backdrop-blur-md py-4 z-30"> {/* Search bar sticky */}
+        <div className="relative mb-6 sticky top-16 bg-background/80 backdrop-blur-md py-4 z-30">
           <Input
             type="text"
             placeholder="Search games or providers..."
@@ -138,7 +130,7 @@ const CasinoGames = () => {
         
         <GridComponent
           games={paginatedGames}
-          loading={gamesLoading && paginatedGames.length === 0}
+          loading={isLoadingGames && paginatedGames.length === 0}
           onGameClick={handleGameClick}
           emptyMessage={searchTerm ? "No games match your search" : "No games available in this category"}
           loadMore={hasMore ? handleLoadMore : undefined}

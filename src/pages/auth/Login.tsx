@@ -1,67 +1,61 @@
 
 import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, LogIn } from 'lucide-react';
-import { LoginCredentials } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-const LoginPage: React.FC = () => {
-  const { signIn, isLoading, error: authError, isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/');
-    }
-  }, [isAuthenticated, navigate]);
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter both email and password.");
-      return;
-    }
-    
-    const credentials: LoginCredentials = { email, password };
-    const result = await signIn(credentials);
+    setIsLoading(true);
 
-    if (result && !result.error) {
-      toast.success('Logged in successfully!');
-      navigate('/');
-    } else if (result && result.error) {
-      toast.error(result.error.message || 'Login failed. Please check your credentials.');
-    } else if (!result) {
-        toast.error('Login failed. An unexpected error occurred.');
+    try {
+      const result = await signIn(email, password);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success('Welcome back!');
+        navigate('/');
+      }
+    } catch (error: any) {
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-dark to-casino-darker p-4">
-      <Card className="w-full max-w-md shadow-2xl bg-card">
-        <CardHeader className="text-center">
-          <LogIn className="mx-auto h-12 w-12 text-primary mb-4" />
-          <CardTitle className="text-3xl font-bold">Welcome Back!</CardTitle>
-          <CardDescription>Sign in to access your account and continue the thrill.</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-casino-thunder-dark to-casino-thunder-darker p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Sign In</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access your account
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
                 required
-                className="h-12 text-base"
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -69,36 +63,35 @@ const LoginPage: React.FC = () => {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Your password"
                 required
-                className="h-12 text-base"
+                disabled={isLoading}
               />
             </div>
-            {authError && <p className="text-sm text-red-500 text-center">{authError}</p>}
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <LogIn className="mr-2 h-5 w-5" />}
-              Sign In
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
             </Button>
           </form>
-        </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2">
-           <Link to="/forgot-password"
-            className="text-sm text-primary hover:underline"
-          >
-            Forgot your password?
-          </Link>
-          <p className="text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link to="/register" className="font-semibold text-primary hover:underline">
-              Sign Up
+          
+          <div className="mt-6 text-center text-sm">
+            <span className="text-muted-foreground">Don't have an account? </span>
+            <Link to="/register" className="text-primary hover:underline">
+              Sign up
             </Link>
-          </p>
-        </CardFooter>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
 };
 
-export default LoginPage;
+export default Login;

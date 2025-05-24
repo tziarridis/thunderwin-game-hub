@@ -1,5 +1,8 @@
+
 import { useEffect } from "react";
 import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import { GamesProvider } from "./hooks/useGames";
+import { AuthProvider } from "./contexts/AuthContext";
 import AppLayout from "./components/layout/AppLayout";
 import AdminLayout from "./components/layout/AdminLayout";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -68,87 +71,91 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Toaster richColors position="top-right" />
-      <Routes>
-        {/* Main App Routes using AppLayout which now contains all navigation elements */}
-        <Route element={<AppLayout><Outlet /></AppLayout>}>
-          <Route index element={<Index />} />
-          {/* Casino Routes */}
-          <Route path="casino">
-            <Route index element={<Navigate to="/casino/main" replace />} />
-            <Route path="main" element={<CasinoMain />} />
-            <Route path="live-casino" element={<LiveCasino />} />
-            <Route path="slots" element={<Slots />} />
-            <Route path="table-games" element={<TableGames />} />
-            <Route path="jackpots" element={<Jackpots />} />
-            <Route path="new" element={<NewGames />} />
-            <Route path="favorites" element={<Favorites />} />
-            <Route path="providers" element={<Providers />} />
-            <Route path="game/:gameId" element={<GameDetails />} />
-            <Route path="seamless" element={<Seamless />} />
-            <Route path="crash" element={<Crash />} />
-          </Route>
-          {/* Sports Routes */}
-          <Route path="sports">
-            <Route index element={<Sports />} />
-            <Route path="football" element={<Football />} />
-            <Route path="basketball" element={<Basketball />} />
-            <Route path="tennis" element={<Tennis />} />
-            <Route path="hockey" element={<Hockey />} />
-            <Route path="esports" element={<Esports />} />
-          </Route>
-          {/* Promotions */}
-          <Route path="promotions" element={<Promotions />} />
-          {/* Bonus Hub */}
-          <Route path="bonuses" element={<BonusHub />} />
-          {/* VIP */}
-          <Route path="vip" element={<VIP />} />
-          {/* User Profile */}
-          <Route path="profile" element={<UserProfilePage />} />
-          <Route path="settings" element={<UserSettings />} />
-          <Route path="transactions" element={<Transactions />} />
-          <Route path="kyc" element={<KycStatus />} />
-          {/* Support */}
-          <Route path="support">
-            <Route path="help" element={<Help />} />
-            <Route path="contact" element={<Contact />} />
-            <Route path="faq" element={<Faq />} />
-            <Route path="responsible-gaming" element={<ResponsibleGaming />} />
-          </Route>
-          {/* Legal */}
-          <Route path="legal">
-            <Route path="terms" element={<Terms />} />
-            <Route path="privacy" element={<Privacy />} />
-          </Route>
-          {/* Auth */}
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
-        </Route>
+      <AuthProvider>
+        <GamesProvider>
+          <Toaster richColors position="top-right" />
+          <Routes>
+            {/* Main App Routes using AppLayout which now contains all navigation elements */}
+            <Route element={<AppLayout><Outlet /></AppLayout>}>
+              <Route index element={<Index />} />
+              {/* Casino Routes */}
+              <Route path="casino">
+                <Route index element={<Navigate to="/casino/main" replace />} />
+                <Route path="main" element={<CasinoMain />} />
+                <Route path="live-casino" element={<LiveCasino />} />
+                <Route path="slots" element={<Slots />} />
+                <Route path="table-games" element={<TableGames />} />
+                <Route path="jackpots" element={<Jackpots />} />
+                <Route path="new" element={<NewGames />} />
+                <Route path="favorites" element={<Favorites />} />
+                <Route path="providers" element={<Providers />} />
+                <Route path="game/:gameId" element={<GameDetails />} />
+                <Route path="seamless" element={<Seamless />} />
+                <Route path="crash" element={<Crash />} />
+              </Route>
+              {/* Sports Routes */}
+              <Route path="sports">
+                <Route index element={<Sports />} />
+                <Route path="football" element={<Football />} />
+                <Route path="basketball" element={<Basketball />} />
+                <Route path="tennis" element={<Tennis />} />
+                <Route path="hockey" element={<Hockey />} />
+                <Route path="esports" element={<Esports />} />
+              </Route>
+              {/* Promotions */}
+              <Route path="promotions" element={<Promotions />} />
+              {/* Bonus Hub */}
+              <Route path="bonuses" element={<BonusHub />} />
+              {/* VIP */}
+              <Route path="vip" element={<VIP />} />
+              {/* User Profile */}
+              <Route path="profile" element={<UserProfilePage />} />
+              <Route path="settings" element={<UserSettings />} />
+              <Route path="transactions" element={<Transactions />} />
+              <Route path="kyc" element={<KycStatus />} />
+              {/* Support */}
+              <Route path="support">
+                <Route path="help" element={<Help />} />
+                <Route path="contact" element={<Contact />} />
+                <Route path="faq" element={<Faq />} />
+                <Route path="responsible-gaming" element={<ResponsibleGaming />} />
+              </Route>
+              {/* Legal */}
+              <Route path="legal">
+                <Route path="terms" element={<Terms />} />
+                <Route path="privacy" element={<Privacy />} />
+              </Route>
+              {/* Auth */}
+              <Route path="login" element={<Login />} />
+              <Route path="register" element={<Register />} />
+            </Route>
 
-        {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="users/:userId" element={<AdminUserProfile />} />
-          <Route path="games-overview" element={<Games />} />
-          <Route path="games" element={<GamesManagement />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="vip-bonus" element={<VipBonusManagement />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="kyc" element={<KycManagement />} />
-          <Route path="affiliates" element={<Affiliates />} />
-          <Route path="promotions" element={<AdminPromotions />} />
-          <Route path="security" element={<Security />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="logs" element={<Logs />} />
-          <Route path="support" element={<Support />} />
-        </Route>
+            {/* Admin Routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="users/:userId" element={<AdminUserProfile />} />
+              <Route path="games-overview" element={<Games />} />
+              <Route path="games" element={<GamesManagement />} />
+              <Route path="transactions" element={<AdminTransactions />} />
+              <Route path="vip-bonus" element={<VipBonusManagement />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="kyc" element={<KycManagement />} />
+              <Route path="affiliates" element={<Affiliates />} />
+              <Route path="promotions" element={<AdminPromotions />} />
+              <Route path="security" element={<Security />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="logs" element={<Logs />} />
+              <Route path="support" element={<Support />} />
+            </Route>
 
-        {/* 404 route */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+            {/* 404 route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </GamesProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

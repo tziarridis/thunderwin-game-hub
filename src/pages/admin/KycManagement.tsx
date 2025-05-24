@@ -1,274 +1,211 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { toast } from 'sonner';
-import { Copy, Edit, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { DateRange } from 'react-day-picker';
 
-import { KycRequest, KycStatusEnum } from '@/types';
-import KycStatusDisplay from '@/components/kyc/KycStatusDisplay';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
+import { KycRequest, KycStatus, KycDocumentType } from '@/types';
+import { Eye, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
-const KycManagement = () => {
-  const [requests, setRequests] = useState<KycRequest[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // Mock data for KYC requests
-    const mockRequests: KycRequest[] = [
+// Mock service
+const mockKycService = {
+  getAllKycRequests: async (): Promise<KycRequest[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return [
       {
         id: '1',
-        user_id: 'user1',
-        document_type: 'passport',
-        document_front_url: 'https://example.com/passport1_front.jpg',
-        document_back_url: 'https://example.com/passport1_back.jpg',
-        status: KycStatusEnum.PENDING,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        user_id: 'user-1',
+        document_type: KycDocumentType.PASSPORT,
+        document_front_url: 'https://example.com/doc1.jpg',
+        document_back_url: 'https://example.com/doc1-back.jpg',
+        status: KycStatus.PENDING,
+        documents: [
+          {
+            id: 'doc-1',
+            type: KycDocumentType.PASSPORT,
+            front_url: 'https://example.com/doc1.jpg',
+            back_url: 'https://example.com/doc1-back.jpg',
+            status: KycStatus.PENDING
+          }
+        ],
+        created_at: '2024-01-15T00:00:00Z',
+        updated_at: '2024-01-15T00:00:00Z'
       },
       {
         id: '2',
-        user_id: 'user2',
-        document_type: 'national_id',
-        document_front_url: 'https://example.com/national_id2_front.jpg',
-        document_back_url: 'https://example.com/national_id2_back.jpg',
-        status: KycStatusEnum.APPROVED,
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        updated_at: new Date(Date.now() - 86400000).toISOString(),
+        user_id: 'user-2',
+        document_type: KycDocumentType.NATIONAL_ID,
+        document_front_url: 'https://example.com/doc2.jpg',
+        document_back_url: 'https://example.com/doc2-back.jpg',
+        status: KycStatus.APPROVED,
+        documents: [
+          {
+            id: 'doc-2',
+            type: KycDocumentType.NATIONAL_ID,
+            front_url: 'https://example.com/doc2.jpg',
+            back_url: 'https://example.com/doc2-back.jpg',
+            status: KycStatus.APPROVED
+          }
+        ],
+        created_at: '2024-01-14T00:00:00Z',
+        updated_at: '2024-01-14T00:00:00Z'
       },
       {
         id: '3',
-        user_id: 'user3',
-        document_type: 'drivers_license',
-        document_front_url: 'https://example.com/drivers_license3_front.jpg',
-        document_back_url: 'https://example.com/drivers_license3_back.jpg',
-        status: KycStatusEnum.REJECTED,
-        created_at: new Date(Date.now() - 172800000).toISOString(),
-        updated_at: new Date(Date.now() - 172800000).toISOString(),
-      },
-      {
-        id: '4',
-        user_id: 'user4',
-        document_type: 'passport',
-        document_front_url: 'https://example.com/passport4_front.jpg',
-        document_back_url: 'https://example.com/passport4_back.jpg',
-        status: KycStatusEnum.RESUBMIT_REQUIRED,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
+        user_id: 'user-3',
+        document_type: KycDocumentType.DRIVER_LICENSE,
+        document_front_url: 'https://example.com/doc3.jpg',
+        document_back_url: 'https://example.com/doc3-back.jpg',
+        status: KycStatus.RESUBMIT_REQUIRED,
+        documents: [
+          {
+            id: 'doc-3',
+            type: KycDocumentType.DRIVER_LICENSE,
+            front_url: 'https://example.com/doc3.jpg',
+            back_url: 'https://example.com/doc3-back.jpg',
+            status: KycStatus.RESUBMIT_REQUIRED
+          }
+        ],
+        created_at: '2024-01-13T00:00:00Z',
+        updated_at: '2024-01-13T00:00:00Z'
+      }
     ];
-    setRequests(mockRequests);
-  }, []);
+  },
 
-  const handleStatusChange = async (requestId: string, newStatus: KycStatusEnum) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  updateKycStatus: async (requestId: string, status: KycStatus) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { id: requestId, status };
+  }
+};
 
-    setRequests(requests.map(req =>
-      req.id === requestId ? { ...req, status: newStatus, updated_at: new Date().toISOString() } : req
-    ));
-    toast.success(`KYC request ${requestId} status updated to ${newStatus}`);
-    setLoading(false);
-  };
-
-  const handleCopyUserId = (userId: string) => {
-    navigator.clipboard.writeText(userId);
-    toast.success('User ID copied to clipboard!');
-  };
-
-  const handleDeleteRequest = async (requestId: string) => {
-    setSelectedRequestId(requestId);
-    setIsDeleteAlertOpen(true);
-  };
-
-  const confirmDeleteRequest = async () => {
-    if (selectedRequestId) {
-      setLoading(true);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      setRequests(requests.filter(req => req.id !== selectedRequestId));
-      toast.success(`KYC request ${selectedRequestId} deleted successfully`);
-      setIsDeleteAlertOpen(false);
-      setSelectedRequestId(null);
-      setLoading(false);
-    }
-  };
-
-  const filteredRequests = requests.filter(request => {
-    const searchRegex = new RegExp(searchQuery, 'i');
-    const matchesSearch = searchRegex.test(request.user_id);
-
-    const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
-
-    let matchesDate = true;
-    if (dateRange?.from && dateRange?.to) {
-      const requestDate = new Date(request.created_at);
-      matchesDate = requestDate >= dateRange.from && requestDate <= dateRange.to;
-    }
-
-    return matchesSearch && matchesStatus && matchesDate;
+const KycManagement = () => {
+  const { data: kycRequests, isLoading, error, refetch } = useQuery<KycRequest[], Error>({
+    queryKey: ['kycRequests'],
+    queryFn: mockKycService.getAllKycRequests,
   });
 
+  const handleStatusUpdate = async (requestId: string, newStatus: KycStatus) => {
+    try {
+      await mockKycService.updateKycStatus(requestId, newStatus);
+      refetch();
+    } catch (error) {
+      console.error('Error updating KYC status:', error);
+    }
+  };
+
+  const getStatusBadgeVariant = (status: KycStatus) => {
+    switch (status) {
+      case KycStatus.APPROVED:
+        return 'default';
+      case KycStatus.REJECTED:
+        return 'destructive';
+      case KycStatus.PENDING:
+        return 'secondary';
+      case KycStatus.RESUBMIT_REQUIRED:
+        return 'outline';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getStatusIcon = (status: KycStatus) => {
+    switch (status) {
+      case KycStatus.APPROVED:
+        return <CheckCircle className="h-4 w-4" />;
+      case KycStatus.REJECTED:
+        return <XCircle className="h-4 w-4" />;
+      case KycStatus.RESUBMIT_REQUIRED:
+        return <AlertTriangle className="h-4 w-4" />;
+      default:
+        return <Eye className="h-4 w-4" />;
+    }
+  };
+
+  const columns = [
+    {
+      accessorKey: 'user_id',
+      header: 'User ID',
+    },
+    {
+      accessorKey: 'document_type',
+      header: 'Document Type',
+      cell: ({ row }: any) => (
+        <Badge variant="outline">
+          {row.original.document_type.replace('_', ' ').toUpperCase()}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }: any) => (
+        <div className="flex items-center space-x-2">
+          {getStatusIcon(row.original.status)}
+          <Badge variant={getStatusBadgeVariant(row.original.status)}>
+            {row.original.status.replace('_', ' ').toUpperCase()}
+          </Badge>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'created_at',
+      header: 'Submitted',
+      cell: ({ row }: any) => new Date(row.original.created_at).toLocaleDateString(),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }: any) => (
+        <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleStatusUpdate(row.original.id, KycStatus.APPROVED)}
+            disabled={row.original.status === KycStatus.APPROVED}
+          >
+            Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleStatusUpdate(row.original.id, KycStatus.REJECTED)}
+            disabled={row.original.status === KycStatus.REJECTED}
+          >
+            Reject
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div>
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <Input
-          type="text"
-          placeholder="Search by user ID..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <Select
-          value={selectedStatus}
-          onValueChange={setSelectedStatus}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value={KycStatusEnum.PENDING}>Pending</SelectItem>
-            <SelectItem value={KycStatusEnum.APPROVED}>Approved</SelectItem>
-            <SelectItem value={KycStatusEnum.REJECTED}>Rejected</SelectItem>
-            <SelectItem value={KycStatusEnum.RESUBMIT_REQUIRED}>Resubmission Required</SelectItem>
-          </SelectContent>
-        </Select>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">KYC Management</h1>
+        <p className="text-muted-foreground">Review and manage user verification requests</p>
       </div>
 
-      <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-6 py-3">ID</TableHead>
-              <TableHead className="px-6 py-3">User ID</TableHead>
-              <TableHead className="px-6 py-3">Document Type</TableHead>
-              <TableHead className="px-6 py-3">Status</TableHead>
-              <TableHead className="px-6 py-3">Created At</TableHead>
-              <TableHead className="px-6 py-3">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRequests.map((request) => (
-              <TableRow key={request.id}>
-                <TableCell className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                  {request.id}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
-                  <div className="flex items-center gap-2">
-                    {request.user_id}
-                    <Button variant="ghost" size="icon" onClick={() => handleCopyUserId(request.user_id)}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
-                  {request.document_type}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
-                  {request.status && (
-                    <KycStatusDisplay status={request.status as string} />
-                  )}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
-                  {format(new Date(request.created_at), 'yyyy-MM-dd HH:mm:ss')}
-                </TableCell>
-                <TableCell className="px-6 py-4 whitespace-nowrap dark:text-white">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        Actions
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <Edit className="mr-2 h-4 w-4" /> Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleDeleteRequest(request.id)} className="text-destructive focus:text-destructive-foreground">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Select
-                    value={request.status as string}
-                    onValueChange={(value) => handleStatusChange(request.id, value as KycStatusEnum)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Update status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={KycStatusEnum.PENDING}>Pending</SelectItem>
-                      <SelectItem value={KycStatusEnum.APPROVED}>Approved</SelectItem>
-                      <SelectItem value={KycStatusEnum.REJECTED}>Rejected</SelectItem>
-                      <SelectItem value={KycStatusEnum.RESUBMIT_REQUIRED}>Resubmit Required</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. Are you sure you want to delete this KYC request?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedRequestId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={loading} onClick={confirmDeleteRequest}>
-              {loading ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Card>
+        <CardHeader>
+          <CardTitle>KYC Requests</CardTitle>
+          <CardDescription>All user verification requests and their status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">Loading KYC requests...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">
+              Error loading KYC requests: {error.message}
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={kycRequests || []}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

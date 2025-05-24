@@ -1,152 +1,129 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient, QueryKey } from '@tanstack/react-query';
-import { promotionsService } from '@/services/promotionService';
-import { Promotion, PromotionFormValues } from '@/types';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard';
-import PromotionForm from '@/components/admin/promotions/PromotionForm';
-import ConfirmationDialog from '@/components/admin/shared/ConfirmationDialog';
+
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import AdminPromotionCard from '@/components/admin/promotions/AdminPromotionCard';
+import { Promotion, PromotionFormValues } from '@/types/promotion';
+import { Plus } from 'lucide-react';
 
-const AdminPromotionsPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | Partial<Promotion> | null>(null);
+// Mock service
+const mockPromotionService = {
+  getAllPromotions: async (): Promise<Promotion[]> => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return [];
+  },
 
-  const { data: promotions = [], isLoading, refetch } = useQuery<Promotion[], Error, Promotion[], QueryKey>({
-    queryKey: ['adminPromotions'] as QueryKey,
-    queryFn: () => promotionsService.getPromotions(),
+  createPromotion: async (data: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { 
+      id: 'new-promo', 
+      ...data,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  },
+
+  updatePromotion: async (id: string, data: Partial<Promotion>) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { id, ...data };
+  },
+
+  deletePromotion: async (id: string) => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return { success: true };
+  }
+};
+
+const AdminPromotions = () => {
+  const { data: promotions, isLoading, error, refetch } = useQuery<Promotion[], Error>({
+    queryKey: ['adminPromotions'],
+    queryFn: mockPromotionService.getAllPromotions,
   });
 
-  const mutation = useMutation({
-    mutationFn: async (promoData: PromotionFormValues | Partial<Promotion>) => {
-      const currentId = (promoData as Promotion).id;
-      if (currentId) {
-        return promotionsService.updatePromotion(currentId, promoData as Partial<Promotion>);
-      } else {
-        return promotionsService.createPromotion(promoData as PromotionFormValues);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminPromotions'] });
-      toast.success(`Promotion ${selectedPromotion && (selectedPromotion as Promotion).id ? 'updated' : 'created'} successfully!`);
-      setIsFormOpen(false);
-      setSelectedPromotion(null);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed: ${error.message}`);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (promoId: string) => promotionsService.deletePromotion(promoId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminPromotions'] });
-      toast.success('Promotion deleted successfully!');
-      setIsConfirmOpen(false);
-      setSelectedPromotion(null);
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to delete promotion: ${error.message}`);
-    },
-  });
-
-  const handleAddNew = () => {
-    setSelectedPromotion({});
-    setIsFormOpen(true);
-  };
-
-  const handleEdit = (promo: Promotion) => {
-    setSelectedPromotion(promo);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = (promo: Promotion) => {
-    setSelectedPromotion(promo);
-    setIsConfirmOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (selectedPromotion && (selectedPromotion as Promotion).id) {
-      deleteMutation.mutate((selectedPromotion as Promotion).id);
+  const handleCreatePromotion = async (formData: PromotionFormValues) => {
+    try {
+      const promotionData: Omit<Promotion, 'id' | 'created_at' | 'updated_at'> = {
+        ...formData,
+        start_date: formData.valid_from,
+        end_date: formData.valid_until,
+      };
+      await mockPromotionService.createPromotion(promotionData);
+      refetch();
+    } catch (error) {
+      console.error('Error creating promotion:', error);
     }
   };
 
-  const handleSubmitForm = (values: PromotionFormValues | Partial<Promotion>) => {
-    mutation.mutate(values);
+  const handleEditPromotion = (promotion: Promotion) => {
+    console.log('Edit promotion:', promotion);
   };
 
-  const headerActions = (
-    <div className="flex gap-2">
-      <Button onClick={handleAddNew}>
-        <PlusCircle className="mr-2 h-4 w-4" /> Create Promotion
-      </Button>
-      <Button 
-        onClick={() => refetch()} 
-        variant="outline" 
-        disabled={isLoading}
-      >
-        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-        Refresh
-      </Button>
-    </div>
-  );
+  const handleDeletePromotion = async (promotionId: string) => {
+    try {
+      await mockPromotionService.deletePromotion(promotionId);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting promotion:', error);
+    }
+  };
 
-  if (isLoading) {
-    return (
-      <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
-        <div className="flex justify-center items-center py-10">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AdminPageLayout>
-    );
-  }
+  const handleToggleActive = async (promotionId: string, isActive: boolean) => {
+    try {
+      await mockPromotionService.updatePromotion(promotionId, { is_active: isActive });
+      refetch();
+    } catch (error) {
+      console.error('Error toggling promotion:', error);
+    }
+  };
 
   return (
-    <AdminPageLayout title="Manage Promotions" headerActions={headerActions}>
-      {promotions.length === 0 && !isLoading && (
-        <div className="text-center py-10">
-          <p className="text-muted-foreground text-lg">No promotions found.</p>
-          <p className="text-sm text-muted-foreground">Click "Create Promotion" to get started.</p>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Promotions Management</h1>
+          <p className="text-muted-foreground">Create and manage promotional campaigns</p>
         </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {promotions.map((promo) => (
-          <AdminPromotionCard
-            key={promo.id}
-            promotion={promo}
-            onEdit={() => handleEdit(promo)}
-            onDelete={() => handleDelete(promo)}
-          />
-        ))}
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Promotion
+        </Button>
       </div>
 
-      {isFormOpen && (
-        <PromotionForm
-          isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
-          onSubmit={handleSubmitForm}
-          initialData={selectedPromotion}
-          isLoading={mutation.isPending}
-        />
-      )}
-
-      {selectedPromotion && (selectedPromotion as Promotion).id && (
-        <ConfirmationDialog
-          isOpen={isConfirmOpen}
-          onClose={() => setIsConfirmOpen(false)}
-          onConfirm={confirmDelete}
-          title="Delete Promotion"
-          description={`Are you sure you want to delete "${(selectedPromotion as Promotion).title}"? This action cannot be undone.`}
-          confirmText="Delete"
-          isLoading={deleteMutation.isPending}
-        />
-      )}
-    </AdminPageLayout>
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Promotions</CardTitle>
+          <CardDescription>Manage your promotional campaigns</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">Loading promotions...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">
+              Error loading promotions: {error.message}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {promotions?.map((promotion) => (
+                <AdminPromotionCard
+                  key={promotion.id}
+                  promotion={promotion}
+                  onEdit={handleEditPromotion}
+                  onDelete={handleDeletePromotion}
+                  onToggleActive={handleToggleActive}
+                />
+              ))}
+              {(!promotions || promotions.length === 0) && (
+                <div className="col-span-full text-center py-8 text-muted-foreground">
+                  No promotions created yet. Create your first promotion to get started.
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
-export default AdminPromotionsPage;
+export default AdminPromotions;

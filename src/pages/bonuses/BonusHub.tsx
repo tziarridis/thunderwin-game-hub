@@ -1,259 +1,368 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
-import { UserBonus, Promotion, PromotionType, PromotionStatus } from '@/types';
-import PromotionCard from '@/components/promotions/PromotionCard';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { AlertCircle, CheckCircle, Gift, Loader2, Tag } from 'lucide-react';
+import { 
+  Bonus, 
+  UserBonus, 
+  BonusType, 
+  BonusStatus, 
+  Promotion, 
+  PromotionType, 
+  PromotionStatus 
+} from '@/types';
+import { Gift, Trophy, Star, Clock } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
-import AppLayout from '@/components/layout/AppLayout';
 
 // Mock services
 const mockBonusService = {
-  getActiveUserBonuses: async (userId: string): Promise<UserBonus[]> => {
-    await new Promise(res => setTimeout(res, 500));
+  getAvailableBonuses: async (): Promise<Bonus[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
     return [
-      { 
-        id: 'ub1', 
-        bonus_id: 'b1', 
-        user_id: userId, 
-        status: 'active', 
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        activated_at: new Date().toISOString(), 
-        expires_at: new Date(Date.now() + 86400000 * 7).toISOString(), 
-        progress: 0.3, 
-        bonus_details: { name: 'Active Welcome Bonus', type: 'deposit_match', amount: 50, currency: 'USD' } 
-      },
-      { 
-        id: 'ub2', 
-        bonus_id: 'b2', 
-        user_id: userId, 
-        status: 'available',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        bonus_details: { name: 'Weekend Spins', type: 'free_spins', amount: 20, currency: 'FS' } 
-      },
+      {
+        id: '1',
+        user_id: 'system',
+        name: 'Welcome Bonus',
+        type: BonusType.DEPOSIT_MATCH,
+        amount: 100,
+        currency: 'USD',
+        status: BonusStatus.ACTIVE,
+        terms: 'Match your first deposit up to $100',
+        wagering_requirement: 30,
+        wagering_remaining: 30,
+        expires_at: '2024-12-31T23:59:59Z',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      }
     ];
   },
-  claimBonus: async (userId: string, bonusCodeOrId: string): Promise<UserBonus> => {
-    await new Promise(res => setTimeout(res, 1000));
-    if (bonusCodeOrId === 'EXPIREDCODE') throw new Error("Bonus code is expired or invalid.");
-    toast.success(`Bonus "${bonusCodeOrId}" claimed successfully!`);
-    return { 
-      id: 'ub_new', 
-      bonus_id: bonusCodeOrId, 
-      user_id: userId, 
-      status: 'active',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      activated_at: new Date().toISOString(), 
-      expires_at: new Date(Date.now() + 86400000 * 3).toISOString(), 
-      progress: 0, 
-      bonus_details: { name: `Claimed: ${bonusCodeOrId}`, type: 'deposit_match', amount: 10, currency: 'USD'} 
-    };
-  }
-};
 
-const mockPromotionService = {
-  getAvailablePromotions: async (): Promise<Promotion[]> => {
-    await new Promise(res => setTimeout(res, 500));
+  getUserBonuses: async (userId: string): Promise<UserBonus[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
     return [
-      { 
-        id: 'p1', 
-        title: '100% Deposit Bonus', 
-        description: 'Double your first deposit up to $100.', 
-        type: 'deposit_bonus' as PromotionType, 
-        status: PromotionStatus.ACTIVE, 
-        valid_from: new Date().toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 14).toISOString(), 
-        cta_text: 'Claim Now', 
-        code: 'WELCOME100', 
-        min_deposit: 10, 
-        bonus_percentage: 100, 
-        max_bonus_amount: 100, 
-        wagering_requirement: 30 
-      },
-      { 
-        id: 'p2', 
-        title: '50 Free Spins on Starburst', 
-        description: 'Get 50 Free Spins when you sign up.', 
-        type: 'free_spins' as PromotionType, 
-        status: PromotionStatus.ACTIVE, 
-        valid_from: new Date().toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 7).toISOString(), 
-        cta_text: 'Get Spins', 
-        free_spins_count: 50 
-      },
+      {
+        id: '1',
+        user_id: userId,
+        bonus_id: 'bonus-1',
+        amount: 50,
+        status: BonusStatus.ACTIVE,
+        progress: 65,
+        created_at: '2024-01-15T00:00:00Z',
+        expires_at: '2024-02-15T00:00:00Z',
+        bonus_details: {
+          name: 'Active Bonus',
+          type: BonusType.DEPOSIT_MATCH,
+          terms: 'Complete wagering to unlock',
+          wagering_requirement: 25
+        }
+      }
     ];
+  },
+
+  getPromotions: async (): Promise<Promotion[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+      {
+        id: 'promo-1',
+        title: 'Weekend Special',
+        description: 'Extra bonus for weekend deposits',
+        type: PromotionType.DEPOSIT_BONUS,
+        status: PromotionStatus.ACTIVE,
+        start_date: '2024-01-01T00:00:00Z',
+        end_date: '2024-12-31T23:59:59Z',
+        valid_from: '2024-01-01T00:00:00Z',
+        valid_until: '2024-12-31T23:59:59Z',
+        is_active: true,
+        cta_text: 'Claim Now',
+        code: 'WEEKEND50',
+        min_deposit: 20,
+        bonus_percentage: 50,
+        max_bonus_amount: 100,
+        wagering_requirement: 30,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      },
+      {
+        id: 'promo-2',
+        title: 'Free Spins Friday',
+        description: 'Get 50 free spins every Friday',
+        type: PromotionType.FREE_SPINS,
+        status: PromotionStatus.ACTIVE,
+        start_date: '2024-01-01T00:00:00Z',
+        end_date: '2024-12-31T23:59:59Z',
+        valid_from: '2024-01-01T00:00:00Z',
+        valid_until: '2024-12-31T23:59:59Z',
+        is_active: true,
+        cta_text: 'Get Spins',
+        free_spins_count: 50,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      }
+    ];
+  },
+
+  claimBonus: async (bonusId: string, userId: string) => {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { success: true, message: 'Bonus claimed successfully!' };
   }
 };
 
-const bonusService = mockBonusService;
-const promotionService = mockPromotionService;
+const BonusHub = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [claimingBonusId, setClaimingBonusId] = useState<string | null>(null);
 
-const BonusHubPage: React.FC = () => {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const [bonusCode, setBonusCode] = useState('');
-  const [isClaiming, setIsClaiming] = useState(false);
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      toast.error("Please log in to view bonuses.");
-      navigate('/login');
-    }
-  }, [authLoading, isAuthenticated, navigate]);
-
-  const { data: activeBonuses, isLoading: isLoadingActiveBonuses, refetch: refetchActiveBonuses } = useQuery<UserBonus[], Error>({
-    queryKey: ['userActiveBonuses', user?.id],
-    queryFn: () => user ? bonusService.getActiveUserBonuses(user.id) : Promise.resolve([]),
-    enabled: !!user && isAuthenticated,
+  const { data: availableBonuses, isLoading: loadingBonuses } = useQuery({
+    queryKey: ['availableBonuses'],
+    queryFn: mockBonusService.getAvailableBonuses
   });
 
-  const { data: availablePromotions, isLoading: isLoadingPromotions } = useQuery<Promotion[], Error>({
-    queryKey: ['availablePromotions'],
-    queryFn: promotionService.getAvailablePromotions,
+  const { data: userBonuses, isLoading: loadingUserBonuses } = useQuery({
+    queryKey: ['userBonuses', user?.id],
+    queryFn: () => user ? mockBonusService.getUserBonuses(user.id) : Promise.resolve([]),
+    enabled: !!user
   });
-  
-  const handleClaimBonusCode = async () => {
-    if (!user || !bonusCode.trim()) {
-      toast.error("Please enter a bonus code.");
+
+  const { data: promotions, isLoading: loadingPromotions } = useQuery({
+    queryKey: ['promotions'],
+    queryFn: mockBonusService.getPromotions
+  });
+
+  const handleClaimBonus = async (bonusId: string) => {
+    if (!isAuthenticated || !user) {
+      toast.error('Please log in to claim bonuses');
       return;
     }
-    setIsClaiming(true);
+
+    setClaimingBonusId(bonusId);
     try {
-      await bonusService.claimBonus(user.id, bonusCode.trim());
-      setBonusCode('');
-      refetchActiveBonuses();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to claim bonus.");
+      await mockBonusService.claimBonus(bonusId, user.id);
+      toast.success('Bonus claimed successfully!');
+    } catch (error) {
+      toast.error('Failed to claim bonus');
     } finally {
-      setIsClaiming(false);
+      setClaimingBonusId(null);
     }
   };
 
-  const handleClaimPromotion = async (promotion: Promotion) => {
-    if (!user) {
-      toast.error("Please log in to claim promotions.");
-      return;
-    }
-    setIsClaiming(true);
-    try {
-      const claimIdentifier = promotion.code || promotion.id;
-      await bonusService.claimBonus(user.id, claimIdentifier);
-      toast.success(`Promotion "${promotion.title}" claimed!`);
-      refetchActiveBonuses();
-    } catch (error: any) {
-      toast.error(error.message || `Failed to claim promotion "${promotion.title}".`);
-    } finally {
-      setIsClaiming(false);
+  const getBonusIcon = (type: BonusType) => {
+    switch (type) {
+      case BonusType.DEPOSIT_MATCH:
+        return <Gift className="h-6 w-6" />;
+      case BonusType.FREE_SPINS:
+        return <Star className="h-6 w-6" />;
+      case BonusType.CASHBACK:
+        return <Trophy className="h-6 w-6" />;
+      default:
+        return <Gift className="h-6 w-6" />;
     }
   };
 
-  if (authLoading || (isLoadingActiveBonuses && isLoadingPromotions && !activeBonuses && !availablePromotions)) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const getStatusColor = (status: BonusStatus) => {
+    switch (status) {
+      case BonusStatus.ACTIVE:
+        return 'default';
+      case BonusStatus.EXPIRED:
+        return 'destructive';
+      case BonusStatus.CLAIMED:
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <h1 className="text-4xl font-bold mb-8 text-center">Bonus Hub</h1>
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-bold mb-4">Bonus Hub</h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Discover exciting bonuses and promotions designed to enhance your gaming experience
+        </p>
+      </div>
 
-      <Tabs defaultValue="available" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-1/2 mx-auto mb-6">
-          <TabsTrigger value="available">Available Promotions</TabsTrigger>
+      <Tabs defaultValue="bonuses" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="bonuses">Available Bonuses</TabsTrigger>
           <TabsTrigger value="active">My Active Bonuses</TabsTrigger>
+          <TabsTrigger value="promotions">Special Promotions</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="available">
-          <Card className="mb-6">
+        <TabsContent value="bonuses" className="space-y-6">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center"><Tag className="mr-2 h-5 w-5"/> Claim with Bonus Code</CardTitle>
-              <CardDescription>Have a bonus code? Enter it below to claim your reward.</CardDescription>
+              <CardTitle>Available Bonuses</CardTitle>
+              <CardDescription>Claim these bonuses to boost your gameplay</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row gap-2">
-              <input 
-                type="text" 
-                placeholder="Enter bonus code" 
-                value={bonusCode}
-                onChange={(e) => setBonusCode(e.target.value.toUpperCase())}
-                className="input flex-grow bg-card border border-input rounded-md px-3 py-2 text-sm"
-              />
-              <Button onClick={handleClaimBonusCode} disabled={isClaiming || !bonusCode.trim()} className="w-full sm:w-auto">
-                {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                Claim Bonus
-              </Button>
+            <CardContent>
+              {loadingBonuses ? (
+                <div className="text-center py-8">Loading bonuses...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {availableBonuses?.map((bonus) => (
+                    <Card key={bonus.id} className="relative overflow-hidden">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            {getBonusIcon(bonus.type)}
+                            <CardTitle className="text-lg">{bonus.name}</CardTitle>
+                          </div>
+                          <Badge variant={getStatusColor(bonus.status)}>
+                            {bonus.status}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div>
+                          <p className="text-2xl font-bold text-primary">
+                            ${bonus.amount}
+                          </p>
+                          <p className="text-sm text-muted-foreground">{bonus.terms}</p>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span>Wagering:</span>
+                            <span>{bonus.wagering_requirement}x</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Expires:</span>
+                            <span>{new Date(bonus.expires_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          className="w-full" 
+                          onClick={() => handleClaimBonus(bonus.id)}
+                          disabled={!isAuthenticated || claimingBonusId === bonus.id}
+                        >
+                          {claimingBonusId === bonus.id ? 'Claiming...' : 'Claim Bonus'}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-
-          <h2 className="text-2xl font-semibold mb-4">Current Offers</h2>
-          {isLoadingPromotions ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : availablePromotions && availablePromotions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {availablePromotions.map(promo => (
-                <PromotionCard 
-                  key={promo.id} 
-                  promotion={promo} 
-                  onClaim={user ? () => handleClaimPromotion(promo) : undefined}
-                  onDetails={(p) => toast.info(`Details for ${p.title} (Not implemented)`)} 
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-10">No promotions available at the moment. Check back soon!</p>
-          )}
         </TabsContent>
 
-        <TabsContent value="active">
-          <h2 className="text-2xl font-semibold mb-4">Your Active & Available Bonuses</h2>
-          {isLoadingActiveBonuses ? (
-            <div className="flex justify-center py-10"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : activeBonuses && activeBonuses.length > 0 ? (
-            <div className="space-y-4">
-              {activeBonuses.map(userBonus => (
-                <Card key={userBonus.id} className={`border-l-4 ${userBonus.status === 'active' ? 'border-green-500' : 'border-blue-500'}`}>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      {userBonus.bonus_details?.name || `Bonus ID: ${userBonus.bonus_id}`}
-                      <Badge variant={userBonus.status === 'active' ? 'default' : 'secondary'}>{userBonus.status}</Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      {userBonus.bonus_details?.type && `Type: ${userBonus.bonus_details.type}`}
-                      {userBonus.bonus_details?.amount && ` | Value: ${userBonus.bonus_details.amount} ${userBonus.bonus_details.currency || ''}`}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {userBonus.expires_at && <p className="text-sm text-muted-foreground">Expires: {format(new Date(userBonus.expires_at), 'PPpp')}</p>}
-                    {userBonus.status === 'active' && userBonus.progress !== undefined && (
-                      <div>
-                        <p className="text-sm">Progress: {(userBonus.progress * 100).toFixed(0)}%</p>
-                        <div className="w-full bg-muted rounded-full h-2.5 mt-1">
-                          <div className="bg-primary h-2.5 rounded-full" style={{ width: `${userBonus.progress * 100}%` }}></div>
+        <TabsContent value="active" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>My Active Bonuses</CardTitle>
+              <CardDescription>Track your current bonus progress</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!isAuthenticated ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">Please log in to view your active bonuses</p>
+                  <Button>Log In</Button>
+                </div>
+              ) : loadingUserBonuses ? (
+                <div className="text-center py-8">Loading your bonuses...</div>
+              ) : (
+                <div className="space-y-4">
+                  {userBonuses?.map((userBonus) => (
+                    <Card key={userBonus.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <Gift className="h-6 w-6 text-primary" />
+                            <div>
+                              <h3 className="font-semibold">{userBonus.bonus_details?.name}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {userBonus.bonus_details?.terms}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-primary">${userBonus.amount}</p>
+                            <Badge variant={getStatusColor(userBonus.status)}>
+                              {userBonus.status}
+                            </Badge>
+                          </div>
                         </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Progress</span>
+                            <span>{userBonus.progress}%</span>
+                          </div>
+                          <Progress value={userBonus.progress} className="h-2" />
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Wagering: {userBonus.bonus_details?.wagering_requirement || 0}x</span>
+                            <span>Expires: {new Date(userBonus.expires_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {(!userBonuses || userBonuses.length === 0) && (
+                    <div className="text-center py-8">
+                      <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No active bonuses</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="promotions" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loadingPromotions ? (
+              <div className="col-span-full text-center py-8">Loading promotions...</div>
+            ) : (
+              promotions?.map((promotion) => (
+                <Card key={promotion.id} className="overflow-hidden">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">{promotion.title}</CardTitle>
+                      <Badge variant="default">
+                        {promotion.type.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-muted-foreground">{promotion.description}</p>
+                    <div className="space-y-2 text-sm">
+                      {promotion.code && (
+                        <div className="flex justify-between">
+                          <span>Code:</span>
+                          <Badge variant="outline">{promotion.code}</Badge>
+                        </div>
+                      )}
+                      {promotion.bonus_percentage && (
+                        <div className="flex justify-between">
+                          <span>Bonus:</span>
+                          <span>{promotion.bonus_percentage}%</span>
+                        </div>
+                      )}
+                      {promotion.free_spins_count && (
+                        <div className="flex justify-between">
+                          <span>Free Spins:</span>
+                          <span>{promotion.free_spins_count}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Valid Until:</span>
+                        <span>{new Date(promotion.valid_until).toLocaleDateString()}</span>
                       </div>
-                    )}
+                    </div>
+                    <Button className="w-full">
+                      {promotion.cta_text || 'Learn More'}
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-10">You have no active or available bonuses right now.</p>
-          )}
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
   );
 };
 
-export default BonusHubPage;
+export default BonusHub;

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 const FavoritesPage = () => {
   const { user, isAuthenticated, refreshWalletBalance } = useAuth();
-  const { getFavoriteGames, isLoading: gamesLoadingContext, favoriteGameIds, toggleFavoriteGame } = useGames();
+  const { getFavoriteGames, isLoadingGames, favoriteGameIds, toggleFavoriteGame } = useGames();
   const [favoriteGames, setFavoriteGames] = useState<Game[]>([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,7 @@ const FavoritesPage = () => {
 
   useEffect(() => {
     fetchFavorites();
-  }, [fetchFavorites, favoriteGameIds]); // Re-fetch if favoriteGameIds change
+  }, [fetchFavorites, favoriteGameIds]);
 
   const handleRefreshWallet = async () => {
     if (refreshWalletBalance) {
@@ -62,7 +62,7 @@ const FavoritesPage = () => {
     );
   }
 
-  const isLoading = gamesLoadingContext || loadingFavorites;
+  const isLoading = isLoadingGames || loadingFavorites;
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -84,6 +84,7 @@ const FavoritesPage = () => {
       <div className="md:hidden mb-6">
         <MobileWalletSummary 
           user={user}
+          wallet={user?.wallet}
           showRefresh={true} 
           onRefresh={handleRefreshWallet}
         />

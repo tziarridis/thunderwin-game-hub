@@ -58,6 +58,8 @@ export interface PromotionFormValues {
   description: string;
   type: PromotionType;
   status: PromotionStatus;
+  start_date: string;
+  end_date: string;
   valid_from: string;
   valid_until: string;
   is_active: boolean;

@@ -1,183 +1,159 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, AppUser, UserRole } from '@/types/user';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { AppUser, UserRole } from '@/types';
 
 export interface AuthContextType {
   user: AppUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isAdmin: boolean;
-  error?: string | null;
-  login?: (credentials: any) => Promise<any>;
-  register?: (credentials: any) => Promise<any>;
-  logout?: () => Promise<void>;
-  signOut?: () => Promise<void>;
-  adminLogin?: (credentials: any) => Promise<any>;
-  updateUserPassword?: (newPassword: string) => Promise<void>;
-  fetchAndUpdateUser?: () => Promise<void>;
-  wallet?: any;
+  signIn: (email: string, password: string) => Promise<{ error?: string }>;
+  signUp: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
+  signOut: () => Promise<void>;
+  refreshWalletBalance?: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Mock demo admin user
-  const demoAdminUser: AppUser = {
-    id: 'demo-admin-id',
-    username: 'admin',
-    email: 'admin@demo.com',
-    role: UserRole.ADMIN,
-    status: 'active',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    is_active: true,
-    balance: 1000,
-    currency: 'USD',
-    vipLevel: 5,
-    vipPoints: 1000,
-    kycStatus: 'verified',
-    user_metadata: {
-      username: 'admin',
-      full_name: 'Demo Admin',
-      currency: 'USD',
-      language: 'en',
-      vip_level: 5,
-      kyc_status: 'verified',
-      bonus_points: 500,
-      name: 'Demo Admin'
-    },
-    app_metadata: {
-      role: 'admin',
-      provider: 'email'
-    }
-  };
-
-  useEffect(() => {
-    // Simulate loading and set demo user
-    const timer = setTimeout(() => {
-      try {
-        setUser(demoAdminUser);
-        setError(null);
-      } catch (err) {
-        console.error('Auth initialization error:', err);
-        setError('Failed to initialize authentication');
-        toast.error('Authentication initialization failed');
-      } finally {
-        setIsLoading(false);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const login = async (credentials: any) => {
-    try {
-      // Mock login
-      setUser(demoAdminUser);
-      return { user: demoAdminUser };
-    } catch (err) {
-      console.error('Login error:', err);
-      throw err;
-    }
-  };
-
-  const adminLogin = async (credentials: any) => {
-    try {
-      // Mock admin login
-      setUser(demoAdminUser);
-      return { user: demoAdminUser };
-    } catch (err) {
-      console.error('Admin login error:', err);
-      throw err;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      setUser(null);
-      setError(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-      throw err;
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      setUser(null);
-      setError(null);
-    } catch (err) {
-      console.error('Sign out error:', err);
-      setError('Failed to sign out');
-      throw err;
-    }
-  };
-
-  const updateUserPassword = async (newPassword: string) => {
-    try {
-      // Mock password update
-      console.log('Password updated for user:', user?.id);
-      toast.success('Password updated successfully');
-    } catch (err) {
-      console.error('Password update error:', err);
-      throw new Error('Failed to update password');
-    }
-  };
-
-  const fetchAndUpdateUser = async () => {
-    try {
-      // Mock user refresh
-      console.log('User data refreshed');
-    } catch (err) {
-      console.error('User refresh error:', err);
-      throw new Error('Failed to refresh user data');
-    }
-  };
-
-  const value: AuthContextType = {
-    user,
-    isAuthenticated: !!user,
-    isLoading,
-    isAdmin: user?.role === UserRole.ADMIN,
-    error,
-    login,
-    adminLogin,
-    logout,
-    signOut,
-    updateUserPassword,
-    fetchAndUpdateUser,
-    wallet: user ? {
-      balance: user.balance || 0,
-      currency: user.currency || 'USD',
-      symbol: '$',
-      bonusBalance: 0
-    } : null
-  };
-
-  console.log('AuthContext - Current context value:', {
-    isAuthenticated: value.isAuthenticated,
-    isAdmin: value.isAdmin,
-    hasUser: !!value.user,
-    isLoading: value.isLoading,
-    error: value.error
-  });
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) return { error: error.message };
+      return {};
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
+
+  const signUp = async (email: string, password: string, username?: string) => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username: username || email.split('@')[0],
+          }
+        }
+      });
+      
+      if (error) return { error: error.message };
+      return {};
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+  };
+
+  const refreshWalletBalance = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('balance, currency, symbol')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .single();
+
+      if (!error && data) {
+        setUser(prev => prev ? {
+          ...prev,
+          wallet: {
+            balance: data.balance,
+            currency: data.currency,
+            symbol: data.symbol
+          }
+        } : null);
+      }
+    } catch (error) {
+      console.error('Error refreshing wallet balance:', error);
+    }
+  };
+
+  const mapSupabaseUserToAppUser = (supabaseUser: SupabaseUser): AppUser => {
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || '',
+      role: UserRole.USER,
+      status: 'active',
+      created_at: supabaseUser.created_at || new Date().toISOString(),
+      updated_at: supabaseUser.updated_at || new Date().toISOString(),
+      user_metadata: supabaseUser.user_metadata,
+    };
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const appUser = mapSupabaseUserToAppUser(session.user);
+          setUser(appUser);
+          await refreshWalletBalance();
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          const appUser = mapSupabaseUserToAppUser(session.user);
+          setUser(appUser);
+          if (event === 'SIGNED_IN') {
+            await refreshWalletBalance();
+          }
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    signIn,
+    signUp,
+    signOut,
+    refreshWalletBalance,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

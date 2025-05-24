@@ -39,7 +39,6 @@ export interface Game {
   updated_at?: string;
   releaseDate?: string;
   status?: string;
-  // Additional properties needed by components
   game_id?: string;
   game_code?: string;
   show_home?: boolean;
@@ -61,6 +60,7 @@ export interface DbGame {
   id: string;
   game_id?: string;
   game_name: string;
+  title?: string;
   game_code: string;
   provider_id?: string;
   provider_slug?: string;
@@ -109,7 +109,6 @@ export enum GameStatusEnum {
 }
 
 export type GameStatus = GameStatusEnum;
-
 export type GameVolatility = 'low' | 'medium' | 'high' | 'low-medium' | 'medium-high';
 
 export interface GameTag {

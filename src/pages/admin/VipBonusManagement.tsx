@@ -1,140 +1,195 @@
 
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { VIPLevel, Bonus, UserBonus, BonusType, BonusStatus } from '@/types';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import VipLevelManager from '@/components/admin/VipLevelManager';
-import BonusForm from '@/components/admin/bonuses/BonusForm';
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, Gift, Loader2, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
-import { DataTable, DataTableColumn } from '@/components/ui/data-table';
+import { Badge } from '@/components/ui/badge';
+import { VipLevel, VipBenefit, Bonus, BonusType, BonusStatus } from '@/types';
+import { Crown, Gift, Plus } from 'lucide-react';
 
-const mockVipService = {
-  getVipLevels: async (): Promise<VIPLevel[]> => [{id: '1', name: 'Bronze', required_points: 0, benefits: [{description: 'Test benefit'}], created_at: new Date().toISOString(), updated_at: new Date().toISOString()}],
-  updateVipLevel: async (id: string, data: Partial<VIPLevel>): Promise<VIPLevel> => ({id, name: data.name || 'Updated', required_points: data.required_points || 100, benefits: data.benefits || [], created_at: '', updated_at: ''}),
-};
-const mockBonusService = {
-  getAllBonuses: async (): Promise<Bonus[]> => [{id: 'b1', name: 'Welcome Bonus', type: BonusType.DEPOSIT_MATCH, amount: 100, currency: 'USD', status: BonusStatus.ACTIVE, terms: 'Test terms', created_at: '', updated_at: ''}],
-  createBonus: async (data: Omit<Bonus, 'id' | 'created_at' | 'updated_at'>): Promise<Bonus> => ({...data, id: 'new_bonus', created_at: '', updated_at: ''}),
-  updateBonus: async (id: string, data: Partial<Bonus>): Promise<Bonus> => ({...data, id, name: data.name || 'Updated Bonus', created_at: '', updated_at: ''} as Bonus),
-  deleteBonus: async (id: string): Promise<void> => {},
-};
-const vipService = mockVipService;
-const bonusService = mockBonusService;
-
-const VipBonusManagementPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [isBonusFormOpen, setIsBonusFormOpen] = useState(false);
-  const [selectedBonus, setSelectedBonus] = useState<Bonus | Partial<Bonus> | null>(null);
-
-  const { data: vipLevels, isLoading: isLoadingVip, refetch: refetchVipLevels } = useQuery<VIPLevel[], Error>({
-    queryKey: ['vipLevelsAdmin'],
-    queryFn: vipService.getVipLevels,
-  });
-
-  const { data: bonuses, isLoading: isLoadingBonuses, refetch: refetchBonuses } = useQuery<Bonus[], Error>({
-    queryKey: ['bonusesAdmin'],
-    queryFn: bonusService.getAllBonuses,
-  });
-
-  const bonusMutation = useMutation({
-    mutationFn: (bonusData: Bonus | Partial<Bonus>) => {
-      if ((bonusData as Bonus).id) {
-        return bonusService.updateBonus((bonusData as Bonus).id, bonusData as Partial<Bonus>);
-      } else {
-        return bonusService.createBonus(bonusData as Omit<Bonus, 'id'|'created_at'|'updated_at'>);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bonusesAdmin'] });
-      toast.success(`Bonus ${(selectedBonus as Bonus)?.id ? 'updated' : 'created'} successfully!`);
-      setIsBonusFormOpen(false);
-      setSelectedBonus(null);
-    },
-    onError: (error: Error) => {
-      toast.error(`Bonus operation failed: ${error.message}`);
-    },
-  });
-  
-  const deleteBonusMutation = useMutation({
-    mutationFn: (bonusId: string) => bonusService.deleteBonus(bonusId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bonusesAdmin'] });
-      toast.success('Bonus deleted successfully!');
-    },
-    onError: (error: Error) => toast.error(`Failed to delete bonus: ${error.message}`),
-  });
-
-  const handleOpenBonusForm = (bonus?: Bonus) => {
-    setSelectedBonus(bonus || {});
-    setIsBonusFormOpen(true);
-  };
-
-  const handleSubmitBonusForm = (values: Bonus | Partial<Bonus>) => {
-    bonusMutation.mutate(values);
-  };
-  
-  const handleDeleteBonus = (bonusId: string) => {
-    deleteBonusMutation.mutate(bonusId);
-  };
-
-  const bonusColumns: DataTableColumn<Bonus>[] = [
-    { accessorKey: "name", header: "Name" },
-    { accessorKey: "type", header: "Type" },
-    { accessorKey: "amount", header: "Amount/Value" },
-    { accessorKey: "status", header: "Status" },
+// Mock data
+const mockVipData = {
+  benefits: [
     { 
-      accessorKey: "actions",
-      header: "Actions",
-      cell: (row) => (
-        <div className="space-x-2">
-          <Button variant="outline" size="sm" onClick={() => handleOpenBonusForm(row)}><Edit className="h-4 w-4"/></Button>
-          <Button variant="destructive" size="sm" onClick={() => handleDeleteBonus(row.id)}><Trash2 className="h-4 w-4"/></Button>
-        </div>
-      )
+      id: '1', 
+      name: 'Priority Support', 
+      description: 'Get priority customer support', 
+      icon: 'headphones',
+      vip_level_id: '1'
     }
-  ];
+  ] as VipBenefit[],
+  
+  levels: [
+    {
+      id: '1',
+      name: 'Bronze',
+      level: 1,
+      required_points: 1000,
+      points_required: 1000,
+      cashback_rate: 0.5,
+      weekly_bonus: 10,
+      monthly_bonus: 50,
+      withdrawal_limit: 1000,
+      benefits: [
+        { 
+          id: '1', 
+          name: 'Priority Support', 
+          description: 'Get priority customer support', 
+          icon: 'headphones',
+          vip_level_id: '1'
+        }
+      ],
+      created_at: '2024-01-15T00:00:00Z',
+      updated_at: '2024-01-15T00:00:00Z'
+    }
+  ] as VipLevel[],
+  
+  bonuses: [
+    {
+      id: '1',
+      user_id: 'user-1',
+      name: 'Welcome Bonus',
+      type: BonusType.DEPOSIT_MATCH,
+      amount: 100,
+      currency: 'USD',
+      status: BonusStatus.ACTIVE,
+      terms: 'Wagering requirement: 30x',
+      wagering_requirement: 30,
+      wagering_remaining: 30,
+      expires_at: '2024-12-31T23:59:59Z',
+      created_at: '2024-01-15T00:00:00Z',
+      updated_at: '2024-01-15T00:00:00Z'
+    }
+  ] as Bonus[]
+};
 
-  const headerActions = (
-    <div className="flex gap-2">
-        <Button onClick={() => handleOpenBonusForm()}>
-            <Gift className="mr-2 h-4 w-4" /> Create New Bonus
-        </Button>
-        <Button onClick={() => { refetchVipLevels(); refetchBonuses(); }} variant="outline" disabled={isLoadingVip || isLoadingBonuses || bonusMutation.isPending || deleteBonusMutation.isPending}>
-            { (isLoadingVip || isLoadingBonuses) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" /> }
-            Refresh Data
-        </Button>
-    </div>
-  );
+const VipBonusManagement = () => {
+  const [activeTab, setActiveTab] = React.useState<'vip' | 'bonuses'>('vip');
 
   return (
-    <AdminPageLayout title="VIP & Bonus Management" headerActions={headerActions}>
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4">VIP Level Management</h2>
-        {isLoadingVip ? <Loader2 className="h-6 w-6 animate-spin" /> : <VipLevelManager levels={vipLevels || []} onSave={(id, data) => vipService.updateVipLevel(id, data)} />}
-      </section>
-
-      <section>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Bonus Management</h2>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">VIP & Bonus Management</h1>
+          <p className="text-muted-foreground">Manage VIP levels and bonus programs</p>
         </div>
-        {isLoadingBonuses ? <Loader2 className="h-6 w-6 animate-spin" /> :
-            <DataTable columns={bonusColumns} data={bonuses || []} />
-        }
-      </section>
+        <div className="flex space-x-2">
+          <Button variant={activeTab === 'vip' ? 'default' : 'outline'} onClick={() => setActiveTab('vip')}>
+            <Crown className="mr-2 h-4 w-4" />
+            VIP Levels
+          </Button>
+          <Button variant={activeTab === 'bonuses' ? 'default' : 'outline'} onClick={() => setActiveTab('bonuses')}>
+            <Gift className="mr-2 h-4 w-4" />
+            Bonuses
+          </Button>
+        </div>
+      </div>
 
-      {isBonusFormOpen && (
-        <BonusForm
-          isOpen={isBonusFormOpen}
-          onClose={() => setIsBonusFormOpen(false)}
-          onSubmit={handleSubmitBonusForm}
-          initialData={selectedBonus}
-          isLoading={bonusMutation.isPending}
-        />
+      {activeTab === 'vip' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>VIP Levels</CardTitle>
+                <CardDescription>Configure VIP tiers and benefits</CardDescription>
+              </div>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Add VIP Level
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {mockVipData.levels.map((level) => (
+                  <Card key={level.id} className="relative">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center">
+                          <Crown className="mr-2 h-5 w-5 text-yellow-500" />
+                          {level.name}
+                        </CardTitle>
+                        <Badge variant="outline">Level {level.level}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Points Required</p>
+                        <p className="text-lg font-bold">{level.points_required.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Cashback Rate</p>
+                        <p className="text-sm">{level.cashback_rate}%</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Weekly Bonus</p>
+                        <p className="text-sm">${level.weekly_bonus}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Benefits</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {level.benefits.map((benefit) => (
+                            <Badge key={benefit.id} variant="secondary" className="text-xs">
+                              {benefit.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
-    </AdminPageLayout>
+
+      {activeTab === 'bonuses' && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Active Bonuses</CardTitle>
+                <CardDescription>Manage bonus campaigns and offers</CardDescription>
+              </div>
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Bonus
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {mockVipData.bonuses.map((bonus) => (
+                  <Card key={bonus.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <Gift className="h-8 w-8 text-green-500" />
+                          <div>
+                            <h3 className="font-semibold">{bonus.name}</h3>
+                            <p className="text-sm text-muted-foreground">{bonus.type.replace('_', ' ')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="font-semibold">${bonus.amount}</p>
+                            <Badge variant={bonus.status === BonusStatus.ACTIVE ? 'default' : 'secondary'}>
+                              {bonus.status}
+                            </Badge>
+                          </div>
+                          <Button variant="outline" size="sm">
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 };
 
-export default VipBonusManagementPage;
+export default VipBonusManagement;

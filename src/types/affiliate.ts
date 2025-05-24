@@ -1,3 +1,4 @@
+
 export interface Affiliate {
   id: string;
   user_id: string;
