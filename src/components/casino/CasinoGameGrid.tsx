@@ -15,7 +15,7 @@ interface CasinoGameGridProps {
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { user, isAuthenticated } = useAuth();
   
-  const toggleFavorite = (e: React.MouseEvent, gameId: string, isFavorite: boolean) => {
+  const toggleFavorite = async (e: React.MouseEvent, gameId: string, isFavorite: boolean) => {
     e.stopPropagation(); // Prevent game click when clicking the favorite button
     
     if (!isAuthenticated) {
@@ -23,23 +23,33 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
       return;
     }
     
-    // Handle the async operation without returning a promise
-    const handleFavoriteToggle = async () => {
-      try {
-        // Since we don't have a favorite_games table in the Supabase schema yet,
-        // implement a basic toggle functionality without database operations for now
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from('favorite_games')
+          .delete()
+          .eq('user_id', user?.id)
+          .eq('game_id', gameId);
         
-        toast.success(isFavorite ? "Removed from favorites" : "Added to favorites");
+        if (error) throw error;
+        toast.success("Removed from favorites");
+      } else {
+        // Add to favorites
+        const { error } = await supabase
+          .from('favorite_games')
+          .insert({
+            user_id: user?.id,
+            game_id: gameId
+          });
         
-        // Note: In a real implementation, you would store favorites in the database
-        // This is a placeholder until the proper database tables are created
-      } catch (error: any) {
-        console.error("Error toggling favorite:", error);
-        toast.error(error.message || "Error updating favorites");
+        if (error) throw error;
+        toast.success("Added to favorites");
       }
-    };
-    
-    handleFavoriteToggle();
+    } catch (error: any) {
+      console.error("Error toggling favorite:", error);
+      toast.error(error.message || "Error updating favorites");
+    }
   };
   
   if (!games || games.length === 0) {
@@ -66,7 +76,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           minBet={game.minBet}
           maxBet={game.maxBet}
           onClick={onGameClick ? () => onGameClick(game) : undefined}
-          onFavoriteToggle={() => toggleFavorite}
+          onFavoriteToggle={(e) => toggleFavorite(e, game.id, game.isFavorite || false)}
         />
       ))}
     </div>
