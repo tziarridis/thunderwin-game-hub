@@ -1,50 +1,39 @@
 
-export enum BonusType {
-  WELCOME = 'welcome',
-  DEPOSIT_MATCH = 'deposit_match',
-  FREE_SPINS = 'free_spins',
-  CASHBACK = 'cashback',
-  RELOAD = 'reload',
-  VIP = 'vip',
-  NO_DEPOSIT = 'no_deposit'
-}
-
-export enum BonusStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  EXPIRED = 'expired',
-  CLAIMED = 'claimed',
-  PENDING = 'pending'
-}
-
-export interface Bonus {
-  id: string;
-  user_id: string;
-  name: string;
-  type: BonusType;
-  amount: number;
-  currency: string;
-  status: BonusStatus;
-  terms: string;
-  wagering_requirement: number;
-  wagering_remaining: number;
-  expires_at: string;
-  created_at: string;
-  updated_at: string;
-}
+export type BonusType = 'deposit' | 'free_spins' | 'cashback' | 'loyalty' | 'welcome';
 
 export interface UserBonus {
   id: string;
-  user_id: string;
-  bonus_id: string;
+  userId: string;
+  bonusId: string;
+  type: BonusType;
   amount: number;
-  currency: string;
-  status: BonusStatus;
-  claimed_at?: string;
-  expires_at: string;
-  wagering_requirement: number;
-  wagering_remaining: number;
-  created_at: string;
-  updated_at: string;
-  progress?: number;
+  status: 'active' | 'used' | 'expired';
+  dateIssued: string;
+  expiryDate: string;
+  wageringRequirement: number;
+  wageringCompleted: number;
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number;
+  minDeposit: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
+}
+
+export interface VipLevel {
+  id: number;
+  name: string;
+  pointsRequired: number;
+  cashbackRate: number;
+  bonusMultiplier: number;
+  description?: string;
+  benefits: string[];
+  status: 'active' | 'inactive';
 }

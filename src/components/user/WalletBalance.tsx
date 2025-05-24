@@ -1,50 +1,138 @@
 
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { WalletType } from '@/types/wallet';
-import { RefreshCw } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { walletService } from "@/services";
+import { Wallet } from "@/types/wallet";
+import { CircleDollarSign, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface WalletBalanceProps {
-  wallet: WalletType | null;
-  isLoading: boolean;
-  onRefresh: () => void;
+  className?: string;
+  showRefresh?: boolean;
+  variant?: "default" | "compact" | "dropdown";
 }
 
-const WalletBalance: React.FC<WalletBalanceProps> = ({ wallet, isLoading, onRefresh }) => {
-  if (isLoading) {
+const WalletBalance = ({ className = "", showRefresh = false, variant = "default" }: WalletBalanceProps) => {
+  const { user, isAuthenticated, refreshWalletBalance } = useAuth();
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      fetchWallet();
+    }
+  }, [isAuthenticated, user?.id]);
+
+  const fetchWallet = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      const walletData = await walletService.getWalletByUserId(user.id);
+      setWallet(walletData);
+    } catch (error) {
+      console.error("Error fetching wallet data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing || !user?.id) return;
+    
+    try {
+      setRefreshing(true);
+      await refreshWalletBalance(); // Use the context method to update the user state
+      fetchWallet(); // Also update our local wallet state
+      toast.success("Wallet balance updated");
+    } catch (error) {
+      console.error("Error refreshing wallet data:", error);
+      toast.error("Failed to refresh wallet balance");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (!isAuthenticated) return null;
+  
+  if (variant === "compact") {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Wallet Balance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse">Loading...</div>
-        </CardContent>
-      </Card>
+      <div className={`flex items-center gap-1 ${className}`}>
+        <CircleDollarSign className="h-4 w-4 text-casino-thunder-green" />
+        <span className="font-medium">
+          {loading ? 
+            <span className="inline-block w-12 h-4 bg-white/10 animate-pulse rounded"></span> : 
+            `${wallet?.symbol || '$'}${wallet?.balance?.toFixed(2) || user?.balance?.toFixed(2) || '0.00'}`
+          }
+        </span>
+        {showRefresh && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleRefresh} 
+            disabled={refreshing}
+            className="ml-1 p-0 h-auto"
+          >
+            <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        )}
+      </div>
     );
   }
-
+  
+  if (variant === "dropdown") {
+    return (
+      <div className={`p-3 flex flex-col ${className}`}>
+        <span className="text-sm text-white/70 mb-1">Your Balance</span>
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-bold">
+            {loading ? 
+              <span className="inline-block w-16 h-6 bg-white/10 animate-pulse rounded"></span> : 
+              `${wallet?.symbol || '$'}${wallet?.balance?.toFixed(2) || user?.balance?.toFixed(2) || '0.00'}`
+            }
+          </span>
+          {showRefresh && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              className="p-1 h-auto"
+            >
+              <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Wallet Balance</CardTitle>
-          <CardDescription>Your current balance</CardDescription>
-        </div>
-        <Button variant="ghost" size="sm" onClick={onRefresh}>
-          <RefreshCw className="h-4 w-4" />
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className="flex items-center bg-white/5 rounded-lg px-3 py-2">
+        <CircleDollarSign className="h-5 w-5 text-casino-thunder-green mr-2" />
+        {loading ? (
+          <span className="inline-block w-16 h-6 bg-white/10 animate-pulse rounded"></span>
+        ) : (
+          <span className="font-medium">
+            {wallet?.symbol || '$'}{wallet?.balance?.toFixed(2) || user?.balance?.toFixed(2) || '0.00'}
+          </span>
+        )}
+      </div>
+      {showRefresh && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh} 
+          disabled={refreshing}
+          className="h-full aspect-square p-0"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
         </Button>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-          {wallet?.symbol || '$'}{wallet?.balance?.toFixed(2) || '0.00'}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {wallet?.currency || 'USD'}
-        </p>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   );
 };
 

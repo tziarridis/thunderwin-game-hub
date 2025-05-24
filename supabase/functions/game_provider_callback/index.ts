@@ -43,9 +43,6 @@ serve(async (req) => {
       case "gitslotpark":
         response = await handleGitSlotParkCallback(requestData);
         break;
-      case "infin":
-        response = await handleInfinCallback(requestData);
-        break;
       default:
         // Generic handler for unknown providers
         response = await handleGenericCallback(requestData, providerPath);
@@ -84,121 +81,23 @@ serve(async (req) => {
 async function handlePragmaticPlayCallback(data: any) {
   console.log("Processing Pragmatic Play callback");
 
-  // Validate the request data according to Pragmatic Play documentation
-  if (!data.playerid || !data.amount) {
-    return {
-      errorcode: "1",
-      message: "Invalid request data",
-      balance: 0
-    };
-  }
-
   // Mock successful transaction
   return {
-    errorcode: "0",  // 0 means success
+    success: true,
     balance: 100.00, // Mock balance
     error: ""
   };
 }
 
-// GitSlotPark callback handler according to docs: 
-// https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4#255da0c0-97a6-411d-a2eb-9f5460515084
+// GitSlotPark callback handler
 async function handleGitSlotParkCallback(data: any) {
   console.log("Processing GitSlotPark callback");
   
-  // Validate request according to GitSlotPark docs
-  if (!data.userId || !data.operation) {
-    return {
-      success: false,
-      errorCode: "INVALID_REQUEST",
-      message: "Missing required fields"
-    };
-  }
-  
-  // According to GitSlotPark documentation, these are the required response formats
-  if (data.operation === "balance") {
-    return {
-      success: true,
-      balance: 100.00,
-      currency: data.currency || "EUR"
-    };
-  }
-  
-  if (data.operation === "bet") {
-    return {
-      success: true,
-      balance: 95.00, // Reduced after bet
-      transactionId: `gsp-tx-${Date.now()}`
-    };
-  }
-  
-  if (data.operation === "win") {
-    return {
-      success: true,
-      balance: 110.00, // Increased after win
-      transactionId: `gsp-tx-${Date.now()}`
-    };
-  }
-  
+  // Mock successful transaction
   return {
-    success: false,
-    errorCode: "UNKNOWN_OPERATION",
-    message: `Unknown operation: ${data.operation}`
-  };
-}
-
-// InfinGame callback handler according to docs:
-// https://infinapi-docs.axis-stage.infingame.com/wallet
-async function handleInfinCallback(data: any) {
-  console.log("Processing InfinGame callback");
-  
-  // Validate request according to InfinGame docs
-  if (!data.userId || !data.operationType) {
-    return {
-      status: "error",
-      errorCode: "INVALID_REQUEST",
-      message: "Missing required fields"
-    };
-  }
-  
-  // InfinGame operations per documentation
-  if (data.operationType === "getBalance") {
-    return {
-      status: "success",
-      balance: 100.00,
-      currency: data.currency || "EUR"
-    };
-  }
-  
-  if (data.operationType === "debit") {
-    // Check if there's enough balance for the debit
-    return {
-      status: "success",
-      balance: 95.00, // Reduced after debit
-      transactionId: `infin-tx-${Date.now()}`
-    };
-  }
-  
-  if (data.operationType === "credit") {
-    return {
-      status: "success",
-      balance: 110.00, // Increased after credit
-      transactionId: `infin-tx-${Date.now()}`
-    };
-  }
-  
-  if (data.operationType === "rollback") {
-    return {
-      status: "success",
-      balance: 100.00,
-      transactionId: `infin-tx-${Date.now()}`
-    };
-  }
-  
-  return {
-    status: "error",
-    errorCode: "UNKNOWN_OPERATION",
-    message: `Unknown operation: ${data.operationType}`
+    success: true,
+    balance: 100.00, // Mock balance
+    error: ""
   };
 }
 

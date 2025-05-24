@@ -1,119 +1,221 @@
 
-import React, { useState } from 'react';
-import { useQuery, QueryKey } from '@tanstack/react-query';
-import { Transaction, DateRange } from '@/types/index.d';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DataTable, DataTableColumn } from '@/components/ui/data-table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/ui/date-range-picker'; 
-import { format } from 'date-fns';
-import { RefreshCw, Loader2, Filter } from 'lucide-react';
-import { toast } from 'sonner';
+// Fix the DateRangePicker usage in PPTransactions.tsx
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { DateRangePicker, DateRange } from "@/components/ui/date-range-picker";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Search, Download } from "lucide-react";
+import { format } from "date-fns";
 
-const mockPragmaticPlayService = {
-  getTransactions: async (params: { 
-    userId?: string; 
-    status?: string; 
-    type?: string; 
-    dateFrom?: string; 
-    dateTo?: string; 
-    page?: number; 
-    limit?: number; 
-  }): Promise<{ transactions: Transaction[], totalCount: number }> => {
-    console.log("Fetching mock PP transactions with params:", params);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const mockTx: Transaction[] = [
-      { id: 'tx123', user_id: params.userId || 'user1', amount: 100, currency: 'USD', type: 'bet', status: 'completed', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), provider_transaction_id: 'pp_tx_abc' },
-      { id: 'tx124', user_id: params.userId || 'user2', amount: 50, currency: 'USD', type: 'win', status: 'completed', created_at: new Date().toISOString(), updated_at: new Date().toISOString(), provider_transaction_id: 'pp_tx_def' },
-    ];
-    return { transactions: mockTx.filter(tx => !params.status || params.status === 'all' || tx.status === params.status), totalCount: mockTx.length };
+interface Transaction {
+  id: string;
+  date: string;
+  player_id: string;
+  round_id: string;
+  type: string;
+  amount: number;
+  status: string;
+}
+
+// Mock data for demonstration
+const mockTransactions: Transaction[] = [
+  {
+    id: "pp-tx-1234",
+    date: "2023-06-01T14:23:45",
+    player_id: "player123",
+    round_id: "round-5678",
+    type: "bet",
+    amount: -10,
+    status: "completed"
+  },
+  {
+    id: "pp-tx-1235",
+    date: "2023-06-01T14:25:12",
+    player_id: "player123",
+    round_id: "round-5678",
+    type: "win",
+    amount: 15,
+    status: "completed"
+  },
+  {
+    id: "pp-tx-1236",
+    date: "2023-06-02T09:12:33",
+    player_id: "player456",
+    round_id: "round-9012",
+    type: "bet",
+    amount: -25,
+    status: "completed"
   }
-};
-const pragmaticPlayService = mockPragmaticPlayService;
+];
 
-const PPTransactionsPage: React.FC = () => {
-  const [filters, setFilters] = useState({
-    userId: '',
-    status: 'all',
-    type: 'all',
-    dateRange: undefined as DateRange | undefined,
-    page: 0,
-    limit: 10,
+const PPTransactions = () => {
+  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: new Date(new Date().setDate(new Date().getDate() - 7)),
+    to: new Date()
   });
+  const [transactionType, setTransactionType] = useState<string>("all");
 
-  const { data: transactionsData, isLoading, refetch } = useQuery<{ transactions: Transaction[], totalCount: number }, Error, { transactions: Transaction[], totalCount: number }, QueryKey>({
-    queryKey: ['ppTransactions', filters] as QueryKey,
-    queryFn: () => pragmaticPlayService.getTransactions({
-      userId: filters.userId || undefined,
-      status: filters.status === 'all' ? undefined : filters.status,
-      type: filters.type === 'all' ? undefined : filters.type,
-      dateFrom: filters.dateRange?.from?.toISOString(),
-      dateTo: filters.dateRange?.to?.toISOString(),
-      page: filters.page,
-      limit: filters.limit,
-    }),
-    meta: { 
-      onError: (error: Error) => {
-          toast.error(`Failed to load Pragmatic Play transactions: ${error.message}`);
-      }
+  // Filter transactions based on search query, date range, and type
+  const filteredTransactions = transactions.filter(tx => {
+    // Search filter (check player_id, round_id, or id)
+    const searchMatch = searchQuery === "" || 
+      tx.player_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.round_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tx.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Date filter
+    let dateMatch = true;
+    if (dateRange.from && dateRange.to) {
+      const txDate = new Date(tx.date);
+      dateMatch = txDate >= dateRange.from && txDate <= dateRange.to;
     }
+    
+    // Type filter
+    const typeMatch = transactionType === "all" || tx.type === transactionType;
+    
+    return searchMatch && dateMatch && typeMatch;
   });
 
-  const transactions = transactionsData?.transactions || [];
-  const totalCount = transactionsData?.totalCount || 0;
-
-  const columns: DataTableColumn<Transaction>[] = [
-    { accessorKey: 'id', header: 'Transaction ID' },
-    { accessorKey: 'provider_transaction_id', header: 'PP ID' },
-    { accessorKey: 'user_id', header: 'User ID' },
-    { accessorKey: 'type', header: 'Type', cell: (row) => <Badge variant="outline">{row.type}</Badge> },
-    { accessorKey: 'amount', header: 'Amount', cell: (row) => `${row.amount} ${row.currency}` },
-    { accessorKey: 'status', header: 'Status', cell: (row) => <Badge variant={row.status === 'completed' ? 'default' : 'secondary'}>{row.status}</Badge> },
-    { accessorKey: 'created_at', header: 'Timestamp', cell: (row) => format(new Date(row.created_at), 'PPpp') },
-  ];
-
-  const handleFilterChange = (key: keyof typeof filters, value: string | DateRange | undefined) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 0 }));
+  const handleDateChange = (range: DateRange) => {
+    setDateRange(range);
   };
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Integrations" },
-    { label: "Pragmatic Play Transactions" },
-  ];
-  
-  const headerActions = (
-     <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
-        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-        Refresh Transactions
-      </Button>
-  );
+  const handleExport = () => {
+    // Logic to export transactions
+    console.log("Exporting transactions:", filteredTransactions);
+    alert("Export functionality will be implemented here");
+  };
 
   return (
-    <AdminPageLayout title="Pragmatic Play Transactions" breadcrumbs={breadcrumbs} headerActions={headerActions}>
-      <div className="p-4 bg-card rounded-lg shadow mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-          <Input 
-            placeholder="User ID"
-            value={filters.userId}
-            onChange={e => handleFilterChange('userId', e.target.value)}
-          />
-          <DateRangePicker
-            range={filters.dateRange}
-            onUpdate={(values) => handleFilterChange('dateRange', values.range)}
-            className="w-full"
-          />
-          <Button onClick={() => refetch()} disabled={isLoading} className="w-full lg:w-auto">
-            <Filter className="mr-2 h-4 w-4" /> Apply Filters
-          </Button>
-        </div>
-      </div>
-
-      <DataTable columns={columns} data={transactions} />
-    </AdminPageLayout>
+    <div className="container mx-auto py-6">
+      <h1 className="text-2xl font-bold mb-6">Pragmatic Play Transactions</h1>
+      
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Transaction Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Player ID, Round ID, or Transaction ID"
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="date-range">Date Range</Label>
+              <div className="mt-1">
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={handleDateChange}
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="type">Transaction Type</Label>
+              <Select
+                value={transactionType}
+                onValueChange={setTransactionType}
+              >
+                <SelectTrigger id="type" className="mt-1">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="bet">Bet</SelectItem>
+                  <SelectItem value="win">Win</SelectItem>
+                  <SelectItem value="refund">Refund</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Transaction ID</TableHead>
+                <TableHead>Player ID</TableHead>
+                <TableHead>Round ID</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-6">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTransactions.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>{format(new Date(tx.date), "MMM dd, yyyy HH:mm")}</TableCell>
+                    <TableCell className="font-mono text-xs">{tx.id}</TableCell>
+                    <TableCell>{tx.player_id}</TableCell>
+                    <TableCell className="font-mono text-xs">{tx.round_id}</TableCell>
+                    <TableCell>
+                      <Badge variant={tx.type === "win" ? "success" : tx.type === "bet" ? "destructive" : "outline"}>
+                        {tx.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className={`text-right font-medium ${tx.amount >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={tx.status === "completed" ? "outline" : "secondary"}>
+                        {tx.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
-export default PPTransactionsPage;
+export default PPTransactions;

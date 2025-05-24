@@ -1,48 +1,34 @@
+
 export interface Wallet {
-  id?: string;
-  user_id?: string;
+  id: string;
+  user_id: string;
   balance: number;
   currency: string;
-  bonus_balance?: number;
-  demo_balance?: number;
-  created_at?: Date | string;
-  updated_at?: Date | string;
-  total_bets?: number;
-  total_wins?: number;
-  vipLevel?: number;
-  vipPoints?: number;
-  transactions?: WalletTransaction[];
-  symbol?: string; // Was missing, added based on AppHeader usage
-  wagering_requirement?: number; // Was missing, added based on AppHeader usage
-  time_reminder_enabled?: boolean; // Added for completeness if used elsewhere
-  reminder_interval_minutes?: number; // Added for completeness
+  symbol: string;
+  active: boolean;
+  vip_level: number;
+  vip_points: number;
+  created_at: string;
+  updated_at: string;
+  total_bet?: number;
+  total_won?: number;
+  total_lose?: number;
+  balance_bonus?: number;
 }
 
 export interface WalletTransaction {
-  id?: string;
-  wallet_id?: string;
-  user_id?: string;
+  id: string;
+  user_id: string;
   amount: number;
-  type: TransactionType;
-  status: TransactionStatus;
-  created_at?: Date | string;
-  updated_at?: Date | string;
-  game_id?: string;
-  game_name?: string;
-  provider?: string;
-  provider_transaction_id?: string;
-  balance_before?: number;
-  balance_after?: number;
-  currency?: string;
-}
-
-export type TransactionType = 'deposit' | 'withdrawal' | 'bet' | 'win' | 'bonus' | 'refund' | 'adjustment';
-
-export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
-
-export interface WalletSummary {
-  balance: number;
-  bonus_balance: number;
   currency: string;
-  symbol: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
+  provider: string;
+  game_id: string;
+  round_id: string;
+  description?: string;
+  payment_method?: string;
+  bonus_id?: string;
+  reference_id?: string;
 }

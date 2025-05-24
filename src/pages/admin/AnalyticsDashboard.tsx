@@ -1,163 +1,264 @@
-import React from 'react';
-import { BarChart, LineChart, PieChart, Users, DollarSign, TrendingUp, TrendingDown, AlertTriangle, Activity, ShoppingCart, BarChart2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-// Ensure these types are correctly defined and exported from your types file
-import { AnalyticsData, GameAnalytics, UserGrowthData, OverviewData, RevenueDataPoint } from '@/types/analytics'; 
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
 
-// Mock data - replace with actual data fetching logic
-const mockAnalyticsData: AnalyticsData = {
-  overview: {
-    totalRevenue: 125000,
-    activeUsers: 1500,
-    newSignups: 350,
-    revenueChange: 5.2, // percentage
-    activeUsersChange: -1.5,
-    newSignupsChange: 10,
-  },
-  revenueOverTime: [
-    { date: 'Jan', revenue: 10000 },
-    { date: 'Feb', revenue: 12000 },
-    { date: 'Mar', revenue: 15000 },
-    { date: 'Apr', revenue: 13000 },
-    { date: 'May', revenue: 18000 },
-  ],
-  userActivity: [
-    { date: 'Week 1', activeUsers: 1200, newSignups: 50 },
-    { date: 'Week 2', activeUsers: 1300, newSignups: 60 },
-    { date: 'Week 3', activeUsers: 1250, newSignups: 55 },
-    { date: 'Week 4', activeUsers: 1500, newSignups: 70 },
-  ],
-  topGames: [
-    { gameName: 'Slot Masters', betCount: 50000, totalWagered: 250000 },
-    { gameName: 'Blackjack Pro', betCount: 30000, totalWagered: 600000 },
-    { gameName: 'Roulette Royale', betCount: 25000, totalWagered: 400000 },
-  ],
-  transactionVolume: [
-    { date: 'Mon', depositVolume: 5000, withdrawalVolume: 2000 },
-    { date: 'Tue', depositVolume: 6000, withdrawalVolume: 2500 },
-    { date: 'Wed', depositVolume: 5500, withdrawalVolume: 1500 },
-  ],
-};
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import analyticsService from "@/services/analyticsService";
+import { AnalyticsData, GameAnalytics, UserGrowthData } from "@/types/analytics";
 
-const mockGameAnalytics: GameAnalytics = {
-  topGames: mockAnalyticsData.topGames || [],
-  // ... other game specific mock data
-};
+const AnalyticsDashboard = () => {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [dailyStats, setDailyStats] = useState<AnalyticsData[]>([]);
+  const [gameStats, setGameStats] = useState<GameAnalytics[]>([]);
+  const [userGrowth, setUserGrowth] = useState<UserGrowthData[]>([]);
+  const [bonusStats, setBonusStats] = useState({
+    totalBonusesIssued: 0,
+    bonusAmountAwarded: 0,
+    bonusTurnoverGenerated: 0,
+    wageringCompleted: 0
+  });
 
-const mockUserGrowth: UserGrowthData = {
-  userActivity: mockAnalyticsData.userActivity || [],
-  // ... other user growth mock data
-};
+  useEffect(() => {
+    const loadAnalyticsData = async () => {
+      try {
+        // Fetch all analytics data on component mount
+        const dailyData = await analyticsService.fetchDailyAnalytics();
+        setDailyStats(dailyData);
+        
+        const gameData = await analyticsService.fetchGameAnalytics();
+        setGameStats(gameData);
+        
+        const userData = await analyticsService.fetchUserGrowthData();
+        setUserGrowth(userData);
+        
+        const bonusData = await analyticsService.fetchBonusAnalytics();
+        setBonusStats(bonusData);
+      } catch (error) {
+        console.error("Error loading analytics data:", error);
+      }
+    };
+    
+    loadAnalyticsData();
+  }, []);
 
-
-const AnalyticsDashboard: React.FC = () => {
-  const analyticsData: AnalyticsData = mockAnalyticsData; // Replace with actual fetched data
-  const gameAnalytics: GameAnalytics = mockGameAnalytics;
-  const userGrowth: UserGrowthData = mockUserGrowth;
-
-  const renderMetricCard = (title: string, value: string | number, change?: number, icon?: React.ReactNode, unit: string = '') => (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon}
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{typeof value === 'number' && (title.toLowerCase().includes('revenue') || title.toLowerCase().includes('wagered')) ? `$${value.toLocaleString()}` : value.toLocaleString()}{unit}</div>
-        {change !== undefined && (
-          <p className={`text-xs ${change >= 0 ? 'text-green-500' : 'text-red-500'} flex items-center`}>
-            {change >= 0 ? <TrendingUp className="mr-1 h-4 w-4" /> : <TrendingDown className="mr-1 h-4 w-4" />}
-            {change.toFixed(1)}% from last period
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
+  // Format data for the user growth chart with revenue data
+  const userGrowthData = userGrowth.map(day => ({
+    date: day.date,
+    active: day.active,
+    new: day.new
+  }));
 
   return (
-    <AdminPageLayout title="Analytics Dashboard">
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Platform Analytics</h1>
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-6">Analytics Dashboard</h1>
+      
+      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab} className="mb-8">
+        <TabsList className="grid grid-cols-4 mb-6 max-w-md">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="players">Players</TabsTrigger>
+          <TabsTrigger value="games">Games</TabsTrigger>
+          <TabsTrigger value="bonuses">Bonuses</TabsTrigger>
+        </TabsList>
         
-        {/* Overview Metrics */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {renderMetricCard("Total Revenue", analyticsData.overview.totalRevenue || 0, analyticsData.overview.revenueChange, <DollarSign className="h-5 w-5 text-muted-foreground" />)}
-          {renderMetricCard("Active Users", analyticsData.overview.activeUsers || 0, analyticsData.overview.activeUsersChange, <Users className="h-5 w-5 text-muted-foreground" />)}
-          {renderMetricCard("New Signups", analyticsData.overview.newSignups || 0, analyticsData.overview.newSignupsChange, <Activity className="h-5 w-5 text-muted-foreground" />)}
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
+        <TabsContent value="overview">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Key metrics cards */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Revenue</CardTitle>
+                <CardDescription>Last 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${dailyStats.reduce((sum, day) => sum + day.revenue, 0).toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Active Players</CardTitle>
+                <CardDescription>Unique players yesterday</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{dailyStats.length > 0 ? dailyStats[dailyStats.length - 1].activeUsers : 0}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">New Registrations</CardTitle>
+                <CardDescription>Last 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{dailyStats.reduce((sum, day) => sum + day.newUsers, 0)}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Profit Margin</CardTitle>
+                <CardDescription>Last 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dailyStats.length > 0 ? (
+                  <p className="text-2xl font-bold">
+                    {((dailyStats.reduce((sum, day) => sum + (day.bets - day.wins), 0) / 
+                    dailyStats.reduce((sum, day) => sum + day.bets, 0)) * 100).toFixed(1)}%
+                  </p>
+                ) : (
+                  <p className="text-2xl font-bold">0%</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Revenue chart */}
+          <Card className="mb-8">
             <CardHeader>
-              <CardTitle>Revenue Over Time</CardTitle>
-              <CardDescription>Monthly revenue trends.</CardDescription>
+              <CardTitle>Revenue & Player Activity</CardTitle>
+              <CardDescription>Daily revenue vs active players</CardDescription>
             </CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center">
-              {/* Replace with actual chart component */}
-              <LineChart className="h-full w-full text-primary" /> 
-              <p className="text-sm text-muted-foreground">Chart: Revenue data ({analyticsData.revenueOverTime?.length} points)</p>
+            <CardContent>
+              <div className="h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dailyStats}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
+                    <Line yAxisId="right" type="monotone" dataKey="activeUsers" stroke="#82ca9d" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>User Activity</CardTitle>
-              <CardDescription>Active users and new signups weekly.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px] flex items-center justify-center">
-              {/* Replace with actual chart component */}
-              <BarChart className="h-full w-full text-secondary" />
-              <p className="text-sm text-muted-foreground">Chart: User activity data ({userGrowth.userActivity?.length} points)</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Games by Wagered Amount</CardTitle>
-            <CardDescription>Most popular games based on total amount wagered.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {gameAnalytics.topGames && gameAnalytics.topGames.length > 0 ? (
-              <ul className="space-y-2">
-                {gameAnalytics.topGames.map((game, index) => (
-                  <li key={index} className="flex justify-between items-center p-2 bg-muted rounded-md">
-                    <span>{index + 1}. {game.gameName}</span>
-                    <span className="font-semibold">${(game.totalWagered || 0).toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground">No game data available.</p>
-            )}
-          </CardContent>
-        </Card>
+        </TabsContent>
         
-        {/* Placeholder for more advanced charts or data tables */}
-        <Card>
-           <CardHeader><CardTitle>Transaction Volume</CardTitle></CardHeader>
-           <CardContent className="h-[300px] flex items-center justify-center">
-                <BarChart2 className="h-full w-full text-accent" />
-                <p className="text-sm text-muted-foreground">Chart: Transaction volume ({analyticsData.transactionVolume?.length} points)</p>
-           </CardContent>
-        </Card>
+        <TabsContent value="players">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Player Growth</CardTitle>
+                <CardDescription>Active and new players over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={userGrowthData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="active" stroke="#8884d8" />
+                      <Line type="monotone" dataKey="new" stroke="#82ca9d" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Deposit & Withdrawal Analysis</CardTitle>
+                <CardDescription>Financial transactions overview</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dailyStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="deposits" fill="#8884d8" />
+                      <Bar dataKey="withdrawals" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
         
-        {/* Alert for data interpretation */}
-        <Card className="border-yellow-500 bg-yellow-500/10">
-          <CardHeader className="flex flex-row items-center space-x-3">
-            <AlertTriangle className="h-6 w-6 text-yellow-600" />
-            <CardTitle className="text-yellow-700">Data Interpretation Note</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-yellow-600">
-              This is mock data for demonstration purposes. Ensure your analytics tracking is properly configured to get accurate insights.
-              Actual chart components and data fetching logic need to be implemented.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </AdminPageLayout>
+        <TabsContent value="games">
+          <div className="grid grid-cols-1 gap-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Game Performance</CardTitle>
+                <CardDescription>Top games by bets and player count</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={gameStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="gameName" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="totalBets" fill="#8884d8" />
+                      <Bar dataKey="uniquePlayers" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="bonuses">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Total Bonuses</CardTitle>
+                <CardDescription>Issued this month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">{bonusStats.totalBonusesIssued}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Bonus Value</CardTitle>
+                <CardDescription>Total awarded</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${bonusStats.bonusAmountAwarded.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Wagering Generated</CardTitle>
+                <CardDescription>From bonuses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">${bonusStats.bonusTurnoverGenerated.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Wagering Completed</CardTitle>
+                <CardDescription>Percentage</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {bonusStats.bonusTurnoverGenerated ? 
+                    `${((bonusStats.wageringCompleted / bonusStats.bonusTurnoverGenerated) * 100).toFixed(1)}%` : 
+                    '0%'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

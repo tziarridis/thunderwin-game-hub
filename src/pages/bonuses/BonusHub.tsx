@@ -1,362 +1,315 @@
-
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState } from "react";
 import { 
-  Bonus, 
-  UserBonus, 
-  BonusType, 
-  BonusStatus, 
-  Promotion, 
-  PromotionType, 
-  PromotionStatus 
-} from '@/types';
-import { Gift, Trophy, Star, Clock } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle,
+} from "@/components/ui/card";
+import { 
+  Tabs, 
+  TabsList, 
+  TabsTrigger, 
+  TabsContent,
+} from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Bonus, BonusType } from "@/types";
 
-// Mock services
-const mockBonusService = {
-  getAvailableBonuses: async (): Promise<Bonus[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      {
-        id: '1',
-        user_id: 'system',
-        name: 'Welcome Bonus',
-        type: BonusType.DEPOSIT_MATCH,
-        amount: 100,
-        currency: 'USD',
-        status: BonusStatus.ACTIVE,
-        terms: 'Match your first deposit up to $100',
-        wagering_requirement: 30,
-        wagering_remaining: 30,
-        expires_at: '2024-12-31T23:59:59Z',
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      }
-    ];
-  },
-
-  getUserBonuses: async (userId: string): Promise<UserBonus[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      {
-        id: '1',
-        user_id: userId,
-        bonus_id: 'bonus-1',
-        amount: 50,
-        status: BonusStatus.ACTIVE,
-        progress: 65,
-        created_at: '2024-01-15T00:00:00Z',
-        expires_at: '2024-02-15T00:00:00Z',
-        bonus_details: {
-          name: 'Active Bonus',
-          type: BonusType.DEPOSIT_MATCH,
-          terms: 'Complete wagering to unlock',
-          wagering_requirement: 25
-        }
-      }
-    ];
-  },
-
-  getPromotions: async (): Promise<Promotion[]> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return [
-      {
-        id: 'promo-1',
-        title: 'Weekend Special',
-        description: 'Extra bonus for weekend deposits',
-        type: PromotionType.DEPOSIT_BONUS,
-        status: PromotionStatus.ACTIVE,
-        start_date: '2024-01-01T00:00:00Z',
-        end_date: '2024-12-31T23:59:59Z',
-        valid_from: '2024-01-01T00:00:00Z',
-        valid_until: '2024-12-31T23:59:59Z',
-        is_active: true,
-        cta_text: 'Claim Now',
-        code: 'WEEKEND50',
-        min_deposit: 20,
-        bonus_percentage: 50,
-        max_bonus_amount: 100,
-        wagering_requirement: 30,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 'promo-2',
-        title: 'Free Spins Friday',
-        description: 'Get 50 free spins every Friday',
-        type: PromotionType.FREE_SPINS,
-        status: PromotionStatus.ACTIVE,
-        start_date: '2024-01-01T00:00:00Z',
-        end_date: '2024-12-31T23:59:59Z',
-        valid_from: '2024-01-01T00:00:00Z',
-        valid_until: '2024-12-31T23:59:59Z',
-        is_active: true,
-        cta_text: 'Get Spins',
-        free_spins_count: 50,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z'
-      }
-    ];
-  },
-
-  claimBonus: async (bonusId: string, userId: string) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return { success: true, message: 'Bonus claimed successfully!' };
-  }
-};
-
-const BonusHub = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [claimingBonusId, setClaimingBonusId] = useState<string | null>(null);
-
-  const { data: availableBonuses, isLoading: loadingBonuses } = useQuery({
-    queryKey: ['availableBonuses'],
-    queryFn: mockBonusService.getAvailableBonuses
-  });
-
-  const { data: userBonuses, isLoading: loadingUserBonuses } = useQuery({
-    queryKey: ['userBonuses', user?.id],
-    queryFn: () => user ? mockBonusService.getUserBonuses(user.id) : Promise.resolve([]),
-    enabled: !!user
-  });
-
-  const { data: promotions, isLoading: loadingPromotions } = useQuery({
-    queryKey: ['promotions'],
-    queryFn: mockBonusService.getPromotions
-  });
-
-  const handleClaimBonus = async (bonusId: string) => {
-    if (!isAuthenticated || !user) {
-      toast.error('Please log in to claim bonuses');
-      return;
+const BonusHub: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("available");
+  
+  // Mock bonuses data
+  const [availableBonuses, setAvailableBonuses] = useState<Bonus[]>([
+    {
+      id: "1",
+      userId: "user-1",
+      type: BonusType.WELCOME,
+      amount: 100,
+      status: "active",
+      expiryDate: "2023-08-15T00:00:00Z",
+      createdAt: "2023-07-15T14:30:00Z",
+      wageringRequirement: 35,
+      progress: 0,
+      description: "Welcome bonus for new users - 100% match up to $100",
+      code: "WELCOME100"
+    },
+    {
+      id: "2",
+      userId: "user-1",
+      type: BonusType.FREE_SPINS,
+      amount: 50,
+      status: "active",
+      expiryDate: "2023-08-10T00:00:00Z",
+      createdAt: "2023-07-10T09:45:00Z",
+      wageringRequirement: 20,
+      progress: 0,
+      description: "50 free spins on Starburst",
+      code: "SPIN50"
     }
-
-    setClaimingBonusId(bonusId);
-    try {
-      await mockBonusService.claimBonus(bonusId, user.id);
-      toast.success('Bonus claimed successfully!');
-    } catch (error) {
-      toast.error('Failed to claim bonus');
-    } finally {
-      setClaimingBonusId(null);
+  ]);
+  
+  const [activeBonuses, setActiveBonuses] = useState<Bonus[]>([
+    {
+      id: "3",
+      userId: "user-1",
+      type: BonusType.DEPOSIT,
+      amount: 75,
+      status: "active",
+      expiryDate: "2023-08-05T00:00:00Z",
+      createdAt: "2023-07-05T16:15:00Z",
+      wageringRequirement: 30,
+      progress: 45,
+      description: "Weekly reload bonus - 50% match up to $75",
+      code: "RELOAD50"
+    }
+  ]);
+  
+  const [usedBonuses, setUsedBonuses] = useState<Bonus[]>([
+    {
+      id: "4",
+      userId: "user-1",
+      type: BonusType.CASHBACK,
+      amount: 25,
+      status: "used",
+      expiryDate: "2023-06-30T00:00:00Z",
+      createdAt: "2023-06-20T11:30:00Z",
+      wageringRequirement: 10,
+      progress: 100,
+      description: "10% cashback on losses",
+      code: "CASH10"
+    },
+    {
+      id: "5",
+      userId: "user-1",
+      type: BonusType.FREE_SPINS,
+      amount: 20,
+      status: "expired",
+      expiryDate: "2023-06-25T00:00:00Z",
+      createdAt: "2023-06-15T14:30:00Z",
+      wageringRequirement: 15,
+      progress: 60,
+      description: "20 free spins on Book of Dead",
+      code: "BOOK20"
+    }
+  ]);
+  
+  const handleClaimBonus = (bonusId: string) => {
+    // Find the bonus to claim
+    const bonusToMove = availableBonuses.find(b => b.id === bonusId);
+    
+    if (bonusToMove) {
+      // Add to active bonuses
+      setActiveBonuses(prev => [...prev, bonusToMove]);
+      
+      // Remove from available bonuses
+      setAvailableBonuses(prev => prev.filter(b => b.id !== bonusId));
     }
   };
+  
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('en-US', { 
+      month: 'short',
+      day: 'numeric', 
+      year: 'numeric' 
+    }).format(date);
+  };
 
-  const getBonusIcon = (type: BonusType) => {
+  const getBonusTypeColor = (type: BonusType): string => {
     switch (type) {
-      case BonusType.DEPOSIT_MATCH:
-        return <Gift className="h-6 w-6" />;
-      case BonusType.FREE_SPINS:
-        return <Star className="h-6 w-6" />;
+      case BonusType.WELCOME:
+        return "bg-green-500";
+      case BonusType.DEPOSIT:
+        return "bg-blue-500";
+      case BonusType.RELOAD:
+        return "bg-purple-500";
       case BonusType.CASHBACK:
-        return <Trophy className="h-6 w-6" />;
+        return "bg-amber-500";
+      case BonusType.FREE_SPINS:
+        return "bg-pink-500";
+      case BonusType.VIP:
+        return "bg-indigo-500";
+      case BonusType.REFERRAL:
+        return "bg-teal-500";
       default:
-        return <Gift className="h-6 w-6" />;
+        return "bg-gray-500";
     }
   };
 
-  const getStatusColor = (status: BonusStatus) => {
-    switch (status) {
-      case BonusStatus.ACTIVE:
-        return 'default';
-      case BonusStatus.EXPIRED:
-        return 'destructive';
-      case BonusStatus.CLAIMED:
-        return 'secondary';
+  const getBonusName = (type: BonusType): string => {
+    switch (type) {
+      case BonusType.WELCOME:
+        return "Welcome Bonus";
+      case BonusType.DEPOSIT:
+        return "Deposit Bonus";
+      case BonusType.RELOAD:
+        return "Reload Bonus";
+      case BonusType.CASHBACK:
+        return "Cashback";
+      case BonusType.FREE_SPINS:
+        return "Free Spins";
+      case BonusType.VIP:
+        return "VIP Bonus";
+      case BonusType.REFERRAL:
+        return "Referral Bonus";
       default:
-        return 'outline';
+        return "Bonus";
     }
   };
 
   return (
     <div className="container mx-auto py-8 px-4">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">Bonus Hub</h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Discover exciting bonuses and promotions designed to enhance your gaming experience
-        </p>
-      </div>
-
-      <Tabs defaultValue="bonuses" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="bonuses">Available Bonuses</TabsTrigger>
-          <TabsTrigger value="active">My Active Bonuses</TabsTrigger>
-          <TabsTrigger value="promotions">Special Promotions</TabsTrigger>
+      <h1 className="text-3xl font-bold mb-2">Bonus Hub</h1>
+      <p className="text-muted-foreground mb-6">Manage your casino bonuses and promotions</p>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="available">Available</TabsTrigger>
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="used">Used/Expired</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="bonuses" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Available Bonuses</CardTitle>
-              <CardDescription>Claim these bonuses to boost your gameplay</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingBonuses ? (
-                <div className="text-center py-8">Loading bonuses...</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {availableBonuses?.map((bonus) => (
-                    <Card key={bonus.id} className="relative overflow-hidden">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            {getBonusIcon(bonus.type)}
-                            <CardTitle className="text-lg">{bonus.name}</CardTitle>
-                          </div>
-                          <Badge variant={getStatusColor(bonus.status)}>
-                            {bonus.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <p className="text-2xl font-bold text-primary">
-                            ${bonus.amount}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{bonus.terms}</p>
-                        </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>Wagering:</span>
-                            <span>{bonus.wagering_requirement}x</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Expires:</span>
-                            <span>{new Date(bonus.expires_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <Button 
-                          className="w-full" 
-                          onClick={() => handleClaimBonus(bonus.id)}
-                          disabled={!isAuthenticated || claimingBonusId === bonus.id}
-                        >
-                          {claimingBonusId === bonus.id ? 'Claiming...' : 'Claim Bonus'}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="active" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>My Active Bonuses</CardTitle>
-              <CardDescription>Track your current bonus progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!isAuthenticated ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">Please log in to view your active bonuses</p>
-                  <Button>Log In</Button>
-                </div>
-              ) : loadingUserBonuses ? (
-                <div className="text-center py-8">Loading your bonuses...</div>
-              ) : (
-                <div className="space-y-4">
-                  {userBonuses?.map((userBonus) => (
-                    <Card key={userBonus.id}>
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <Gift className="h-6 w-6 text-primary" />
-                            <div>
-                              <h3 className="font-semibold">{userBonus.bonus_details?.name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {userBonus.bonus_details?.terms}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-primary">${userBonus.amount}</p>
-                            <Badge variant={getStatusColor(userBonus.status)}>
-                              {userBonus.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span>Progress</span>
-                            <span>{userBonus.progress}%</span>
-                          </div>
-                          <Progress value={userBonus.progress} className="h-2" />
-                          <div className="flex justify-between text-xs text-muted-foreground">
-                            <span>Wagering: {userBonus.bonus_details?.wagering_requirement || 0}x</span>
-                            <span>Expires: {new Date(userBonus.expires_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {(!userBonuses || userBonuses.length === 0) && (
-                    <div className="text-center py-8">
-                      <Gift className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No active bonuses</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="promotions" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loadingPromotions ? (
-              <div className="col-span-full text-center py-8">Loading promotions...</div>
-            ) : (
-              promotions?.map((promotion) => (
-                <Card key={promotion.id} className="overflow-hidden">
+        
+        <TabsContent value="available">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {availableBonuses.length > 0 ? (
+              availableBonuses.map((bonus) => (
+                <Card key={bonus.id} className="overflow-hidden">
+                  <div className={`h-2 ${getBonusTypeColor(bonus.type)}`}></div>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{promotion.title}</CardTitle>
-                      <Badge variant="default">
-                        {promotion.type.replace('_', ' ')}
-                      </Badge>
-                    </div>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{getBonusName(bonus.type)}</span>
+                      <span className="text-lg">${bonus.amount}</span>
+                    </CardTitle>
+                    <CardDescription>{bonus.description}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-muted-foreground">{promotion.description}</p>
-                    <div className="space-y-2 text-sm">
-                      {promotion.code && (
-                        <div className="flex justify-between">
-                          <span>Code:</span>
-                          <Badge variant="outline">{promotion.code}</Badge>
-                        </div>
-                      )}
-                      {promotion.bonus_percentage && (
-                        <div className="flex justify-between">
-                          <span>Bonus:</span>
-                          <span>{promotion.bonus_percentage}%</span>
-                        </div>
-                      )}
-                      {promotion.free_spins_count && (
-                        <div className="flex justify-between">
-                          <span>Free Spins:</span>
-                          <span>{promotion.free_spins_count}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span>Valid Until:</span>
-                        <span>{new Date(promotion.valid_until).toLocaleDateString()}</span>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Wagering:</span>
+                        <span>{bonus.wageringRequirement}x</span>
                       </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Expires:</span>
+                        <span>{formatDate(bonus.expiryDate)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Code:</span>
+                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{bonus.code}</span>
+                      </div>
+                      
+                      <Button 
+                        className="w-full mt-4" 
+                        onClick={() => handleClaimBonus(bonus.id)}
+                      >
+                        Claim Bonus
+                      </Button>
                     </div>
-                    <Button className="w-full">
-                      {promotion.cta_text || 'Learn More'}
-                    </Button>
                   </CardContent>
                 </Card>
               ))
+            ) : (
+              <div className="col-span-full p-8 text-center">
+                <p className="text-muted-foreground">No available bonuses at the moment.</p>
+                <p className="text-sm mt-2">Check back later for new promotions!</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="active">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeBonuses.length > 0 ? (
+              activeBonuses.map((bonus) => (
+                <Card key={bonus.id} className="overflow-hidden">
+                  <div className={`h-2 ${getBonusTypeColor(bonus.type)}`}></div>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{getBonusName(bonus.type)}</span>
+                      <span className="text-lg">${bonus.amount}</span>
+                    </CardTitle>
+                    <CardDescription>{bonus.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progress:</span>
+                          <span>{bonus.progress}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full">
+                          <div 
+                            className="h-full bg-primary rounded-full" 
+                            style={{ width: `${bonus.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Wagering:</span>
+                        <span>{bonus.wageringRequirement}x</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Expires:</span>
+                        <span>{formatDate(bonus.expiryDate)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full p-8 text-center">
+                <p className="text-muted-foreground">No active bonuses.</p>
+                <p className="text-sm mt-2">Claim a bonus from the Available tab!</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="used">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {usedBonuses.length > 0 ? (
+              usedBonuses.map((bonus) => (
+                <Card key={bonus.id} className="overflow-hidden opacity-75">
+                  <div className={`h-2 ${getBonusTypeColor(bonus.type)}`}></div>
+                  <CardHeader>
+                    <div className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-muted">
+                      {bonus.status === "used" ? "Completed" : "Expired"}
+                    </div>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>{getBonusName(bonus.type)}</span>
+                      <span className="text-lg">${bonus.amount}</span>
+                    </CardTitle>
+                    <CardDescription>{bonus.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Progress:</span>
+                          <span>{bonus.progress}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full">
+                          <div 
+                            className={`h-full rounded-full ${
+                              bonus.status === "used" ? "bg-green-500" : "bg-red-500"
+                            }`} 
+                            style={{ width: `${bonus.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Used on:</span>
+                        <span>{formatDate(bonus.expiryDate)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-full p-8 text-center">
+                <p className="text-muted-foreground">No used or expired bonuses.</p>
+              </div>
             )}
           </div>
         </TabsContent>

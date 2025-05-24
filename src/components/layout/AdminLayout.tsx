@@ -1,44 +1,32 @@
 
-import React from 'react';
-import { Outlet, Navigate, useLocation } from 'react-router-dom';
-import AdminSidebar from './AdminSidebar'; // Assuming AdminSidebar is correctly implemented
-import AdminHeader from '../admin/AdminHeader';
-import { useAuth } from '@/contexts/AuthContext';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { ReactNode, useState } from "react";
+import { Outlet, Navigate } from "react-router-dom";
+import AdminSidebar from "./AdminSidebar";
+import { useAuth } from "@/contexts/AuthContext";
 
-const AdminLayout = () => {
-  const { isAuthenticated, user, isLoading, isAdmin } = useAuth(); // Use isLoading and isAdmin
-  const location = useLocation();
+interface AdminLayoutProps {
+  children?: ReactNode;
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
+}
 
-  // isAdmin check is now directly from useAuth
-  // const isAdminUser = user?.role === 'admin' || user?.app_metadata?.role === 'admin';
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
+const AdminLayout = ({ children, collapsed, setCollapsed }: AdminLayoutProps) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  
+  // Redirect to admin login if not authenticated or not an admin
+  if (!isAuthenticated || !isAdmin) {
+    return <Navigate to="/admin/login" replace />;
   }
-
-  if (!isAuthenticated) {
-    toast.error("Authentication required. Redirecting to login.");
-    return <Navigate to="/admin/login" state={{ from: location }} replace />;
-  }
-
-  if (!isAdmin) { // Use isAdmin from context
-    toast.error("Access Denied: You do not have administrative privileges.");
-    return <Navigate to="/" replace />; // Redirect to home or a general access denied page
-  }
-
+  
   return (
-    <div className="flex h-screen bg-muted/40">
-      <AdminSidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <AdminHeader />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-          <Outlet />
+    <div className={`flex min-h-screen bg-slate-900 ${collapsed ? 'pl-16' : 'pl-64'}`}>
+      <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} />
+      <div className="flex-1 w-full">
+        <div className="p-4 bg-slate-800 border-b border-gray-800">
+          <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
+        </div>
+        <main className="p-6 bg-slate-900">
+          {children || <Outlet />}
         </main>
       </div>
     </div>

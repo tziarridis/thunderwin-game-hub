@@ -1,57 +1,31 @@
 
-export enum TransactionType {
-  DEPOSIT = 'deposit',
-  WITHDRAWAL = 'withdrawal',
-  BET = 'bet',
-  WIN = 'win',
-  BONUS = 'bonus',
-  REFUND = 'refund'
-}
-
-export enum TransactionStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled'
-}
-
 export interface Transaction {
   id: string;
-  user_id: string;
-  type: TransactionType;
+  userId: string;
   amount: number;
   currency: string;
-  status: TransactionStatus;
-  description?: string;
-  reference?: string;
+  type: 'deposit' | 'withdraw' | 'bet' | 'win' | 'bonus';
+  status: 'pending' | 'completed' | 'failed';
+  date: string;
   provider?: string;
-  method?: string;
-  created_at: string;
-  updated_at: string;
-  
-  // Additional properties used by components
-  balance_before?: number;
-  balance_after?: number;
-  metadata?: Record<string, any>;
-  external_id?: string;
-  fee?: number;
-  processed_at?: string;
+  gameId?: string;
+  roundId?: string;
+  description?: string;
+  paymentMethod?: string;
+  bonusId?: string;
+  referenceId?: string;
 }
 
-export interface TransactionFilters {
-  type?: TransactionType;
-  status?: TransactionStatus;
-  dateFrom?: string;
-  dateTo?: string;
-  minAmount?: number;
-  maxAmount?: number;
+// Interface for transaction filters
+export interface TransactionFilter {
+  player_id?: string;
+  type?: string;
+  status?: string;
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: number;
 }
 
-export interface TransactionSummary {
-  totalDeposits: number;
-  totalWithdrawals: number;
-  totalBets: number;
-  totalWins: number;
-  netAmount: number;
-  transactionCount: number;
-}
+// Use export type for re-export to fix TS1205 error
+export type { TransactionFilter as TransactionFilterType };

@@ -1,57 +1,32 @@
 
-import React, { ReactNode, Suspense, useState, useEffect } from 'react';
-import AppHeader from './AppHeader';
-import Footer from './Footer';
-import ErrorBoundary from '../ErrorBoundary';
-import { Loader2 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import AppHeader from "./AppHeader";
+import Footer from "./Footer";
 
-interface AppLayoutProps {
-  children: ReactNode;
-}
-
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-[200px]">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-  </div>
-);
-
-const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
+const AppLayout = () => {
   const location = useLocation();
-  const [resetKey, setResetKey] = useState(0);
 
-  // Reset error boundary when route changes
+  // Effect to scroll to top when location changes
   useEffect(() => {
-    setResetKey(prev => prev + 1);
+    window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  // Log when AppLayout mounts and unmounts
-  useEffect(() => {
-    console.log('AppLayout mounted');
-    return () => console.log('AppLayout unmounted');
-  }, []);
-
-  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
-    console.error('AppLayout caught error:', error, errorInfo);
-  };
-
   return (
-    <ErrorBoundary onError={handleError} resetKey={resetKey}>
-      <div className="min-h-screen bg-background flex flex-col">
-        <AppHeader />
-        <main className="flex-1 pt-16">
-          <ErrorBoundary 
-            onError={(error, info) => console.error('Content error:', error, info)}
-            resetKey={location.pathname}
-          >
-            <Suspense fallback={<LoadingFallback />}>
-              {children}
-            </Suspense>
-          </ErrorBoundary>
-        </main>
-        <Footer />
-      </div>
-    </ErrorBoundary>
+    <div className="flex flex-col min-h-screen bg-casino-thunder-darker text-white relative">
+      {/* Background pattern overlay */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5 pointer-events-none"></div>
+      
+      {/* Glow effects */}
+      <div className="fixed -top-40 -left-40 w-80 h-80 bg-casino-thunder-green/20 rounded-full filter blur-[100px] opacity-30"></div>
+      <div className="fixed top-1/2 -right-40 w-80 h-80 bg-purple-500/20 rounded-full filter blur-[100px] opacity-20"></div>
+      
+      <AppHeader />
+      <main className="flex-1 relative z-10 pt-16">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
   );
 };
 

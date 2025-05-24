@@ -1,91 +1,242 @@
 
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserCheck, UserX, Link2, DollarSign } from 'lucide-react';
-import { AffiliateStatSummary } from '@/types/affiliate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Affiliate } from "@/types";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line } from 'recharts';
+import { DollarSign, Users, TrendingUp, Activity } from "lucide-react";
 
-const fetchAffiliateStats = async (): Promise<AffiliateStatSummary> => {
-  // Fetch total affiliates (users with an inviter_code)
-  const { count: totalAffiliates, error: totalError } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .not('inviter_code', 'is', null);
+interface AffiliateStatsProps {
+  affiliates: Affiliate[];
+}
 
-  // Fetch active affiliates (status 'active' and have an inviter_code)
-  const { count: activeAffiliates, error: activeError } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .not('inviter_code', 'is', null)
-    .eq('status', 'active');
-
-  // Fetch pending affiliates (status 'pending' and have an inviter_code)
-  const { count: pendingAffiliates, error: pendingError } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .not('inviter_code', 'is', null)
-    .eq('status', 'pending');
-
-  if (totalError || activeError || pendingError) {
-    console.error('Error fetching affiliate counts:', totalError || activeError || pendingError);
-  }
-
-  return {
-    totalAffiliates: totalAffiliates ?? 0,
-    activeAffiliates: activeAffiliates ?? 0,
-    pendingAffiliates: pendingAffiliates ?? 0,
-    totalReferrals: 0,
-    totalCommissionPaid: 0,
-    activeReferrals: 0,
-    pendingCommission: 0,
-    totalEarned: 0,
-    conversionRate: 0,
-  };
-};
-
-const AffiliateStats: React.FC = () => {
-  const { data: stats, isLoading, error } = useQuery<AffiliateStatSummary, Error>({
-    queryKey: ['affiliateStatsSummary'],
-    queryFn: fetchAffiliateStats,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[120px] w-full" />)}
-      </div>
-    );
-  }
-
-  if (error || !stats) {
-    return <p className="text-red-500">Error loading affiliate statistics: {error?.message || 'Unknown error'}</p>;
-  }
+const AffiliateStats = ({ affiliates }: AffiliateStatsProps) => {
+  const [totalSignups, setTotalSignups] = useState(0);
+  const [totalCommission, setTotalCommission] = useState(0);
+  const [conversionRate, setConversionRate] = useState(0);
+  const [performance, setPerformance] = useState<any[]>([]);
   
-  const statItems = [
-    { title: 'Total Affiliates', value: stats.totalAffiliates, icon: <Users className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Active Affiliates', value: stats.activeAffiliates, icon: <UserCheck className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Pending Approvals', value: stats.pendingAffiliates, icon: <UserX className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Total Referrals', value: stats.totalReferrals, icon: <Link2 className="h-5 w-5 text-muted-foreground" /> },
-    { title: 'Total Commission Paid', value: `${stats.totalCommissionPaid.toFixed(2)}`, icon: <DollarSign className="h-5 w-5 text-muted-foreground" />, isCurrency: true },
+  useEffect(() => {
+    if (affiliates.length > 0) {
+      // Calculate total signups
+      const signups = affiliates.reduce((sum, affiliate) => sum + (affiliate.signups || 0), 0);
+      setTotalSignups(signups);
+      
+      // Calculate total commission
+      const commission = affiliates.reduce((sum, affiliate) => sum + (affiliate.totalCommissions || 0), 0);
+      setTotalCommission(commission);
+      
+      // Calculate conversion rate
+      const visits = 1000; // Mock data for total visits
+      setConversionRate(signups > 0 ? Math.round((signups / visits) * 100) : 0);
+      
+      // Create performance data
+      const topPerformers = affiliates
+        .sort((a, b) => (b.totalCommissions || 0) - (a.totalCommissions || 0))
+        .slice(0, 5)
+        .map(affiliate => ({
+          name: affiliate.name,
+          commission: affiliate.totalCommissions || 0,
+          signups: affiliate.signups || 0
+        }));
+        
+      setPerformance(topPerformers);
+    }
+  }, [affiliates]);
+  
+  // Create trend data (mock for now)
+  const trendData = [
+    { name: 'Jan', signups: 10, commission: 800 },
+    { name: 'Feb', signups: 15, commission: 1200 },
+    { name: 'Mar', signups: 25, commission: 2000 },
+    { name: 'Apr', signups: 30, commission: 2400 },
+    { name: 'May', signups: 40, commission: 3200 },
+    { name: 'Jun', signups: 50, commission: 4000 },
   ];
-
+  
+  const pieData = [
+    { name: 'Facebook', value: 35 },
+    { name: 'Google', value: 25 },
+    { name: 'Direct', value: 20 },
+    { name: 'Bloggers', value: 15 },
+    { name: 'Other', value: 5 },
+  ];
+  
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  
+  const formatCurrency = (value: number) => {
+    return `$${value.toLocaleString()}`;
+  };
+  
+  // Helper to safely check if value is number
+  const isNumber = (value: any): value is number => {
+    return typeof value === 'number';
+  };
+  
+  // Helper to get growth percentage
+  const getGrowthPercentage = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+  
+  // Get growth for signups - mocked previous value for demonstration
+  const signupsGrowth = getGrowthPercentage(totalSignups, 45);
+  
+  // Get growth for commission - mocked previous value for demonstration
+  const commissionGrowth = getGrowthPercentage(totalCommission, 3200);
+  
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 mb-6">
-      {statItems.map((item, index) => (
-        <Card key={index}>
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{item.title}</CardTitle>
-            {item.icon}
+            <CardTitle className="text-sm font-medium">Total Affiliates</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {item.isCurrency ? `$${item.value}` : item.value}
+            <div className="text-2xl font-bold">{affiliates.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(signupsGrowth) ? (
+                <>
+                  <span className={signupsGrowth > 0 ? "text-green-500" : signupsGrowth < 0 ? "text-red-500" : ""}>
+                    {signupsGrowth > 0 ? `+${signupsGrowth}%` : `${signupsGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Signups</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalSignups}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(signupsGrowth) ? (
+                <>
+                  <span className={signupsGrowth > 0 ? "text-green-500" : signupsGrowth < 0 ? "text-red-500" : ""}>
+                    {signupsGrowth > 0 ? `+${signupsGrowth}%` : `${signupsGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalCommission)}</div>
+            <p className="text-xs text-muted-foreground">
+              {isNumber(commissionGrowth) ? (
+                <>
+                  <span className={commissionGrowth > 0 ? "text-green-500" : commissionGrowth < 0 ? "text-red-500" : ""}>
+                    {commissionGrowth > 0 ? `+${commissionGrowth}%` : `${commissionGrowth}%`}
+                  </span>
+                  {" from last month"}
+                </>
+              ) : "No growth data"}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{conversionRate}%</div>
+            <p className="text-xs text-muted-foreground">
+              From total site visitors
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Trends and Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Commission Trend */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Commission Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${value}`, 'Commission']} />
+                  <Line type="monotone" dataKey="commission" stroke="#0ea5e9" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
-      ))}
+        
+        {/* Traffic Sources */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Traffic Sources</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Top Affiliates Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top Affiliates Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={performance}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis yAxisId="left" orientation="left" stroke="#0ea5e9" />
+                <YAxis yAxisId="right" orientation="right" stroke="#22c55e" />
+                <Tooltip formatter={(value, name) => [name === 'commission' ? formatCurrency(Number(value)) : value, name === 'commission' ? 'Commission' : 'Signups']} />
+                <Bar yAxisId="left" dataKey="commission" fill="#0ea5e9" name="Commission" />
+                <Bar yAxisId="right" dataKey="signups" fill="#22c55e" name="Signups" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -1,177 +1,279 @@
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Promotion, PromotionType } from '@/types';
-import PromotionCard from '@/components/promotions/PromotionCard';
-import AppLayout from '@/components/layout/AppLayout';
-import { Loader2, Info } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { useState, useEffect } from "react";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
+import PromotionCard from "@/components/promotions/PromotionCard";
+import { Button } from "@/components/ui/button";
+import { Gift, Calendar, Info, Filter, ChevronRight, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Promotion } from "@/types";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
-// Mock services
-const mockPromotionService = {
-  getAvailablePromotions: async (): Promise<Promotion[]> => {
-    await new Promise(res => setTimeout(res, 500));
-    return [
-      { 
-        id: 'promo1', 
-        title: 'Grand Welcome Offer', 
-        description: 'Get a massive bonus on your first deposit to kickstart your adventure.', 
-        type: 'deposit_bonus' as PromotionType, 
-        status: 'active' as const,
-        valid_from: new Date(Date.now() - 86400000*2).toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), 
-        cta_text: 'Claim Bonus', 
-        image_url: '/placeholder.svg', 
-        code: 'GRAND150', 
-        min_deposit: 20, 
-        bonus_percentage: 150, 
-        max_bonus_amount: 300, 
-        wagering_requirement: 35 
-      },
-      { 
-        id: 'promo2', 
-        title: 'Weekly Free Spins Fiesta', 
-        description: 'Enjoy 75 free spins every Monday on our featured slot game!', 
-        type: 'free_spins' as PromotionType, 
-        status: 'active' as const,
-        valid_from: new Date(Date.now() - 86400000*1).toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 5).toISOString(), 
-        cta_text: 'Get Your Spins', 
-        image_url: '/placeholder.svg', 
-        free_spins_count: 75, 
-        wagering_requirement: 25, 
-        terms_and_conditions_url: '#' 
-      },
-      { 
-        id: 'promo3', 
-        title: 'Weekend Cashback', 
-        description: 'Get 10% cashback on your net losses over the weekend.', 
-        type: 'cashback_offer' as PromotionType, 
-        status: 'active' as const,
-        valid_from: new Date(Date.now() - 86400000*0).toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 2).toISOString(), 
-        cta_text: 'Opt-In', 
-        value: 10, 
-        terms_and_conditions_url: '#' 
-      },
-      { 
-        id: 'promo4', 
-        title: 'Upcoming Tournament', 
-        description: 'Join our upcoming slots tournament with a huge prize pool!', 
-        type: 'tournament' as PromotionType, 
-        status: 'active' as const,
-        valid_from: new Date(Date.now() + 86400000 * 3).toISOString(), 
-        valid_until: new Date(Date.now() + 86400000 * 10).toISOString(), 
-        cta_text: 'Learn More', 
-        image_url: '/placeholder.svg', 
-        terms_and_conditions_url: '#' 
-      },
-    ];
-  }
-};
+const Promotions = () => {
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentTab, setCurrentTab] = useState("all");
+  const [showDetails, setShowDetails] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
-const mockBonusService = {
-  claimBonus: async (userId: string, bonusCodeOrId: string): Promise<any> => {
-    await new Promise(res => setTimeout(res, 1000));
-    if (bonusCodeOrId === 'EXPIRED') throw new Error("This promotion is expired or invalid.");
-    return { id: 'claimed_promo_bonus', bonus_id: bonusCodeOrId, user_id: userId, status: 'active' };
-  }
-};
+  // Load promotions from localStorage on component mount
+  useEffect(() => {
+    const storedPromotions = localStorage.getItem('promotions');
+    if (storedPromotions) {
+      const parsedPromotions = JSON.parse(storedPromotions);
+      // Only show active promotions
+      const activePromotions = parsedPromotions.filter((promo: Promotion) => promo.isActive);
+      setPromotions(activePromotions);
+    }
+    setIsLoading(false);
+  }, []);
 
-const promotionService = mockPromotionService;
-const bonusService = mockBonusService;
+  const filteredPromotions = currentTab === "all" 
+    ? promotions 
+    : promotions.filter(promo => promo.category === currentTab);
 
-const PromotionsPage: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
-  const [claimingPromoId, setClaimingPromoId] = useState<string | null>(null);
-
-  const { data: promotions, isLoading, error } = useQuery<Promotion[], Error>({
-    queryKey: ['allPromotions'],
-    queryFn: promotionService.getAvailablePromotions,
-  });
-
-  const handleClaimPromotion = async (promotion: Promotion) => {
-    if (!isAuthenticated || !user) {
-      toast.error("Please log in to claim promotions.");
+  const handleClaimPromotion = (promoId: string) => {
+    if (!isAuthenticated) {
+      navigate('/register');
       return;
     }
-    if (promotion.id === claimingPromoId) return;
-
-    setClaimingPromoId(promotion.id);
-    try {
-      const claimIdentifier = promotion.code || promotion.id;
-      await bonusService.claimBonus(user.id, claimIdentifier);
-      toast.success(`Successfully claimed "${promotion.title}"!`);
-    } catch (err: any) {
-      toast.error(err.message || `Failed to claim "${promotion.title}".`);
-    } finally {
-      setClaimingPromoId(null);
+    
+    const promotion = promotions.find(p => p.id === promoId);
+    if (promotion) {
+      toast.success(`Claimed: ${promotion.title}`);
     }
   };
-  
-  const handleShowDetails = (promotion: Promotion) => {
-    toast.info(`Displaying details for: ${promotion.title} (UI not implemented)`);
+
+  const handleViewDetails = (promoId: string) => {
+    setShowDetails(showDetails === promoId ? null : promoId);
   };
 
-  if (isLoading) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto py-12 px-4 text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-lg text-muted-foreground">Loading promotions...</p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
 
-  if (error) {
-    return (
-      <AppLayout>
-        <div className="container mx-auto py-12 px-4 text-center">
-          <Info className="h-12 w-12 text-red-500 mx-auto" />
-          <p className="mt-4 text-lg text-red-400">Could not load promotions: {error.message}</p>
-        </div>
-      </AppLayout>
-    );
-  }
-  
-  if (!promotions || promotions.length === 0) {
-     return (
-      <AppLayout>
-        <div className="container mx-auto py-12 px-4 text-center">
-          <Info className="h-12 w-12 text-muted-foreground mx-auto" />
-          <p className="mt-4 text-lg text-muted-foreground">No promotions available at the moment. Please check back later!</p>
-        </div>
-      </AppLayout>
-    );
-  }
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1,
+      transition: {
+        duration: 0.5
+      }
+    }
+  };
 
   return (
-    <AppLayout>
-      <div className="bg-gradient-to-b from-casino-thunder-dark to-casino-thunder-darker py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold text-center text-white mb-4">
-            Our Exclusive Promotions
-          </h1>
-          <p className="text-lg md:text-xl text-center text-casino-gold mb-10 max-w-3xl mx-auto">
-            Boost your gameplay with our exciting range of bonuses and special offers. Find the perfect promotion for you!
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
-            {promotions.map((promo) => (
-              <PromotionCard 
-                key={promo.id} 
-                promotion={promo} 
-                onClaim={isAuthenticated && user ? () => handleClaimPromotion(promo) : undefined}
-                onDetails={handleShowDetails} 
-              />
-            ))}
+    <div className="bg-gradient-to-b from-casino-thunder-darker to-black min-h-screen pt-12 pb-20">
+      <div className="container mx-auto px-4">
+        {/* Hero Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center max-w-4xl mx-auto mb-12"
+        >
+          <div className="relative inline-block mb-8">
+            <Gift className="text-casino-thunder-green w-12 h-12 mb-2 mx-auto animate-pulse-glow" />
+            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
+              <span className="text-casino-thunder-green thunder-glow">Promotions</span> & Bonuses
+            </h1>
+            <div className="absolute -z-10 w-64 h-64 bg-casino-thunder-green/10 rounded-full blur-3xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
           </div>
-        </div>
+          <p className="text-white/80 text-xl mb-8 max-w-2xl mx-auto leading-relaxed">
+            Explore our exciting promotions and boost your gameplay with exclusive bonuses and rewards.
+          </p>
+          
+          {!isAuthenticated && (
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="mb-8"
+            >
+              <Button 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black text-lg py-6 px-8 rounded-xl shadow-lg shadow-casino-thunder-green/20"
+                onClick={() => navigate('/register')}
+              >
+                <UserPlus className="mr-2 h-5 w-5" />
+                Join Now to Claim Bonuses
+              </Button>
+            </motion.div>
+          )}
+        </motion.div>
+        
+        <Tabs value={currentTab} onValueChange={setCurrentTab} className="mb-8 enhanced-tabs">
+          <div className="flex justify-center mb-8">
+            <TabsList className="w-full max-w-4xl glass-card">
+              <TabsTrigger value="all" className="px-4 flex-1">All Promotions</TabsTrigger>
+              <TabsTrigger value="deposit" className="px-4 flex-1">Deposit Bonuses</TabsTrigger>
+              <TabsTrigger value="cashback" className="px-4 flex-1">Cashback</TabsTrigger>
+              <TabsTrigger value="tournament" className="px-4 flex-1">Tournaments</TabsTrigger>
+              <TabsTrigger value="recurring" className="px-4 flex-1">Recurring</TabsTrigger>
+              <TabsTrigger value="special" className="px-4 flex-1">Special</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value={currentTab} className="mt-0">
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="w-12 h-12 border-4 border-casino-thunder-green/30 border-t-casino-thunder-green rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-white/70">Loading promotions...</p>
+              </div>
+            ) : (
+              <motion.div 
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              >
+                {filteredPromotions.map(promotion => (
+                  <motion.div 
+                    key={promotion.id} 
+                    className="flex flex-col h-full"
+                    variants={itemVariants}
+                  >
+                    <PromotionCard 
+                      title={promotion.title}
+                      description={promotion.description}
+                      image={promotion.image}
+                      endDate={promotion.endDate}
+                      onClick={() => handleClaimPromotion(promotion.id)}
+                      className="h-full hover-scale"
+                    />
+                    
+                    {showDetails === promotion.id && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-4 p-4 glass-card"
+                      >
+                        <h4 className="font-semibold text-white mb-2 flex items-center">
+                          <Info className="h-4 w-4 mr-2 text-casino-thunder-green" />
+                          Promotion Details
+                        </h4>
+                        <div className="text-white/70 text-sm space-y-2">
+                          <p>• Available for all players</p>
+                          <p>• Minimum deposit: $20</p>
+                          <p>• Wagering requirement: 35x</p>
+                          <p>• Maximum withdrawal: $2,000</p>
+                        </div>
+                        <div className="flex justify-end mt-3">
+                          <Button size="sm" variant="outline" onClick={() => setShowDetails(null)}>
+                            Close Details
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                    
+                    <div className="mt-2 flex justify-end">
+                      <Button 
+                        variant="link" 
+                        className="text-white/70 hover:text-casino-thunder-green p-0 flex items-center group"
+                        onClick={() => handleViewDetails(promotion.id)}
+                      >
+                        {showDetails === promotion.id ? "Hide Details" : "View Details"}
+                        <ChevronRight className="h-4 w-4 ml-1 transform group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+            
+            {!isLoading && filteredPromotions.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12 glass-card"
+              >
+                <p className="text-white/70">No promotions available in this category at the moment.</p>
+              </motion.div>
+            )}
+          </TabsContent>
+        </Tabs>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.6 }}
+          className="glass-card p-8 mb-12"
+        >
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+            <Calendar className="mr-3 text-casino-thunder-green" />
+            Upcoming Promotions
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 bg-casino-thunder-gray/30 rounded-lg border border-white/5 hover-scale">
+              <h3 className="text-white font-semibold mb-2">Summer Heat Tournament</h3>
+              <p className="text-white/70 text-sm mb-3">
+                Join our biggest tournament of the summer with a massive $50,000 prize pool.
+              </p>
+              <div className="text-casino-thunder-green text-sm">Coming June 15th</div>
+            </div>
+            
+            <div className="p-4 bg-casino-thunder-gray/30 rounded-lg border border-white/5 hover-scale">
+              <h3 className="text-white font-semibold mb-2">Mystery Bonus Week</h3>
+              <p className="text-white/70 text-sm mb-3">
+                Different surprise bonuses every day for a whole week!
+              </p>
+              <div className="text-casino-thunder-green text-sm">Coming Next Month</div>
+            </div>
+          </div>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
+          className="glass-card p-8"
+        >
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+            <Filter className="mr-3 text-casino-thunder-green" />
+            Promotion Terms & Conditions
+          </h2>
+          
+          <div className="text-white/70 space-y-4">
+            <p>
+              All bonuses and promotions are subject to our general terms and conditions.
+            </p>
+            <p>
+              Wagering requirements must be completed before any withdrawals of bonus funds or related winnings can be made.
+            </p>
+            <p>
+              ThunderWin reserves the right to modify or cancel any promotion at any time.
+            </p>
+            <p>
+              Only one bonus can be active at a time.
+            </p>
+            <p>
+              Some games may contribute differently towards wagering requirements. Please check the full terms for details.
+            </p>
+            
+            <div className="pt-4">
+              <Button variant="outline" className="hover-scale">
+                <Info className="mr-2 h-4 w-4" />
+                Full Terms & Conditions
+              </Button>
+            </div>
+          </div>
+        </motion.div>
       </div>
-    </AppLayout>
+    </div>
   );
 };
 
-export default PromotionsPage;
+export default Promotions;

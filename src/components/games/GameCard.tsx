@@ -1,133 +1,215 @@
 
-import React from 'react';
-import { Game } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Heart, PlayCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext'; 
-import { Badge } from '@/components/ui/badge'; 
+import { cn } from "@/lib/utils";
+import { Play, Star, Info, Zap, Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
+import { navigateByButtonName } from "@/utils/navigationUtils";
+import { Game } from "@/types";
 
-export interface GameCardProps {
-  game: Game;
-  isFavorite: boolean;
-  onToggleFavorite: (gameId: string) => void;
+interface GameCardProps {
+  id?: string;
+  title?: string;
+  image?: string;
+  provider?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  rtp?: number;
+  minBet?: number;
+  maxBet?: number;
+  isFavorite?: boolean;
+  onFavoriteToggle?: () => void;
   className?: string;
-  onPlay?: (game: Game) => void; 
+  game?: Game;
+  onClick?: () => void;
 }
 
-const GameCard: React.FC<GameCardProps> = ({ game, isFavorite, onToggleFavorite, className, onPlay }) => {
+const GameCard = ({ 
+  id = "1",
+  title, 
+  image = "/file.svg", 
+  provider, 
+  isPopular = false,
+  isNew = false,
+  rtp,
+  minBet = 0.20,
+  maxBet = 100,
+  isFavorite = false,
+  onFavoriteToggle,
+  className,
+  game,
+  onClick,
+  ...props 
+}: GameCardProps) => {
+  // If a game object is provided, use its properties
+  const gameId = game?.id || id;
+  const gameTitle = game?.title || title || "Game Title";
+  const gameImage = game?.image || image;
+  const gameProvider = game?.provider || provider || "Provider";
+  const gameIsPopular = game?.isPopular || isPopular;
+  const gameIsNew = game?.isNew || isNew;
+  const gameRtp = game?.rtp || rtp;
+  const gameMinBet = game?.minBet || minBet;
+  const gameMaxBet = game?.maxBet || maxBet;
+  const gameIsFavorite = game?.isFavorite || isFavorite;
+  
+  const [isFav, setIsFav] = useState(gameIsFavorite);
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth(); 
-
-  const gameIdStr = String(game.id);
-
-  const handlePlay = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
-    if (onPlay) {
-      onPlay(game);
-    } else if (game.slug) { 
-      navigate(`/casino/game/${game.slug}`);
-    } else if (gameIdStr) {
-       navigate(`/casino/game/${gameIdStr}`);
+  
+  // Update internal state when the prop changes
+  useEffect(() => {
+    setIsFav(gameIsFavorite);
+  }, [gameIsFavorite]);
+  
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // If parent provided a handler, use it
+    if (onFavoriteToggle) {
+      onFavoriteToggle();
     } else {
-      console.warn("No slug or ID for game navigation:", game.title);
+      // Fallback to local state
+      setIsFav(!isFav);
+      
+      toast({
+        title: isFav ? "Removed from favorites" : "Added to favorites",
+        description: isFav 
+          ? `${gameTitle} has been removed from your favorites.` 
+          : `${gameTitle} has been added to your favorites.`,
+      });
     }
   };
   
-  const handleDetailsClick = () => {
-    if (game.slug) {
-        navigate(`/casino/game/${game.slug}`);
-    } else if (gameIdStr) {
-        navigate(`/casino/game/${gameIdStr}`);
-    } else {
-      console.warn("No slug or ID for game details navigation:", game.title);
-    }
-  };
-
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleQuickDemo = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
-    if (!gameIdStr) {
-        console.error("Cannot toggle favorite: Game ID is missing.");
-        return;
-    }
-    onToggleFavorite(gameIdStr); 
+    
+    toast({
+      title: "Demo Mode",
+      description: `${gameTitle} is launching in demo mode. No real money will be wagered.`,
+    });
+  };
+  
+  const handleButtonClick = (e: React.MouseEvent, buttonText: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigateByButtonName(buttonText, navigate);
   };
 
-  const providerDisplay = game.providerName || game.provider_slug || ''; // Use providerName or provider_slug
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (gameId) {
+      navigate(`/casino/game/${gameId}`);
+    }
+  };
 
   return (
     <div 
-      className={cn(
-        "bg-card rounded-lg overflow-hidden shadow-lg hover:shadow-primary/20 transition-all duration-300 flex flex-col group relative",
-        className
-      )}
+      className={cn("thunder-card group relative overflow-hidden transition-all duration-300 hover:transform hover:scale-105", className)}
+      onClick={handleClick}
     >
-      <div className="relative">
+      <div className="aspect-[3/4] overflow-hidden relative">
         <img 
-          src={game.image || game.cover || game.image_url || '/placeholder.svg'} 
-          alt={game.title || 'Game image'} 
-          className="w-full h-40 object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          onClick={handleDetailsClick}
-          style={{ cursor: 'pointer' }}
+          src={gameImage} 
+          alt={gameTitle}
+          onError={(e) => {
+            // Fallback to SVG if image fails to load
+            const imgElement = e.target as HTMLImageElement;
+            imgElement.src = "/file.svg";
+          }}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        {isAuthenticated && ( 
-            <Button 
-            variant="ghost" 
-            size="icon" 
-            className={cn(
-                "absolute top-2 right-2 rounded-full bg-black/40 hover:bg-black/60 text-white p-1.5 z-20", 
-                isFavorite ? "text-red-500 hover:text-red-400" : "text-white/70 hover:text-white"
-            )}
-            onClick={handleToggleFavorite}
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-            >
-            <Heart className={cn("h-5 w-5", isFavorite && "fill-current")} />
-            </Button>
-        )}
-        <div className="absolute top-2 left-2 z-20 space-y-1">
-            {game.isNew && <Badge variant="destructive" className="text-xs">New</Badge>}
-            {game.is_featured && <Badge variant="secondary" className="text-xs bg-amber-500 text-black">Featured</Badge>}
-        </div>
         
-        <div 
-            className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" 
-            onClick={handlePlay} 
-            style={{ cursor: 'pointer' }}
+        {/* Favorite button */}
+        <button 
+          className="absolute top-2 right-2 z-10 p-1.5 bg-black/50 rounded-full hover:bg-black/80 transition-colors"
+          onClick={handleFavorite}
         >
-            <PlayCircle className="h-16 w-16 text-white" />
+          <Heart className={`h-4 w-4 ${isFav ? "text-red-500 fill-red-500" : "text-white"}`} />
+        </button>
+        
+        {/* Overlay on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-end p-4">
+          <Button 
+            className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black mb-2 w-full"
+            onClick={(e) => handleButtonClick(e, "Play Now")}
+          >
+            <Play className="mr-2 h-4 w-4" />
+            Play Now
+          </Button>
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={handleQuickDemo}
+            >
+              Demo
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                navigate(`/casino/game/${gameId}`);
+              }}
+            >
+              <Info className="h-4 w-4 mr-1" />
+              Details
+            </Button>
+          </div>
+          
+          {/* Game quick info on hover */}
+          {(gameRtp || gameMinBet || gameMaxBet) && (
+            <div className="mt-3 w-full grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-white/80">
+              {gameRtp && (
+                <div className="flex justify-between">
+                  <span>RTP:</span>
+                  <span className="text-casino-thunder-green">{gameRtp}%</span>
+                </div>
+              )}
+              {gameMinBet && (
+                <div className="flex justify-between">
+                  <span>Min Bet:</span>
+                  <span>${gameMinBet}</span>
+                </div>
+              )}
+              {gameMaxBet && (
+                <div className="flex justify-between">
+                  <span>Max Bet:</span>
+                  <span>${gameMaxBet}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Tags */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {gameIsPopular && (
+            <span className="bg-yellow-500 text-black text-xs px-2 py-1 rounded-sm font-medium flex items-center">
+              <Star className="h-3 w-3 mr-1" /> Popular
+            </span>
+          )}
+          {gameIsNew && (
+            <span className="bg-casino-thunder-green text-black text-xs px-2 py-1 rounded-sm font-medium">
+              <Zap className="h-3 w-3 mr-1" /> New
+            </span>
+          )}
         </div>
       </div>
-
-      <div className="p-3 md:p-4 flex flex-col flex-grow">
-        <h3 
-            className="text-base font-semibold truncate group-hover:text-primary transition-colors leading-tight" 
-            title={game.title}
-            onClick={handleDetailsClick}
-            style={{ cursor: 'pointer' }}
-        >
-          {game.title || 'Untitled Game'}
-        </h3>
-        {providerDisplay && <p className="text-xs text-muted-foreground mb-1 truncate">{providerDisplay}</p>}
-        
-        <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-            {typeof game.rtp === 'number' && game.rtp > 0 && (
-                <p>RTP: {game.rtp}%</p>
-            )}
-            {game.volatility && (
-                <p className="capitalize">Volatility: {game.volatility}</p>
-            )}
-        </div>
-
-        <div className="mt-auto pt-3">
-          <Button 
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={handlePlay} 
-            size="sm"
-          >
-            <PlayCircle className="mr-2 h-4 w-4" /> Play
-          </Button>
+      
+      {/* Game info */}
+      <div className="p-3">
+        <h3 className="font-medium text-white truncate">{gameTitle}</h3>
+        <div className="flex justify-between items-center">
+          <p className="text-white/60 text-xs">{gameProvider}</p>
+          {gameRtp && <p className="text-white/60 text-xs">RTP: {gameRtp}%</p>}
         </div>
       </div>
     </div>

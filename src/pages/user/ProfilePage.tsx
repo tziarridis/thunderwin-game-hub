@@ -3,7 +3,7 @@ import React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import UserLayout from "@/components/layout/UserLayout";
 import Profile from "@/components/user/Profile"; 
-import MobileProfile from "./MobileProfile"; 
+import MobileProfile from "./MobileProfile";
 
 const ProfilePage = () => {
   const isMobile = useIsMobile();

@@ -1,25 +1,46 @@
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { BrowserRouter as Router } from 'react-router-dom';
-import App from './App'
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter as Router } from "react-router-dom";
+import { StrictMode } from 'react';
+import App from './App.tsx';
+import './index.css';
 import { AuthProvider } from './contexts/AuthContext';
-import { Toaster } from 'sonner';
-import { ThemeProvider } from './components/theme-provider';
-import { GamesProvider } from './hooks/useGames';
+import { Toaster } from './components/ui/toaster';
+import { supabase } from './integrations/supabase/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <Router>
-      <ThemeProvider defaultTheme="dark" storageKey="casino-theme">
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute
+    },
+  },
+});
+
+// Create a root
+const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Failed to find the root element");
+
+// Check if we have an existing session
+supabase.auth.getSession().then(({ data: { session } }) => {
+  console.log("Supabase session:", session ? "Active" : "None");
+});
+
+// Track auth state changes
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log("Auth state change:", event, session ? "Session exists" : "No session");
+});
+
+createRoot(rootElement).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <Router>
         <AuthProvider>
-          <GamesProvider>
-            <App />
-            <Toaster position="top-center" richColors />
-          </GamesProvider>
+          <App />
+          <Toaster />
         </AuthProvider>
-      </ThemeProvider>
-    </Router>
-  </React.StrictMode>
-)
+      </Router>
+    </QueryClientProvider>
+  </StrictMode>
+);

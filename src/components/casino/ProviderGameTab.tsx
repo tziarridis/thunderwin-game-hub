@@ -1,45 +1,48 @@
 
 import React from 'react';
-import { Game } from '@/types/game';
+import { TabsContent } from '@/components/ui/tabs';
 import GameCard from '@/components/games/GameCard';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
-export interface ProviderGameTabProps {
-  providerId: string;
-  value: string;
-  games: Game[];
-  onGameClick: (game: Game) => void;
-  className?: string;
+interface ProviderGameTabProps {
+  value: 'gitslotpark' | 'pragmaticplay';
+  games: any[];
+  onGameClick: (game: any) => void;
 }
 
-const ProviderGameTab: React.FC<ProviderGameTabProps> = ({
-  providerId,
-  value,
-  games,
-  onGameClick,
-  className
-}) => {
-  if (!games || games.length === 0) {
-    return (
-      <TabsContent value={value} className={cn("pt-4", className)}>
-        <div className="text-center py-8 text-muted-foreground">
-          No games available for this provider
-        </div>
-      </TabsContent>
-    );
-  }
+const ProviderGameTab = ({ value, games, onGameClick }: ProviderGameTabProps) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const handleGameClick = (game: any) => {
+    if (!isAuthenticated) {
+      toast.error("Please log in to play games");
+      navigate('/login');
+      return;
+    }
+    
+    onGameClick(game);
+  };
 
   return (
-    <TabsContent value={value} className={cn("pt-4", className)}>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+    <TabsContent value={value}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {games.map((game) => (
-          <GameCard
-            key={String(game.id)}
-            game={game}
+          <GameCard 
+            key={game.id}
+            id={game.id}
+            title={game.title}
+            image={game.image}
+            provider={game.provider}
+            isPopular={game.isPopular}
+            isNew={game.isNew}
+            rtp={game.rtp}
             isFavorite={false}
-            onToggleFavorite={() => {}}
-            onPlay={() => onGameClick(game)}
+            minBet={game.minBet}
+            maxBet={game.maxBet}
+            onClick={() => handleGameClick(game)}
           />
         ))}
       </div>

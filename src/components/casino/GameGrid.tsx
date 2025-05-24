@@ -1,17 +1,14 @@
-// This component might be a duplicate of GamesGrid or CasinoGameGrid.
-// For now, ensuring it uses updated types and GameCard props.
-// If it's still used, e.g. by Slots.tsx.
+
 import React from 'react';
 import GameCard from '@/components/games/GameCard';
 import { Game } from '@/types';
 import { Button } from "@/components/ui/button";
 import { Loader2, FilterX } from 'lucide-react';
-import { useGames } from '@/hooks/useGames'; 
 
 interface GameGridProps {
   games: Game[];
   loading?: boolean;
-  onGameClick?: (game: Game) => void; // This prop is for handling click to play/details
+  onGameClick?: (game: Game) => void;
   emptyMessage?: string;
   loadMore?: () => void;
   hasMore?: boolean;
@@ -21,15 +18,13 @@ interface GameGridProps {
 const GameGrid = ({
   games,
   loading = false,
-  onGameClick, // This is the primary click handler for the game (e.g. launch or navigate)
+  onGameClick,
   emptyMessage = "No games found",
   loadMore,
   hasMore = false,
   loadingMore = false
 }: GameGridProps) => {
-  const { favoriteGameIds, toggleFavoriteGame } = useGames();
-
-  if (loading && (!games || games.length === 0)) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
@@ -51,11 +46,18 @@ const GameGrid = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
           <GameCard 
-            key={String(game.id)} // Ensure key is string
-            game={game}
-            isFavorite={favoriteGameIds.has(String(game.id))}
-            onToggleFavorite={() => toggleFavoriteGame(String(game.id))}
-            onPlay={onGameClick ? () => onGameClick(game) : undefined} // GameCard's onPlay prop handles this
+            key={game.id}
+            id={game.id}
+            title={game.title}
+            image={game.image}
+            provider={game.provider}
+            isPopular={game.isPopular}
+            isNew={game.isNew}
+            rtp={game.rtp}
+            isFavorite={game.isFavorite}
+            minBet={game.minBet}
+            maxBet={game.maxBet}
+            onClick={() => onGameClick ? onGameClick(game) : null}
           />
         ))}
       </div>

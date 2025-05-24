@@ -1,90 +1,82 @@
 
-import React from 'react';
+import { useState, useEffect } from 'react';
 import { Game } from '@/types';
+import GameCard from '@/components/games/GameCard';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FilterX } from 'lucide-react';
 
-export interface GameGridProps {
-  games: (Game & { isFavorite?: boolean })[];
-  onGameClick: (game: Game, mode?: 'real' | 'demo') => void;
-  onToggleFavorite?: (gameId: string | number, isFavorite: boolean) => void;
+interface GamesGridProps {
+  games: Game[];
   loading?: boolean;
-  loadMoreGames?: () => void;
-  loadMore?: () => void; // Add backward compatibility
+  onGameClick?: (game: Game) => void;
+  emptyMessage?: string;
+  loadMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
-  emptyMessage?: string;
 }
 
-const GamesGrid: React.FC<GameGridProps> = ({
+const GamesGrid = ({
   games,
-  onGameClick,
-  onToggleFavorite,
   loading = false,
-  loadMoreGames,
+  onGameClick,
+  emptyMessage = "No games found",
   loadMore,
   hasMore = false,
-  loadingMore = false,
-  emptyMessage = "No games found."
-}) => {
-  if (loading && games.length === 0) {
+  loadingMore = false
+}: GamesGridProps) => {
+  if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-casino-thunder-green" />
       </div>
     );
   }
-
-  if (games.length === 0) {
+  
+  if (!loading && games.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground text-lg">{emptyMessage}</p>
+      <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+        <FilterX className="h-12 w-12 text-white/20 mb-4" />
+        <p className="text-white/60">{emptyMessage}</p>
       </div>
     );
   }
-
-  const handleLoadMore = loadMoreGames || loadMore;
-
+  
   return (
-    <div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {games.map((game) => (
-          <div
+          <GameCard 
             key={game.id}
-            className="bg-card rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => onGameClick(game)}
-          >
-            <div className="aspect-[3/4] bg-muted">
-              <img
-                src={game.image || '/placeholder.svg'}
-                alt={game.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-2">
-              <h3 className="font-medium text-sm truncate">{game.title}</h3>
-              <p className="text-xs text-muted-foreground truncate">
-                {game.provider || 'Unknown Provider'}
-              </p>
-            </div>
-          </div>
+            id={game.id}
+            title={game.title}
+            image={game.image}
+            provider={game.provider}
+            isPopular={game.isPopular}
+            isNew={game.isNew}
+            rtp={game.rtp}
+            isFavorite={game.isFavorite}
+            minBet={game.minBet}
+            maxBet={game.maxBet}
+            onClick={() => onGameClick ? onGameClick(game) : null}
+          />
         ))}
       </div>
       
-      {hasMore && handleLoadMore && (
-        <div className="text-center mt-8">
-          <Button
-            onClick={handleLoadMore}
+      {loadMore && hasMore && (
+        <div className="flex justify-center pt-4 pb-8">
+          <Button 
+            variant="outline" 
+            onClick={loadMore}
             disabled={loadingMore}
-            variant="outline"
+            className="min-w-[140px]"
           >
             {loadingMore ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading More...
+                Loading...
               </>
             ) : (
-              'Load More Games'
+              "Load More Games"
             )}
           </Button>
         </div>

@@ -1,104 +1,176 @@
 
-import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { Loader2, ShieldCheck } from 'lucide-react';
-import { LoginCredentials } from '@/types';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2, Home, Shield, User, LockKeyhole } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
-const AdminLoginPage: React.FC = () => {
-  const { adminLogin, isLoading, error: authError, isAdmin, isAuthenticated } = useAuth();
+const adminLoginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required")
+});
+
+type AdminLoginValues = z.infer<typeof adminLoginSchema>;
+
+const AdminLogin = () => {
+  const { adminLogin } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
 
-  React.useEffect(() => {
-    if (isAuthenticated && isAdmin) {
-      navigate('/admin/dashboard');
+  const form = useForm<AdminLoginValues>({
+    resolver: zodResolver(adminLoginSchema),
+    defaultValues: {
+      username: "",
+      password: ""
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter both email and password.");
-      return;
-    }
-    if (!adminLogin) {
-        toast.error("Admin login functionality is not available.");
-        return;
-    }
-    
-    const credentials: LoginCredentials = { email, password };
-    const result = await adminLogin(credentials);
-
-    if (result && !result.error) {
-      toast.success('Admin login successful!');
-      navigate('/admin/dashboard'); 
-    } else if (result && result.error) {
-      toast.error(result.error.message || 'Admin login failed. Check credentials or permissions.');
-    } else if (!result) {
-        toast.error('Admin login failed. An unexpected error occurred.');
+  const onSubmit = async (values: AdminLoginValues) => {
+    setIsSubmitting(true);
+    try {
+      await adminLogin(values.username, values.password);
+      toast({
+        title: "Login successful",
+        description: "Welcome to the admin dashboard",
+      });
+      navigate("/admin");
+    } catch (error) {
+      console.error("Admin login failed:", error);
+      toast({
+        title: "Login failed",
+        description: "Invalid username or password",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
-      <Card className="w-full max-w-md shadow-2xl bg-gray-800 border-gray-700 text-white">
-        <CardHeader className="text-center">
-          <ShieldCheck className="mx-auto h-12 w-12 text-blue-400 mb-4" />
-          <CardTitle className="text-3xl font-bold">Admin Panel</CardTitle>
-          <CardDescription className="text-gray-400">Secure sign-in for administrators.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-300">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12 text-base bg-gray-700 border-gray-600 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
-              />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+          <div className="px-6 pt-8 pb-6 text-center border-b border-slate-700">
+            <div className="flex justify-center items-center gap-3 mb-4">
+              <Shield className="h-10 w-10 text-casino-thunder-green" />
+              <div className="border-l border-slate-600 h-10 mx-1"></div>
+              <Link to="/">
+                <img 
+                  src="/lovable-uploads/2dc5015b-5024-411b-8ee9-4b422be630fa.png" 
+                  alt="ThunderWin" 
+                  className="h-8 thunder-glow"
+                />
+              </Link>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-300">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-12 text-base bg-gray-700 border-gray-600 placeholder-gray-500 focus:ring-blue-500 focus:border-blue-500"
-              />
+            <h1 className="text-2xl font-bold text-white">Admin Access</h1>
+            <p className="mt-2 text-sm text-white/60">Sign in to your administration account</p>
+          </div>
+          
+          <div className="px-6 py-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/80">Username</FormLabel>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <User className="h-5 w-5 text-white/40" />
+                        </div>
+                        <FormControl>
+                          <Input 
+                            placeholder="Enter admin username" 
+                            className="pl-10 bg-slate-700/50 border-slate-600 text-white focus:ring-casino-thunder-green focus:border-casino-thunder-green" 
+                            {...field} 
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white/80">Password</FormLabel>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <LockKeyhole className="h-5 w-5 text-white/40" />
+                        </div>
+                        <FormControl>
+                          <Input 
+                            type="password" 
+                            placeholder="Enter admin password" 
+                            className="pl-10 bg-slate-700/50 border-slate-600 text-white focus:ring-casino-thunder-green focus:border-casino-thunder-green" 
+                            {...field} 
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <Button 
+                  type="submit" 
+                  className="w-full bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black font-medium py-2.5 transition-all duration-200 ease-in-out transform hover:scale-[1.02] active:scale-[0.98]"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Authenticating...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="mr-2 h-4 w-4" />
+                      Access Admin Panel
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+            
+            <div className="mt-6 text-center text-sm text-white/70 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
+              <span>Demo credentials: username: "admin", password: "admin"</span>
             </div>
-            {authError && <p className="text-sm text-red-400 text-center">{authError}</p>}
-            <Button type="submit" className="w-full h-12 text-lg bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ShieldCheck className="mr-2 h-5 w-5" />}
-              Sign In as Admin
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter className="text-center">
-          <Button 
-            variant="link" 
-            onClick={() => navigate('/')}
-            className="text-blue-400 hover:text-blue-300"
-          >
-            Back to Casino
-          </Button>
-        </CardFooter>
-      </Card>
+            
+            <div className="mt-8 pt-6 border-t border-slate-700">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                asChild
+                className="w-full text-white/70 hover:text-white border-slate-600 hover:bg-slate-700 hover:border-slate-500"
+              >
+                <Link to="/">
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Casino
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default AdminLoginPage;
+export default AdminLogin;

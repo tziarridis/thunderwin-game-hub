@@ -1,101 +1,93 @@
 
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import ChangePasswordForm from '@/components/user/ChangePasswordForm';
-import UpdateProfileForm from '@/components/user/UpdateProfileForm';
-import { Button } from '@/components/ui/button';
-import { LogOut, Loader2 } from 'lucide-react'; 
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import React from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { CircleDollarSign, User, Gift, Calendar } from "lucide-react";
+import WalletBalance from "@/components/user/WalletBalance";
+import DepositButton from "@/components/user/DepositButton";
+import TransactionsList from "@/components/user/TransactionsList";
 
-const Profile: React.FC = () => {
-  const { user, signOut, isLoading: authLoading, error: authError } = useAuth(); 
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      toast.success("Logged out successfully.");
-      navigate('/'); // navigate to home after logout
-    } catch (error) {
-      toast.error("Logout failed. Please try again.");
-      console.error("Logout error:", error);
-    }
-  };
-
-  if (authLoading) {
+const Profile = () => {
+  const { user } = useAuth();
+  
+  if (!user) {
     return (
-      <div className="container mx-auto py-8 px-4 flex justify-center items-center min-h-[300px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2">Loading profile...</p>
+      <div className="flex justify-center items-center h-[60vh]">
+        <p>Please log in to view your profile.</p>
       </div>
     );
   }
   
-  if (authError) {
-    return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p className="text-red-500">Error loading profile: {authError}</p>
-        <Button onClick={() => window.location.reload()} className="mt-4">Try Again</Button>
-      </div>
-    );
-  }
-
-  if (!user) {
-     return (
-      <div className="container mx-auto py-8 px-4 text-center">
-        <p>Please log in to view your profile.</p>
-        <Button onClick={() => navigate('/login')} className="mt-4">Login</Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <Button variant="outline" onClick={handleLogout} disabled={authLoading}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* User Information Card */}
-        <div className="md:col-span-1 space-y-4 bg-card p-6 rounded-lg shadow">
-          <h2 className="text-xl font-semibold border-b pb-2 mb-4">Account Details</h2>
-          <div className="flex items-center space-x-4 mb-4">
-            <img 
-              src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.first_name}+${user.last_name}&background=random`} 
-              alt="User Avatar" 
-              className="w-20 h-20 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-lg font-medium">{user.first_name || ''} {user.last_name || ''}</p>
-              <p className="text-sm text-muted-foreground">{user.username || user.email}</p>
+    <div className="space-y-6">
+      <Card className="bg-casino-thunder-dark border-casino-thunder-gray/20">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>My Profile</CardTitle>
+          <div>
+            <WalletBalance showRefresh={true} />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex flex-col items-center space-y-3">
+              <Avatar className="h-24 w-24 border-2 border-casino-thunder-green">
+                <AvatarImage src={user.avatarUrl} />
+                <AvatarFallback className="bg-casino-thunder-green/20">
+                  {user.username?.substring(0, 2).toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <h3 className="font-medium">{user.username}</h3>
+                <p className="text-sm text-white/60">{user.email}</p>
+              </div>
+              <DepositButton variant="small" />
+            </div>
+            
+            <Separator orientation="vertical" className="hidden md:block" />
+            
+            <div className="flex-1 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
+                  <div className="h-10 w-10 rounded-full bg-casino-thunder-green/20 flex items-center justify-center">
+                    <CircleDollarSign className="h-5 w-5 text-casino-thunder-green" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/60">Balance</p>
+                    <p className="font-medium">${user.balance?.toFixed(2) || '0.00'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
+                  <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Gift className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/60">VIP Level</p>
+                    <p className="font-medium">Level {user.vipLevel || 0}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-3 bg-casino-thunder-darker p-3 rounded-lg">
+                  <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Calendar className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/60">Account Status</p>
+                    <p className="font-medium">{user.isVerified ? 'Verified' : 'Unverified'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-3">Recent Transactions</h3>
+                <TransactionsList userId={user.id} limit={5} />
+              </div>
             </div>
           </div>
-          <p><strong>Email:</strong> {user.email || 'N/A'}</p>
-          <p><strong>User ID:</strong> <span className="text-xs">{user.id}</span></p>
-          <p><strong>Role:</strong> <span className="capitalize">{user.role || 'user'}</span></p>
-          <p><strong>Status:</strong> <span className="capitalize">{user.status || (user.is_active ? 'Active' : 'Inactive')}</span></p>
-          <p><strong>Joined:</strong> {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</p>
-          <p><strong>Last Login:</strong> {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'N/A'}</p>
-        </div>
-
-        {/* Forms Card */}
-        <div className="md:col-span-2 space-y-8">
-          <div className="bg-card p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold border-b pb-2 mb-4">Update Profile</h2>
-            <UpdateProfileForm />
-          </div>
-          
-          <div className="bg-card p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold border-b pb-2 mb-4">Change Password</h2>
-            <ChangePasswordForm />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

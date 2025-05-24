@@ -1,125 +1,103 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/contexts/AuthContext';
-import { User, Wallet, CreditCard, Activity, Trophy, Gift } from 'lucide-react';
-import { UserRole } from '@/types/user';
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import TransactionsList from "@/components/user/TransactionsList";
+import { useAuth } from "@/contexts/AuthContext";
+import { walletService } from "@/services/walletService";
 
 const Dashboard = () => {
   const { user } = useAuth();
-
-  if (!user) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <p className="text-muted-foreground">Please log in to view your dashboard.</p>
-        </div>
-      </div>
-    );
-  }
-
-  const getRoleBadgeVariant = (role?: string) => {
-    switch (role) {
-      case UserRole.ADMIN:
-        return 'destructive';
-      case UserRole.VIP:
-        return 'default';
-      case UserRole.MODERATOR:
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
-
-  const stats = [
-    { icon: Wallet, label: 'Balance', value: '$0.00', color: 'text-green-600' },
-    { icon: Activity, label: 'Games Played', value: '0', color: 'text-blue-600' },
-    { icon: Trophy, label: 'VIP Level', value: user.vip_level_id || '1', color: 'text-yellow-600' },
-    { icon: Gift, label: 'Bonus Points', value: user.user_metadata?.bonus_points || '0', color: 'text-purple-600' },
-  ];
-
+  const [wallet, setWallet] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchWallet = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setLoading(true);
+        const walletData = await walletService.getWalletByUserId(user.id);
+        setWallet(walletData);
+      } catch (error) {
+        console.error("Error fetching wallet:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchWallet();
+  }, [user]);
+  
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {user.username || user.email}</p>
-        </div>
-        <Badge variant={getRoleBadgeVariant(user.role)}>
-          {user.role || 'User'}
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.label}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Account Information
-            </CardTitle>
+            <CardTitle>Wallet</CardTitle>
+            <CardDescription>Your current balance</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Username</label>
-                <p className="font-medium">{user.username || 'Not set'}</p>
+          <CardContent>
+            {loading ? (
+              <div className="h-16 flex items-center justify-center">
+                <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <p className="font-medium">{user.email}</p>
+            ) : (
+              <div className="text-3xl font-bold">
+                {wallet?.symbol || '$'}{wallet?.balance.toFixed(2) || '0.00'}
+                <div className="text-sm font-normal text-gray-400 mt-1">
+                  {wallet?.currency || 'USD'}
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <Badge variant="outline">{user.status || 'Active'}</Badge>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Member Since</label>
-                <p className="font-medium">
-                  {new Date(user.created_at).toLocaleDateString()}
-                </p>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle>VIP Level</CardTitle>
+            <CardDescription>Your current status</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {user?.vipLevel || 0}
+              <div className="text-sm font-normal text-gray-400 mt-1">
+                {wallet?.vip_points || 0} points
               </div>
             </div>
           </CardContent>
         </Card>
-
-        <Card>
+        
+        <Card className="col-span-1">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
-              Quick Actions
-            </CardTitle>
+            <CardTitle>Account</CardTitle>
+            <CardDescription>Your account details</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button className="w-full" variant="default">
-              Make Deposit
-            </Button>
-            <Button className="w-full" variant="outline">
-              View Transactions
-            </Button>
-            <Button className="w-full" variant="outline">
-              Bonus History
-            </Button>
-            <Button className="w-full" variant="outline">
-              Game History
-            </Button>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Username:</span>
+                <span>{user?.username || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Email:</span>
+                <span>{user?.email || 'N/A'}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
+      </div>
+      
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Recent Transactions</h2>
+        {user?.id ? (
+          <TransactionsList userId={user.id} limit={5} />
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-center text-gray-400">Please log in to view your transactions</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -1,71 +1,158 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Promotion } from '@/types';
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar, Edit, Trash, Power, UserPlus } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { Promotion } from "@/types";
 
 interface PromotionCardProps {
-  promotion: Promotion;
-  onClaim?: () => void;
-  onDetails?: (promotion: Promotion) => void;
+  title?: string;
+  description?: string;
+  image?: string;
+  endDate?: string;
+  className?: string;
+  onClick?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onToggleActive?: () => void;
+  isAdmin?: boolean;
+  promotion?: Promotion;
 }
 
-const PromotionCard: React.FC<PromotionCardProps> = ({
-  promotion,
-  onClaim,
-  onDetails
-}) => {
-  const isExpired = new Date(promotion.valid_until) < new Date();
-  const isUpcoming = new Date(promotion.valid_from) > new Date();
+const PromotionCard = ({ 
+  title, 
+  description, 
+  image, 
+  endDate,
+  className,
+  onClick,
+  onEdit,
+  onDelete,
+  onToggleActive,
+  isAdmin = false,
+  promotion
+}: PromotionCardProps) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // If a promotion object is provided, use its properties
+  // Otherwise use the individual props
+  const displayTitle = promotion?.title || title || '';
+  const displayDescription = promotion?.description || description || '';
+  const displayImage = promotion?.image || image || '';
+  const displayEndDate = promotion?.endDate || endDate;
+
+  const handleActionClick = () => {
+    if (!isAuthenticated) {
+      // Redirect to register page if user is not authenticated
+      navigate('/register');
+      return;
+    }
+    
+    // Call the original onClick handler if user is authenticated
+    if (onClick) {
+      onClick();
+    } else {
+      // Default to navigating to promotions page if no onClick provided
+      navigate('/bonuses');
+    }
+  };
+
+  const handleViewDetails = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      // Default to navigating to promotions page if no onClick provided
+      navigate('/promotions');
+    }
+  };
 
   return (
-    <Card className="overflow-hidden">
-      {promotion.image_url && (
-        <div className="h-48 bg-gray-200">
-          <img 
-            src={promotion.image_url} 
-            alt={promotion.title}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      )}
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-lg">{promotion.title}</CardTitle>
-          <Badge variant={isExpired ? "destructive" : isUpcoming ? "secondary" : "default"}>
-            {isExpired ? "Expired" : isUpcoming ? "Upcoming" : "Active"}
-          </Badge>
-        </div>
-        <p className="text-sm text-muted-foreground">{promotion.description}</p>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Valid Until:</span>
-            <span>{new Date(promotion.valid_until).toLocaleDateString()}</span>
+    <div className={cn("thunder-card overflow-hidden", className)}>
+      <div className="h-48 overflow-hidden">
+        <img 
+          src={displayImage} 
+          alt={displayTitle}
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
+      <div className="p-4">
+        <h3 className="text-lg font-semibold text-white mb-2">{displayTitle}</h3>
+        
+        {displayEndDate && (
+          <div className="flex items-center text-white/60 text-sm mb-3">
+            <Calendar className="h-4 w-4 mr-2" />
+            <span>Ends: {displayEndDate}</span>
           </div>
-          {promotion.code && (
-            <div className="flex justify-between">
-              <span>Code:</span>
-              <Badge variant="outline">{promotion.code}</Badge>
-            </div>
+        )}
+        
+        <p className="text-white/70 text-sm mb-4">{displayDescription}</p>
+        
+        <div className="flex justify-between items-center">
+          {isAdmin ? (
+            <>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="text-white hover:text-casino-thunder-green"
+                onClick={onEdit}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onToggleActive}
+                >
+                  <Power className="h-4 w-4 mr-2" />
+                  Toggle
+                </Button>
+                
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={onDelete}
+                >
+                  <Trash className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Button 
+                className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                size="sm"
+                onClick={handleActionClick}
+              >
+                {!isAuthenticated ? (
+                  <>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Join Now
+                  </>
+                ) : (
+                  <>Claim Now</>
+                )}
+              </Button>
+              
+              <Button 
+                variant="link" 
+                className="text-white/70 hover:text-casino-thunder-green"
+                size="sm"
+                onClick={handleViewDetails}
+              >
+                View Details
+              </Button>
+            </>
           )}
         </div>
-        <div className="flex gap-2 mt-4">
-          {onClaim && !isExpired && !isUpcoming && (
-            <Button onClick={onClaim} className="flex-1">
-              {promotion.cta_text || 'Claim Now'}
-            </Button>
-          )}
-          {onDetails && (
-            <Button variant="outline" onClick={() => onDetails(promotion)}>
-              Details
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

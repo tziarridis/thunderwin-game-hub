@@ -7,24 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { GameProviderConfig, getEnabledProviders } from "@/config/gameProviders";
+import { gameProviderConfigs, updateProviderConfig } from "@/config/gameProviders";
 import { Globe, Check, Copy, RefreshCw, AlertCircle, ExternalLink } from "lucide-react";
 
 const CasinoAggregatorSettings = () => {
   const [activeTab, setActiveTab] = useState("pp");
-  const [providerConfigs, setProviderConfigs] = useState(getEnabledProviders());
+  const [providerConfigs, setProviderConfigs] = useState(gameProviderConfigs);
   const [copiedValue, setCopiedValue] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   
-  // Group providers by their type for tab display
+  // Group providers by their code for tab display
   const providerGroups = React.useMemo(() => {
-    const groups: Record<string, typeof providerConfigs> = {};
+    const groups: Record<string, typeof gameProviderConfigs> = {};
     
     providerConfigs.forEach(provider => {
-      // Use provider id prefix as the group key (e.g., pp from ppeur)
-      const code = provider.id.substring(0, 2).toLowerCase();
+      const code = provider.code.toLowerCase();
       if (!groups[code]) {
         groups[code] = [];
       }
@@ -60,9 +59,9 @@ const CasinoAggregatorSettings = () => {
           }
         };
         
-        const updated = GameProviderConfig.updateConfig(providerId, updatedProvider);
+        const updated = updateProviderConfig(providerId, updatedProvider);
         if (updated) {
-          setProviderConfigs(getEnabledProviders());
+          setProviderConfigs([...gameProviderConfigs]);
           toast.success("Provider configuration updated");
         } else {
           toast.error("Failed to update provider configuration");
@@ -108,20 +107,18 @@ const CasinoAggregatorSettings = () => {
     }, 2000);
   };
 
-  const renderProviderCard = (provider: GameProviderConfig) => {
-    const hasToken = provider.id.includes('infin') || provider.id.includes('gsp');
-    const providerType = provider.id.substring(0, 2).toUpperCase();
+  const renderProviderCard = (provider: any) => {
+    const hasToken = provider.code === 'INFIN' || provider.code === 'GSP';
     
     return (
       <Card key={provider.id} className="border border-slate-700">
         <CardHeader>
           <CardTitle className="flex items-center">
             <Globe className="mr-2 h-5 w-5 text-blue-400" />
-            {provider.name} 
-            {provider.currency && ` - ${provider.currency}`}
+            {provider.name} - {provider.currency}
           </CardTitle>
           <CardDescription>
-            Provider ID: {provider.id} | Type: {provider.type || 'standard'}
+            Provider ID: {provider.id} | Type: {provider.type}
           </CardDescription>
         </CardHeader>
         
@@ -135,7 +132,7 @@ const CasinoAggregatorSettings = () => {
                     id={`${provider.id}-endpoint`}
                     value={isEditing === provider.id 
                       ? formValues[provider.id]?.apiEndpoint 
-                      : provider.credentials?.apiEndpoint || ''}
+                      : provider.credentials.apiEndpoint}
                     disabled={isEditing !== provider.id}
                     onChange={(e) => handleInputChange(provider.id, 'apiEndpoint', e.target.value)}
                     className="flex-grow"
@@ -143,7 +140,7 @@ const CasinoAggregatorSettings = () => {
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleCopy(provider.credentials?.apiEndpoint || '', "API Endpoint")}
+                    onClick={() => handleCopy(provider.credentials.apiEndpoint, "API Endpoint")}
                   >
                     {copiedValue === "API Endpoint" ? <Check size={16} /> : <Copy size={16} />}
                   </Button>
@@ -157,7 +154,7 @@ const CasinoAggregatorSettings = () => {
                     id={`${provider.id}-agentid`}
                     value={isEditing === provider.id 
                       ? formValues[provider.id]?.agentId 
-                      : provider.credentials?.agentId || ''}
+                      : provider.credentials.agentId}
                     disabled={isEditing !== provider.id}
                     onChange={(e) => handleInputChange(provider.id, 'agentId', e.target.value)}
                     className="flex-grow"
@@ -165,7 +162,7 @@ const CasinoAggregatorSettings = () => {
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleCopy(provider.credentials?.agentId || '', "Agent ID")}
+                    onClick={() => handleCopy(provider.credentials.agentId, "Agent ID")}
                   >
                     {copiedValue === "Agent ID" ? <Check size={16} /> : <Copy size={16} />}
                   </Button>
@@ -181,7 +178,7 @@ const CasinoAggregatorSettings = () => {
                     id={`${provider.id}-secret`}
                     value={isEditing === provider.id 
                       ? formValues[provider.id]?.secretKey 
-                      : provider.credentials?.secretKey || ''}
+                      : provider.credentials.secretKey}
                     disabled={isEditing !== provider.id}
                     type={isEditing === provider.id ? "text" : "password"}
                     onChange={(e) => handleInputChange(provider.id, 'secretKey', e.target.value)}
@@ -190,7 +187,7 @@ const CasinoAggregatorSettings = () => {
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleCopy(provider.credentials?.secretKey || '', "Secret Key")}
+                    onClick={() => handleCopy(provider.credentials.secretKey, "Secret Key")}
                   >
                     {copiedValue === "Secret Key" ? <Check size={16} /> : <Copy size={16} />}
                   </Button>
@@ -204,7 +201,7 @@ const CasinoAggregatorSettings = () => {
                     id={`${provider.id}-callback`}
                     value={isEditing === provider.id 
                       ? formValues[provider.id]?.callbackUrl 
-                      : provider.credentials?.callbackUrl || ''}
+                      : provider.credentials.callbackUrl}
                     disabled={isEditing !== provider.id}
                     onChange={(e) => handleInputChange(provider.id, 'callbackUrl', e.target.value)}
                     className="flex-grow"
@@ -212,7 +209,7 @@ const CasinoAggregatorSettings = () => {
                   <Button 
                     variant="ghost" 
                     size="icon"
-                    onClick={() => handleCopy(provider.credentials?.callbackUrl || '', "Callback URL")}
+                    onClick={() => handleCopy(provider.credentials.callbackUrl, "Callback URL")}
                   >
                     {copiedValue === "Callback URL" ? <Check size={16} /> : <Copy size={16} />}
                   </Button>
@@ -229,7 +226,7 @@ const CasinoAggregatorSettings = () => {
                       id={`${provider.id}-token`}
                       value={isEditing === provider.id 
                         ? formValues[provider.id]?.token 
-                        : provider.credentials?.token || ""}
+                        : provider.credentials.token || ""}
                       disabled={isEditing !== provider.id}
                       type={isEditing === provider.id ? "text" : "password"}
                       onChange={(e) => handleInputChange(provider.id, 'token', e.target.value)}
@@ -238,7 +235,7 @@ const CasinoAggregatorSettings = () => {
                     <Button 
                       variant="ghost" 
                       size="icon"
-                      onClick={() => handleCopy(provider.credentials?.token || "", "API Token")}
+                      onClick={() => handleCopy(provider.credentials.token || "", "API Token")}
                     >
                       {copiedValue === "API Token" ? <Check size={16} /> : <Copy size={16} />}
                     </Button>
@@ -250,13 +247,13 @@ const CasinoAggregatorSettings = () => {
             <div className="flex items-center space-x-2 mt-4">
               <Switch 
                 id={`${provider.id}-enabled`} 
-                checked={provider.enabled || false}
+                checked={provider.enabled}
                 onCheckedChange={() => {
-                  const updated = GameProviderConfig.updateConfig(provider.id, {
+                  const updated = updateProviderConfig(provider.id, {
                     enabled: !provider.enabled
                   });
                   if (updated) {
-                    setProviderConfigs(getEnabledProviders());
+                    setProviderConfigs([...gameProviderConfigs]);
                     toast.success(`Provider ${provider.enabled ? 'disabled' : 'enabled'}`);
                   }
                 }}
@@ -264,7 +261,7 @@ const CasinoAggregatorSettings = () => {
               <Label htmlFor={`${provider.id}-enabled`}>Provider Enabled</Label>
             </div>
             
-            {(provider.id.includes('gsp') || provider.id.includes('infin')) && (
+            {(provider.code === 'GSP' || provider.code === 'INFIN') && (
               <div className="p-4 bg-slate-800 rounded-md mt-4">
                 <div className="flex items-start space-x-2">
                   <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
@@ -273,7 +270,7 @@ const CasinoAggregatorSettings = () => {
                     <p className="text-sm text-gray-400 mt-1">
                       View the {provider.name} API documentation:
                       <a href={
-                        provider.id.includes('gsp') 
+                        provider.code === 'GSP' 
                           ? 'https://documenter.getpostman.com/view/25695248/2sA3Qy7VR4' 
                           : 'https://infinapi-docs.axis-stage.infingame.com/'
                         } 

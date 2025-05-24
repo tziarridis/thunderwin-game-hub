@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { GameProviderConfig } from "@/config/gameProviders";
+import { GameProviderConfig, updateProviderConfig } from "@/config/gameProviders";
 
 const AggregatorSettings = () => {
   const [activeTab, setActiveTab] = useState("casino");
@@ -74,13 +75,13 @@ const AggregatorSettings = () => {
       const id = `${formData.code.toLowerCase()}${formData.currency.toLowerCase()}`;
       
       // Create new provider config
-      const newProvider = {
+      const newProvider: GameProviderConfig = {
         id,
         name: formData.name,
         currency: formData.currency,
-        type: formData.type,
+        type: formData.type as 'slots' | 'live' | 'table' | 'other',
         enabled: true,
-        // Adding credentials object
+        code: formData.code.toUpperCase(),
         credentials: {
           apiEndpoint: formData.apiEndpoint,
           agentId: formData.agentId,
@@ -91,7 +92,7 @@ const AggregatorSettings = () => {
       };
       
       // Add provider to availableProviders
-      GameProviderConfig.updateConfig(id, newProvider);
+      updateProviderConfig(id, newProvider);
       
       toast.success(`Added new aggregator: ${formData.name}`);
       setNewAggregatorOpen(false);
@@ -120,7 +121,6 @@ const AggregatorSettings = () => {
     }
   };
 
-  
   return (
     <div className="container mx-auto px-4 py-6">
       <Breadcrumb className="mb-6">

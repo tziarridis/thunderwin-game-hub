@@ -1,39 +1,39 @@
 
-import React from 'react';
-import { DateRange as DayPickerDateRange } from 'react-day-picker';
-import { DateRange as AppDateRange } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+// Fix the DateRangePicker component errors
+import * as React from "react"
+import { CalendarIcon } from "lucide-react"
+import { addDays, format } from "date-fns"
+import { DateRange } from "react-day-picker"
 
-interface DateRangePickerProps {
-  range?: AppDateRange;
-  date?: DayPickerDateRange; // Add backward compatibility
-  onUpdate?: (values: { range?: AppDateRange }) => void;
-  onDateChange?: (newRange: DayPickerDateRange) => void; // Add backward compatibility
-  className?: string;
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
+// Export the DateRange type for use in other components
+export { type DateRange } from "react-day-picker";
+
+export interface DateRangePickerProps {
+  className?: string
+  value?: DateRange
+  onChange?: (date: DateRange) => void
 }
 
-export const DateRangePicker: React.FC<DateRangePickerProps> = ({
-  range,
-  date,
-  onUpdate,
-  onDateChange,
-  className
-}) => {
-  const currentRange = range || date;
-  
-  const handleUpdate = (newRange?: DayPickerDateRange) => {
-    if (onUpdate) {
-      onUpdate({ range: newRange as AppDateRange });
+export function DateRangePicker({
+  className,
+  value,
+  onChange,
+}: DateRangePickerProps) {
+  const [date, setDate] = React.useState<DateRange | undefined>(
+    value || {
+      from: new Date(2022, 0, 20),
+      to: addDays(new Date(2022, 0, 20), 20),
     }
-    if (onDateChange && newRange) {
-      onDateChange(newRange);
-    }
-  };
+  )
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -44,21 +44,21 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             variant={"outline"}
             className={cn(
               "w-[300px] justify-start text-left font-normal",
-              !currentRange && "text-muted-foreground"
+              !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            {currentRange?.from ? (
-              currentRange.to ? (
+            {date?.from ? (
+              date.to ? (
                 <>
-                  {format(currentRange.from, "LLL dd, y")} -{" "}
-                  {format(currentRange.to, "LLL dd, y")}
+                  {format(date.from, "LLL dd, y")} -{" "}
+                  {format(date.to, "LLL dd, y")}
                 </>
               ) : (
-                format(currentRange.from, "LLL dd, y")
+                format(date.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>Pick a date</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -66,17 +66,18 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
           <Calendar
             initialFocus
             mode="range"
-            defaultMonth={currentRange?.from}
-            selected={currentRange as DayPickerDateRange}
-            onSelect={handleUpdate}
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={(newDate) => {
+              setDate(newDate);
+              if (onChange && newDate) {
+                onChange(newDate);
+              }
+            }}
             numberOfMonths={2}
-            className="pointer-events-auto"
           />
         </PopoverContent>
       </Popover>
     </div>
-  );
-};
-
-// Export alias for backward compatibility
-export const DatePickerWithRange = DateRangePicker;
+  )
+}

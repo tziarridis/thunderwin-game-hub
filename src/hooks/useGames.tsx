@@ -1,282 +1,239 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Game, GameProvider, GameCategory, GameLaunchOptions } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useState, useEffect, useCallback } from "react";
+import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
+import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
+import { useToast } from "@/components/ui/use-toast";
+import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
+import { clientGamesApi } from "@/services/gamesService";
+import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
+import { availableProviders } from "@/config/gameProviders";
+import { supabase } from "@/integrations/supabase/client";
 
-export interface GamesContextType {
-  games: Game[];
-  providers: GameProvider[];
-  categories: GameCategory[];
-  isLoadingGames: boolean;
-  isLoading: boolean;
-  gamesError: Error | null;
-  favoriteGameIds: Set<string>;
-  getFavoriteGames: () => Promise<Game[]>;
-  getFeaturedGames: (count?: number) => Promise<Game[]>;
-  getGameBySlug: (slug: string) => Promise<Game | null>;
-  getGameById: (id: string) => Promise<Game | null>;
-  getGameLaunchUrl: (game: Game, options?: GameLaunchOptions) => Promise<string | null>;
-  toggleFavoriteGame: (gameId: string) => Promise<void>;
-  launchGame: (game: Game, options?: GameLaunchOptions) => Promise<string | null>;
-  handlePlayGame: (game: Game, mode?: 'real' | 'demo') => Promise<void>;
-  handleGameDetails: (game: Game) => void;
-}
-
-const GamesContext = createContext<GamesContextType | undefined>(undefined);
-
-export const useGames = () => {
-  const context = useContext(GamesContext);
-  if (!context) {
-    throw new Error('useGames must be used within a GamesProvider');
-  }
-  return context;
-};
-
-interface GamesProviderProps {
-  children: ReactNode;
-}
-
-export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
-  const [games, setGames] = useState<Game[]>([]);
-  const [providers, setProviders] = useState<GameProvider[]>([]);
-  const [categories, setCategories] = useState<GameCategory[]>([]);
-  const [isLoadingGames, setIsLoadingGames] = useState(true);
-  const [gamesError, setGamesError] = useState<Error | null>(null);
-  const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
-
-  const isLoading = isLoadingGames;
-
-  const fetchGames = async () => {
+export const useGames = (initialParams: GameListParams = {}) => {
+  const [games, setGames] = useState<UIGame[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [params, setParams] = useState<GameListParams>(initialParams);
+  const [totalGames, setTotalGames] = useState(0);
+  const [providers, setProviders] = useState<UIGameProvider[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+  const [launchingGame, setLaunchingGame] = useState(false);
+  const { toast } = useToast();
+  
+  const fetchGames = useCallback(async (queryParams: GameListParams = params) => {
     try {
-      setIsLoadingGames(true);
-      const { data, error } = await supabase
-        .from('games')
-        .select('*')
-        .eq('status', 'active');
-
-      if (error) throw error;
-
-      const mappedGames: Game[] = (data || []).map(game => ({
-        id: game.id,
-        title: game.game_name || 'Untitled Game',
-        name: game.game_name,
-        slug: game.game_code || game.id,
-        description: game.description || '',
-        image_url: game.cover || '',
-        cover: game.cover,
-        provider_id: game.provider_id,
-        provider_slug: game.provider_slug || 'unknown',
-        category_id: game.game_type || '',
-        category: game.game_type,
-        status: game.status,
-        rtp: Number(game.rtp) || 0,
-        created_at: game.created_at || new Date().toISOString(),
-        updated_at: game.updated_at || new Date().toISOString(),
-        isNew: game.is_new || false,
-        isPopular: game.is_featured || false,
-        is_featured: game.is_featured || false,
-        is_new: game.is_new || false,
-        show_home: game.show_home || false,
-        features: game.features || [],
-        tags: game.tags || [],
-        has_lobby: game.has_lobby || false,
-        is_mobile: game.is_mobile || false,
-        has_freespins: game.has_freespins || false,
-        has_tables: game.has_tables || false,
-        only_demo: game.only_demo || false,
-        views: game.views || 0,
-      }));
-
-      setGames(mappedGames);
-      setGamesError(null);
-    } catch (error: any) {
-      console.error('Error fetching games:', error);
-      setGamesError(error);
+      setLoading(true);
+      // Use supabase to fetch games in the future
+      const response = await clientGamesApi.getGames(queryParams);
+      
+      // Convert API game format to UI game format
+      const adaptedGames = adaptGamesForUI(response.data);
+      setGames(adaptedGames);
+      setTotalGames(response.total);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching games:", err);
+      setError(err as Error);
+      toast({
+        title: "Error",
+        description: "Failed to load games. Please try again later.",
+        variant: "destructive",
+      });
     } finally {
-      setIsLoadingGames(false);
+      setLoading(false);
+    }
+  }, [params, toast]);
+  
+  const fetchProviders = useCallback(async () => {
+    try {
+      setLoadingProviders(true);
+      const data = await clientGamesApi.getProviders();
+      // Convert API provider format to UI provider format
+      const adaptedProviders = adaptProvidersForUI(data);
+      setProviders(adaptedProviders);
+    } catch (err) {
+      console.error("Error fetching providers:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load game providers.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProviders(false);
+    }
+  }, [toast]);
+
+  const updateParams = useCallback((newParams: Partial<GameListParams>) => {
+    setParams(prev => {
+      const updated = { ...prev, ...newParams };
+      fetchGames(updated);
+      return updated;
+    });
+  }, [fetchGames]);
+  
+  const addGame = async (gameData: Omit<UIGame, 'id'>) => {
+    try {
+      // Convert UI game to API game format
+      const apiGame = adaptGameForAPI(gameData as UIGame);
+      const result = await clientGamesApi.addGame(apiGame);
+      // Convert the result back to UI format
+      const uiGame = adaptGameForUI(result);
+      setGames(prev => [uiGame, ...prev]);
+      toast({
+        title: "Success",
+        description: "Game added successfully",
+      });
+      return uiGame;
+    } catch (err) {
+      console.error("Error adding game:", err);
+      toast({
+        title: "Error",
+        description: "Failed to add game",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+  
+  const updateGame = async (game: UIGame) => {
+    try {
+      // Convert UI game to API game format
+      const apiGame = {
+        id: parseInt(game.id),
+        ...adaptGameForAPI(game)
+      };
+      
+      const result = await clientGamesApi.updateGame(apiGame);
+      // Convert the result back to UI format
+      const uiGame = adaptGameForUI(result);
+      setGames(prev => prev.map(g => g.id === game.id ? uiGame : g));
+      toast({
+        title: "Success",
+        description: "Game updated successfully",
+      });
+      return uiGame;
+    } catch (err) {
+      console.error("Error updating game:", err);
+      toast({
+        title: "Error",
+        description: "Failed to update game",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+  
+  const deleteGame = async (id: string | number) => {
+    try {
+      await clientGamesApi.deleteGame(id);
+      setGames(prev => prev.filter(g => g.id !== id.toString()));
+      toast({
+        title: "Success",
+        description: "Game deleted successfully",
+      });
+    } catch (err) {
+      console.error("Error deleting game:", err);
+      toast({
+        title: "Error",
+        description: "Failed to delete game",
+        variant: "destructive",
+      });
+      throw err;
+    }
+  };
+  
+  const toggleGameFeature = async (id: string | number, feature: 'is_featured' | 'show_home', value: boolean) => {
+    try {
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
+      const updatedGame = await clientGamesApi.toggleGameFeature(numericId, feature, value);
+      const adaptedGame = adaptGameForUI(updatedGame);
+      
+      setGames(prev => prev.map(g => g.id === id.toString() ? adaptedGame : g));
+      toast({
+        title: "Success",
+        description: `Game ${feature === 'is_featured' ? 'featured status' : 'home visibility'} updated`,
+      });
+      return adaptedGame;
+    } catch (err) {
+      console.error(`Error toggling ${feature} for game:`, err);
+      toast({
+        title: "Error",
+        description: `Failed to update game ${feature}`,
+        variant: "destructive",
+      });
+      throw err;
     }
   };
 
-  const fetchProviders = async () => {
+  // Fix the mode type issue in launchGame
+  const launchGame = async (game: UIGame, options: Partial<GameLaunchOptions> = {}) => {
     try {
-      const { data, error } = await supabase
-        .from('providers')
-        .select('*')
-        .eq('status', 'active');
-
-      if (error) throw error;
-
-      const mappedProviders: GameProvider[] = (data || []).map(provider => ({
-        id: provider.id,
-        name: provider.name,
-        slug: provider.name.toLowerCase().replace(/\s+/g, '-'),
-        logo: provider.logo,
-        logoUrl: provider.logo,
-        created_at: provider.created_at,
-      }));
-
-      setProviders(mappedProviders);
-    } catch (error) {
-      console.error('Error fetching providers:', error);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('game_categories')
-        .select('*')
-        .eq('status', 'active');
-
-      if (error) throw error;
-
-      const mappedCategories: GameCategory[] = (data || []).map(category => ({
-        id: category.id,
-        name: category.name,
-        slug: category.slug,
-        icon: category.icon,
-        created_at: category.created_at,
-      }));
-
-      setCategories(mappedCategories);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
-  const getFavoriteGames = async (): Promise<Game[]> => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('favorite_games')
-        .select('game_id')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      const favoriteGameIds = data.map(fav => fav.game_id);
-      return games.filter(game => favoriteGameIds.includes(game.id));
-    } catch (error) {
-      console.error('Error fetching favorite games:', error);
-      return [];
-    }
-  };
-
-  const getFeaturedGames = async (count: number = 12): Promise<Game[]> => {
-    const featuredGames = games.filter(game => game.is_featured);
-    return featuredGames.slice(0, count);
-  };
-
-  const getGameBySlug = async (slug: string): Promise<Game | null> => {
-    return games.find(game => game.slug === slug || game.id === slug) || null;
-  };
-
-  const getGameById = async (id: string): Promise<Game | null> => {
-    return games.find(game => game.id === id) || null;
-  };
-
-  const getGameLaunchUrl = async (game: Game, options: GameLaunchOptions = {}): Promise<string | null> => {
-    try {
-      return `https://example.com/game/${game.slug}?mode=${options.mode || 'demo'}`;
-    } catch (error: any) {
-      console.error('Error getting game launch URL:', error);
-      throw error;
-    }
-  };
-
-  const toggleFavoriteGame = async (gameId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Please log in to manage favorites');
-        return;
-      }
-
-      const isFavorite = favoriteGameIds.has(gameId);
-
-      if (isFavorite) {
-        const { error } = await supabase
-          .from('favorite_games')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('game_id', gameId);
-
-        if (error) throw error;
-
-        setFavoriteGameIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(gameId);
-          return newSet;
+      setLaunchingGame(true);
+      
+      // Determine provider ID
+      let providerId = options.providerId || "ppeur"; // Default to Pragmatic Play EUR as requested
+      
+      // Prepare launch options
+      const launchOptions: GameLaunchOptions = {
+        gameId: game.id,
+        providerId,
+        mode: options.mode || "demo",
+        playerId: options.playerId || "demo_player",
+        language: options.language || "en",
+        currency: options.currency || "USD",
+        returnUrl: options.returnUrl || window.location.href
+      };
+      
+      // Get game URL from provider service
+      const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
+      
+      // Launch the game in appropriate way
+      if (options.mode === "real" || options.mode === "demo") {
+        // For real money or demo mode, open in new window/tab
+        window.open(gameUrl, "_blank");
+        toast({
+          title: "Game Launched",
+          description: `${game.title} is opening in a new window`,
         });
-        toast.success('Removed from favorites');
+        return gameUrl;
       } else {
-        const { error } = await supabase
-          .from('favorite_games')
-          .insert([{ user_id: user.id, game_id: gameId }]);
-
-        if (error) throw error;
-
-        setFavoriteGameIds(prev => new Set(prev).add(gameId));
-        toast.success('Added to favorites');
+        // For any other mode, return URL to be used as needed
+        return gameUrl;
       }
-    } catch (error: any) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorites');
+    } catch (err: any) {
+      console.error("Error launching game:", err);
+      toast({
+        title: "Error",
+        description: `Failed to launch game: ${err.message || "Unknown error"}`,
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLaunchingGame(false);
     }
   };
 
-  const launchGame = async (game: Game, options: GameLaunchOptions = {}): Promise<string | null> => {
-    try {
-      return `https://example.com/game/${game.slug}?mode=${options.mode || 'demo'}`;
-    } catch (error: any) {
-      console.error('Error launching game:', error);
-      throw error;
-    }
-  };
-
-  const handlePlayGame = async (game: Game, mode: 'real' | 'demo' = 'demo') => {
-    try {
-      const url = await launchGame(game, { mode });
-      if (url) {
-        window.open(url, '_blank');
-      }
-    } catch (error) {
-      console.error('Error playing game:', error);
-      toast.error('Failed to launch game');
-    }
-  };
-
-  const handleGameDetails = (game: Game) => {
-    window.location.href = `/casino/game/${game.slug || game.id}`;
-  };
-
+  // Initial fetch
   useEffect(() => {
     fetchGames();
     fetchProviders();
-    fetchCategories();
-  }, []);
+  }, [fetchGames, fetchProviders]);
 
-  const value: GamesContextType = {
+  return {
     games,
+    loading,
+    launchingGame,
+    error,
+    params,
+    totalGames,
     providers,
-    categories,
-    isLoadingGames,
-    isLoading,
-    gamesError,
-    favoriteGameIds,
-    getFavoriteGames,
-    getFeaturedGames,
-    getGameBySlug,
-    getGameById,
-    getGameLaunchUrl,
-    toggleFavoriteGame,
-    launchGame,
-    handlePlayGame,
-    handleGameDetails,
+    loadingProviders,
+    updateParams,
+    fetchGames,
+    addGame,
+    updateGame,
+    deleteGame,
+    toggleGameFeature,
+    launchGame
   };
-
-  return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>;
 };

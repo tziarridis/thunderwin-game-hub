@@ -1,162 +1,254 @@
-import { ethers } from 'ethers';
-import { toast } from 'sonner';
 
-// Declare MetaMask window type
+import { ethers } from "ethers";
+import { toast } from "sonner";
+import { addTransaction } from "./transactionService";
+import { creditWallet } from "./walletService";
+
+// Extend Window interface to include ethereum property
 declare global {
   interface Window {
-    ethereum?: ethers.providers.ExternalProvider & {
-      on?: (event: string, callback: () => void) => void;
-    };
+    ethereum?: any;
   }
 }
 
-export const metamaskService = {
-  isInstalled: (): boolean => {
-    return window.ethereum !== undefined;
-  },
-  
-  // Added aliases for compatibility with existing code
-  isMetaMaskAvailable: (): boolean => {
-    return window.ethereum !== undefined;
-  },
-  
-  async connectWallet(): Promise<string | null> {
+/**
+ * Service for MetaMask integration and Ethereum transactions
+ */
+export class MetaMaskService {
+  /**
+   * Check if MetaMask is available in the browser
+   */
+  isMetaMaskAvailable = (): boolean => {
+    return typeof window !== 'undefined' && 
+           typeof window.ethereum !== 'undefined' && 
+           window.ethereum.isMetaMask === true;
+  };
+
+  /**
+   * Alias for isMetaMaskAvailable for compatibility with existing components
+   */
+  isMetaMaskInstalled = (): boolean => {
+    return this.isMetaMaskAvailable();
+  };
+
+  /**
+   * Connect to MetaMask and get user accounts
+   */
+  connectToMetaMask = async (): Promise<string[]> => {
     try {
-      if (!this.isInstalled()) {
-        toast.error('MetaMask is not installed. Please install MetaMask to continue.');
-        window.open('https://metamask.io/download.html', '_blank');
+      if (!this.isMetaMaskAvailable()) {
+        throw new Error("MetaMask is not installed. Please install MetaMask to continue.");
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      console.log("Connected to MetaMask accounts:", accounts);
+      toast.success("Connected to MetaMask successfully");
+      
+      return accounts;
+    } catch (error: any) {
+      console.error("Error connecting to MetaMask:", error);
+      toast.error(`Failed to connect to MetaMask: ${error.message || "Unknown error"}`);
+      throw error;
+    }
+  };
+
+  /**
+   * Alias for connectToMetaMask for compatibility with existing components
+   */
+  requestAccounts = async (): Promise<string[]> => {
+    return this.connectToMetaMask();
+  };
+
+  /**
+   * Get currently connected account (if any)
+   */
+  getConnectedAccount = async (): Promise<string | null> => {
+    try {
+      if (!this.isMetaMaskAvailable()) {
         return null;
       }
-
-      const provider = new ethers.providers.Web3Provider(window.ethereum!);
-      await provider.send('eth_requestAccounts', []);
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
       
-      toast.success('MetaMask connected successfully!');
-      return address;
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      return accounts.length > 0 ? accounts[0] : null;
+    } catch (error) {
+      console.error("Error getting connected account:", error);
+      return null;
+    }
+  };
+
+  /**
+   * Get current Ethereum balance for an account
+   */
+  getBalance = async (address?: string): Promise<number> => {
+    try {
+      if (!address) {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+          throw new Error("No account connected");
+        }
+        address = accounts[0];
+      }
+      
+      const balanceHex = await window.ethereum.request({
+        method: 'eth_getBalance',
+        params: [address, 'latest'],
+      });
+      
+      const balanceInWei = ethers.BigNumber.from(balanceHex);
+      const balanceInEth = parseFloat(ethers.utils.formatEther(balanceInWei));
+      
+      return balanceInEth;
     } catch (error: any) {
-      console.error('Error connecting wallet:', error);
-      toast.error(error.message || 'Failed to connect MetaMask wallet');
-      return null;
+      console.error("Error getting balance:", error);
+      toast.error(`Failed to get balance: ${error.message || "Unknown error"}`);
+      throw error;
     }
-  },
+  };
 
-  // Alias for compatibility
-  connectToMetaMask(): Promise<string | null> {
-    return this.connectWallet();
-  },
-  
-  // Alias for compatibility
-  requestAccounts(): Promise<string | null> {
-    return this.connectWallet();
-  },
-  
-  // Added for compatibility with existing code
-  async getConnectedAccount(): Promise<string | null> {
+  /**
+   * Switch to Ethereum Mainnet
+   */
+  switchToEthereumMainnet = async (): Promise<void> => {
     try {
-      if (!this.isInstalled()) return null;
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x1' }], // '0x1' is the chainId for Ethereum Mainnet
+      });
+    } catch (error: any) {
+      console.error("Error switching to Ethereum Mainnet:", error);
+      toast.error(`Failed to switch network: ${error.message || "Unknown error"}`);
+      throw error;
+    }
+  };
+
+  /**
+   * Process a deposit from MetaMask to user's wallet
+   */
+  processDeposit = async (
+    userId: string, 
+    ethAmount: number
+  ): Promise<boolean> => {
+    try {
+      // Example recipient address - this should be your platform's wallet
+      const toAddress = '0xRecipientAddress';
       
-      const provider = new ethers.providers.Web3Provider(window.ethereum!);
-      const accounts = await provider.listAccounts();
+      // Send the transaction
+      const txHash = await this.sendTransaction(toAddress, ethAmount, userId);
       
-      if (accounts.length > 0) {
-        return accounts[0];
-      }
-      return null;
+      // If we got here, the transaction was sent successfully
+      return !!txHash;
     } catch (error) {
-      console.error('Error getting connected account:', error);
-      return null;
+      console.error("Error processing deposit:", error);
+      return false;
     }
-  },
+  };
 
-  async getBalance(address: string): Promise<string | null> {
+  /**
+   * Send ETH from user's MetaMask wallet to a recipient address
+   */
+  sendTransaction = async (
+    toAddress: string, 
+    amountInEth: number,
+    userId: string
+  ): Promise<string> => {
     try {
-      if (!address) return null;
-      
-      const provider = new ethers.providers.Web3Provider(window.ethereum!);
-      const balance = await provider.getBalance(address);
-      const etherBalance = ethers.utils.formatEther(balance);
-      
-      return parseFloat(etherBalance).toFixed(4);
-    } catch (error) {
-      console.error('Error getting balance:', error);
-      return null;
-    }
-  },
-
-  async sendTransaction(toAddress: string, amount: string, options?: any): Promise<boolean> {
-    try {
-      if (!this.isInstalled()) {
-        toast.error('MetaMask is not installed');
-        return false;
+      if (!this.isMetaMaskAvailable()) {
+        throw new Error("MetaMask is not installed");
       }
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum!);
-      const signer = provider.getSigner();
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const fromAddress = accounts[0];
       
-      const tx = await signer.sendTransaction({
+      const amountInWei = ethers.utils.parseEther(amountInEth.toString()).toHexString();
+      
+      // Prepare transaction parameters
+      const transactionParameters = {
+        from: fromAddress,
         to: toAddress,
-        value: ethers.utils.parseEther(amount),
-        ...(options || {})
-      });
-      
-      toast.success('Transaction sent! Waiting for confirmation...');
-      
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      
-      if (receipt.status === 1) {
-        toast.success('Transaction confirmed!');
-        return true;
-      } else {
-        toast.error('Transaction failed!');
-        return false;
-      }
-    } catch (error: any) {
-      console.error('Transaction error:', error);
-      toast.error(error.message || 'Transaction failed');
-      return false;
-    }
-  },
-  
-  // Added for compatibility with existing code
-  setupMetaMaskListeners(callback: () => void): void {
-    if (!this.isInstalled()) return;
-    
-    const ethereum = window.ethereum;
-    if (!ethereum) return;
-    
-    // Check if on method exists before calling it
-    if (typeof ethereum.on === 'function') {
-      // Add listeners for account changes
-      ethereum.on('accountsChanged', () => {
-        if (callback) callback();
-      });
-      
-      ethereum.on('chainChanged', () => {
-        if (callback) callback();
-      });
-    }
-  },
-  
-  // Added for compatibility with existing code
-  async switchToEthereumMainnet(): Promise<boolean> {
-    try {
-      if (!this.isInstalled()) return false;
-      
-      const provider = new ethers.providers.Web3Provider(window.ethereum!);
-      
-      await provider.send('wallet_switchEthereumChain', [
-        { chainId: '0x1' }, // Ethereum Mainnet
-      ]);
-      
-      return true;
-    } catch (error) {
-      console.error('Error switching network:', error);
-      return false;
-    }
-  }
-};
+        value: amountInWei,
+        gas: '0x5208', // 21000 gas
+      };
 
+      // Send transaction
+      const txHash = await window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [transactionParameters],
+      });
+
+      console.log('Transaction sent:', txHash);
+
+      // Record the transaction in our system
+      await addTransaction({
+        user_id: userId,
+        player_id: userId,
+        type: "deposit",
+        amount: amountInEth,
+        currency: 'ETH',
+        status: 'completed',
+        description: `Metamask deposit: ${amountInEth} ETH`,
+        reference_id: txHash,
+        provider: 'Metamask'
+      });
+      
+      // Credit the user's wallet
+      await creditWallet(userId, amountInEth, 'deposit', 'metamask');
+
+      toast.success(`Transaction sent successfully! Amount: ${amountInEth} ETH`);
+      
+      return txHash;
+    } catch (error: any) {
+      console.error("Error sending transaction:", error);
+      toast.error(`Transaction failed: ${error.message || "Unknown error"}`);
+      throw error;
+    }
+  };
+
+  /**
+   * Listen for MetaMask account changes
+   */
+  listenForAccountChanges = (callback: (accounts: string[]) => void): void => {
+    if (this.isMetaMaskAvailable()) {
+      window.ethereum.on('accountsChanged', callback);
+    }
+  };
+
+  /**
+   * Listen for MetaMask chain changes
+   */
+  listenForChainChanges = (callback: (chainId: string) => void): void => {
+    if (this.isMetaMaskAvailable()) {
+      window.ethereum.on('chainChanged', callback);
+    }
+  };
+
+  /**
+   * Set up all MetaMask event listeners
+   */
+  setupMetaMaskListeners = (): (() => void) | undefined => {
+    if (!this.isMetaMaskAvailable()) {
+      return undefined;
+    }
+
+    const accountsHandler = (accounts: string[]) => {
+      console.log("MetaMask accounts changed:", accounts);
+    };
+
+    const chainHandler = (chainId: string) => {
+      console.log("MetaMask chain changed:", chainId);
+    };
+
+    window.ethereum.on('accountsChanged', accountsHandler);
+    window.ethereum.on('chainChanged', chainHandler);
+
+    // Return cleanup function
+    return () => {
+      window.ethereum.removeListener('accountsChanged', accountsHandler);
+      window.ethereum.removeListener('chainChanged', chainHandler);
+    };
+  };
+}
+
+export const metamaskService = new MetaMaskService();
 export default metamaskService;

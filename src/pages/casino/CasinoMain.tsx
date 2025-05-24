@@ -1,84 +1,228 @@
-
-import React, { useState, useEffect } from 'react';
-import { useGames } from '@/hooks/useGames';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, FilterX } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useGames } from "@/hooks/useGames";
+import { Game } from "@/types";
+import RecentBigWins from "@/components/casino/RecentBigWins";
+import GameCategories from "@/components/casino/GameCategories";
+import AggregatorGameSection from "@/components/casino/AggregatorGameSection";
+import { useAuth } from "@/contexts/AuthContext";
+import { scrollToTop } from "@/utils/scrollUtils";
 import CasinoGameGrid from '@/components/casino/CasinoGameGrid';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+
+// Mock data for configurable banners from backend
+const banners = [
+  {
+    id: 1,
+    title: "Welcome Bonus",
+    description: "Get 100% up to $500 + 100 Free Spins on your first deposit!",
+    imageUrl: "https://images.unsplash.com/photo-1605810230434-7631ac76ec81",
+    ctaText: "Claim Now",
+    ctaUrl: "/promotions",
+    backgroundColor: "from-purple-900 to-blue-900",
+    textColor: "text-white"
+  },
+  {
+    id: 2,
+    title: "Casino Tournament",
+    description: "Win big in our weekly casino tournament with $10,000 prize pool",
+    imageUrl: "https://images.unsplash.com/photo-1518998053901-5348d3961a04",
+    ctaText: "Join Now",
+    ctaUrl: "/tournaments",
+    backgroundColor: "from-green-800 to-blue-900",
+    textColor: "text-white"
+  }
+];
 
 const CasinoMain = () => {
-  const { 
-    games, 
-    isLoadingGames, 
-    gamesError,
-    launchGame 
-  } = useGames();
-  const [visibleGames, setVisibleGames] = useState(12);
+  const { games, loading, error } = useGames();
+  const [searchText, setSearchText] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [filteredGames, setFilteredGames] = useState<Game[]>([]);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
-  const handleGameClick = async (game: any) => {
-    try {
-      const gameUrl = await launchGame(game, { mode: 'demo' });
-      if (gameUrl) {
-        window.open(gameUrl, '_blank');
-      } else {
-        navigate(`/casino/game/${game.slug || game.id}`);
-      }
-    } catch (error: any) {
-      toast.error(`Error launching game: ${error.message}`);
+  useEffect(() => {
+    if (games) {
+      applyFilters();
     }
+  }, [games, searchText, activeTab]);
+
+  const applyFilters = () => {
+    let filtered = [...games];
+
+    // Apply search filter
+    if (searchText) {
+      filtered = filtered.filter(game => 
+        game.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        game.provider.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // Apply category filter
+    if (activeTab !== "all") {
+      filtered = filtered.filter(game => {
+        switch (activeTab) {
+          case "popular":
+            return game.isPopular;
+          case "new":
+            return game.isNew;
+          case "slots":
+            return game.category === "slots";
+          case "table":
+            return game.category === "table";
+          case "live":
+            return game.category === "live";
+          case "jackpots":
+            return game.jackpot;
+          case "favorites":
+            return game.isFavorite;
+          default:
+            return true;
+        }
+      });
+    }
+
+    setFilteredGames(filtered);
   };
 
-  const loadMoreGames = () => {
-    setVisibleGames(prev => prev + 12);
+  const handleClearSearch = () => {
+    setSearchText("");
   };
 
-  const displayedGames = games.slice(0, visibleGames);
-  const hasMoreGames = visibleGames < games.length;
+  if (loading) {
+    return <div className="container mx-auto px-4 py-12">Loading games...</div>;
+  }
 
-  if (gamesError) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-500">Error loading games: {String(gamesError)}</p>
-        <Button onClick={() => window.location.reload()} className="mt-4">
-          Retry
-        </Button>
-      </div>
-    );
+  if (error) {
+    return <div className="container mx-auto px-4 py-12">Error loading games: {error.message}</div>;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center">Casino Games</h1>
-      
-      {isLoadingGames && displayedGames.length === 0 ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin" />
+    <div className="relative bg-casino-thunder-darker min-h-screen overflow-hidden">
+      <div className="container mx-auto px-4 py-8 pt-20">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Casino Games</h1>
+          <p className="text-white/70 max-w-2xl mx-auto">
+            Explore our vast selection of casino games, from slots to table games and live dealer experiences.
+          </p>
         </div>
-      ) : (
-        <>
-          <CasinoGameGrid 
-            games={displayedGames} 
-            onGameClick={handleGameClick}
-          />
-          
-          {hasMoreGames && (
-            <div className="text-center mt-8">
-              <Button onClick={loadMoreGames} disabled={isLoadingGames}>
-                {isLoadingGames ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  'Load More Games'
-                )}
+        
+        {/* Configurable Banners Section - Added at top */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {banners.map(banner => (
+              <div
+                key={banner.id}
+                className={`rounded-lg overflow-hidden relative h-60 bg-gradient-to-r ${banner.backgroundColor}`}
+              >
+                <div className="absolute inset-0 opacity-60 bg-black">
+                  <img 
+                    src={banner.imageUrl} 
+                    alt={banner.title} 
+                    className="w-full h-full object-cover mix-blend-overlay"
+                  />
+                </div>
+                <div className="absolute inset-0 flex flex-col justify-center p-8 z-10">
+                  <h3 className={`text-2xl font-bold mb-2 ${banner.textColor}`}>
+                    {banner.title}
+                  </h3>
+                  <p className={`${banner.textColor} mb-4 opacity-80 max-w-md`}>
+                    {banner.description}
+                  </p>
+                  <div>
+                    <Button 
+                      className="bg-casino-thunder-green hover:bg-casino-thunder-highlight text-black"
+                      onClick={() => navigate(banner.ctaUrl)}
+                    >
+                      {banner.ctaText}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Game Categories */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Game Categories</h2>
+          <GameCategories onCategoryClick={(category) => {
+            navigate(`/casino/${category}`);
+            scrollToTop();
+          }} />
+        </div>
+        
+        {/* Aggregator Game Section - NEW SECTION */}
+        <div className="mb-8">
+          <AggregatorGameSection />
+        </div>
+        
+        {/* Recent Big Wins */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6 thunder-glow">Recent Big Wins</h2>
+          <RecentBigWins />
+        </div>
+        
+        <div className="mb-6">
+          <div className="relative mb-4">
+            <Input
+              type="text"
+              placeholder="Search games or providers..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              className="pl-10 py-6 bg-casino-thunder-gray/30 border-white/10"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {searchText && (
+              <Button 
+                variant="ghost" 
+                className="absolute right-2 top-1/2 transform -translate-y-1/2" 
+                onClick={handleClearSearch}
+              >
+                <FilterX size={18} />
               </Button>
-            </div>
-          )}
-        </>
-      )}
+            )}
+          </div>
+          
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="w-full flex overflow-x-auto py-2 justify-start">
+              <TabsTrigger value="all">All Games</TabsTrigger>
+              <TabsTrigger value="popular">Popular</TabsTrigger>
+              <TabsTrigger value="new">New</TabsTrigger>
+              <TabsTrigger value="slots">Slots</TabsTrigger>
+              <TabsTrigger value="table">Table Games</TabsTrigger>
+              <TabsTrigger value="live">Live Casino</TabsTrigger>
+              <TabsTrigger value="jackpots">Jackpots</TabsTrigger>
+              <TabsTrigger value="favorites">Favorites</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        
+        {filteredGames.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-xl mb-4">No games match your search criteria.</p>
+            <Button 
+              variant="outline" 
+              className="border-casino-thunder-green text-casino-thunder-green"
+              onClick={handleClearSearch}
+            >
+              Clear Filters
+            </Button>
+          </div>
+        ) : (
+          <CasinoGameGrid
+            games={filteredGames}
+            onGameClick={(game) => {
+              navigate(`/casino/game/${game.id}`);
+              scrollToTop();
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

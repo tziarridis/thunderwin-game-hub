@@ -1,124 +1,124 @@
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate }  from 'react-router-dom';
-import { useGames } from '@/hooks/useGames'; // Provides launchGame
-import { Game, GameLaunchOptions } from '@/types'; // Corrected import
-import { useAuth } from '@/contexts/AuthContext';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Game } from '@/types';
+import { useGames } from '@/hooks/useGames';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Loader2, AlertTriangle } from 'lucide-react';
-import ResponsiveEmbed from '@/components/ResponsiveEmbed';
+import { useAuth } from '@/contexts/AuthContext';
+import { walletService } from '@/services/walletService';
 
-const LaunchGame = () => {
-  const { gameId } = useParams<{ gameId: string }>(); // gameId here is likely game slug from URL
-  const navigate = useNavigate();
-  const { launchGame, getGameBySlug, getGameById } = useGames(); // Assuming getGameBySlug exists
-  const { user, isAuthenticated } = useAuth();
-  const [gameData, setGameData] = useState<Game | null>(null);
-  const [launchUrl, setLaunchUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface LaunchGameProps {
+  game: Game;
+  mode?: 'real' | 'demo';
+  buttonText?: string;
+  variant?: 'default' | 'outline' | 'destructive' | 'secondary' | 'ghost' | 'link';
+  className?: string;
+  providerId?: string;
+  currency?: string;
+  language?: string;
+  platform?: 'web' | 'mobile';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+}
 
-  useEffect(() => {
-    const fetchAndLaunch = async () => {
-      if (!gameId) {
-        setError("Game identifier missing.");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Fetch game details first
-        let game = await getGameBySlug(gameId);
-        if (!game) game = await getGameById(gameId); // Fallback to ID if slug fails
-
-        if (!game) {
-          throw new Error("Game not found.");
+const LaunchGame = ({ 
+  game, 
+  mode = 'demo', 
+  buttonText = 'Play Game', 
+  variant = 'default',
+  className = '',
+  providerId = 'ppeur',
+  currency = 'USD',
+  language = 'en',
+  platform = 'web',
+  size = 'default'
+}: LaunchGameProps) => {
+  const { launchGame, launchingGame } = useGames();
+  const [isLaunching, setIsLaunching] = useState(false);
+  const { isAuthenticated, user, refreshWalletBalance } = useAuth();
+  
+  const handleLaunch = async () => {
+    if (mode === 'real' && !isAuthenticated) {
+      toast.error("Please log in to play in real money mode");
+      return;
+    }
+    
+    try {
+      setIsLaunching(true);
+      const playerId = isAuthenticated ? user?.id || 'guest' : 'guest';
+      
+      // Check wallet balance for real money play
+      if (mode === 'real' && isAuthenticated && user?.id) {
+        const wallet = await walletService.getWalletByUserId(user.id);
+        if (!wallet || wallet.balance <= 0) {
+          toast.error("Insufficient funds. Please deposit to play in real money mode.");
+          setIsLaunching(false);
+          return;
         }
-        setGameData(game);
-
-        // Determine mode: 'demo' if not authenticated, 'real' if authenticated (can be overridden by game tags)
-        // This is a simplified logic; actual game launch might have more complex rules
-        const mode: 'real' | 'demo' = isAuthenticated && !game.only_demo ? 'real' : 'demo';
+      }
+      
+      console.log(`Launching game ${game.id} with provider ${providerId} for player ${playerId}`, {
+        mode,
+        language,
+        currency,
+        platform
+      });
+      
+      const gameUrl = await launchGame(game, { 
+        mode, 
+        providerId,
+        playerId,
+        language,
+        currency,
+        platform,
+        returnUrl: window.location.href
+      });
+      
+      console.log("Generated game URL:", gameUrl);
+      
+      if (gameUrl) {
+        const gameWindow = window.open(gameUrl, '_blank');
         
-        if (mode === 'real' && !isAuthenticated) {
-             toast.error("Please log in to play real money games.");
-             navigate("/login"); // Redirect to login
-             setIsLoading(false);
-             return;
+        if (!gameWindow) {
+          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
         }
-
-
-        const launchOptions: GameLaunchOptions = {
-          mode,
-          user_id: user?.id,
-          username: user?.user_metadata?.username,
-          currency: user?.user_metadata?.currency || 'USD',
-          language: user?.user_metadata?.language || 'en',
-          platform: 'web',
-          returnUrl: window.location.origin + '/casino', // Example return URL
-        };
-
-        const url = await launchGame(game, launchOptions);
-        if (url) {
-          setLaunchUrl(url);
-        } else {
-          throw new Error("Could not retrieve game launch URL.");
+        
+        toast.success(`Game launched: ${game.title}`);
+        
+        // Refresh wallet balance after game launch
+        if (mode === 'real' && isAuthenticated) {
+          setTimeout(() => {
+            refreshWalletBalance();
+          }, 5000); // Refresh balance after 5 seconds to give time for initial bet
         }
-      } catch (err: any) {
-        console.error("Error in LaunchGame component:", err);
-        setError(err.message || "Failed to launch game.");
-        toast.error(err.message || "Failed to launch game.");
-      } finally {
-        setIsLoading(false);
+      } else {
+        throw new Error("Failed to generate game URL");
       }
-    };
-
-    fetchAndLaunch();
-  }, [gameId, launchGame, getGameBySlug, getGameById, user, isAuthenticated, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="text-lg">Loading game session...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] text-center p-4">
-        <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-        <p className="text-lg text-destructive-foreground mb-2">Error Launching Game</p>
-        <p className="text-muted-foreground mb-6">{error}</p>
-        <button onClick={() => navigate('/casino')} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90">
-          Back to Casino
-        </button>
-      </div>
-    );
-  }
-
-  if (!launchUrl) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] text-center p-4">
-        <AlertTriangle className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg text-muted-foreground mb-6">Game launch URL not available.</p>
-        <button onClick={() => navigate('/casino')} className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90">
-           Back to Casino
-        </button>
-      </div>
-    );
-  }
-
+      
+    } catch (error: any) {
+      console.error('Error launching game:', error);
+      toast.error(`Error launching game: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsLaunching(false);
+    }
+  };
+  
   return (
-    <div className="w-full h-[calc(100vh-var(--header-height,80px))]"> {/* Adjust var(--header-height) if you have a CSS var for header height */}
-      <ResponsiveEmbed src={launchUrl} title={gameData?.title || "Game"} />
-    </div>
+    <Button 
+      variant={variant}
+      onClick={handleLaunch}
+      disabled={isLaunching || launchingGame}
+      className={className}
+      size={size}
+    >
+      {isLaunching || launchingGame ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Launching...
+        </>
+      ) : buttonText}
+    </Button>
   );
 };
 
 export default LaunchGame;
-

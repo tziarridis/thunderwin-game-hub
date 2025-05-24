@@ -1,117 +1,305 @@
 
-// Core User Types
-export interface AppUser {
+export interface Game {
   id: string;
-  email: string;
-  username?: string;
-  role: UserRole;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  balance?: number;
-  currency?: string;
-  first_name?: string;
-  last_name?: string;
-  name?: string;
-  avatar_url?: string;
-  is_active?: boolean;
-  last_sign_in_at?: string;
-  vip_level_id?: string;
-  vipLevel?: number;
-  vipPoints?: number;
-  kycStatus?: string;
-  user_metadata?: {
-    username?: string;
-    full_name?: string;
-    avatar_url?: string;
-    kyc_status?: string;
-    currency?: string;
-    language?: string;
-    vip_level?: number;
-    name?: string;
-    bonus_points?: number;
-  };
-  wallet?: {
-    balance: number;
-    currency: string;
-    symbol: string;
-  };
+  name: string;
+  title: string;
+  provider: string;
+  category: string;
+  image: string;
+  rtp: number;
+  volatility: string;
+  minBet: number;
+  maxBet: number;
+  features: string[];
+  tags: string[];
+  isFavorite?: boolean;
+  url?: string;
+  
+  // Additional properties needed by components
+  description?: string;
+  isPopular?: boolean;
+  isNew?: boolean;
+  jackpot?: boolean;
+  releaseDate?: string;
 }
 
-export interface User extends AppUser {}
-
-export enum UserRole {
-  ADMIN = 'admin',
-  USER = 'user',
-  MODERATOR = 'moderator'
-}
-
-// Auth Types
-export interface LoginCredentials {
+export interface User {
+  id: string;
+  name: string;
+  username: string;
   email: string;
-  password: string;
+  balance: number;
+  isAdmin: boolean;
+  avatar?: string;
+  vipLevel: number;
+  isVerified: boolean;
+  status: "Active" | "Pending" | "Inactive";
+  joined: string;
+  role: "admin" | "user";
+  favoriteGames: string[];
+  phone?: string;
+  referralCode?: string;
+  referredBy?: string;
+  ipAddress?: string;
+  lastLogin?: string;
+  createdAt?: string;
 }
 
 export interface AuthUser {
   id: string;
+  name: string;
+  username: string;
   email: string;
-  username?: string;
-  name?: string;
-  balance?: number;
-  isAdmin?: boolean;
+  balance: number;
+  isAdmin: boolean;
   avatarUrl?: string;
-  vipLevel?: number;
-  isVerified?: boolean;
+  vipLevel: number;
+  isVerified: boolean;
 }
 
-// Date Range Type
-export interface DateRange {
-  from?: Date;
-  to?: Date;
+export interface GameProvider {
+  id: string | number;
+  name: string;
+  logo?: string;
+  description?: string;
+  status?: string;
+  gamesCount?: number;
+  isPopular?: boolean;
+  featured?: boolean;
 }
 
-// Data Table Types
-export interface DataTableColumn<T> {
-  accessorKey?: string;
-  header: string;
-  cell?: (props: { row: { original: T } }) => React.ReactNode;
-  id?: string;
+export interface Affiliate {
+  id: string;
+  userId: string;
+  userName: string;
+  name: string;
+  email: string;
+  website?: string;
+  code: string;
+  referredUsers: number;
+  totalCommissions: number;
+  commission: number;
+  signups: number;
+  totalRevenue: number;
+  joinedDate: string;
+  payoutMethod: string;
+  payoutDetails: string;
+  status: 'active' | 'pending' | 'suspended';
+  joined: string;
+  referralCode: string;
 }
 
-// VIP Progress Props
-export interface VipProgressProps {
-  currentLevel: number;
-  currentPoints: number;
-  pointsToNextLevel: number;
+export interface VipLevel {
+  id: number | string;
+  level: number;
+  name: string;
+  pointsRequired: number;
+  requiredPoints?: number; // Add for backward compatibility
+  benefits: string[];
+  cashbackRate: number;
+  withdrawalLimit: number;
+  bonuses: {
+    depositMatch: number;
+    freeSpins: number;
+    birthdayBonus: number;
+  };
+  icon?: string;
+  color?: string;
+  // Additional properties
+  personalManager?: boolean;
+  customGifts?: boolean;
+  specialPromotions?: boolean;
+  requirements?: string;
 }
 
-// Game Properties Props
-export interface GamePropertiesProps {
-  game: Game;
-  provider?: string;
+export interface Promotion {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  terms: string;
+  bonusAmount?: number;
+  bonusType?: string;
+  targetAudience?: string[];
+  code?: string;
+  minDeposit?: number;
+  wageringRequirement?: number;
+  promotionType?: string;
   category?: string;
 }
 
-// Related Games Props
-export interface RelatedGamesProps {
-  gameId: string;
-  categoryId?: string;
-  providerId?: string;
-  tags?: (string | GameTag)[];
+export interface DashboardStats {
+  totalUsers: number;
+  newUsers: number;
+  activeUsers: number;
+  totalRevenue: number;
+  dailyRevenue: number;
+  monthlyRevenue: number;
+  totalBets: number;
+  avgBetSize: number;
+  registrationConversion: number;
+  depositConversion: number;
+  // Add missing properties
+  ggr: number;
+  ngr: number;
+  volume: number;
+  bonusAmount: number;
+  taxes: number;
+  totalDeposits: number;
+  totalWithdrawals: number;
+  availableBalance: number;
 }
 
-// Re-export all types from individual files
-export * from './promotion';
-export * from './game';
-export * from './affiliate';
-export * from './transaction';
-export * from './kyc';
-export * from './wallet';
-export * from './vip';
-export * from './bonus';
+export interface GameStats {
+  mostPlayed: { name: string; count: number }[];
+  highestWin: { name: string; amount: number }[];
+  popularCategories: { name: string; count: number }[];
+  // Add missing properties
+  totalBets: number;
+  totalWins: number;
+  netProfit: number;
+  gameName?: string;
+  uniquePlayers: number;
+}
 
-// Export commonly needed types
-export type { Bonus, BonusType, BonusStatus, UserBonus } from './bonus';
-export type { PromotionType, PromotionFormValues, PromotionAudience } from './promotion';
-export type { AffiliateUser, AffiliateCommissionTier, AffiliateStatSummary } from './affiliate';
-export type { DbGame, GameStatus, GameVolatility, GameStatusEnum } from './game';
+export interface ProviderStats {
+  revenue: { name: string; amount: number }[];
+  bets: { name: string; count: number }[];
+  winRate: { name: string; rate: number }[];
+  // Add missing properties
+  totalBets: number;
+  totalWins: number;
+  netProfit: number;
+  providerName?: string;
+  totalGames: number;
+  uniquePlayers: number;
+}
+
+export interface RegionStats {
+  usersByCountry: { country: string; users: number }[];
+  revenueByCountry: { country: string; revenue: number }[];
+  activeSessionsByRegion: { region: string; sessions: number }[];
+  // Add missing properties
+  depositAmount: number;
+  betAmount: number;
+  netProfit: number;
+  region?: string;
+  userCount: number;
+  winAmount?: number;
+}
+
+export enum KycStatus {
+  NOT_SUBMITTED = "not_submitted",
+  PENDING = "pending",
+  VERIFIED = "verified",
+  REJECTED = "rejected"
+}
+
+export interface KycRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  documentType: string;
+  documentNumber: string;
+  submissionDate: string;
+  status: KycStatus;
+  verificationDate?: string;
+  rejectionReason?: string;
+  documentUrls: string[];
+  // Add for backward compatibility
+  email?: string;
+  submittedDate?: string;
+  documentImage?: string;
+  documentFiles?: string[];
+}
+
+export interface BonusTemplate {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number; 
+  minDeposit?: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
+  bonusType?: string;
+  
+  // Additional properties for VipBonusManagement
+  amount?: number;
+  wagering?: number;
+  expiryDays?: number;
+  percentage?: number;
+  maxBonus?: number;
+  vipLevelRequired?: number | string;
+  allowedGames?: string;
+  code?: string;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  date: string;
+  description?: string;
+  referenceId?: string;
+  paymentMethod?: string;
+  balance?: number;
+  gameId?: string;
+  bonusId?: string;
+}
+
+export enum BonusType {
+  WELCOME = "welcome",
+  DEPOSIT = "deposit",
+  RELOAD = "reload",
+  CASHBACK = "cashback",
+  FREE_SPINS = "free_spins",
+  VIP = "vip",
+  REFERRAL = "referral"
+}
+
+export interface Bonus {
+  id: string;
+  userId: string;
+  type: BonusType;
+  amount: number;
+  status: "active" | "used" | "expired";
+  expiryDate: string;
+  createdAt: string;
+  wageringRequirement: number;
+  progress: number;
+  code?: string;
+  description?: string;
+}
+
+// Type for VipBonusManagement
+export interface BonusTemplateFormData {
+  id?: string;
+  name: string;
+  description: string;
+  type: string;
+  value: number;
+  minDeposit?: number;
+  wageringRequirement: number;
+  durationDays: number;
+  forVipLevels: number[];
+  isActive: boolean;
+  bonusType?: string;
+  // Additional properties
+  amount?: number;
+  percentage?: number;
+  wagering?: number;
+  expiryDays?: number;
+  maxBonus?: number;
+  vipLevelRequired?: number | string;
+  allowedGames?: string;
+  code?: string;
+}

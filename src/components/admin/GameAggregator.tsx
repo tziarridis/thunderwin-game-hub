@@ -1,3 +1,4 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import PragmaticPlayTester from "@/components/games/PragmaticPlayTester";
@@ -14,6 +15,10 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/**
+ * Game Aggregator component for admin dashboard
+ * Allows testing and management of game provider integrations
+ */
 const GameAggregator = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("pp");
@@ -93,7 +98,7 @@ const GameAggregator = () => {
     }
     
     const config = getProviderConfig(providerConfigId);
-    url = config?.credentials?.callbackUrl || "";
+    url = config?.credentials.callbackUrl || "";
     
     if (url) {
       navigator.clipboard.writeText(url);
@@ -272,7 +277,7 @@ const GameAggregator = () => {
                     <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
                       <div>
                         <p className="text-sm font-semibold">API Endpoint:</p>
-                        <p className="text-xs text-gray-400">{getProviderConfig('gspeur')?.credentials?.apiEndpoint}</p>
+                        <p className="text-xs text-gray-400">{getProviderConfig('gspeur')?.credentials.apiEndpoint}</p>
                       </div>
                       <Button size="sm" variant="outline" onClick={() => {
                         handleCopyCallback('gsp', 'gsp-api');
@@ -358,7 +363,7 @@ const GameAggregator = () => {
                     <div className="flex items-center justify-between p-2 bg-slate-700 rounded">
                       <div>
                         <p className="text-sm font-semibold">API Endpoint:</p>
-                        <p className="text-xs text-gray-400">{getProviderConfig('infineur')?.credentials?.apiEndpoint}</p>
+                        <p className="text-xs text-gray-400">{getProviderConfig('infineur')?.credentials.apiEndpoint}</p>
                       </div>
                       <Button size="sm" variant="outline" onClick={() => {
                         handleCopyCallback('infin', 'infin-api');
@@ -434,14 +439,14 @@ const GameAggregator = () => {
                                       let configId = provider.id === 'infin' ? 'infineur' : 
                                                      provider.id === 'gsp' ? 'gspeur' : 
                                                      `${provider.id}eur`;
-                                      return getProviderConfig(configId)?.credentials?.callbackUrl || 'Not configured';
+                                      return getProviderConfig(configId)?.credentials.callbackUrl || 'Not configured';
                                     })()}
                                   </code>
                                   <Button size="sm" variant="ghost" onClick={() => {
                                     let configId = provider.id === 'infin' ? 'infineur' : 
                                                    provider.id === 'gsp' ? 'gspeur' : 
                                                    `${provider.id}eur`;
-                                    const url = getProviderConfig(configId)?.credentials?.callbackUrl;
+                                    const url = getProviderConfig(configId)?.credentials.callbackUrl;
                                     
                                     if (url) {
                                       navigator.clipboard.writeText(url);
@@ -461,7 +466,7 @@ const GameAggregator = () => {
                                       let configId = provider.id === 'infin' ? 'infineur' : 
                                                      provider.id === 'gsp' ? 'gspeur' : 
                                                      `${provider.id}eur`;
-                                      const endpoint = getProviderConfig(configId)?.credentials?.apiEndpoint;
+                                      const endpoint = getProviderConfig(configId)?.credentials.apiEndpoint;
                                       return endpoint ? `https://${endpoint}` : 'Not configured';
                                     })()}
                                   </code>
@@ -469,7 +474,7 @@ const GameAggregator = () => {
                                     let configId = provider.id === 'infin' ? 'infineur' : 
                                                    provider.id === 'gsp' ? 'gspeur' : 
                                                    `${provider.id}eur`;
-                                    const endpoint = getProviderConfig(configId)?.credentials?.apiEndpoint;
+                                    const endpoint = getProviderConfig(configId)?.credentials.apiEndpoint;
                                     
                                     if (endpoint) {
                                       navigator.clipboard.writeText(`https://${endpoint}`);

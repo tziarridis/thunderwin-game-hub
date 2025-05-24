@@ -9,16 +9,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export interface DataTableColumn<TData> {
-  header: string;
-  accessorKey?: string;
-  cell?: (row: TData) => React.ReactNode;
-  id?: string;
-}
-
-export interface DataTableProps<TData> {
+interface DataTableProps<TData> {
   data: TData[];
-  columns: DataTableColumn<TData>[];
+  columns: {
+    header: string;
+    accessorKey: string;
+    cell?: (row: TData) => React.ReactNode;
+  }[];
 }
 
 export function DataTable<TData>({ data, columns }: DataTableProps<TData>) {
@@ -26,21 +23,19 @@ export function DataTable<TData>({ data, columns }: DataTableProps<TData>) {
     <Table>
       <TableHeader>
         <TableRow>
-          {columns.map((column, index) => (
-            <TableHead key={column.accessorKey || column.id || index}>{column.header}</TableHead>
+          {columns.map((column) => (
+            <TableHead key={column.accessorKey}>{column.header}</TableHead>
           ))}
         </TableRow>
       </TableHeader>
       <TableBody>
         {data.map((row, rowIndex) => (
           <TableRow key={rowIndex}>
-            {columns.map((column, colIndex) => (
-              <TableCell key={`${rowIndex}-${column.accessorKey || column.id || colIndex}`}>
+            {columns.map((column) => (
+              <TableCell key={`${rowIndex}-${column.accessorKey}`}>
                 {column.cell
                   ? column.cell(row)
-                  : column.accessorKey
-                  ? (row as any)[column.accessorKey]
-                  : ''}
+                  : (row as any)[column.accessorKey]}
               </TableCell>
             ))}
           </TableRow>

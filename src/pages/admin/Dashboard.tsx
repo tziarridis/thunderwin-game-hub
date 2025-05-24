@@ -1,135 +1,217 @@
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Activity, Users, TrendingUp, DollarSign } from "lucide-react";
+import { 
+  Chart as ChartComponent, 
+  LineChart, 
+  BarChart, 
+  PieChart,
+  DonutChart,
+  AreaChart 
+} from "@/components/ui/dashboard-charts";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import AdminPageLayout from '@/components/layout/AdminPageLayout';
-import { DatePickerWithRange } from '@/components/ui/date-range-picker'; 
-import type { DateRange } from 'react-day-picker'; // Import DateRange type from react-day-picker
-import { addDays, format } from 'date-fns';
-import OverviewMetrics from '@/components/admin/dashboard/OverviewMetrics';
-import RevenueChart from '@/components/admin/dashboard/RevenueChart';
-import UserActivityChart from '@/components/admin/dashboard/UserActivityChart';
-import TopGamesList from '@/components/admin/dashboard/TopGamesList';
-import TransactionVolumeChart from '@/components/admin/dashboard/TransactionVolumeChart';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-
-// Define a more specific type for dashboard stats
-interface DashboardStats {
-  totalUsers?: number;
-  totalRevenue?: number;
-  activePlayers?: number;
-  pendingWithdrawals?: number;
-  revenueData?: Array<{ date: string; revenue: number }>;
-  userActivityData?: Array<{ date: string; activeUsers: number }>;
-  topGames?: Array<{ id: string; title: string; plays: number }>;
-  transactionVolumeData?: Array<{ date: string; deposits: number; withdrawals?: number; }>; // Added withdrawals here to match usage
+interface DataItem {
+  name: string;
+  value: number;
 }
 
-const AdminDashboard = () => {
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30),
-    to: new Date(),
-  });
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const Dashboard = () => {
+  const [timeFrame, setTimeFrame] = useState("7d");
+  const [revenueData, setRevenueData] = useState<DataItem[]>([
+    { name: "Mon", value: 2400 },
+    { name: "Tue", value: 1398 },
+    { name: "Wed", value: 9800 },
+    { name: "Thu", value: 3908 },
+    { name: "Fri", value: 4800 },
+    { name: "Sat", value: 3800 },
+    { name: "Sun", value: 4300 },
+  ]);
 
-  const fetchDashboardStats = async (currentDateRange: DateRange | undefined) => {
-    if (!currentDateRange?.from || !currentDateRange?.to) {
-      toast.error("Date range is not properly set.");
-      setIsLoading(false);
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      // This is a placeholder. Replace with actual Supabase calls.
-      // You'll need to create RPC functions or complex queries in Supabase
-      // to aggregate this data efficiently.
+  const [trafficData, setTrafficData] = useState<DataItem[]>([
+    { name: "Mon", value: 1400 },
+    { name: "Tue", value: 2398 },
+    { name: "Wed", value: 8800 },
+    { name: "Thu", value: 2908 },
+    { name: "Fri", value: 3800 },
+    { name: "Sat", value: 2800 },
+    { name: "Sun", value: 3300 },
+  ]);
 
-      // Example: Fetch total users (adjust table/column names)
-      const { count: totalUsers } = await supabase
-        .from('users') // Assuming you have a 'users' table
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', format(currentDateRange.from, 'yyyy-MM-dd'))
-        .lte('created_at', format(currentDateRange.to, 'yyyy-MM-dd'));
-      
-      // Simulate other data fetching
-      const fetchedStats: DashboardStats = {
-        totalUsers: totalUsers ?? 0,
-        totalRevenue: Math.floor(Math.random() * 100000),
-        activePlayers: Math.floor(Math.random() * 1000),
-        pendingWithdrawals: Math.floor(Math.random() * 50),
-        revenueData: Array.from({ length: 30 }, (_, i) => ({
-          date: format(addDays(currentDateRange.from!, i), 'MMM dd'),
-          revenue: Math.floor(Math.random() * 5000) + 1000,
-        })),
-        userActivityData: Array.from({ length: 30 }, (_, i) => ({
-          date: format(addDays(currentDateRange.from!, i), 'MMM dd'),
-          activeUsers: Math.floor(Math.random() * 200) + 50,
-        })),
-        topGames: [
-          { id: '1', title: 'Game Alpha', plays: Math.floor(Math.random() * 1000) },
-          { id: '2', title: 'Game Beta', plays: Math.floor(Math.random() * 800) },
-          { id: '3', title: 'Game Gamma', plays: Math.floor(Math.random() * 600) },
-        ],
-        transactionVolumeData: Array.from({ length: 30 }, (_, i) => ({
-            date: format(addDays(currentDateRange.from!, i), 'MMM dd'),
-            deposits: Math.floor(Math.random() * 10000) + 2000,
-            withdrawals: Math.floor(Math.random() * 5000) + 1000,
-        })),
-      };
-      setStats(fetchedStats);
+  const [depositMethodsData, setDepositMethodsData] = useState<DataItem[]>([
+    { name: "Credit Card", value: 4500 },
+    { name: "PayPal", value: 2300 },
+    { name: "Bank Transfer", value: 1500 },
+    { name: "Crypto", value: 1200 },
+  ]);
 
-    } catch (error: any) {
-      console.error("Error fetching dashboard stats:", error);
-      toast.error("Failed to load dashboard data: " + error.message);
-      setStats(null); // Clear stats on error
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [userActivityData, setUserActivityData] = useState<DataItem[]>([
+    { name: "Page A", value: 4000 },
+    { name: "Page B", value: 3000 },
+    { name: "Page C", value: 2000 },
+    { name: "Page D", value: 2780 },
+    { name: "Page E", value: 1890 },
+    { name: "Page F", value: 2390 },
+    { name: "Page G", value: 3490 },
+  ]);
 
-  useEffect(() => {
-    if (dateRange?.from && dateRange?.to) {
-      fetchDashboardStats(dateRange);
-    }
-  }, [dateRange]);
-
-  const handleDateChange = (newRange: DateRange | undefined) => {
-    setDateRange(newRange);
+  const handleTimeFrameChange = (value: string) => {
+    setTimeFrame(value);
+    // In a real application, you would fetch data based on the selected time frame
+    // For this example, we'll just log the selected time frame
+    console.log(`Time frame changed to: ${value}`);
   };
 
   return (
-    <AdminPageLayout title="Admin Dashboard">
-      <div className="flex justify-end mb-6">
-        <DatePickerWithRange
-          date={dateRange}
-          onDateChange={handleDateChange}
-          // Removed align prop as it's not valid
-        />
+    <div className="container mx-auto py-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="shadow-md rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <Activity className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">$45,231.89</div>
+            <p className="text-xs text-muted-foreground">
+              +20.1% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">New Users</CardTitle>
+            <Users className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+2350</div>
+            <p className="text-xs text-muted-foreground">
+              +180.1% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Bets</CardTitle>
+            <TrendingUp className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+12,234</div>
+            <p className="text-xs text-muted-foreground">
+              +19% from last month
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md rounded-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Payouts</CardTitle>
+            <DollarSign className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">$32,231.89</div>
+            <p className="text-xs text-muted-foreground">
+              +12.1% from last month
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {isLoading && !stats ? (
-        <div className="flex justify-center items-center h-[calc(100vh-200px)]">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <Tabs defaultValue="overview" className="w-full">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+          </TabsList>
+          <Select onValueChange={handleTimeFrameChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select time frame" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1d">1 Day</SelectItem>
+              <SelectItem value="7d">7 Days</SelectItem>
+              <SelectItem value="30d">30 Days</SelectItem>
+              <SelectItem value="90d">90 Days</SelectItem>
+              <SelectItem value="1y">1 Year</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      ) : (
-        <div className="space-y-6">
-          <OverviewMetrics stats={stats} isLoading={isLoading && !stats?.totalUsers} />
-          
+        <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RevenueChart data={stats?.revenueData || null} isLoading={isLoading && !stats?.revenueData} />
-            <UserActivityChart data={stats?.userActivityData || null} isLoading={isLoading && !stats?.userActivityData} />
+            <Card className="shadow-md rounded-md">
+              <CardHeader>
+                <CardTitle>Revenue</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LineChart 
+                  data={revenueData} 
+                  categories={["value"]} 
+                  index="name" 
+                  valueFormatter={(value) => `$${value.toLocaleString()}`} 
+                />
+              </CardContent>
+            </Card>
+            <Card className="shadow-md rounded-md">
+              <CardHeader>
+                <CardTitle>Traffic Sources</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BarChart 
+                  data={trafficData} 
+                  categories={["value"]} 
+                  index="name" 
+                  valueFormatter={(value) => `${value.toLocaleString()} visits`} 
+                />
+              </CardContent>
+            </Card>
           </div>
-          
+        </TabsContent>
+        <TabsContent value="analytics" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             <TopGamesList games={stats?.topGames || null} isLoading={isLoading && !stats?.topGames} />
-             <TransactionVolumeChart data={stats?.transactionVolumeData || null} isLoading={isLoading && !stats?.transactionVolumeData} />
+            <Card className="shadow-md rounded-md">
+              <CardHeader>
+                <CardTitle>User Activity</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AreaChart
+                  data={userActivityData}
+                  categories={["value"]}
+                  index="name"
+                  valueFormatter={(value) => `${value.toLocaleString()} activities`}
+                />
+              </CardContent>
+            </Card>
+            <Card className="shadow-md rounded-md">
+              <CardHeader>
+                <CardTitle>Deposit Methods</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PieChart
+                  data={depositMethodsData}
+                  colors={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']}
+                  valueFormatter={(value) => `$${value.toLocaleString()}`}
+                />
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
-    </AdminPageLayout>
+        </TabsContent>
+        <TabsContent value="reports" className="space-y-4">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Reports</h2>
+            <p>This is where you can generate custom reports.</p>
+            <Button>Generate Report</Button>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;

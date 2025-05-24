@@ -124,14 +124,12 @@ const AggregatorGameSection = () => {
             </TabsList>
             
             <ProviderGameTab 
-              providerId="gitslotpark"
               value="gitslotpark" 
               games={games} 
               onGameClick={handlePlayGame} 
             />
             
             <ProviderGameTab 
-              providerId="pragmaticplay"
               value="pragmaticplay" 
               games={games} 
               onGameClick={handlePlayGame} 
