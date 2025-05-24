@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, FilterX, SlidersHorizontal, Clock } from 'lucide-react';
+import { Search, FilterX, SlidersHorizontal, Clock, X } from 'lucide-react';
 import { 
   Input,
   Button,

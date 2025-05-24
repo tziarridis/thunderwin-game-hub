@@ -1,3 +1,4 @@
+
 // Re-export enums and extended types
 export * from './enums';
 export * from './extended';
@@ -257,10 +258,12 @@ export interface Transaction {
   bonusId?: string;
 }
 
+import { BonusType as BonusTypeEnum } from './enums';
+
 export interface Bonus {
   id: string;
   userId: string;
-  type: BonusType;
+  type: BonusTypeEnum;
   amount: number;
   status: "active" | "used" | "expired";
   expiryDate: string;
