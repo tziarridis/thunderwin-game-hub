@@ -56,7 +56,7 @@ const GamesGrid: React.FC<GameGridProps> = ({
           >
             <div className="aspect-[3/4] bg-muted">
               <img
-                src={game.image_url || '/placeholder.svg'}
+                src={game.image || '/placeholder.svg'}
                 alt={game.title}
                 className="w-full h-full object-cover"
               />
@@ -64,7 +64,7 @@ const GamesGrid: React.FC<GameGridProps> = ({
             <div className="p-2">
               <h3 className="font-medium text-sm truncate">{game.title}</h3>
               <p className="text-xs text-muted-foreground truncate">
-                {game.provider_id || 'Unknown Provider'}
+                {game.provider || 'Unknown Provider'}
               </p>
             </div>
           </div>

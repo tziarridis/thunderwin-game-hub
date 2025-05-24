@@ -114,3 +114,4 @@ export * from './bonus';
 export type { Bonus, BonusType, BonusStatus, UserBonus } from './bonus';
 export type { PromotionType, PromotionFormValues, PromotionAudience } from './promotion';
 export type { AffiliateUser, AffiliateCommissionTier, AffiliateStatSummary } from './affiliate';
+export type { DbGame, GameStatus, GameVolatility, GameStatusEnum } from './game';

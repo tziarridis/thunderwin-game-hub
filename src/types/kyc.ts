@@ -2,7 +2,9 @@
 export enum KycStatus {
   NOT_STARTED = 'not_started',
   PENDING = 'pending',
+  PENDING_REVIEW = 'pending_review',
   APPROVED = 'approved',
+  VERIFIED = 'verified',
   REJECTED = 'rejected',
   RESUBMIT_REQUIRED = 'resubmit_required'
 }
