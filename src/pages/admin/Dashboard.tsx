@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Users, TrendingUp, DollarSign } from "lucide-react";
-import { 
-  Chart as ChartComponent, 
-  LineChart, 
-  BarChart, 
-  PieChart,
-  DonutChart,
-  AreaChart 
-} from "@/components/ui/dashboard-charts";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -18,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 
 interface DataItem {
   name: string;
@@ -26,50 +19,47 @@ interface DataItem {
 
 const Dashboard = () => {
   const [timeFrame, setTimeFrame] = useState("7d");
-  const [revenueData, setRevenueData] = useState<DataItem[]>([
-    { name: "Mon", value: 2400 },
-    { name: "Tue", value: 1398 },
-    { name: "Wed", value: 9800 },
-    { name: "Thu", value: 3908 },
-    { name: "Fri", value: 4800 },
-    { name: "Sat", value: 3800 },
-    { name: "Sun", value: 4300 },
-  ]);
-
-  const [trafficData, setTrafficData] = useState<DataItem[]>([
-    { name: "Mon", value: 1400 },
-    { name: "Tue", value: 2398 },
-    { name: "Wed", value: 8800 },
-    { name: "Thu", value: 2908 },
-    { name: "Fri", value: 3800 },
-    { name: "Sat", value: 2800 },
-    { name: "Sun", value: 3300 },
-  ]);
-
-  const [depositMethodsData, setDepositMethodsData] = useState<DataItem[]>([
-    { name: "Credit Card", value: 4500 },
-    { name: "PayPal", value: 2300 },
-    { name: "Bank Transfer", value: 1500 },
-    { name: "Crypto", value: 1200 },
-  ]);
-
-  const [userActivityData, setUserActivityData] = useState<DataItem[]>([
-    { name: "Page A", value: 4000 },
-    { name: "Page B", value: 3000 },
-    { name: "Page C", value: 2000 },
-    { name: "Page D", value: 2780 },
-    { name: "Page E", value: 1890 },
-    { name: "Page F", value: 2390 },
-    { name: "Page G", value: 3490 },
-  ]);
+  const [dashboardMode, setDashboardMode] = useState("enhanced");
 
   const handleTimeFrameChange = (value: string) => {
     setTimeFrame(value);
-    // In a real application, you would fetch data based on the selected time frame
-    // For this example, we'll just log the selected time frame
     console.log(`Time frame changed to: ${value}`);
   };
 
+  // Show enhanced dashboard by default
+  if (dashboardMode === "enhanced") {
+    return (
+      <div className="container mx-auto py-4">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <div className="flex gap-4">
+            <Select onValueChange={handleTimeFrameChange} defaultValue={timeFrame}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select time frame" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1d">1 Day</SelectItem>
+                <SelectItem value="7d">7 Days</SelectItem>
+                <SelectItem value="30d">30 Days</SelectItem>
+                <SelectItem value="90d">90 Days</SelectItem>
+                <SelectItem value="1y">1 Year</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="outline" 
+              onClick={() => setDashboardMode(dashboardMode === "enhanced" ? "basic" : "enhanced")}
+            >
+              {dashboardMode === "enhanced" ? "Basic View" : "Enhanced View"}
+            </Button>
+          </div>
+        </div>
+        
+        <EnhancedDashboard />
+      </div>
+    );
+  }
+
+  // Keep existing basic dashboard code for fallback
   return (
     <div className="container mx-auto py-10">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
