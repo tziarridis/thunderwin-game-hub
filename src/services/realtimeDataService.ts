@@ -25,9 +25,17 @@ class RealtimeDataService {
     activeSessions: 0,
     lastUpdated: new Date().toISOString()
   };
+  private isInitialized = false;
 
   async initialize() {
+    if (this.isInitialized) {
+      console.log('Realtime service already initialized');
+      return;
+    }
+
     try {
+      console.log('Initializing realtime data service...');
+      
       // Subscribe to realtime player stats updates
       this.playerStatsChannel = supabase
         .channel('realtime-player-stats')
@@ -40,7 +48,9 @@ class RealtimeDataService {
           },
           (payload) => this.handlePlayerStatsUpdate(payload)
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Player stats channel status:', status);
+        });
 
       // Subscribe to transaction updates for live metrics
       this.transactionChannel = supabase
@@ -54,14 +64,18 @@ class RealtimeDataService {
           },
           (payload) => this.handleTransactionUpdate(payload)
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Transaction channel status:', status);
+        });
 
       // Initial stats fetch
       await this.fetchCurrentStats();
       
-      console.log('Realtime data service initialized');
+      this.isInitialized = true;
+      console.log('Realtime data service initialized successfully');
     } catch (error) {
       console.error('Error initializing realtime data service:', error);
+      this.isInitialized = false;
     }
   }
 
@@ -70,7 +84,7 @@ class RealtimeDataService {
       const { data, error } = await supabase
         .from('realtime_player_stats')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching current stats:', error);
@@ -84,9 +98,36 @@ class RealtimeDataService {
           activeSessions: data.active_sessions || 0,
           lastUpdated: data.updated_at || new Date().toISOString()
         };
+        console.log('Current stats fetched:', this.currentStats);
+      } else {
+        console.log('No real-time stats found, initializing with defaults');
+        // Initialize with default values if no record exists
+        await this.initializeStatsRecord();
       }
     } catch (error) {
       console.error('Error in fetchCurrentStats:', error);
+    }
+  }
+
+  private async initializeStatsRecord() {
+    try {
+      const { error } = await supabase
+        .from('realtime_player_stats')
+        .upsert({
+          id: '00000000-0000-0000-0000-000000000001',
+          total_online: 0,
+          total_playing: 0,
+          active_sessions: 0,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error initializing stats record:', error);
+      } else {
+        console.log('Stats record initialized successfully');
+      }
+    } catch (error) {
+      console.error('Error in initializeStatsRecord:', error);
     }
   }
 
@@ -115,17 +156,20 @@ class RealtimeDataService {
 
   async updatePlayerStatus(update: RealtimePlayerUpdate) {
     try {
-      // This would typically be handled by a backend service
-      // For now, we'll simulate the update
+      // Ensure we're initialized
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
       const statsUpdate = { ...this.currentStats };
       
       switch (update.status) {
         case 'online':
-          statsUpdate.totalOnline += 1;
+          statsUpdate.totalOnline = Math.max(0, statsUpdate.totalOnline + 1);
           break;
         case 'playing':
-          statsUpdate.totalPlaying += 1;
-          statsUpdate.activeSessions += 1;
+          statsUpdate.totalPlaying = Math.max(0, statsUpdate.totalPlaying + 1);
+          statsUpdate.activeSessions = Math.max(0, statsUpdate.activeSessions + 1);
           break;
         case 'offline':
           statsUpdate.totalOnline = Math.max(0, statsUpdate.totalOnline - 1);
@@ -137,7 +181,7 @@ class RealtimeDataService {
       const { error } = await supabase
         .from('realtime_player_stats')
         .upsert({
-          id: '00000000-0000-0000-0000-000000000001', // Use fixed ID for single row
+          id: '00000000-0000-0000-0000-000000000001',
           total_online: statsUpdate.totalOnline,
           total_playing: statsUpdate.totalPlaying,
           active_sessions: statsUpdate.activeSessions,
@@ -146,6 +190,8 @@ class RealtimeDataService {
 
       if (error) {
         console.error('Error updating player stats:', error);
+      } else {
+        console.log('Player stats updated successfully:', statsUpdate);
       }
     } catch (error) {
       console.error('Error in updatePlayerStatus:', error);
@@ -155,23 +201,28 @@ class RealtimeDataService {
   subscribe(eventType: string, callback: (data: any) => void): string {
     const id = `${eventType}_${Date.now()}_${Math.random()}`;
     this.subscribers.set(id, callback);
+    console.log(`New subscriber added: ${id}`);
     return id;
   }
 
   unsubscribe(subscriptionId: string) {
-    this.subscribers.delete(subscriptionId);
+    const removed = this.subscribers.delete(subscriptionId);
+    console.log(`Subscriber ${subscriptionId} removed:`, removed);
   }
 
   private notifySubscribers(eventType: string, data: any) {
+    let notified = 0;
     this.subscribers.forEach((callback, id) => {
       if (id.startsWith(eventType)) {
         try {
           callback(data);
+          notified++;
         } catch (error) {
           console.error('Error in subscriber callback:', error);
         }
       }
     });
+    console.log(`Notified ${notified} subscribers for event: ${eventType}`);
   }
 
   getCurrentStats(): RealtimeStats {
@@ -179,13 +230,21 @@ class RealtimeDataService {
   }
 
   async cleanup() {
-    if (this.playerStatsChannel) {
-      await supabase.removeChannel(this.playerStatsChannel);
+    try {
+      if (this.playerStatsChannel) {
+        await supabase.removeChannel(this.playerStatsChannel);
+        console.log('Player stats channel removed');
+      }
+      if (this.transactionChannel) {
+        await supabase.removeChannel(this.transactionChannel);
+        console.log('Transaction channel removed');
+      }
+      this.subscribers.clear();
+      this.isInitialized = false;
+      console.log('Realtime service cleaned up');
+    } catch (error) {
+      console.error('Error during cleanup:', error);
     }
-    if (this.transactionChannel) {
-      await supabase.removeChannel(this.transactionChannel);
-    }
-    this.subscribers.clear();
   }
 }
 

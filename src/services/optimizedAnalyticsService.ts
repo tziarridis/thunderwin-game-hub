@@ -53,11 +53,13 @@ class OptimizedAnalyticsService {
     if (useCache) {
       const cached = cacheService.get<OptimizedDashboardMetrics>(cacheKey);
       if (cached) {
+        console.log('Returning cached dashboard metrics');
         return cached;
       }
     }
 
     try {
+      console.log('Fetching fresh dashboard metrics');
       const [daily, gamePerformance, providerAnalytics, realTimeStats] = await Promise.all([
         this.getDailyMetrics(),
         this.getGamePerformanceMetrics(),
@@ -84,27 +86,27 @@ class OptimizedAnalyticsService {
 
   private async getDailyMetrics(): Promise<DailyMetric[]> {
     try {
-      // Try to use materialized view first
-      const { data, error } = await supabase
-        .from('daily_metrics')
-        .select('*')
-        .order('date', { ascending: false })
-        .limit(30);
-
+      // Use edge function that handles materialized view access
+      const { data, error } = await supabase.functions.invoke('get_daily_metrics');
+      
       if (error) {
-        console.warn('Materialized view not available, falling back to direct query');
+        console.warn('Edge function error, using direct fallback:', error);
         return this.getDailyMetricsFallback();
       }
 
-      return data.map(row => ({
-        date: row.date,
-        totalTransactions: row.total_transactions || 0,
-        totalDeposits: row.total_deposits || 0,
-        totalWithdrawals: row.total_withdrawals || 0,
-        totalBets: row.total_bets || 0,
-        totalWins: row.total_wins || 0,
-        uniquePlayers: row.unique_players || 0
-      }));
+      if (data?.data) {
+        return data.data.map((row: any) => ({
+          date: row.date,
+          totalTransactions: row.total_transactions || 0,
+          totalDeposits: row.total_deposits || 0,
+          totalWithdrawals: row.total_withdrawals || 0,
+          totalBets: row.total_bets || 0,
+          totalWins: row.total_wins || 0,
+          uniquePlayers: row.unique_players || 0
+        }));
+      }
+
+      return this.getDailyMetricsFallback();
     } catch (error) {
       console.error('Error fetching daily metrics:', error);
       return this.getDailyMetricsFallback();
@@ -112,81 +114,91 @@ class OptimizedAnalyticsService {
   }
 
   private async getDailyMetricsFallback(): Promise<DailyMetric[]> {
-    // Direct query as fallback
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('created_at, type, amount, player_id')
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+    try {
+      console.log('Using direct database fallback for daily metrics');
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('created_at, type, amount, player_id')
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .limit(10000);
 
-    if (error) {
-      console.error('Error in fallback query:', error);
+      if (error) {
+        console.error('Error in fallback query:', error);
+        return [];
+      }
+
+      // Group by date and calculate metrics
+      const dailyData = new Map<string, any>();
+      
+      data.forEach(transaction => {
+        const date = transaction.created_at.split('T')[0];
+        
+        if (!dailyData.has(date)) {
+          dailyData.set(date, {
+            date,
+            totalTransactions: 0,
+            totalDeposits: 0,
+            totalWithdrawals: 0,
+            totalBets: 0,
+            totalWins: 0,
+            uniquePlayers: new Set()
+          });
+        }
+        
+        const dayData = dailyData.get(date)!;
+        dayData.totalTransactions++;
+        dayData.uniquePlayers.add(transaction.player_id);
+        
+        switch (transaction.type) {
+          case 'deposit':
+            dayData.totalDeposits += Number(transaction.amount);
+            break;
+          case 'withdraw':
+            dayData.totalWithdrawals += Number(transaction.amount);
+            break;
+          case 'bet':
+            dayData.totalBets += Number(transaction.amount);
+            break;
+          case 'win':
+            dayData.totalWins += Number(transaction.amount);
+            break;
+        }
+      });
+
+      return Array.from(dailyData.values()).map(item => ({
+        ...item,
+        uniquePlayers: item.uniquePlayers.size
+      })).sort((a, b) => b.date.localeCompare(a.date));
+    } catch (error) {
+      console.error('Error in daily metrics fallback:', error);
       return [];
     }
-
-    // Group by date and calculate metrics
-    const dailyData = new Map<string, DailyMetric>();
-    
-    data.forEach(transaction => {
-      const date = transaction.created_at.split('T')[0];
-      
-      if (!dailyData.has(date)) {
-        dailyData.set(date, {
-          date,
-          totalTransactions: 0,
-          totalDeposits: 0,
-          totalWithdrawals: 0,
-          totalBets: 0,
-          totalWins: 0,
-          uniquePlayers: 0
-        });
-      }
-      
-      const dayData = dailyData.get(date)!;
-      dayData.totalTransactions++;
-      
-      switch (transaction.type) {
-        case 'deposit':
-          dayData.totalDeposits += Number(transaction.amount);
-          break;
-        case 'withdraw':
-          dayData.totalWithdrawals += Number(transaction.amount);
-          break;
-        case 'bet':
-          dayData.totalBets += Number(transaction.amount);
-          break;
-        case 'win':
-          dayData.totalWins += Number(transaction.amount);
-          break;
-      }
-    });
-
-    return Array.from(dailyData.values()).sort((a, b) => b.date.localeCompare(a.date));
   }
 
   private async getGamePerformanceMetrics(): Promise<GamePerformanceMetric[]> {
     try {
-      const { data, error } = await supabase
-        .from('game_performance_metrics')
-        .select('*')
-        .order('total_bets', { ascending: false })
-        .limit(50);
-
+      const { data, error } = await supabase.functions.invoke('get_game_performance');
+      
       if (error) {
-        console.warn('Game performance view not available:', error);
+        console.warn('Game performance edge function error:', error);
         return [];
       }
 
-      return data.map(row => ({
-        gameId: row.game_id,
-        gameName: row.game_name,
-        providerId: row.provider_id,
-        totalTransactions: row.total_transactions || 0,
-        totalBets: Number(row.total_bets) || 0,
-        totalWins: Number(row.total_wins) || 0,
-        uniquePlayers: row.unique_players || 0,
-        totalSessions: row.total_sessions || 0,
-        avgSessionDuration: Number(row.avg_session_duration) || 0
-      }));
+      if (data?.data) {
+        return data.data.map((row: any) => ({
+          gameId: row.game_id,
+          gameName: row.game_name,
+          providerId: row.provider_id,
+          totalTransactions: row.total_transactions || 0,
+          totalBets: Number(row.total_bets) || 0,
+          totalWins: Number(row.total_wins) || 0,
+          uniquePlayers: row.unique_players || 0,
+          totalSessions: row.total_sessions || 0,
+          avgSessionDuration: Number(row.avg_session_duration) || 0
+        }));
+      }
+
+      return [];
     } catch (error) {
       console.error('Error fetching game performance metrics:', error);
       return [];
@@ -195,25 +207,26 @@ class OptimizedAnalyticsService {
 
   private async getProviderAnalytics(): Promise<ProviderAnalytic[]> {
     try {
-      const { data, error } = await supabase
-        .from('provider_analytics')
-        .select('*')
-        .order('total_bets', { ascending: false });
-
+      const { data, error } = await supabase.functions.invoke('get_provider_analytics');
+      
       if (error) {
-        console.warn('Provider analytics view not available:', error);
+        console.warn('Provider analytics edge function error:', error);
         return [];
       }
 
-      return data.map(row => ({
-        id: row.id,
-        name: row.name,
-        totalTransactions: row.total_transactions || 0,
-        totalBets: Number(row.total_bets) || 0,
-        totalWins: Number(row.total_wins) || 0,
-        uniquePlayers: row.unique_players || 0,
-        totalGames: row.total_games || 0
-      }));
+      if (data?.data) {
+        return data.data.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          totalTransactions: row.total_transactions || 0,
+          totalBets: Number(row.total_bets) || 0,
+          totalWins: Number(row.total_wins) || 0,
+          uniquePlayers: row.unique_players || 0,
+          totalGames: row.total_games || 0
+        }));
+      }
+
+      return [];
     } catch (error) {
       console.error('Error fetching provider analytics:', error);
       return [];
@@ -227,7 +240,8 @@ class OptimizedAnalyticsService {
         .select('*')
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
+        console.warn('Error fetching real-time stats:', error);
         return {
           totalOnline: 0,
           totalPlaying: 0,
@@ -236,9 +250,9 @@ class OptimizedAnalyticsService {
       }
 
       return {
-        totalOnline: data.total_online || 0,
-        totalPlaying: data.total_playing || 0,
-        activeSessions: data.active_sessions || 0
+        totalOnline: data?.total_online || 0,
+        totalPlaying: data?.total_playing || 0,
+        activeSessions: data?.active_sessions || 0
       };
     } catch (error) {
       console.error('Error fetching real-time stats:', error);
