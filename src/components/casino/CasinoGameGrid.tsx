@@ -66,7 +66,7 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
           minBet={game.minBet}
           maxBet={game.maxBet}
           onClick={onGameClick ? () => onGameClick(game) : undefined}
-          onFavoriteToggle={(e) => toggleFavorite(e, game.id, game.isFavorite || false)}
+          onFavoriteToggle={() => toggleFavorite}
         />
       ))}
     </div>
