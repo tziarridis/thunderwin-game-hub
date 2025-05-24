@@ -235,9 +235,11 @@ class OptimizedAnalyticsService {
 
   private async getRealTimeStats() {
     try {
+      // Use system_config to store real-time stats as a workaround
       const { data, error } = await supabase
-        .from('realtime_player_stats')
-        .select('*')
+        .from('system_config')
+        .select('config_value')
+        .eq('config_key', 'realtime_player_stats')
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -249,10 +251,19 @@ class OptimizedAnalyticsService {
         };
       }
 
+      if (data?.config_value) {
+        const stats = data.config_value as any;
+        return {
+          totalOnline: stats.total_online || 0,
+          totalPlaying: stats.total_playing || 0,
+          activeSessions: stats.active_sessions || 0
+        };
+      }
+
       return {
-        totalOnline: data?.total_online || 0,
-        totalPlaying: data?.total_playing || 0,
-        activeSessions: data?.active_sessions || 0
+        totalOnline: 0,
+        totalPlaying: 0,
+        activeSessions: 0
       };
     } catch (error) {
       console.error('Error fetching real-time stats:', error);
@@ -266,7 +277,8 @@ class OptimizedAnalyticsService {
 
   async refreshMaterializedViews(): Promise<void> {
     try {
-      const { error } = await supabase.rpc('refresh_analytics_views');
+      // Call edge function to refresh views instead of using RPC
+      const { error } = await supabase.functions.invoke('refresh_analytics_views');
       
       if (error) {
         console.error('Error refreshing materialized views:', error);

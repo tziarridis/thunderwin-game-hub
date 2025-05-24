@@ -36,7 +36,7 @@ class RealtimeDataService {
     try {
       console.log('Initializing realtime data service...');
       
-      // Subscribe to realtime player stats updates
+      // Subscribe to system_config changes for real-time stats
       this.playerStatsChannel = supabase
         .channel('realtime-player-stats')
         .on(
@@ -44,9 +44,9 @@ class RealtimeDataService {
           {
             event: '*',
             schema: 'public',
-            table: 'realtime_player_stats'
+            table: 'system_config'
           },
-          (payload) => this.handlePlayerStatsUpdate(payload)
+          (payload) => this.handleSystemConfigUpdate(payload)
         )
         .subscribe((status) => {
           console.log('Player stats channel status:', status);
@@ -82,26 +82,27 @@ class RealtimeDataService {
   private async fetchCurrentStats() {
     try {
       const { data, error } = await supabase
-        .from('realtime_player_stats')
-        .select('*')
-        .maybeSingle();
+        .from('system_config')
+        .select('config_value')
+        .eq('config_key', 'realtime_player_stats')
+        .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching current stats:', error);
         return;
       }
 
-      if (data) {
+      if (data?.config_value) {
+        const stats = data.config_value as any;
         this.currentStats = {
-          totalOnline: data.total_online || 0,
-          totalPlaying: data.total_playing || 0,
-          activeSessions: data.active_sessions || 0,
-          lastUpdated: data.updated_at || new Date().toISOString()
+          totalOnline: stats.total_online || 0,
+          totalPlaying: stats.total_playing || 0,
+          activeSessions: stats.active_sessions || 0,
+          lastUpdated: stats.updated_at || new Date().toISOString()
         };
         console.log('Current stats fetched:', this.currentStats);
       } else {
         console.log('No real-time stats found, initializing with defaults');
-        // Initialize with default values if no record exists
         await this.initializeStatsRecord();
       }
     } catch (error) {
@@ -112,13 +113,16 @@ class RealtimeDataService {
   private async initializeStatsRecord() {
     try {
       const { error } = await supabase
-        .from('realtime_player_stats')
+        .from('system_config')
         .upsert({
-          id: '00000000-0000-0000-0000-000000000001',
-          total_online: 0,
-          total_playing: 0,
-          active_sessions: 0,
-          updated_at: new Date().toISOString()
+          config_key: 'realtime_player_stats',
+          config_value: {
+            total_online: 0,
+            total_playing: 0,
+            active_sessions: 0,
+            updated_at: new Date().toISOString()
+          },
+          description: 'Real-time player statistics'
         });
 
       if (error) {
@@ -131,15 +135,16 @@ class RealtimeDataService {
     }
   }
 
-  private handlePlayerStatsUpdate(payload: any) {
-    console.log('Player stats updated:', payload);
-    
-    if (payload.new) {
+  private handleSystemConfigUpdate(payload: any) {
+    if (payload.new?.config_key === 'realtime_player_stats') {
+      console.log('Player stats updated:', payload);
+      
+      const stats = payload.new.config_value as any;
       this.currentStats = {
-        totalOnline: payload.new.total_online || 0,
-        totalPlaying: payload.new.total_playing || 0,
-        activeSessions: payload.new.active_sessions || 0,
-        lastUpdated: payload.new.updated_at || new Date().toISOString()
+        totalOnline: stats.total_online || 0,
+        totalPlaying: stats.total_playing || 0,
+        activeSessions: stats.active_sessions || 0,
+        lastUpdated: stats.updated_at || new Date().toISOString()
       };
 
       // Notify all subscribers
@@ -177,15 +182,18 @@ class RealtimeDataService {
           break;
       }
 
-      // Update the database
+      // Update the system_config table
       const { error } = await supabase
-        .from('realtime_player_stats')
+        .from('system_config')
         .upsert({
-          id: '00000000-0000-0000-0000-000000000001',
-          total_online: statsUpdate.totalOnline,
-          total_playing: statsUpdate.totalPlaying,
-          active_sessions: statsUpdate.activeSessions,
-          updated_at: new Date().toISOString()
+          config_key: 'realtime_player_stats',
+          config_value: {
+            total_online: statsUpdate.totalOnline,
+            total_playing: statsUpdate.totalPlaying,
+            active_sessions: statsUpdate.activeSessions,
+            updated_at: new Date().toISOString()
+          },
+          description: 'Real-time player statistics'
         });
 
       if (error) {
