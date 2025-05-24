@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface BonusTemplate {
@@ -169,23 +168,34 @@ class EnhancedBonusService {
         template: template
       };
       
-      // Update wallet bonus balance - using direct SQL since the RPC might not exist yet
+      // Update wallet bonus balance using simple addition
       try {
-        const { error } = await supabase
+        const { data: currentWallet, error: fetchError } = await supabase
+          .from('wallets')
+          .select('balance_bonus')
+          .eq('user_id', userId)
+          .single();
+        
+        if (fetchError) {
+          console.error('Error fetching wallet:', fetchError);
+          return mockBonus;
+        }
+        
+        const newBonusBalance = (currentWallet.balance_bonus || 0) + bonusAmount;
+        
+        const { error: updateError } = await supabase
           .from('wallets')
           .update({ 
-            balance_bonus: supabase.sql`balance_bonus + ${bonusAmount}`,
+            balance_bonus: newBonusBalance,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', userId);
         
-        if (error) {
-          console.error('Error updating wallet bonus balance:', error);
-          // Continue anyway for demo purposes
+        if (updateError) {
+          console.error('Error updating wallet bonus balance:', updateError);
         }
       } catch (sqlError) {
         console.error('Error with wallet update:', sqlError);
-        // Continue anyway for demo purposes
       }
       
       return mockBonus;
