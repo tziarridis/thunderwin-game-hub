@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Game as UIGame } from '@/types';
+import { ExtendedGame, ExtendedGameProvider } from '@/types/extended';
 import { Game as APIGame } from '@/types/game';
 import { adaptGameForAPI, adaptGameForUI } from '@/utils/gameAdapter';
 
@@ -10,29 +10,29 @@ import { adaptGameForAPI, adaptGameForUI } from '@/utils/gameAdapter';
  */
 export const useGameAdapter = () => {
   // Convert UI Game to API Game format
-  const convertToAPIGame = (uiGame: UIGame): Omit<APIGame, 'id'> => {
+  const convertToAPIGame = (uiGame: ExtendedGame): Omit<APIGame, 'id'> => {
     return adaptGameForAPI(uiGame);
   };
   
   // Convert API Game to UI Game format
-  const convertToUIGame = (apiGame: APIGame): UIGame => {
-    return adaptGameForUI(apiGame);
+  const convertToUIGame = (apiGame: APIGame): ExtendedGame => {
+    return adaptGameForUI(apiGame) as ExtendedGame;
   };
   
   // Handle game operations with automatic type conversion
   const handleAddGame = async (
-    gameData: Omit<UIGame, 'id'>, 
+    gameData: Omit<ExtendedGame, 'id'>, 
     addGameFn: (gameData: Omit<APIGame, 'id'>) => Promise<APIGame>
-  ): Promise<UIGame> => {
-    const apiGame = convertToAPIGame(gameData as UIGame);
+  ): Promise<ExtendedGame> => {
+    const apiGame = convertToAPIGame(gameData as ExtendedGame);
     const result = await addGameFn(apiGame);
     return convertToUIGame(result);
   };
   
   const handleUpdateGame = async (
-    gameData: UIGame,
+    gameData: ExtendedGame,
     updateGameFn: (gameData: APIGame) => Promise<APIGame>
-  ): Promise<UIGame> => {
+  ): Promise<ExtendedGame> => {
     const apiGame = {
       id: parseInt(gameData.id),
       ...convertToAPIGame(gameData)

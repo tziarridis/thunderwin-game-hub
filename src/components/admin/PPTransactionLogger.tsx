@@ -1,12 +1,13 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getPragmaticPlayTransactions } from "@/services/transactionService";
-import { Transaction } from "@/types/transaction";
+import { ExtendedTransaction } from "@/types/extended";
 
 const PPTransactionLogger = () => {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<ExtendedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -60,22 +61,22 @@ const PPTransactionLogger = () => {
                 </div>
                 <div className="mt-2 font-semibold">
                   {transaction.amount} {transaction.currency} | 
-                  Game: {transaction.gameId || 'Unknown'} | 
-                  User: {transaction.userId.substring(0, 8)}...
+                  Game: {transaction.gameId || transaction.game_id || 'Unknown'} | 
+                  User: {(transaction.userId || transaction.player_id || '').substring(0, 8)}...
                 </div>
                 <div className="mt-1 text-sm text-gray-400">
-                  ID: {transaction.id} | Reference: {transaction.referenceId || 'None'}
+                  ID: {transaction.id} | Reference: {transaction.referenceId || transaction.provider_transaction_id || 'None'}
                 </div>
                 <div className="mt-2 bg-slate-800 p-2 rounded text-xs font-mono whitespace-pre-wrap">
                   {JSON.stringify({
                     id: transaction.id,
-                    player_id: transaction.userId,
-                    game_id: transaction.gameId,
+                    player_id: transaction.userId || transaction.player_id,
+                    game_id: transaction.gameId || transaction.game_id,
                     type: transaction.type,
                     amount: transaction.amount,
                     currency: transaction.currency,
                     status: transaction.status,
-                    reference_id: transaction.referenceId,
+                    reference_id: transaction.referenceId || transaction.provider_transaction_id,
                     timestamp: transaction.date
                   }, null, 2)}
                 </div>

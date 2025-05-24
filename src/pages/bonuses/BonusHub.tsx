@@ -13,83 +13,79 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Bonus, BonusType } from "@/types";
+import { ExtendedUserBonus, ExtendedPromotion } from "@/types/extended";
+import { BonusType, BonusStatus, PromotionType, PromotionStatus } from "@/types/enums";
 
 const BonusHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState("available");
   
   // Mock bonuses data
-  const [availableBonuses, setAvailableBonuses] = useState<Bonus[]>([
+  const [availableBonuses, setAvailableBonuses] = useState<ExtendedUserBonus[]>([
     {
       id: "1",
       userId: "user-1",
+      bonusId: "bonus-1",
       type: BonusType.WELCOME,
       amount: 100,
-      status: "active",
+      status: BonusStatus.ACTIVE,
       expiryDate: "2023-08-15T00:00:00Z",
-      createdAt: "2023-07-15T14:30:00Z",
+      dateIssued: "2023-07-15T14:30:00Z",
       wageringRequirement: 35,
-      progress: 0,
-      description: "Welcome bonus for new users - 100% match up to $100",
-      code: "WELCOME100"
+      wageringCompleted: 0
     },
     {
       id: "2",
       userId: "user-1",
+      bonusId: "bonus-2",
       type: BonusType.FREE_SPINS,
       amount: 50,
-      status: "active",
+      status: BonusStatus.ACTIVE,
       expiryDate: "2023-08-10T00:00:00Z",
-      createdAt: "2023-07-10T09:45:00Z",
+      dateIssued: "2023-07-10T09:45:00Z",
       wageringRequirement: 20,
-      progress: 0,
-      description: "50 free spins on Starburst",
-      code: "SPIN50"
+      wageringCompleted: 0
     }
   ]);
   
-  const [activeBonuses, setActiveBonuses] = useState<Bonus[]>([
+  const [activeBonuses, setActiveBonuses] = useState<ExtendedUserBonus[]>([
     {
       id: "3",
       userId: "user-1",
+      bonusId: "bonus-3",
       type: BonusType.DEPOSIT,
       amount: 75,
-      status: "active",
+      status: BonusStatus.ACTIVE,
       expiryDate: "2023-08-05T00:00:00Z",
-      createdAt: "2023-07-05T16:15:00Z",
+      dateIssued: "2023-07-05T16:15:00Z",
       wageringRequirement: 30,
-      progress: 45,
-      description: "Weekly reload bonus - 50% match up to $75",
-      code: "RELOAD50"
+      wageringCompleted: 45
     }
   ]);
   
-  const [usedBonuses, setUsedBonuses] = useState<Bonus[]>([
+  const [usedBonuses, setUsedBonuses] = useState<ExtendedUserBonus[]>([
     {
       id: "4",
       userId: "user-1",
+      bonusId: "bonus-4",
       type: BonusType.CASHBACK,
       amount: 25,
-      status: "used",
+      status: BonusStatus.USED,
       expiryDate: "2023-06-30T00:00:00Z",
-      createdAt: "2023-06-20T11:30:00Z",
+      dateIssued: "2023-06-20T11:30:00Z",
       wageringRequirement: 10,
-      progress: 100,
-      description: "10% cashback on losses",
-      code: "CASH10"
+      wageringCompleted: 100
     },
     {
       id: "5",
       userId: "user-1",
+      bonusId: "bonus-5",
       type: BonusType.FREE_SPINS,
       amount: 20,
-      status: "expired",
+      status: BonusStatus.EXPIRED,
       expiryDate: "2023-06-25T00:00:00Z",
-      createdAt: "2023-06-15T14:30:00Z",
+      dateIssued: "2023-06-15T14:30:00Z",
       wageringRequirement: 15,
-      progress: 60,
-      description: "20 free spins on Book of Dead",
-      code: "BOOK20"
+      wageringCompleted: 60
     }
   ]);
   
@@ -157,6 +153,22 @@ const BonusHub: React.FC = () => {
     }
   };
 
+  const getStatusText = (status: BonusStatus): string => {
+    switch (status) {
+      case BonusStatus.USED:
+        return "Completed";
+      case BonusStatus.EXPIRED:
+        return "Expired";
+      case BonusStatus.ACTIVE:
+        return "Active";
+      case BonusStatus.PENDING:
+        return "Pending";
+      default:
+        return "Unknown";
+    }
+  };
+
+  
   return (
     <div className="container mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-2">Bonus Hub</h1>
@@ -180,7 +192,7 @@ const BonusHub: React.FC = () => {
                       <span>{getBonusName(bonus.type)}</span>
                       <span className="text-lg">${bonus.amount}</span>
                     </CardTitle>
-                    <CardDescription>{bonus.description}</CardDescription>
+                    <CardDescription>Bonus available for claim</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
@@ -191,10 +203,6 @@ const BonusHub: React.FC = () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Expires:</span>
                         <span>{formatDate(bonus.expiryDate)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Code:</span>
-                        <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs">{bonus.code}</span>
                       </div>
                       
                       <Button 
@@ -227,19 +235,19 @@ const BonusHub: React.FC = () => {
                       <span>{getBonusName(bonus.type)}</span>
                       <span className="text-lg">${bonus.amount}</span>
                     </CardTitle>
-                    <CardDescription>{bonus.description}</CardDescription>
+                    <CardDescription>Active bonus in progress</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Progress:</span>
-                          <span>{bonus.progress}%</span>
+                          <span>{bonus.wageringCompleted}%</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full">
                           <div 
                             className="h-full bg-primary rounded-full" 
-                            style={{ width: `${bonus.progress}%` }}
+                            style={{ width: `${bonus.wageringCompleted}%` }}
                           ></div>
                         </div>
                       </div>
@@ -273,27 +281,27 @@ const BonusHub: React.FC = () => {
                   <div className={`h-2 ${getBonusTypeColor(bonus.type)}`}></div>
                   <CardHeader>
                     <div className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-muted">
-                      {bonus.status === "used" ? "Completed" : "Expired"}
+                      {getStatusText(bonus.status)}
                     </div>
                     <CardTitle className="flex items-center justify-between">
                       <span>{getBonusName(bonus.type)}</span>
                       <span className="text-lg">${bonus.amount}</span>
                     </CardTitle>
-                    <CardDescription>{bonus.description}</CardDescription>
+                    <CardDescription>Bonus no longer active</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
                       <div className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Progress:</span>
-                          <span>{bonus.progress}%</span>
+                          <span>{bonus.wageringCompleted}%</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full">
                           <div 
                             className={`h-full rounded-full ${
-                              bonus.status === "used" ? "bg-green-500" : "bg-red-500"
+                              bonus.status === BonusStatus.USED ? "bg-green-500" : "bg-red-500"
                             }`} 
-                            style={{ width: `${bonus.progress}%` }}
+                            style={{ width: `${bonus.wageringCompleted}%` }}
                           ></div>
                         </div>
                       </div>

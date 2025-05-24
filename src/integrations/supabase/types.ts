@@ -9,6 +9,101 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      affiliate_histories: {
+        Row: {
+          commission: number
+          commission_paid: number | null
+          commission_type: string | null
+          created_at: string | null
+          deposited: boolean | null
+          deposited_amount: number | null
+          id: string
+          inviter: string
+          losses: number | null
+          losses_amount: number | null
+          receita: number | null
+          status: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          commission?: number
+          commission_paid?: number | null
+          commission_type?: string | null
+          created_at?: string | null
+          deposited?: boolean | null
+          deposited_amount?: number | null
+          id?: string
+          inviter: string
+          losses?: number | null
+          losses_amount?: number | null
+          receita?: number | null
+          status?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          commission?: number
+          commission_paid?: number | null
+          commission_type?: string | null
+          created_at?: string | null
+          deposited?: boolean | null
+          deposited_amount?: number | null
+          id?: string
+          inviter?: string
+          losses?: number | null
+          losses_amount?: number | null
+          receita?: number | null
+          status?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_histories_inviter_fkey"
+            columns: ["inviter"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_histories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      favorite_games: {
+        Row: {
+          created_at: string | null
+          game_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          game_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_games_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_categories: {
         Row: {
           created_at: string | null
@@ -44,6 +139,139 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      game_sessions: {
+        Row: {
+          created_at: string | null
+          duration_minutes: number | null
+          ended_at: string | null
+          game_id: string
+          id: string
+          started_at: string | null
+          total_bets: number | null
+          total_wins: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
+          game_id: string
+          id?: string
+          started_at?: string | null
+          total_bets?: number | null
+          total_wins?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
+          game_id?: string
+          id?: string
+          started_at?: string | null
+          total_bets?: number | null
+          total_wins?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      games: {
+        Row: {
+          cover: string | null
+          created_at: string | null
+          description: string | null
+          distribution: string
+          game_code: string
+          game_id: string
+          game_name: string
+          game_server_url: string | null
+          game_type: string | null
+          has_freespins: boolean | null
+          has_lobby: boolean | null
+          has_tables: boolean | null
+          id: string
+          is_featured: boolean | null
+          is_mobile: boolean | null
+          only_demo: boolean | null
+          provider_id: string | null
+          rtp: number
+          show_home: boolean | null
+          status: string
+          technology: string | null
+          updated_at: string | null
+          views: number | null
+        }
+        Insert: {
+          cover?: string | null
+          created_at?: string | null
+          description?: string | null
+          distribution: string
+          game_code: string
+          game_id: string
+          game_name: string
+          game_server_url?: string | null
+          game_type?: string | null
+          has_freespins?: boolean | null
+          has_lobby?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          is_featured?: boolean | null
+          is_mobile?: boolean | null
+          only_demo?: boolean | null
+          provider_id?: string | null
+          rtp: number
+          show_home?: boolean | null
+          status?: string
+          technology?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Update: {
+          cover?: string | null
+          created_at?: string | null
+          description?: string | null
+          distribution?: string
+          game_code?: string
+          game_id?: string
+          game_name?: string
+          game_server_url?: string | null
+          game_type?: string | null
+          has_freespins?: boolean | null
+          has_lobby?: boolean | null
+          has_tables?: boolean | null
+          id?: string
+          is_featured?: boolean | null
+          is_mobile?: boolean | null
+          only_demo?: boolean | null
+          provider_id?: string | null
+          rtp?: number
+          show_home?: boolean | null
+          status?: string
+          technology?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "games_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "providers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -122,6 +350,51 @@ export type Database = {
         }
         Relationships: []
       }
+      reality_checks: {
+        Row: {
+          acknowledged: boolean | null
+          check_time: string | null
+          created_at: string | null
+          id: string
+          message: string | null
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          check_time?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          check_time?: string | null
+          created_at?: string | null
+          id?: string
+          message?: string | null
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reality_checks_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "game_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reality_checks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -190,6 +463,8 @@ export type Database = {
           is_demo_agent: boolean
           language: string
           last_name: string | null
+          oauth_id: string | null
+          oauth_type: string | null
           phone: string | null
           role_id: number
           status: string
@@ -212,6 +487,8 @@ export type Database = {
           is_demo_agent?: boolean
           language?: string
           last_name?: string | null
+          oauth_id?: string | null
+          oauth_type?: string | null
           phone?: string | null
           role_id?: number
           status?: string
@@ -234,6 +511,8 @@ export type Database = {
           is_demo_agent?: boolean
           language?: string
           last_name?: string | null
+          oauth_id?: string | null
+          oauth_type?: string | null
           phone?: string | null
           role_id?: number
           status?: string
@@ -262,12 +541,19 @@ export type Database = {
           balance_withdrawal: number | null
           created_at: string | null
           currency: string
+          deposit_limit_daily: number | null
+          deposit_limit_monthly: number | null
+          deposit_limit_weekly: number | null
+          exclusion_period: string | null
+          exclusion_until: string | null
           hide_balance: boolean
           id: string
           last_lose: number
           last_won: number
           refer_rewards: number
+          reminder_interval_minutes: number | null
           symbol: string
+          time_reminder_enabled: boolean | null
           total_bet: number
           total_lose: number
           total_won: number
@@ -287,12 +573,19 @@ export type Database = {
           balance_withdrawal?: number | null
           created_at?: string | null
           currency: string
+          deposit_limit_daily?: number | null
+          deposit_limit_monthly?: number | null
+          deposit_limit_weekly?: number | null
+          exclusion_period?: string | null
+          exclusion_until?: string | null
           hide_balance?: boolean
           id?: string
           last_lose?: number
           last_won?: number
           refer_rewards?: number
+          reminder_interval_minutes?: number | null
           symbol: string
+          time_reminder_enabled?: boolean | null
           total_bet?: number
           total_lose?: number
           total_won?: number
@@ -312,12 +605,19 @@ export type Database = {
           balance_withdrawal?: number | null
           created_at?: string | null
           currency?: string
+          deposit_limit_daily?: number | null
+          deposit_limit_monthly?: number | null
+          deposit_limit_weekly?: number | null
+          exclusion_period?: string | null
+          exclusion_until?: string | null
           hide_balance?: boolean
           id?: string
           last_lose?: number
           last_won?: number
           refer_rewards?: number
+          reminder_interval_minutes?: number | null
           symbol?: string
+          time_reminder_enabled?: boolean | null
           total_bet?: number
           total_lose?: number
           total_won?: number
@@ -341,7 +641,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_game_view: {
+        Args: { game_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

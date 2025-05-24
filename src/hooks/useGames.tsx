@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Game, GameListParams, GameResponse, GameProvider } from "@/types/game";
 import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
@@ -173,11 +172,11 @@ export const useGames = (initialParams: GameListParams = {}) => {
       // Determine provider ID
       let providerId = options.providerId || "ppeur"; // Default to Pragmatic Play EUR as requested
       
-      // Prepare launch options
+      // Prepare launch options with default mode
       const launchOptions: GameLaunchOptions = {
         gameId: game.id,
         providerId,
-        mode: options.mode || "demo",
+        mode: options.mode || "demo", // Provide default mode
         playerId: options.playerId || "demo_player",
         language: options.language || "en",
         currency: options.currency || "USD",
@@ -188,7 +187,7 @@ export const useGames = (initialParams: GameListParams = {}) => {
       const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
       
       // Launch the game in appropriate way
-      if (options.mode === "real" || options.mode === "demo") {
+      if (launchOptions.mode === "real" || launchOptions.mode === "demo") {
         // For real money or demo mode, open in new window/tab
         window.open(gameUrl, "_blank");
         toast({

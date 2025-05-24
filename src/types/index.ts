@@ -1,3 +1,6 @@
+// Re-export enums and extended types
+export * from './enums';
+export * from './extended';
 
 export interface Game {
   id: string;
@@ -14,8 +17,6 @@ export interface Game {
   tags: string[];
   isFavorite?: boolean;
   url?: string;
-  
-  // Additional properties needed by components
   description?: string;
   isPopular?: boolean;
   isNew?: boolean;
@@ -256,16 +257,6 @@ export interface Transaction {
   bonusId?: string;
 }
 
-export enum BonusType {
-  WELCOME = "welcome",
-  DEPOSIT = "deposit",
-  RELOAD = "reload",
-  CASHBACK = "cashback",
-  FREE_SPINS = "free_spins",
-  VIP = "vip",
-  REFERRAL = "referral"
-}
-
 export interface Bonus {
   id: string;
   userId: string;
@@ -302,4 +293,44 @@ export interface BonusTemplateFormData {
   vipLevelRequired?: number | string;
   allowedGames?: string;
   code?: string;
+}
+
+export interface MetaMaskDepositProps {
+  amount: number;
+  onSuccess: () => void;
+  onError: (error: Error) => void;
+}
+
+export interface AnalyticsData {
+  date: string;
+  revenue: number;
+  activeUsers: number;
+  newUsers: number;
+  deposits: number;
+  withdrawals: number;
+  bets: number;
+  wins: number;
+  totalUsers?: number;
+}
+
+export interface GameAnalytics {
+  gameName: string;
+  totalBets: number;
+  totalWins: number;
+  uniquePlayers: number;
+  avgBetSize: number;
+  profitMargin: number;
+}
+
+export interface UserBonus {
+  id: string;
+  userId: string;
+  bonusId: string;
+  status: 'active' | 'used' | 'expired';
+  dateIssued: string;
+  expiryDate: string;
+  amount: number;
+  wageringRequirement: number;
+  wageringCompleted: number;
+  type: string;
 }
