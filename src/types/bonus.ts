@@ -46,4 +46,5 @@ export interface UserBonus {
   wagering_remaining: number;
   created_at: string;
   updated_at: string;
+  progress?: number;
 }

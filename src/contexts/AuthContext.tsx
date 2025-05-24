@@ -11,14 +11,20 @@ export interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   error: string | null;
-  signIn: (email: string, password: string) => Promise<{ error?: string }>;
-  signUp: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
+  signIn: (email: string, password: string) => Promise<{ error?: { message: string } }>;
+  signUp: (email: string, password: string, username?: string) => Promise<{ error?: { message: string } }>;
   signOut: () => Promise<void>;
-  register: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
-  adminLogin: (credentials: LoginCredentials) => Promise<{ error?: string }>;
+  logout: () => Promise<void>;
+  register: (email: string, password: string, username?: string) => Promise<{ error?: { message: string } }>;
+  adminLogin: (credentials: LoginCredentials) => Promise<{ error?: { message: string } }>;
   refreshWalletBalance?: () => Promise<void>;
-  updateUserPassword?: (newPassword: string) => Promise<{ error?: string }>;
+  updateUserPassword?: (newPassword: string) => Promise<{ error?: { message: string } }>;
   fetchAndUpdateUser?: (updates: Partial<AppUser>) => Promise<void>;
+  wallet?: {
+    balance: number;
+    currency: string;
+    symbol: string;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -50,11 +56,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         password,
       });
       
-      if (error) return { error: error.message };
+      if (error) return { error: { message: error.message } };
       return {};
     } catch (error: any) {
       setError(error.message);
-      return { error: error.message };
+      return { error: { message: error.message } };
     }
   };
 
@@ -71,11 +77,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       });
       
-      if (error) return { error: error.message };
+      if (error) return { error: { message: error.message } };
       return {};
     } catch (error: any) {
       setError(error.message);
-      return { error: error.message };
+      return { error: { message: error.message } };
     }
   };
 
@@ -90,6 +96,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setError(null);
   };
+
+  const logout = signOut; // Alias for signOut
 
   const refreshWalletBalance = async () => {
     if (!user) return;
@@ -120,10 +128,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateUserPassword = async (newPassword: string) => {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) return { error: error.message };
+      if (error) return { error: { message: error.message } };
       return {};
     } catch (error: any) {
-      return { error: error.message };
+      return { error: { message: error.message } };
     }
   };
 
@@ -212,11 +220,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signUp,
     signOut,
+    logout,
     register,
     adminLogin,
     refreshWalletBalance,
     updateUserPassword,
     fetchAndUpdateUser,
+    wallet: user?.wallet,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

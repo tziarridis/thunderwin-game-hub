@@ -19,6 +19,7 @@ export interface AppUser {
   vip_level_id?: string;
   vipLevel?: number;
   vipPoints?: number;
+  kycStatus?: string;
   user_metadata?: {
     username?: string;
     full_name?: string;

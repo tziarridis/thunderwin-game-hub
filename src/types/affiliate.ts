@@ -35,6 +35,7 @@ export interface AffiliateUser {
   unpaid_earnings: number;
   referrals_count: number;
   created_at: string;
+  affiliate_code?: string;
 }
 
 export interface AffiliateCommissionTier {

@@ -41,6 +41,24 @@ const BonusForm: React.FC<BonusFormProps> = ({
     });
   };
 
+  const bonusTypeOptions = [
+    { value: BonusType.WELCOME, label: 'Welcome Bonus' },
+    { value: BonusType.DEPOSIT_MATCH, label: 'Deposit Match' },
+    { value: BonusType.FREE_SPINS, label: 'Free Spins' },
+    { value: BonusType.CASHBACK, label: 'Cashback' },
+    { value: BonusType.RELOAD, label: 'Reload Bonus' },
+    { value: BonusType.VIP, label: 'VIP Bonus' },
+    { value: BonusType.NO_DEPOSIT, label: 'No Deposit' }
+  ];
+
+  const bonusStatusOptions = [
+    { value: BonusStatus.ACTIVE, label: 'Active' },
+    { value: BonusStatus.INACTIVE, label: 'Inactive' },
+    { value: BonusStatus.EXPIRED, label: 'Expired' },
+    { value: BonusStatus.CLAIMED, label: 'Claimed' },
+    { value: BonusStatus.PENDING, label: 'Pending' }
+  ];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
@@ -59,8 +77,8 @@ const BonusForm: React.FC<BonusFormProps> = ({
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(BonusType).map(([key, value]) => (
-                  <SelectItem key={key} value={value}>{value}</SelectItem>
+                {bonusTypeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -80,8 +98,8 @@ const BonusForm: React.FC<BonusFormProps> = ({
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(BonusStatus).map(([key, value]) => (
-                  <SelectItem key={key} value={value}>{value}</SelectItem>
+                {bonusStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

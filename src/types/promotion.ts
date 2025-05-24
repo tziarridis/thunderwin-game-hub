@@ -45,7 +45,6 @@ export interface Promotion {
   promo_code?: string;
   usage_limit?: number;
   used_count?: number;
-  // Additional properties for admin and forms
   is_active?: boolean;
   code?: string;
   bonus_percentage?: number;

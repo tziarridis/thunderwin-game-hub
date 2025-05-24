@@ -87,8 +87,14 @@ const AdminLoginPage: React.FC = () => {
             </Button>
           </form>
         </CardContent>
-        <CardFooter>
-          {/* Optional: Link back to main site or other info */}
+        <CardFooter className="text-center">
+          <Button 
+            variant="link" 
+            onClick={() => navigate('/')}
+            className="text-blue-400 hover:text-blue-300"
+          >
+            Back to Casino
+          </Button>
         </CardFooter>
       </Card>
     </div>
