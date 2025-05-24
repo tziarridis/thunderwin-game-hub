@@ -1,29 +1,34 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LineChart, BarChart, PieChart, DonutChart } from '@/components/ui/dashboard-charts';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
-  TrendingUp, 
+  Activity, 
   Users, 
+  TrendingUp, 
   DollarSign, 
+  AlertTriangle, 
   Shield, 
-  AlertTriangle,
-  Activity,
-  FileBarChart,
-  Download
+  FileText,
+  Eye,
+  Clock,
+  UserCheck
 } from 'lucide-react';
-import { LineChart, BarChart, PieChart } from '@/components/ui/dashboard-charts';
-import { analyticsService, RealtimePlayerStats, RevenueAnalytics } from '@/services/analyticsService';
-import { riskManagementService, FraudAlert } from '@/services/riskManagementService';
+import { analyticsService } from '@/services/analyticsService';
+import { riskManagementService } from '@/services/riskManagementService';
 import { reportingService } from '@/services/reportingService';
 
 const EnhancedDashboard = () => {
-  const [realtimeStats, setRealtimeStats] = useState<RealtimePlayerStats | null>(null);
-  const [revenueData, setRevenueData] = useState<RevenueAnalytics | null>(null);
-  const [fraudAlerts, setFraudAlerts] = useState<FraudAlert[]>([]);
+  const [realtimeStats, setRealtimeStats] = useState<any>(null);
+  const [revenueAnalytics, setRevenueAnalytics] = useState<any>(null);
+  const [fraudAlerts, setFraudAlerts] = useState<any[]>([]);
+  const [suspiciousTransactions, setSuspiciousTransactions] = useState<any[]>([]);
+  const [conversionAnalytics, setConversionAnalytics] = useState<any>(null);
+  const [playerLTV, setPlayerLTV] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,21 +36,28 @@ const EnhancedDashboard = () => {
       try {
         setLoading(true);
         
-        // Fetch realtime stats
-        const stats = await analyticsService.getRealtimePlayerStats();
-        setRealtimeStats(stats);
-        
-        // Fetch revenue analytics
-        const revenue = await analyticsService.getRevenueAnalytics({
-          start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          end: new Date().toISOString()
-        });
-        setRevenueData(revenue);
-        
-        // Fetch fraud alerts
-        const alerts = await riskManagementService.detectFraud();
-        setFraudAlerts(alerts);
-        
+        const [
+          statsData,
+          revenueData,
+          alertsData,
+          transactionsData,
+          conversionData,
+          ltvData
+        ] = await Promise.all([
+          analyticsService.getRealtimePlayerStats(),
+          analyticsService.getRevenueAnalytics({ start: '2023-01-01', end: '2023-12-31' }),
+          riskManagementService.detectFraud(),
+          riskManagementService.flagSuspiciousTransactions(),
+          analyticsService.getConversionAnalytics(),
+          analyticsService.getPlayerLifetimeValue()
+        ]);
+
+        setRealtimeStats(statsData);
+        setRevenueAnalytics(revenueData);
+        setFraudAlerts(alertsData);
+        setSuspiciousTransactions(transactionsData);
+        setConversionAnalytics(conversionData);
+        setPlayerLTV(ltvData);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -55,20 +67,15 @@ const EnhancedDashboard = () => {
 
     fetchDashboardData();
     
-    // Set up real-time updates
-    const interval = setInterval(fetchDashboardData, 30000); // Update every 30 seconds
-    
+    // Set up refresh interval
+    const interval = setInterval(fetchDashboardData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleGenerateReport = async (reportType: string) => {
+  const generateReport = async (type: string) => {
     try {
-      if (reportType === 'financial') {
-        await reportingService.generateFinancialReport('monthly', '2024-01');
-      } else if (reportType === 'regulatory') {
-        await reportingService.generateRegulatoryReport('aml', 'US', '2024-Q1');
-      }
-      // Handle success feedback
+      const report = await reportingService.generateFinancialReport('monthly', '2023-12');
+      console.log('Report generated:', report);
     } catch (error) {
       console.error('Error generating report:', error);
     }
@@ -77,14 +84,14 @@ const EnhancedDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Real-time Statistics Cards */}
+      {/* Real-time Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -92,22 +99,9 @@ const EnhancedDashboard = () => {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{realtimeStats?.totalOnline.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{realtimeStats?.totalOnline || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {realtimeStats?.totalPlaying} actively playing
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${revenueData?.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              GGR: ${revenueData?.ggr.toLocaleString()}
+              {realtimeStats?.totalPlaying || 0} playing now
             </p>
           </CardContent>
         </Card>
@@ -115,26 +109,33 @@ const EnhancedDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">New Signups</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{realtimeStats?.newSignups}</div>
-            <p className="text-xs text-muted-foreground">
-              Today
-            </p>
+            <div className="text-2xl font-bold">{realtimeStats?.newSignups || 0}</div>
+            <p className="text-xs text-muted-foreground">Today</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Risk Alerts</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Deposits</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fraudAlerts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {fraudAlerts.filter(a => a.severity === 'critical').length} critical
-            </p>
+            <div className="text-2xl font-bold">${realtimeStats?.totalDeposits || 0}</div>
+            <p className="text-xs text-muted-foreground">Today</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{realtimeStats?.activeSessions || 0}</div>
+            <p className="text-xs text-muted-foreground">Live sessions</p>
           </CardContent>
         </Card>
       </div>
@@ -144,218 +145,250 @@ const EnhancedDashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Active Risk Alerts
+              <AlertTriangle className="h-5 w-5 text-red-500" />
+              Fraud Alerts
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {fraudAlerts.slice(0, 3).map((alert) => (
-                <Alert key={alert.id} className={
-                  alert.severity === 'critical' ? 'border-red-500' :
-                  alert.severity === 'high' ? 'border-orange-500' :
-                  'border-yellow-500'
-                }>
-                  <AlertDescription className="flex items-center justify-between">
+          <CardContent className="space-y-3">
+            {fraudAlerts.slice(0, 3).map((alert) => (
+              <Alert key={alert.id} className="border-red-200">
+                <AlertDescription>
+                  <div className="flex justify-between items-start">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={
-                          alert.severity === 'critical' ? 'destructive' :
-                          alert.severity === 'high' ? 'default' : 'secondary'
-                        }>
-                          {alert.severity}
-                        </Badge>
-                        <span className="font-medium">{alert.alertType.replace('_', ' ')}</span>
-                      </div>
-                      <p className="text-sm mt-1">{alert.description}</p>
+                      <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}>
+                        {alert.severity}
+                      </Badge>
+                      <p className="mt-1">{alert.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Risk Score: {alert.riskScore}/100
+                      </p>
                     </div>
-                    <Button variant="outline" size="sm">
+                    <Button size="sm" variant="outline">
                       Investigate
                     </Button>
-                  </AlertDescription>
-                </Alert>
-              ))}
-            </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ))}
           </CardContent>
         </Card>
       )}
 
       <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
           <TabsTrigger value="risk">Risk Management</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="analytics" className="space-y-4">
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Conversion Rates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {conversionAnalytics && (
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span>Registration to Deposit</span>
+                      <span>{conversionAnalytics.registrationToDeposit}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Visit to Registration</span>
+                      <span>{conversionAnalytics.visitToRegistration}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Deposit to 2nd Deposit</span>
+                      <span>{conversionAnalytics.depositToSecondDeposit}%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Bonus Conversion</span>
+                      <span>{conversionAnalytics.bonusConversion}%</span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Player Lifetime Value</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {playerLTV && (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold">${playerLTV.averageLTV}</div>
+                      <p className="text-muted-foreground">Average LTV</p>
+                    </div>
+                    <div className="space-y-2">
+                      {playerLTV.ltpBySegment.map((segment: any) => (
+                        <div key={segment.segment} className="flex justify-between">
+                          <span>{segment.segment}</span>
+                          <span>${segment.ltv}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="revenue" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle>Revenue by Provider</CardTitle>
               </CardHeader>
               <CardContent>
-                <PieChart 
-                  data={revenueData?.revenueByProvider || []}
-                  colors={['#0088FE', '#00C49F', '#FFBB28', '#FF8042']}
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                />
+                {revenueAnalytics && (
+                  <BarChart
+                    data={revenueAnalytics.revenueByProvider.map((item: any) => ({
+                      name: item.providerName,
+                      value: item.revenue
+                    }))}
+                    categories={['value']}
+                    index="name"
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  />
+                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Top Games by Revenue</CardTitle>
+                <CardTitle>Revenue by Game</CardTitle>
               </CardHeader>
               <CardContent>
-                <BarChart 
-                  data={revenueData?.revenueByGame || []}
-                  categories={['revenue']}
-                  index="gameName"
-                  valueFormatter={(value) => `$${value.toLocaleString()}`}
-                />
+                {revenueAnalytics && (
+                  <PieChart
+                    data={revenueAnalytics.revenueByGame.map((item: any) => ({
+                      name: item.gameName,
+                      value: item.revenue
+                    }))}
+                    valueFormatter={(value) => `$${value.toLocaleString()}`}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
 
-        <TabsContent value="revenue" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Daily Revenue Trend</CardTitle>
+              <CardTitle>Revenue Metrics</CardTitle>
             </CardHeader>
             <CardContent>
-              <LineChart 
-                data={revenueData?.revenueByDate || []}
-                categories={['revenue']}
-                index="date"
-                valueFormatter={(value) => `$${value.toLocaleString()}`}
-              />
+              {revenueAnalytics && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">${revenueAnalytics.totalRevenue.toLocaleString()}</div>
+                    <p className="text-muted-foreground">Total Revenue</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">${revenueAnalytics.ggr.toLocaleString()}</div>
+                    <p className="text-muted-foreground">GGR</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">${revenueAnalytics.ngr.toLocaleString()}</div>
+                    <p className="text-muted-foreground">NGR</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="risk" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Risk Score Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PieChart 
-                  data={[
-                    { name: 'Low Risk', value: 65 },
-                    { name: 'Medium Risk', value: 25 },
-                    { name: 'High Risk', value: 8 },
-                    { name: 'Critical', value: 2 }
-                  ]}
-                  colors={['#10B981', '#F59E0B', '#EF4444', '#7C2D12']}
-                  valueFormatter={(value) => `${value}%`}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Alert Types</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <BarChart 
-                  data={[
-                    { name: 'Suspicious Betting', count: 12 },
-                    { name: 'Unusual Deposits', count: 8 },
-                    { name: 'Bonus Abuse', count: 5 },
-                    { name: 'Account Sharing', count: 3 }
-                  ]}
-                  categories={['count']}
-                  index="name"
-                  valueFormatter={(value) => `${value} alerts`}
-                />
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="risk" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Suspicious Transactions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {suspiciousTransactions.map((transaction) => (
+                  <div key={transaction.id} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-semibold">${transaction.amount}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {transaction.type} - User: {transaction.userId}
+                        </div>
+                        <div className="text-sm">
+                          Reasons: {transaction.suspicionReasons.join(', ')}
+                        </div>
+                      </div>
+                      <Badge variant={transaction.riskLevel === 'high' ? 'destructive' : 'secondary'}>
+                        {transaction.riskLevel} risk
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TabsContent value="reports" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileBarChart className="h-5 w-5" />
+                  <FileText className="h-5 w-5" />
                   Financial Reports
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  onClick={() => handleGenerateReport('financial')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Generate Monthly Report
-                </Button>
-                <Button 
-                  onClick={() => handleGenerateReport('financial')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Generate Quarterly Report
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => generateReport('financial')}
+                  >
+                    Generate Monthly Report
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    Download Annual Report
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Regulatory Reports
-                </CardTitle>
+                <CardTitle>Regulatory Reports</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  onClick={() => handleGenerateReport('regulatory')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  AML Compliance Report
-                </Button>
-                <Button 
-                  onClick={() => handleGenerateReport('regulatory')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  KYC Status Report
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full">
+                    AML Report
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    KYC Compliance
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Operational Reports
-                </CardTitle>
+                <CardTitle>Player Reports</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button 
-                  onClick={() => handleGenerateReport('operational')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Player Activity Report
-                </Button>
-                <Button 
-                  onClick={() => handleGenerateReport('operational')}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Provider Performance
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full">
+                    Activity Report
+                  </Button>
+                  <Button variant="outline" className="w-full">
+                    Retention Analysis
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

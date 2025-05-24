@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Users, TrendingUp, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LineChart, BarChart, AreaChart, PieChart } from "@/components/ui/dashboard-charts";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 
 interface DataItem {
@@ -25,6 +27,40 @@ const Dashboard = () => {
     setTimeFrame(value);
     console.log(`Time frame changed to: ${value}`);
   };
+
+  // Mock data for charts
+  const revenueData: DataItem[] = [
+    { name: 'Jan', value: 45000 },
+    { name: 'Feb', value: 52000 },
+    { name: 'Mar', value: 48000 },
+    { name: 'Apr', value: 61000 },
+    { name: 'May', value: 55000 },
+    { name: 'Jun', value: 67000 },
+  ];
+
+  const trafficData: DataItem[] = [
+    { name: 'Direct', value: 12500 },
+    { name: 'Search', value: 8200 },
+    { name: 'Social', value: 6800 },
+    { name: 'Referral', value: 4200 },
+  ];
+
+  const userActivityData: DataItem[] = [
+    { name: 'Mon', value: 2400 },
+    { name: 'Tue', value: 1398 },
+    { name: 'Wed', value: 9800 },
+    { name: 'Thu', value: 3908 },
+    { name: 'Fri', value: 4800 },
+    { name: 'Sat', value: 3800 },
+    { name: 'Sun', value: 4300 },
+  ];
+
+  const depositMethodsData: DataItem[] = [
+    { name: 'Credit Card', value: 45000 },
+    { name: 'Bank Transfer', value: 32000 },
+    { name: 'E-wallet', value: 28000 },
+    { name: 'Crypto', value: 15000 },
+  ];
 
   // Show enhanced dashboard by default
   if (dashboardMode === "enhanced") {

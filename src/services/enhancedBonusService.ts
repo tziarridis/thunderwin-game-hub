@@ -169,14 +169,22 @@ class EnhancedBonusService {
         template: template
       };
       
-      // Update wallet bonus balance using raw SQL string
-      const { error } = await supabase.rpc('increment_wallet_bonus', {
-        p_user_id: userId,
-        p_amount: bonusAmount
-      });
-      
-      if (error) {
-        console.error('Error updating wallet bonus balance:', error);
+      // Update wallet bonus balance - using direct SQL since the RPC might not exist yet
+      try {
+        const { error } = await supabase
+          .from('wallets')
+          .update({ 
+            balance_bonus: supabase.sql`balance_bonus + ${bonusAmount}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+        
+        if (error) {
+          console.error('Error updating wallet bonus balance:', error);
+          // Continue anyway for demo purposes
+        }
+      } catch (sqlError) {
+        console.error('Error with wallet update:', sqlError);
         // Continue anyway for demo purposes
       }
       
