@@ -2,16 +2,22 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { AppUser, UserRole } from '@/types';
+import { AppUser, UserRole, LoginCredentials } from '@/types';
 
 export interface AuthContextType {
   user: AppUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdmin: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
+  register: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
+  adminLogin: (credentials: LoginCredentials) => Promise<{ error?: string }>;
   refreshWalletBalance?: () => Promise<void>;
+  updateUserPassword?: (oldPassword: string, newPassword: string) => Promise<{ error?: string }>;
+  fetchAndUpdateUser?: (updates: Partial<AppUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,9 +37,13 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isAdmin = user?.role === UserRole.ADMIN || user?.user_metadata?.name === 'admin';
 
   const signIn = async (email: string, password: string) => {
     try {
+      setError(null);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -42,12 +52,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) return { error: error.message };
       return {};
     } catch (error: any) {
+      setError(error.message);
       return { error: error.message };
     }
   };
 
   const signUp = async (email: string, password: string, username?: string) => {
     try {
+      setError(null);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -61,13 +73,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) return { error: error.message };
       return {};
     } catch (error: any) {
+      setError(error.message);
       return { error: error.message };
     }
+  };
+
+  const register = signUp; // Alias for signUp
+
+  const adminLogin = async (credentials: LoginCredentials) => {
+    return signIn(credentials.email, credentials.password);
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setError(null);
   };
 
   const refreshWalletBalance = async () => {
@@ -96,6 +116,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUserPassword = async (oldPassword: string, newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) return { error: error.message };
+      return {};
+    } catch (error: any) {
+      return { error: error.message };
+    }
+  };
+
+  const fetchAndUpdateUser = async (updates: Partial<AppUser>) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: updates
+      });
+      
+      if (!error) {
+        setUser(prev => prev ? { ...prev, ...updates } : null);
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
   const mapSupabaseUserToAppUser = (supabaseUser: SupabaseUser): AppUser => {
     return {
       id: supabaseUser.id,
@@ -105,7 +151,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       status: 'active',
       created_at: supabaseUser.created_at || new Date().toISOString(),
       updated_at: supabaseUser.updated_at || new Date().toISOString(),
-      user_metadata: supabaseUser.user_metadata,
+      first_name: supabaseUser.user_metadata?.first_name,
+      last_name: supabaseUser.user_metadata?.last_name,
+      avatar_url: supabaseUser.user_metadata?.avatar_url,
+      is_active: true,
+      last_sign_in_at: supabaseUser.last_sign_in_at,
+      user_metadata: {
+        ...supabaseUser.user_metadata,
+        name: supabaseUser.user_metadata?.username || supabaseUser.user_metadata?.full_name,
+      },
     };
   };
 
@@ -120,6 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
+        setError('Failed to initialize authentication');
       } finally {
         setIsLoading(false);
       }
@@ -149,10 +204,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated: !!user,
     isLoading,
+    isAdmin,
+    error,
     signIn,
     signUp,
     signOut,
+    register,
+    adminLogin,
     refreshWalletBalance,
+    updateUserPassword,
+    fetchAndUpdateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

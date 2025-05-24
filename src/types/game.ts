@@ -124,6 +124,7 @@ export interface GameProvider {
   logo?: string;
   logoUrl?: string;
   created_at?: string;
+  status?: string;
 }
 
 export interface GameCategory {
@@ -132,6 +133,7 @@ export interface GameCategory {
   slug?: string;
   icon?: string;
   created_at?: string;
+  status?: string;
 }
 
 export interface GameLaunchOptions {

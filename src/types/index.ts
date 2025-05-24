@@ -9,6 +9,12 @@ export interface AppUser {
   created_at: string;
   updated_at: string;
   balance?: number;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  is_active?: boolean;
+  last_sign_in_at?: string;
+  vip_level_id?: string;
   user_metadata?: {
     username?: string;
     full_name?: string;
@@ -17,6 +23,8 @@ export interface AppUser {
     currency?: string;
     language?: string;
     vip_level?: number;
+    name?: string;
+    bonus_points?: number;
   };
   wallet?: {
     balance: number;
@@ -31,6 +39,41 @@ export enum UserRole {
   ADMIN = 'admin',
   USER = 'user',
   MODERATOR = 'moderator'
+}
+
+// Auth Types
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username?: string;
+  name?: string;
+  balance?: number;
+  isAdmin?: boolean;
+  avatarUrl?: string;
+  vipLevel?: number;
+  isVerified?: boolean;
+}
+
+// Date Range Type
+export interface DateRange {
+  from?: Date;
+  to?: Date;
+}
+
+// Transaction Type
+export interface Transaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: string;
+  status: string;
+  created_at: string;
+  description?: string;
 }
 
 // Bonus Types
@@ -107,6 +150,9 @@ export interface VipLevel {
   updated_at: string;
 }
 
+// Legacy alias for VipLevel
+export interface VIPLevel extends VipLevel {}
+
 // KYC Types
 export enum KycDocumentType {
   PASSPORT = 'passport',
@@ -139,6 +185,14 @@ export interface KycRequest {
   documents: KycDocument[];
   created_at: string;
   updated_at: string;
+}
+
+// Data Table Types
+export interface DataTableColumn<T> {
+  accessorKey: string;
+  header: string;
+  cell?: (props: { row: { original: T } }) => React.ReactNode;
+  id?: string;
 }
 
 // Re-export all types from individual files

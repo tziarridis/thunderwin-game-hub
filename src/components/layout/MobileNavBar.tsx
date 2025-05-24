@@ -1,61 +1,41 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LogOut, User } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
-const MobileNavBar = () => {
-  const { user, isAuthenticated, signOut } = useAuth(); // Use signOut
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      await signOut(); // Use signOut
-      toast.success("Logged out successfully.");
-      navigate('/');
-    } catch (error) {
-      console.error("Logout failed:", error);
-      toast.error("Logout failed. Please try again.");
-    }
-  };
+const MobileNavBar: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-casino-thunder-darker border-t border-casino-thunder-dark p-4 flex items-center justify-between md:hidden z-50">
-      <div className="flex items-center space-x-4">
-        {isAuthenticated && user ? (
-          <>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={user.avatar_url || "https://github.com/shadcn.png"} alt={user.username || "User"} />
-              <AvatarFallback>{user.username?.slice(0, 2).toUpperCase() || user.email?.slice(0,2).toUpperCase() || 'U'}</AvatarFallback>
-            </Avatar>
-            <div className="text-sm">
-              <p className="font-medium">{user.username || user.email}</p>
-              <p className="text-xs text-muted-foreground">Welcome back!</p>
-            </div>
-          </>
-        ) : (
-          <div className="text-sm">
-            <p className="font-medium">Guest User</p>
-            <p className="text-xs text-muted-foreground">Please login</p>
-          </div>
-        )}
-      </div>
-      
-      <div className="flex items-center space-x-2">
+    <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-2 md:hidden">
+      <div className="flex justify-around items-center">
+        <Link to="/" className="p-2">
+          <span className="text-sm">Home</span>
+        </Link>
+        <Link to="/casino" className="p-2">
+          <span className="text-sm">Casino</span>
+        </Link>
+        <Link to="/sports" className="p-2">
+          <span className="text-sm">Sports</span>
+        </Link>
         {isAuthenticated ? (
-          <>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </>
+          <Link to="/profile" className="p-2">
+            <Avatar className="h-6 w-6">
+              <AvatarImage 
+                src={user?.avatar_url || user?.user_metadata?.avatar_url || "https://github.com/shadcn.png"} 
+                alt={user?.username || "User"} 
+              />
+              <AvatarFallback>
+                {user?.username?.slice(0, 2).toUpperCase() || user?.email?.slice(0,2).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
         ) : (
-          <Button onClick={() => navigate('/login')}>Login</Button>
+          <Link to="/login">
+            <Button size="sm">Login</Button>
+          </Link>
         )}
       </div>
     </div>

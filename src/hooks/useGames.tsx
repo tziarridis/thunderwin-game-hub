@@ -9,11 +9,18 @@ export interface GamesContextType {
   providers: GameProvider[];
   categories: GameCategory[];
   isLoadingGames: boolean;
+  isLoading: boolean;
   gamesError: Error | null;
   favoriteGameIds: Set<string>;
   getFavoriteGames: () => Promise<Game[]>;
+  getFeaturedGames: (count?: number) => Promise<Game[]>;
+  getGameBySlug: (slug: string) => Promise<Game | null>;
+  getGameById: (id: string) => Promise<Game | null>;
+  getGameLaunchUrl: (game: Game, options?: GameLaunchOptions) => Promise<string | null>;
   toggleFavoriteGame: (gameId: string) => Promise<void>;
   launchGame: (game: Game, options?: GameLaunchOptions) => Promise<string | null>;
+  handlePlayGame: (game: Game, mode?: 'real' | 'demo') => Promise<void>;
+  handleGameDetails: (game: Game) => void;
 }
 
 const GamesContext = createContext<GamesContextType | undefined>(undefined);
@@ -38,6 +45,8 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [gamesError, setGamesError] = useState<Error | null>(null);
   const [favoriteGameIds, setFavoriteGameIds] = useState<Set<string>>(new Set());
 
+  const isLoading = isLoadingGames;
+
   const fetchGames = async () => {
     try {
       setIsLoadingGames(true);
@@ -51,12 +60,15 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       const mappedGames: Game[] = (data || []).map(game => ({
         id: game.id,
         title: game.game_name || 'Untitled Game',
+        name: game.game_name,
         slug: game.game_code || game.id,
         description: game.description || '',
         image_url: game.cover || '',
+        cover: game.cover,
         provider_id: game.provider_id,
         provider_slug: game.provider_slug || 'unknown',
         category_id: game.game_type || '',
+        category: game.game_type,
         status: game.status,
         rtp: Number(game.rtp) || 0,
         created_at: game.created_at || new Date().toISOString(),
@@ -64,9 +76,16 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         isNew: game.is_new || false,
         isPopular: game.is_featured || false,
         is_featured: game.is_featured || false,
+        is_new: game.is_new || false,
         show_home: game.show_home || false,
         features: game.features || [],
         tags: game.tags || [],
+        has_lobby: game.has_lobby || false,
+        is_mobile: game.is_mobile || false,
+        has_freespins: game.has_freespins || false,
+        has_tables: game.has_tables || false,
+        only_demo: game.only_demo || false,
+        views: game.views || 0,
       }));
 
       setGames(mappedGames);
@@ -93,6 +112,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         name: provider.name,
         slug: provider.name.toLowerCase().replace(/\s+/g, '-'),
         logo: provider.logo,
+        logoUrl: provider.logo,
         created_at: provider.created_at,
       }));
 
@@ -142,6 +162,28 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Error fetching favorite games:', error);
       return [];
+    }
+  };
+
+  const getFeaturedGames = async (count: number = 12): Promise<Game[]> => {
+    const featuredGames = games.filter(game => game.is_featured);
+    return featuredGames.slice(0, count);
+  };
+
+  const getGameBySlug = async (slug: string): Promise<Game | null> => {
+    return games.find(game => game.slug === slug || game.id === slug) || null;
+  };
+
+  const getGameById = async (id: string): Promise<Game | null> => {
+    return games.find(game => game.id === id) || null;
+  };
+
+  const getGameLaunchUrl = async (game: Game, options: GameLaunchOptions = {}): Promise<string | null> => {
+    try {
+      return `https://example.com/game/${game.slug}?mode=${options.mode || 'demo'}`;
+    } catch (error: any) {
+      console.error('Error getting game launch URL:', error);
+      throw error;
     }
   };
 
@@ -195,6 +237,22 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
   };
 
+  const handlePlayGame = async (game: Game, mode: 'real' | 'demo' = 'demo') => {
+    try {
+      const url = await launchGame(game, { mode });
+      if (url) {
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error playing game:', error);
+      toast.error('Failed to launch game');
+    }
+  };
+
+  const handleGameDetails = (game: Game) => {
+    window.location.href = `/casino/game/${game.slug || game.id}`;
+  };
+
   useEffect(() => {
     fetchGames();
     fetchProviders();
@@ -206,11 +264,18 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     providers,
     categories,
     isLoadingGames,
+    isLoading,
     gamesError,
     favoriteGameIds,
     getFavoriteGames,
+    getFeaturedGames,
+    getGameBySlug,
+    getGameById,
+    getGameLaunchUrl,
     toggleFavoriteGame,
     launchGame,
+    handlePlayGame,
+    handleGameDetails,
   };
 
   return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>;
