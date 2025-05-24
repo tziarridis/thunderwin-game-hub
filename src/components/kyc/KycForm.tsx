@@ -1,42 +1,53 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { KycFormProps } from '@/types/kyc';
 
-const KycForm: React.FC<KycFormProps> = ({ 
-  onKycSubmitted,
-  onSuccess,
-  onError,
-  userId,
-  existingDocuments
-}) => {
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Mock successful submission
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { KycDocumentType } from '@/types/kyc';
+
+interface KycFormProps {
+  userId: string;
+  onSuccess: () => void;
+  onError: (error: string) => void;
+}
+
+const KycForm: React.FC<KycFormProps> = ({ userId, onSuccess, onError }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const documentTypes = Object.values(KycDocumentType);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
-      const mockRequestId = 'kyc-' + Math.random().toString(36).substr(2, 9);
-      
-      if (onKycSubmitted) {
-        onKycSubmitted(mockRequestId);
-      }
-      
-      if (onSuccess) {
-        onSuccess();
-      }
+      // Mock submission
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      onSuccess();
     } catch (error) {
-      if (onError) {
-        onError("Failed to submit KYC documents");
-      }
+      onError('Failed to submit KYC documents');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <p>Upload your identity documents here</p>
-        {/* Document upload fields would go here */}
-      </div>
-      <Button type="submit">Submit Documents</Button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>Upload Documents</CardTitle>
+        <CardDescription>Please upload the required documents for verification</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {documentTypes.map((docType) => (
+          <div key={docType} className="space-y-2">
+            <label className="text-sm font-medium capitalize">
+              {docType.replace('_', ' ')}
+            </label>
+            <input type="file" accept="image/*,.pdf" className="w-full" />
+          </div>
+        ))}
+        <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full">
+          {isSubmitting ? 'Submitting...' : 'Submit Documents'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 };
 

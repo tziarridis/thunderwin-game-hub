@@ -1,6 +1,7 @@
 
-import React from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import React from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface UserPageLoadingSkeletonProps {
   title?: string;
@@ -9,24 +10,24 @@ interface UserPageLoadingSkeletonProps {
 const UserPageLoadingSkeleton: React.FC<UserPageLoadingSkeletonProps> = ({ title }) => {
   return (
     <div className="container mx-auto p-6">
-      {title && <h1 className="text-3xl font-bold mb-6">{title}</h1>}
       <div className="space-y-6">
-        <div className="bg-card rounded-lg p-6 shadow-md">
-          <Skeleton className="h-8 w-1/3 mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="h-24 rounded-lg" />
-            <Skeleton className="h-24 rounded-lg" />
-          </div>
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-96" />
         </div>
         
-        <div className="bg-card rounded-lg p-6 shadow-md">
-          <Skeleton className="h-8 w-1/4 mb-4" />
-          <div className="space-y-3">
-            <Skeleton className="h-12 rounded" />
-            <Skeleton className="h-12 rounded" />
-            <Skeleton className="h-12 rounded" />
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </div>

@@ -1,8 +1,8 @@
 
 export interface WalletType {
   id: string;
-  user_id?: string;
-  userId?: string;
+  userId: string;
+  user_id: string;
   balance: number;
   currency: string;
   symbol: string;
@@ -11,7 +11,7 @@ export interface WalletType {
   bonusBalance?: number;
   cryptoBalance?: number;
   demoBalance?: number;
-  isActive?: boolean;
+  isActive: boolean;
   lastTransactionDate?: Date;
   hide_balance?: boolean;
   total_bet?: number;

@@ -8,6 +8,7 @@ export interface AuthContextType {
   user: AppUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  loading: boolean;
   isAdmin: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -16,7 +17,7 @@ export interface AuthContextType {
   register: (email: string, password: string, username?: string) => Promise<{ error?: string }>;
   adminLogin: (credentials: LoginCredentials) => Promise<{ error?: string }>;
   refreshWalletBalance?: () => Promise<void>;
-  updateUserPassword?: (oldPassword: string, newPassword: string) => Promise<{ error?: string }>;
+  updateUserPassword?: (newPassword: string) => Promise<{ error?: string }>;
   fetchAndUpdateUser?: (updates: Partial<AppUser>) => Promise<void>;
 }
 
@@ -116,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const updateUserPassword = async (oldPassword: string, newPassword: string) => {
+  const updateUserPassword = async (newPassword: string) => {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) return { error: error.message };
@@ -147,6 +148,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
       username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || '',
+      name: supabaseUser.user_metadata?.username || supabaseUser.user_metadata?.full_name,
       role: UserRole.USER,
       status: 'active',
       created_at: supabaseUser.created_at || new Date().toISOString(),
@@ -204,6 +206,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     isAuthenticated: !!user,
     isLoading,
+    loading: isLoading,
     isAdmin,
     error,
     signIn,

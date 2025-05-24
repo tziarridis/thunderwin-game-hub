@@ -1,56 +1,54 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { KycStatusDisplayProps, KycStatus } from '@/types/kyc';
+import { KycStatus } from '@/types/kyc';
 
-const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ 
-  status, 
-  kycStatus,
-  kycRequest,
-  onResubmit 
-}) => {
-  const displayStatus = status || kycStatus || 'not_submitted';
+interface KycStatusDisplayProps {
+  status?: string;
+}
 
-  const getStatusColor = (status: KycStatus) => {
-    switch(status) {
-      case 'approved':
-      case 'verified':
-        return 'bg-green-500 hover:bg-green-600';
-      case 'pending':
-        return 'bg-yellow-500 hover:bg-yellow-600';
-      case 'rejected':
-      case 'resubmit_required':
-        return 'bg-red-500 hover:bg-red-600';
+const KycStatusDisplay: React.FC<KycStatusDisplayProps> = ({ status }) => {
+  const getStatusVariant = (status?: string) => {
+    switch (status) {
+      case KycStatus.APPROVED:
+      case KycStatus.VERIFIED:
+        return 'default';
+      case KycStatus.PENDING:
+      case KycStatus.PENDING_REVIEW:
+        return 'secondary';
+      case KycStatus.REJECTED:
+        return 'destructive';
+      case KycStatus.RESUBMIT_REQUIRED:
+        return 'outline';
       default:
-        return 'bg-gray-500 hover:bg-gray-600';
+        return 'outline';
     }
   };
 
-  const getStatusLabel = (status: KycStatus) => {
-    switch(status) {
-      case 'approved': return 'Verified';
-      case 'verified': return 'Verified';
-      case 'pending': return 'Pending Review';
-      case 'rejected': return 'Rejected';
-      case 'resubmit_required': return 'Resubmission Required';
-      case 'not_submitted': return 'Not Submitted';
-      default: return 'Not Started';
+  const getStatusText = (status?: string) => {
+    switch (status) {
+      case KycStatus.APPROVED:
+        return 'Approved';
+      case KycStatus.VERIFIED:
+        return 'Verified';
+      case KycStatus.PENDING:
+      case KycStatus.PENDING_REVIEW:
+        return 'Pending Review';
+      case KycStatus.REJECTED:
+        return 'Rejected';
+      case KycStatus.RESUBMIT_REQUIRED:
+        return 'Resubmission Required';
+      case KycStatus.NOT_STARTED:
+        return 'Not Started';
+      default:
+        return 'Unknown';
     }
   };
 
   return (
-    <div className="flex items-center space-x-2">
-      <Badge className={getStatusColor(displayStatus as KycStatus)}>
-        {getStatusLabel(displayStatus as KycStatus)}
-      </Badge>
-      
-      {(displayStatus === 'rejected' || displayStatus === 'resubmit_required') && onResubmit && (
-        <Button variant="outline" size="sm" onClick={onResubmit}>
-          Resubmit
-        </Button>
-      )}
-    </div>
+    <Badge variant={getStatusVariant(status)}>
+      {getStatusText(status)}
+    </Badge>
   );
 };
 

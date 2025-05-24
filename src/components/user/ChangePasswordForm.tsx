@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,16 +39,13 @@ const ChangePasswordForm: React.FC = () => {
       return;
     }
     setIsLoading(true);
-    toast.info("Attempting to update password..."); // Placeholder until currentPassword is verified
+    toast.info("Attempting to update password...");
     
-    // Note: Supabase auth.updateUser doesn't verify currentPassword directly.
-    // For that, you'd typically re-authenticate or have a custom server-side check.
-    // Here, we'll proceed with the update call as per Supabase client library.
-    const { error } = await updateUserPassword(data.newPassword);
+    const result = await updateUserPassword(data.newPassword);
 
     setIsLoading(false);
-    if (error) {
-      toast.error(`Failed to update password: ${error.message}`);
+    if (result?.error) {
+      toast.error(`Failed to update password: ${result.error}`);
     } else {
       toast.success("Password updated successfully!");
       form.reset();
