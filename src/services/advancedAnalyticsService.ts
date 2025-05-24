@@ -7,6 +7,7 @@ export interface PlayerSegment {
   segmentType: string;
   segmentValue: string;
   confidenceScore: number;
+  calculatedAt: string;
 }
 
 export interface ABTest {
@@ -14,13 +15,15 @@ export interface ABTest {
   testName: string;
   description?: string;
   testConfig: any;
+  status: string;
   startDate: string;
   endDate?: string;
-  status: 'draft' | 'active' | 'completed' | 'paused';
-  successMetrics: any;
+  participants?: number;
+  conversionRate?: number;
 }
 
 export interface PlayerLTV {
+  id: string;
   userId: string;
   predictedLtv: number;
   currentValue: number;
@@ -30,555 +33,415 @@ export interface PlayerLTV {
 }
 
 export interface ChurnPrediction {
+  id: string;
   userId: string;
   churnProbability: number;
-  churnRiskLevel: 'low' | 'medium' | 'high';
+  churnRiskLevel: string;
   predictionFactors: any;
   recommendedActions: string[];
 }
 
 class AdvancedAnalyticsService {
-
-  async segmentPlayers(): Promise<void> {
+  
+  async getDashboardMetrics(): Promise<any> {
     try {
-      // Get all active users
-      const { data: users } = await supabase
+      // Get basic metrics from transactions and users
+      const { data: revenueData } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('status', 'completed')
+        .eq('type', 'deposit');
+
+      const { data: userData } = await supabase
         .from('users')
-        .select('id')
-        .eq('status', 'active');
+        .select('id, created_at');
 
-      if (!users) return;
+      const { data: ltvData } = await supabase
+        .from('player_ltv')
+        .select('predicted_ltv, current_value');
 
-      for (const user of users) {
-        await this.calculatePlayerSegments(user.id);
-      }
+      const { data: churnData } = await supabase
+        .from('churn_predictions')
+        .select('churn_risk_level');
+
+      const totalRevenue = revenueData?.reduce((sum, t) => sum + (t.amount || 0), 0) || 0;
+      const activePlayers = userData?.length || 0;
+      const avgLTV = ltvData?.length ? 
+        ltvData.reduce((sum, ltv) => sum + (ltv.predicted_ltv || 0), 0) / ltvData.length : 0;
+
+      const highRiskChurn = churnData?.filter(c => c.churn_risk_level === 'high').length || 0;
+      const mediumRiskChurn = churnData?.filter(c => c.churn_risk_level === 'medium').length || 0;
+      const lowRiskChurn = churnData?.filter(c => c.churn_risk_level === 'low').length || 0;
+
+      return {
+        totalRevenue,
+        activePlayers,
+        avgLTV,
+        conversionRate: 12.5, // Mock data
+        revenueGrowth: 15.2, // Mock data
+        playerGrowth: 8.7, // Mock data
+        highRiskChurn,
+        mediumRiskChurn,
+        lowRiskChurn
+      };
     } catch (error) {
-      console.error('Error segmenting players:', error);
+      console.error('Error fetching dashboard metrics:', error);
+      return {};
     }
   }
 
-  async calculatePlayerSegments(userId: string): Promise<PlayerSegment[]> {
+  async getPlayerSegments(): Promise<PlayerSegment[]> {
     try {
-      const segments = [];
+      const { data, error } = await supabase
+        .from('player_segments')
+        .select('*')
+        .order('calculated_at', { ascending: false })
+        .limit(20);
 
-      // Value segment based on total deposits/activity
-      const valueSegment = await this.calculateValueSegment(userId);
-      if (valueSegment) {
-        segments.push(valueSegment);
-      }
+      if (error) throw error;
 
-      // Activity segment based on frequency
-      const activitySegment = await this.calculateActivitySegment(userId);
-      if (activitySegment) {
-        segments.push(activitySegment);
-      }
-
-      // Risk segment based on behavior
-      const riskSegment = await this.calculateRiskSegment(userId);
-      if (riskSegment) {
-        segments.push(riskSegment);
-      }
-
-      // Store segments in database
-      for (const segment of segments) {
-        await this.storePlayerSegment(segment);
-      }
-
-      return segments;
+      return data?.map(segment => ({
+        id: segment.id,
+        userId: segment.user_id,
+        segmentType: segment.segment_type,
+        segmentValue: segment.segment_value,
+        confidenceScore: segment.confidence_score,
+        calculatedAt: segment.calculated_at
+      })) || [];
     } catch (error) {
-      console.error('Error calculating player segments:', error);
+      console.error('Error fetching player segments:', error);
       return [];
     }
   }
 
-  async calculatePlayerLTV(userId: string): Promise<PlayerLTV> {
+  async getActiveABTests(): Promise<ABTest[]> {
     try {
-      // Get player's transaction history
+      const { data, error } = await supabase
+        .from('ab_tests')
+        .select(`
+          *,
+          ab_test_participants!inner(count)
+        `)
+        .in('status', ['active', 'draft'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data?.map(test => {
+        const config = test.test_config as any;
+        const participantCount = Array.isArray(test.ab_test_participants) 
+          ? test.ab_test_participants.length 
+          : 0;
+
+        return {
+          id: test.id,
+          testName: test.test_name,
+          description: test.description,
+          testConfig: config,
+          status: test.status,
+          startDate: test.start_date,
+          endDate: test.end_date,
+          participants: participantCount,
+          conversionRate: Math.random() * 15 // Mock conversion rate
+        };
+      }) || [];
+    } catch (error) {
+      console.error('Error fetching A/B tests:', error);
+      return [];
+    }
+  }
+
+  async getPlayerLTVAnalysis(): Promise<PlayerLTV[]> {
+    try {
+      const { data, error } = await supabase
+        .from('player_ltv')
+        .select('*')
+        .order('predicted_ltv', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      return data?.map(ltv => ({
+        id: ltv.id,
+        userId: ltv.user_id,
+        predictedLtv: ltv.predicted_ltv,
+        currentValue: ltv.current_value,
+        ltvSegment: ltv.ltv_segment,
+        calculationMethod: ltv.calculation_method,
+        factors: ltv.factors
+      })) || [];
+    } catch (error) {
+      console.error('Error fetching LTV analysis:', error);
+      return [];
+    }
+  }
+
+  async calculatePlayerLTV(userId: string): Promise<PlayerLTV | null> {
+    try {
+      // Get player transaction history
       const { data: transactions } = await supabase
         .from('transactions')
-        .select('*')
+        .select('amount, type, created_at')
         .eq('player_id', userId)
-        .order('created_at', { ascending: true });
+        .eq('status', 'completed');
 
-      const currentValue = this.calculateCurrentValue(transactions || []);
-      const ltvFactors = await this.analyzeLTVFactors(userId, transactions || []);
-      const predictedLtv = this.predictLTV(ltvFactors);
-      const ltvSegment = this.categorizeLTVSegment(predictedLtv);
+      if (!transactions || transactions.length === 0) {
+        return null;
+      }
 
-      const ltv: PlayerLTV = {
-        userId,
-        predictedLtv,
-        currentValue,
-        ltvSegment,
-        calculationMethod: 'behavioral_cohort_analysis',
-        factors: ltvFactors
-      };
+      // Calculate current value
+      const deposits = transactions.filter(t => t.type === 'deposit');
+      const currentValue = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-      // Store LTV calculation
-      await supabase
+      // Simple LTV prediction (in production, use ML models)
+      const avgMonthlyDeposit = currentValue / Math.max(1, this.getMonthsSinceFirstDeposit(transactions));
+      const predictedLifespanMonths = 12; // Assume 12 months average lifespan
+      const predictedLtv = avgMonthlyDeposit * predictedLifespanMonths;
+
+      // Determine segment
+      let ltvSegment = 'low';
+      if (predictedLtv > 1000) ltvSegment = 'high';
+      else if (predictedLtv > 500) ltvSegment = 'medium';
+
+      // Save to database
+      const { data, error } = await supabase
         .from('player_ltv')
         .upsert({
           user_id: userId,
           predicted_ltv: predictedLtv,
           current_value: currentValue,
           ltv_segment: ltvSegment,
-          calculation_method: 'behavioral_cohort_analysis',
-          factors: ltvFactors,
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
-        });
-
-      return ltv;
-    } catch (error) {
-      console.error('Error calculating player LTV:', error);
-      throw error;
-    }
-  }
-
-  async predictChurn(userId: string): Promise<ChurnPrediction> {
-    try {
-      const churnFactors = await this.analyzeChurnFactors(userId);
-      const churnProbability = this.calculateChurnProbability(churnFactors);
-      const riskLevel = this.categorizeChurnRisk(churnProbability);
-      const recommendedActions = this.generateChurnPreventionActions(churnFactors, riskLevel);
-
-      const prediction: ChurnPrediction = {
-        userId,
-        churnProbability,
-        churnRiskLevel: riskLevel,
-        predictionFactors: churnFactors,
-        recommendedActions
-      };
-
-      // Store churn prediction
-      await supabase
-        .from('churn_predictions')
-        .upsert({
-          user_id: userId,
-          churn_probability: churnProbability,
-          churn_risk_level: riskLevel,
-          prediction_factors: churnFactors,
-          recommended_actions: recommendedActions,
-          model_version: 'v1.0',
-          expires_at: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days
-        });
-
-      return prediction;
-    } catch (error) {
-      console.error('Error predicting churn:', error);
-      throw error;
-    }
-  }
-
-  async createABTest(testConfig: {
-    name: string;
-    description?: string;
-    variants: any[];
-    targetSegments: string[];
-    successMetrics: any;
-    duration: number;
-  }): Promise<ABTest> {
-    try {
-      const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + testConfig.duration);
-
-      const { data, error } = await supabase
-        .from('ab_tests')
-        .insert({
-          test_name: testConfig.name,
-          description: testConfig.description,
-          test_config: {
-            variants: testConfig.variants,
-            allocation: this.calculateVariantAllocation(testConfig.variants)
+          calculation_method: 'simple_average',
+          factors: {
+            avg_monthly_deposit: avgMonthlyDeposit,
+            total_deposits: deposits.length,
+            account_age_months: this.getMonthsSinceFirstDeposit(transactions)
           },
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString(),
-          status: 'draft',
-          target_segments: testConfig.targetSegments,
-          success_metrics: testConfig.successMetrics
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      return this.mapABTest(data);
-    } catch (error) {
-      console.error('Error creating A/B test:', error);
-      throw error;
-    }
-  }
-
-  async enrollUserInABTest(testId: string, userId: string): Promise<string> {
-    try {
-      // Check if user is already enrolled
-      const { data: existing } = await supabase
-        .from('ab_test_participants')
-        .select('variant')
-        .eq('test_id', testId)
-        .eq('user_id', userId)
-        .single();
-
-      if (existing) {
-        return existing.variant;
-      }
-
-      // Get test configuration
-      const { data: test } = await supabase
-        .from('ab_tests')
-        .select('test_config, target_segments')
-        .eq('id', testId)
-        .single();
-
-      if (!test) throw new Error('Test not found');
-
-      // Check if user matches target segments
-      const userSegments = await this.getUserSegments(userId);
-      const matchesTarget = this.checkSegmentMatch(userSegments, test.target_segments);
-
-      if (!matchesTarget) {
-        return 'control'; // Default to control if not in target segment
-      }
-
-      // Assign variant based on allocation
-      const variant = this.assignVariant(test.test_config.variants, userId);
-
-      // Enroll user
-      await supabase
-        .from('ab_test_participants')
-        .insert({
-          test_id: testId,
-          user_id: userId,
-          variant
-        });
-
-      return variant;
-    } catch (error) {
-      console.error('Error enrolling user in A/B test:', error);
-      return 'control';
-    }
-  }
-
-  async trackConversion(testId: string, userId: string, conversionValue: number = 0): Promise<void> {
-    try {
-      await supabase
-        .from('ab_test_participants')
-        .update({
-          converted: true,
-          conversion_value: conversionValue
-        })
-        .eq('test_id', testId)
-        .eq('user_id', userId);
-    } catch (error) {
-      console.error('Error tracking conversion:', error);
-    }
-  }
-
-  async logPerformanceMetric(
-    metricType: string,
-    metricName: string,
-    value: number,
-    tags: Record<string, any> = {},
-    source: string = 'application'
-  ): Promise<void> {
-    try {
-      await supabase
-        .from('performance_metrics')
-        .insert({
-          metric_type: metricType,
-          metric_name: metricName,
-          value,
-          tags,
-          source
-        });
-    } catch (error) {
-      console.error('Error logging performance metric:', error);
-    }
-  }
-
-  async logError(
-    errorType: string,
-    errorMessage: string,
-    stackTrace?: string,
-    context: any = {},
-    userId?: string
-  ): Promise<void> {
-    try {
-      await supabase
-        .from('error_logs')
-        .insert({
-          error_type: errorType,
-          error_message: errorMessage,
-          stack_trace: stackTrace,
-          user_id: userId,
-          additional_context: context,
-          request_url: window.location.href,
-          user_agent: navigator.userAgent
-        });
-    } catch (error) {
-      console.error('Error logging error:', error);
-    }
-  }
-
-  private async calculateValueSegment(userId: string): Promise<PlayerSegment | null> {
-    try {
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('total_bet, balance')
-        .eq('user_id', userId)
-        .single();
-
-      if (!wallet) return null;
-
-      const totalValue = wallet.total_bet + wallet.balance;
-      let segment = 'low_value';
-      let confidence = 0.8;
-
-      if (totalValue > 10000) {
-        segment = 'whale';
-        confidence = 0.95;
-      } else if (totalValue > 1000) {
-        segment = 'high_value';
-        confidence = 0.9;
-      } else if (totalValue > 100) {
-        segment = 'medium_value';
-        confidence = 0.85;
-      }
-
       return {
-        id: '',
-        userId,
-        segmentType: 'value',
-        segmentValue: segment,
-        confidenceScore: confidence
+        id: data.id,
+        userId: data.user_id,
+        predictedLtv: data.predicted_ltv,
+        currentValue: data.current_value,
+        ltvSegment: data.ltv_segment,
+        calculationMethod: data.calculation_method,
+        factors: data.factors
       };
     } catch (error) {
-      console.error('Error calculating value segment:', error);
+      console.error('Error calculating player LTV:', error);
       return null;
     }
   }
 
-  private async calculateActivitySegment(userId: string): Promise<PlayerSegment | null> {
-    // Mock implementation - analyze user activity patterns
-    return {
-      id: '',
-      userId,
-      segmentType: 'activity',
-      segmentValue: 'regular',
-      confidenceScore: 0.8
-    };
+  async predictPlayerChurn(userId: string): Promise<ChurnPrediction | null> {
+    try {
+      // Get recent player activity
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      
+      const { data: recentTransactions } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('player_id', userId)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      const { data: recentSessions } = await supabase
+        .from('user_sessions')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      // Simple churn prediction logic (replace with ML model in production)
+      let churnScore = 0;
+      
+      // Factor 1: Recent activity
+      if (!recentTransactions || recentTransactions.length === 0) churnScore += 0.3;
+      if (!recentSessions || recentSessions.length < 5) churnScore += 0.2;
+
+      // Factor 2: Declining trend
+      const weeklyActivity = this.calculateWeeklyActivity(recentSessions || []);
+      if (weeklyActivity.isDecreasing) churnScore += 0.3;
+
+      // Factor 3: Support tickets or complaints
+      // (Would check support_tickets table in real implementation)
+      
+      let riskLevel = 'low';
+      if (churnScore > 0.7) riskLevel = 'high';
+      else if (churnScore > 0.4) riskLevel = 'medium';
+
+      const recommendedActions = this.getChurnPreventionActions(riskLevel, churnScore);
+
+      // Save prediction
+      const { data, error } = await supabase
+        .from('churn_predictions')
+        .upsert({
+          user_id: userId,
+          churn_probability: churnScore,
+          churn_risk_level: riskLevel,
+          prediction_factors: {
+            recent_transactions: recentTransactions?.length || 0,
+            recent_sessions: recentSessions?.length || 0,
+            activity_trend: weeklyActivity.trend
+          },
+          recommended_actions: recommendedActions,
+          model_version: 'v1.0',
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        userId: data.user_id,
+        churnProbability: data.churn_probability,
+        churnRiskLevel: data.churn_risk_level,
+        predictionFactors: data.prediction_factors,
+        recommendedActions: Array.isArray(data.recommended_actions) ? data.recommended_actions : []
+      };
+    } catch (error) {
+      console.error('Error predicting churn:', error);
+      return null;
+    }
   }
 
-  private async calculateRiskSegment(userId: string): Promise<PlayerSegment | null> {
-    const { data: wallet } = await supabase
-      .from('wallets')
-      .select('aml_risk_score')
-      .eq('user_id', userId)
-      .single();
+  async segmentPlayer(userId: string): Promise<void> {
+    try {
+      // Get player data for segmentation
+      const { data: user } = await supabase
+        .from('users')
+        .select('created_at')
+        .eq('id', userId)
+        .single();
 
-    if (!wallet) return null;
+      const { data: transactions } = await supabase
+        .from('transactions')
+        .select('amount, type, created_at')
+        .eq('player_id', userId)
+        .eq('status', 'completed');
 
-    let segment = 'low_risk';
-    if (wallet.aml_risk_score > 70) segment = 'high_risk';
-    else if (wallet.aml_risk_score > 40) segment = 'medium_risk';
+      if (!user || !transactions) return;
 
-    return {
-      id: '',
-      userId,
-      segmentType: 'risk',
-      segmentValue: segment,
-      confidenceScore: 0.9
-    };
+      // Calculate segments
+      const segments = this.calculatePlayerSegments(user, transactions);
+
+      // Save segments
+      for (const segment of segments) {
+        await supabase
+          .from('player_segments')
+          .upsert({
+            user_id: userId,
+            segment_type: segment.type,
+            segment_value: segment.value,
+            confidence_score: segment.confidence,
+            calculated_at: new Date().toISOString(),
+            valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+          });
+      }
+    } catch (error) {
+      console.error('Error segmenting player:', error);
+    }
   }
 
-  private async storePlayerSegment(segment: PlayerSegment): Promise<void> {
-    await supabase
-      .from('player_segments')
-      .upsert({
-        user_id: segment.userId,
-        segment_type: segment.segmentType,
-        segment_value: segment.segmentValue,
-        confidence_score: segment.confidenceScore,
-        valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
-      });
-  }
-
-  private calculateCurrentValue(transactions: any[]): number {
-    return transactions
+  private getMonthsSinceFirstDeposit(transactions: any[]): number {
+    if (!transactions.length) return 1;
+    
+    const firstDeposit = transactions
       .filter(t => t.type === 'deposit')
-      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0];
+    
+    if (!firstDeposit) return 1;
+    
+    const months = (Date.now() - new Date(firstDeposit.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30);
+    return Math.max(1, Math.round(months));
   }
 
-  private async analyzeLTVFactors(userId: string, transactions: any[]): Promise<any> {
+  private calculateWeeklyActivity(sessions: any[]): { isDecreasing: boolean; trend: string } {
+    if (sessions.length < 14) return { isDecreasing: false, trend: 'insufficient_data' };
+
+    const weeks = this.groupSessionsByWeek(sessions);
+    const weeklyTotals = weeks.map(week => week.length);
+    
+    if (weeklyTotals.length < 2) return { isDecreasing: false, trend: 'insufficient_data' };
+
+    const recentWeek = weeklyTotals[weeklyTotals.length - 1];
+    const previousWeek = weeklyTotals[weeklyTotals.length - 2];
+    
     return {
-      averageDepositAmount: this.calculateAverageDeposit(transactions),
-      depositFrequency: this.calculateDepositFrequency(transactions),
-      gamePreference: await this.getGamePreferences(userId),
-      accountAge: await this.getAccountAge(userId),
-      bonusUsage: await this.getBonusUsagePattern(userId)
+      isDecreasing: recentWeek < previousWeek * 0.7, // 30% decrease
+      trend: recentWeek > previousWeek ? 'increasing' : 'decreasing'
     };
   }
 
-  private predictLTV(factors: any): number {
-    // Simplified LTV prediction model
-    const baseValue = factors.averageDepositAmount * 12; // Annualized
-    const frequencyMultiplier = Math.min(factors.depositFrequency, 2);
-    const loyaltyBonus = factors.accountAge > 365 ? 1.2 : 1.0;
+  private groupSessionsByWeek(sessions: any[]): any[][] {
+    const weeks: any[][] = [];
+    const now = new Date();
     
-    return baseValue * frequencyMultiplier * loyaltyBonus;
+    for (let i = 0; i < 4; i++) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      
+      const weekSessions = sessions.filter(session => {
+        const sessionDate = new Date(session.created_at);
+        return sessionDate >= weekStart && sessionDate < weekEnd;
+      });
+      
+      weeks.unshift(weekSessions);
+    }
+    
+    return weeks;
   }
 
-  private categorizeLTVSegment(ltv: number): string {
-    if (ltv > 5000) return 'platinum';
-    if (ltv > 1000) return 'gold';
-    if (ltv > 500) return 'silver';
-    return 'bronze';
-  }
-
-  private async analyzeChurnFactors(userId: string): Promise<any> {
-    // Mock churn factor analysis
-    return {
-      daysSinceLastLogin: Math.floor(Math.random() * 30),
-      depositDeclineRate: Math.random(),
-      supportTickets: Math.floor(Math.random() * 5),
-      gameEngagement: Math.random(),
-      bonusDeclineRate: Math.random()
-    };
-  }
-
-  private calculateChurnProbability(factors: any): number {
-    let probability = 0;
-    
-    // Days since last login
-    if (factors.daysSinceLastLogin > 14) probability += 0.3;
-    else if (factors.daysSinceLastLogin > 7) probability += 0.15;
-    
-    // Deposit decline
-    if (factors.depositDeclineRate > 0.5) probability += 0.25;
-    
-    // Support issues
-    if (factors.supportTickets > 2) probability += 0.2;
-    
-    // Game engagement
-    if (factors.gameEngagement < 0.3) probability += 0.25;
-    
-    return Math.min(probability, 1.0);
-  }
-
-  private categorizeChurnRisk(probability: number): 'low' | 'medium' | 'high' {
-    if (probability > 0.7) return 'high';
-    if (probability > 0.4) return 'medium';
-    return 'low';
-  }
-
-  private generateChurnPreventionActions(factors: any, riskLevel: string): string[] {
-    const actions = [];
+  private getChurnPreventionActions(riskLevel: string, churnScore: number): string[] {
+    const actions: string[] = [];
     
     if (riskLevel === 'high') {
-      actions.push('Send personalized retention offer');
-      actions.push('Assign dedicated account manager');
-      actions.push('Provide exclusive bonuses');
+      actions.push('Send personalized bonus offer');
+      actions.push('Reach out via customer support');
+      actions.push('Offer VIP upgrade');
     } else if (riskLevel === 'medium') {
       actions.push('Send re-engagement email');
-      actions.push('Offer deposit bonus');
-      actions.push('Recommend popular games');
+      actions.push('Offer free spins');
+      actions.push('Show personalized game recommendations');
+    } else {
+      actions.push('Continue standard marketing');
+      actions.push('Monitor activity');
     }
     
     return actions;
   }
 
-  private calculateVariantAllocation(variants: any[]): any {
-    const allocation = {};
-    const equalShare = 1 / variants.length;
+  private calculatePlayerSegments(user: any, transactions: any[]): any[] {
+    const segments = [];
+    const deposits = transactions.filter(t => t.type === 'deposit');
+    const totalDeposited = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);
     
-    variants.forEach(variant => {
-      allocation[variant.name] = variant.allocation || equalShare;
-    });
-    
-    return allocation;
-  }
-
-  private async getUserSegments(userId: string): Promise<string[]> {
-    const { data: segments } = await supabase
-      .from('player_segments')
-      .select('segment_value')
-      .eq('user_id', userId);
-
-    return segments?.map(s => s.segment_value) || [];
-  }
-
-  private checkSegmentMatch(userSegments: string[], targetSegments: string[]): boolean {
-    if (targetSegments.length === 0) return true; // No targeting
-    return targetSegments.some(target => userSegments.includes(target));
-  }
-
-  private assignVariant(variants: any[], userId: string): string {
-    // Use user ID for consistent assignment
-    const hash = this.hashUserId(userId);
-    const index = hash % variants.length;
-    return variants[index].name;
-  }
-
-  private hashUserId(userId: string): number {
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      const char = userId.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
+    // Value segment
+    if (totalDeposited > 1000) {
+      segments.push({ type: 'value', value: 'high_value', confidence: 0.95 });
+    } else if (totalDeposited > 100) {
+      segments.push({ type: 'value', value: 'medium_value', confidence: 0.85 });
+    } else {
+      segments.push({ type: 'value', value: 'low_value', confidence: 0.75 });
     }
-    return Math.abs(hash);
-  }
-
-  private calculateAverageDeposit(transactions: any[]): number {
-    const deposits = transactions.filter(t => t.type === 'deposit');
-    if (deposits.length === 0) return 0;
-    return deposits.reduce((sum, t) => sum + parseFloat(t.amount), 0) / deposits.length;
-  }
-
-  private calculateDepositFrequency(transactions: any[]): number {
-    const deposits = transactions.filter(t => t.type === 'deposit');
-    if (deposits.length < 2) return 0;
     
-    const firstDeposit = new Date(deposits[0].created_at);
-    const lastDeposit = new Date(deposits[deposits.length - 1].created_at);
-    const daysDiff = (lastDeposit.getTime() - firstDeposit.getTime()) / (1000 * 60 * 60 * 24);
+    // Activity segment
+    const accountAge = (Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    if (accountAge < 7) {
+      segments.push({ type: 'lifecycle', value: 'new', confidence: 0.9 });
+    } else if (accountAge < 30) {
+      segments.push({ type: 'lifecycle', value: 'developing', confidence: 0.8 });
+    } else {
+      segments.push({ type: 'lifecycle', value: 'established', confidence: 0.85 });
+    }
     
-    return deposits.length / Math.max(daysDiff, 1);
-  }
-
-  private async getGamePreferences(userId: string): Promise<any> {
-    // Mock game preferences analysis
-    return { primaryCategory: 'slots', diversityScore: 0.7 };
-  }
-
-  private async getAccountAge(userId: string): Promise<number> {
-    const { data: user } = await supabase
-      .from('users')
-      .select('created_at')
-      .eq('id', userId)
-      .single();
-
-    if (!user) return 0;
-    
-    const createdAt = new Date(user.created_at);
-    return (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
-  }
-
-  private async getBonusUsagePattern(userId: string): Promise<any> {
-    // Mock bonus usage analysis
-    return { acceptanceRate: 0.8, completionRate: 0.6 };
-  }
-
-  private mapABTest(data: any): ABTest {
-    return {
-      id: data.id,
-      testName: data.test_name,
-      description: data.description,
-      testConfig: data.test_config,
-      startDate: data.start_date,
-      endDate: data.end_date,
-      status: data.status,
-      successMetrics: data.success_metrics
-    };
+    return segments;
   }
 }
 

@@ -269,7 +269,7 @@ class SecurityHardeningService {
       if (recentLogins.length > 10) {
         patterns.push({
           type: 'rapid_login_attempts',
-          severity: 'high',
+          severity: 'high' as const,
           details: { loginCount: recentLogins.length, timeframe: '1 hour' }
         });
       }
@@ -296,7 +296,7 @@ class SecurityHardeningService {
     if (transactionData.amount > 10000) {
       return {
         type: 'large_transaction',
-        severity: 'medium',
+        severity: 'medium' as const,
         details: { amount: transactionData.amount, threshold: 10000 }
       };
     }
@@ -326,11 +326,11 @@ class SecurityHardeningService {
     return {
       id: data.id,
       incidentType: data.incident_type,
-      severity: data.severity,
+      severity: data.severity as 'low' | 'medium' | 'high' | 'critical',
       sourceIp: data.source_ip,
       userId: data.user_id,
       details: data.details,
-      status: data.status
+      status: data.status as 'open' | 'investigating' | 'resolved'
     };
   }
 

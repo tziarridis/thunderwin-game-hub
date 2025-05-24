@@ -312,7 +312,6 @@ class AdvancedFraudDetectionService {
     await supabase
       .from('wallets')
       .update({ 
-        aml_risk_score: 90,
         compliance_notes: `Auto-flagged: ${reason}` 
       })
       .eq('user_id', userId);
@@ -336,8 +335,8 @@ class AdvancedFraudDetectionService {
       id: data.id,
       userId: data.user_id,
       investigationType: data.investigation_type,
-      priority: data.priority,
-      status: data.status,
+      priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
+      status: data.status as 'open' | 'investigating' | 'resolved' | 'closed',
       evidence: data.evidence,
       riskFactors: data.risk_factors,
       automatedFlags: data.automated_flags
