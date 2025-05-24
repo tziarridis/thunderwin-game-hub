@@ -15,7 +15,7 @@ interface CasinoGameGridProps {
 const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoGameGridProps) => {
   const { user, isAuthenticated } = useAuth();
   
-  const toggleFavorite = async (e: React.MouseEvent, gameId: string, isFavorite: boolean) => {
+  const toggleFavorite = (e: React.MouseEvent, gameId: string, isFavorite: boolean) => {
     e.stopPropagation(); // Prevent game click when clicking the favorite button
     
     if (!isAuthenticated) {
@@ -23,33 +23,38 @@ const CasinoGameGrid = ({ games, onGameClick, showEmptyMessage = true }: CasinoG
       return;
     }
     
-    try {
-      if (isFavorite) {
-        // Remove from favorites
-        const { error } = await supabase
-          .from('favorite_games')
-          .delete()
-          .eq('user_id', user?.id)
-          .eq('game_id', gameId);
-        
-        if (error) throw error;
-        toast.success("Removed from favorites");
-      } else {
-        // Add to favorites
-        const { error } = await supabase
-          .from('favorite_games')
-          .insert({
-            user_id: user?.id,
-            game_id: gameId
-          });
-        
-        if (error) throw error;
-        toast.success("Added to favorites");
+    // Make the function async and handle the promise
+    const handleToggle = async () => {
+      try {
+        if (isFavorite) {
+          // Remove from favorites
+          const { error } = await supabase
+            .from('favorite_games')
+            .delete()
+            .eq('user_id', user?.id)
+            .eq('game_id', gameId);
+          
+          if (error) throw error;
+          toast.success("Removed from favorites");
+        } else {
+          // Add to favorites
+          const { error } = await supabase
+            .from('favorite_games')
+            .insert({
+              user_id: user?.id,
+              game_id: gameId
+            });
+          
+          if (error) throw error;
+          toast.success("Added to favorites");
+        }
+      } catch (error: any) {
+        console.error("Error toggling favorite:", error);
+        toast.error(error.message || "Error updating favorites");
       }
-    } catch (error: any) {
-      console.error("Error toggling favorite:", error);
-      toast.error(error.message || "Error updating favorites");
-    }
+    };
+    
+    handleToggle();
   };
   
   if (!games || games.length === 0) {

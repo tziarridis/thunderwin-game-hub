@@ -16,7 +16,11 @@ class AdminService {
       throw new Error('Failed to fetch user roles');
     }
     
-    return data || [];
+    return (data || []).map(role => ({
+      ...role,
+      role: role.role as AdminRole['role'],
+      permissions: role.permissions as Record<string, any>
+    }));
   }
 
   async hasRole(userId: string, role: string): Promise<boolean> {
@@ -66,7 +70,11 @@ class AdminService {
       throw new Error('Failed to grant role');
     }
     
-    return data;
+    return {
+      ...data,
+      role: data.role as AdminRole['role'],
+      permissions: data.permissions as Record<string, any>
+    };
   }
 
   async revokeRole(userId: string, role: string): Promise<void> {
@@ -92,7 +100,7 @@ class AdminService {
       .insert({
         user_id: user.id,
         session_token: sessionToken,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
       })
       .select()
       .single();
@@ -102,7 +110,10 @@ class AdminService {
       throw new Error('Failed to create admin session');
     }
     
-    return data;
+    return {
+      ...data,
+      ip_address: data.ip_address as string || ''
+    };
   }
 
   async validateSession(sessionToken: string): Promise<AdminSession | null> {
@@ -125,7 +136,10 @@ class AdminService {
       .update({ last_activity: new Date().toISOString() })
       .eq('id', data.id);
     
-    return data;
+    return {
+      ...data,
+      ip_address: data.ip_address as string || ''
+    };
   }
 
   async terminateSession(sessionToken: string): Promise<void> {
@@ -185,7 +199,12 @@ class AdminService {
       throw new Error('Failed to fetch audit logs');
     }
     
-    return data || [];
+    return (data || []).map(log => ({
+      ...log,
+      old_values: log.old_values as Record<string, any>,
+      new_values: log.new_values as Record<string, any>,
+      ip_address: log.ip_address as string
+    }));
   }
 
   // Financial Transaction Management
@@ -228,7 +247,11 @@ class AdminService {
       throw new Error('Failed to fetch financial audit');
     }
     
-    return data || [];
+    return (data || []).map(audit => ({
+      ...audit,
+      action: audit.action as FinancialAudit['action'],
+      ip_address: audit.ip_address as string
+    }));
   }
 }
 
