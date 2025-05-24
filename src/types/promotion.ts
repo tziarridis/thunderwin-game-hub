@@ -11,7 +11,15 @@ export enum PromotionStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   EXPIRED = 'expired',
-  DRAFT = 'draft'
+  DRAFT = 'draft',
+  PENDING = 'pending'
+}
+
+export enum PromotionAudience {
+  ALL = 'all',
+  NEW_USERS = 'new_users',
+  VIP_USERS = 'vip_users',
+  EXISTING_USERS = 'existing_users'
 }
 
 export interface Promotion {
@@ -22,6 +30,9 @@ export interface Promotion {
   status: PromotionStatus;
   start_date: string;
   end_date: string;
+  valid_from: string;
+  valid_until: string;
+  is_active: boolean;
   terms_and_conditions?: string;
   image_url?: string;
   bonus_amount?: number;
@@ -31,6 +42,15 @@ export interface Promotion {
   wagering_requirement?: number;
   created_at: string;
   updated_at: string;
+  code?: string;
+  value?: number;
+  bonus_percentage?: number;
+  free_spins_count?: number;
+  max_bonus_amount?: number;
+  target_audience?: PromotionAudience;
+  cta_text?: string;
+  terms_and_conditions_url?: string;
+  category?: string;
 }
 
 export interface PromotionFormValues {
@@ -38,6 +58,9 @@ export interface PromotionFormValues {
   description: string;
   type: PromotionType;
   status: PromotionStatus;
+  valid_from: string;
+  valid_until: string;
+  is_active: boolean;
   terms_and_conditions?: string;
   image_url?: string;
   bonus_amount?: number;
@@ -45,4 +68,13 @@ export interface PromotionFormValues {
   min_deposit?: number;
   max_bonus?: number;
   wagering_requirement?: number;
+  code?: string;
+  value?: number;
+  bonus_percentage?: number;
+  free_spins_count?: number;
+  max_bonus_amount?: number;
+  target_audience?: PromotionAudience;
+  cta_text?: string;
+  terms_and_conditions_url?: string;
+  category?: string;
 }

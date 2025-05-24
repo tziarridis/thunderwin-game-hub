@@ -45,7 +45,6 @@ export const mapDbGameToGameAdapter = (dbGame: any): Game => {
               (dbGame.provider_slug ? { name: dbGame.provider_slug, slug: dbGame.provider_slug } : undefined),
 
     categoryName: dbGame.game_type || undefined, 
-    category: dbGame.game_type || undefined,
     category_slugs: Array.isArray(dbGame.category_slugs) 
       ? dbGame.category_slugs 
       : (typeof dbGame.category_slugs === 'string' ? [dbGame.category_slugs] : []),
@@ -102,8 +101,7 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
   if (game.id) dbGame.id = String(game.id); 
   
   if (game.title) dbGame.game_name = game.title;
-  if (game.slug) dbGame.slug = game.slug;
-
+  
   if (game.provider_slug) dbGame.provider_slug = game.provider_slug; 
   if (game.provider_id) dbGame.provider_id = String(game.provider_id); 
 
@@ -121,8 +119,8 @@ export const mapGameToDbGameAdapter = (game: Partial<Game>): Partial<DbGame> => 
 
   if (game.volatility) {
     const validVolatilities: GameVolatility[] = ['low', 'medium', 'high', 'low-medium', 'medium-high'];
-    if (validVolatilities.includes(game.volatility)) {
-      dbGame.volatility = game.volatility;
+    if (validVolatilities.includes(game.volatility as GameVolatility)) {
+      dbGame.volatility = game.volatility as GameVolatility;
     } else {
       console.warn(`Invalid volatility value: ${game.volatility}`);
     }

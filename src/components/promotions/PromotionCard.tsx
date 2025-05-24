@@ -55,7 +55,7 @@ const PromotionCard: React.FC<PromotionCardProps> = ({
         <div className="flex gap-2 mt-4">
           {onClaim && !isExpired && !isUpcoming && (
             <Button onClick={onClaim} className="flex-1">
-              {promotion.cta_text}
+              {promotion.cta_text || 'Claim Now'}
             </Button>
           )}
           {onDetails && (

@@ -17,21 +17,17 @@ interface AdminPromotionCardProps {
 const promotionTypeIcons: Record<PromotionType, React.ElementType> = {
   [PromotionType.DEPOSIT_BONUS]: Percent,
   [PromotionType.FREE_SPINS]: Gift,
-  [PromotionType.CASHBACK_OFFER]: DollarSign,
+  [PromotionType.CASHBACK]: DollarSign,
   [PromotionType.TOURNAMENT]: Users,
-  [PromotionType.NO_DEPOSIT_BONUS]: Info,
-  [PromotionType.RELOAD_BONUS]: Percent,
-  [PromotionType.VIP_BONUS]: Gift,
+  [PromotionType.SPECIAL_EVENT]: Info,
 };
 
 const promotionTypeColors: Record<PromotionType, string> = {
   [PromotionType.DEPOSIT_BONUS]: 'bg-blue-500',
   [PromotionType.FREE_SPINS]: 'bg-green-500',
-  [PromotionType.CASHBACK_OFFER]: 'bg-yellow-500 text-black',
+  [PromotionType.CASHBACK]: 'bg-yellow-500 text-black',
   [PromotionType.TOURNAMENT]: 'bg-purple-500',
-  [PromotionType.NO_DEPOSIT_BONUS]: 'bg-indigo-500',
-  [PromotionType.RELOAD_BONUS]: 'bg-orange-500',
-  [PromotionType.VIP_BONUS]: 'bg-pink-500',
+  [PromotionType.SPECIAL_EVENT]: 'bg-indigo-500',
 };
 
 const promotionStatusColors: Record<PromotionStatus, string> = {
@@ -39,6 +35,7 @@ const promotionStatusColors: Record<PromotionStatus, string> = {
   [PromotionStatus.INACTIVE]: 'bg-gray-500',
   [PromotionStatus.EXPIRED]: 'bg-red-500',
   [PromotionStatus.PENDING]: 'bg-blue-500',
+  [PromotionStatus.DRAFT]: 'bg-orange-500',
 };
 
 const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEdit, onDelete, onToggleActive }) => {
@@ -86,7 +83,7 @@ const AdminPromotionCard: React.FC<AdminPromotionCardProps> = ({ promotion, onEd
             </div>
           )}
           {promotion.value !== undefined && (
-            <div>Value: {promotion.value}{promotion.type === PromotionType.CASHBACK_OFFER || promotion.type === PromotionType.DEPOSIT_BONUS ? '%' : ''}</div>
+            <div>Value: {promotion.value}{promotion.type === PromotionType.CASHBACK || promotion.type === PromotionType.DEPOSIT_BONUS ? '%' : ''}</div>
           )}
           {promotion.bonus_percentage !== undefined && (
             <div>Bonus: {promotion.bonus_percentage}%</div>

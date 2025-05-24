@@ -42,7 +42,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
       avatar_url: user?.user_metadata?.avatar_url || '',
       role: user?.role || 'user', // default to 'user'
       status: (user?.status as 'active' | 'inactive' | 'banned') || 'active',
-      kyc_status: user?.user_metadata?.kyc_status || 'not_submitted',
+      kyc_status: (user?.user_metadata?.kyc_status as 'verified' | 'pending' | 'rejected' | 'not_submitted') || 'not_submitted',
       currency: user?.user_metadata?.currency || 'USD',
       language: user?.user_metadata?.language || 'en',
       vip_level: user?.user_metadata?.vip_level || 0,
@@ -58,7 +58,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, isEditing = false }) 
         avatar_url: user.user_metadata?.avatar_url || '',
         role: user.role || 'user',
         status: (user.status as 'active' | 'inactive' | 'banned') || 'active',
-        kyc_status: user.user_metadata?.kyc_status || 'not_submitted',
+        kyc_status: (user.user_metadata?.kyc_status as 'verified' | 'pending' | 'rejected' | 'not_submitted') || 'not_submitted',
         currency: user.user_metadata?.currency || 'USD',
         language: user.user_metadata?.language || 'en',
         vip_level: user.user_metadata?.vip_level || 0,

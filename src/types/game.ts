@@ -13,6 +13,7 @@ export interface Game {
   category_name?: string;
   category_slugs?: string[];
   categoryName?: string;
+  category?: string;
   game_type?: string;
   type?: string;
   technology?: string;

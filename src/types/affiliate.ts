@@ -1,4 +1,3 @@
-
 export interface Affiliate {
   id: string;
   user_id: string;
@@ -55,7 +54,17 @@ export type AffiliateStats = {
   totalCommissionPaid: number;
 };
 
-export type AffiliateStatSummary = AffiliateStats;
+export type AffiliateStatSummary = {
+  totalAffiliates: number;
+  activeAffiliates: number;
+  pendingAffiliates: number;
+  totalReferrals: number;
+  totalCommissionPaid: number;
+  activeReferrals: number;
+  pendingCommission: number;
+  totalEarned: number;
+  conversionRate: number;
+};
 
 export type AffiliateLink = {
   id: string;

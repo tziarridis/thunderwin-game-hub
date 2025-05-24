@@ -51,7 +51,7 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
       title: '',
       description: '',
       type: PromotionType.DEPOSIT_BONUS,
-      status: PromotionStatus.PENDING,
+      status: PromotionStatus.DRAFT,
       is_active: true,
       valid_from: new Date().toISOString().split('T')[0],
       valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -65,7 +65,7 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
         valid_from: initialData.valid_from ? new Date(initialData.valid_from).toISOString().split('T')[0] : '',
         valid_until: initialData.valid_until ? new Date(initialData.valid_until).toISOString().split('T')[0] : '',
         type: initialData.type || PromotionType.DEPOSIT_BONUS,
-        status: (initialData.status as PromotionStatus) || PromotionStatus.PENDING,
+        status: (initialData.status as PromotionStatus) || PromotionStatus.DRAFT,
         target_audience: typeof initialData.target_audience === 'string' 
           ? Object.values(PromotionAudience).find(val => val === initialData.target_audience) as PromotionAudience
           : initialData.target_audience,
@@ -76,7 +76,7 @@ const PromotionForm: React.FC<PromotionFormProps> = ({ isOpen, onClose, onSubmit
             title: '',
             description: '',
             type: PromotionType.DEPOSIT_BONUS,
-            status: PromotionStatus.PENDING,
+            status: PromotionStatus.DRAFT,
             is_active: true,
             valid_from: new Date().toISOString().split('T')[0],
             valid_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
