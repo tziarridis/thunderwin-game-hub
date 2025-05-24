@@ -4,9 +4,21 @@ import { Game as UIGame, GameProvider as UIGameProvider } from "@/types";
 import { useToast } from "@/components/ui/use-toast";
 import { adaptGamesForUI, adaptProvidersForUI, adaptGameForAPI, adaptGameForUI } from "@/utils/gameAdapter";
 import { clientGamesApi } from "@/services/gamesService";
-import { gameProviderService, GameLaunchOptions } from "@/services/gameProviderService";
+import { providerIntegrationService } from "@/services/providerIntegrationService";
+import { sessionManagerService } from "@/services/sessionManagerService";
 import { availableProviders } from "@/config/gameProviders";
 import { supabase } from "@/integrations/supabase/client";
+
+export interface GameLaunchOptions {
+  gameId: string;
+  providerId?: string;
+  mode?: "demo" | "real";
+  playerId?: string;
+  language?: string;
+  currency?: string;
+  returnUrl?: string;
+  platform?: "web" | "mobile";
+}
 
 export const useGames = (initialParams: GameListParams = {}) => {
   const [games, setGames] = useState<UIGame[]>([]);
@@ -169,38 +181,93 @@ export const useGames = (initialParams: GameListParams = {}) => {
     try {
       setLaunchingGame(true);
       
-      // Determine provider ID
-      let providerId = options.providerId || "ppeur"; // Default to Pragmatic Play EUR as requested
-      
-      // Prepare launch options with default mode
       const launchOptions: GameLaunchOptions = {
         gameId: game.id,
-        providerId,
-        mode: options.mode || "demo", // Provide default mode
+        providerId: options.providerId || "ppeur",
+        mode: options.mode || "demo",
         playerId: options.playerId || "demo_player",
         language: options.language || "en",
         currency: options.currency || "USD",
-        returnUrl: options.returnUrl || window.location.href
+        returnUrl: options.returnUrl || window.location.href,
+        platform: options.platform || "web"
       };
       
-      // Get game URL from provider service
-      const gameUrl = await gameProviderService.getLaunchUrl(launchOptions);
-      
-      // Launch the game in appropriate way
-      if (launchOptions.mode === "real" || launchOptions.mode === "demo") {
-        // For real money or demo mode, open in new window/tab
-        window.open(gameUrl, "_blank");
+      console.log('Launching game with options:', launchOptions);
+
+      // Create or restore game session
+      let gameSession = null;
+      if (launchOptions.playerId !== "demo_player") {
+        gameSession = await sessionManagerService.handleReconnection(
+          launchOptions.playerId,
+          launchOptions.gameId,
+          launchOptions.providerId!
+        );
+
+        if (!gameSession) {
+          gameSession = await sessionManagerService.createGameSession(
+            launchOptions.playerId,
+            launchOptions.gameId,
+            launchOptions.providerId!
+          );
+        }
+      }
+
+      // Launch game with failover support
+      const launchRequest = {
+        gameId: launchOptions.gameId,
+        playerId: launchOptions.playerId,
+        mode: launchOptions.mode as 'real' | 'demo',
+        currency: launchOptions.currency,
+        language: launchOptions.language,
+        returnUrl: launchOptions.returnUrl,
+        sessionToken: gameSession?.sessionToken
+      };
+
+      const response = await providerIntegrationService.launchGameWithFailover(
+        launchRequest,
+        launchOptions.providerId!
+      );
+
+      if (!response.success) {
+        throw new Error(response.errorMessage || 'Failed to launch game');
+      }
+
+      // Open game in new window
+      if (response.gameUrl) {
+        const gameWindow = window.open(response.gameUrl, "_blank");
+        
+        if (!gameWindow) {
+          throw new Error("Pop-up blocker might be preventing the game from opening. Please allow pop-ups for this site.");
+        }
+
+        // Show success message with provider info
+        const providerMessage = response.fallbackProvider 
+          ? `Game launched using backup provider (${response.fallbackProvider})`
+          : `Game launched successfully`;
+          
         toast({
           title: "Game Launched",
-          description: `${game.title} is opening in a new window`,
+          description: `${game.title} - ${providerMessage}`,
         });
-        return gameUrl;
+
+        return response.gameUrl;
       } else {
-        // For any other mode, return URL to be used as needed
-        return gameUrl;
+        throw new Error("No game URL received from provider");
       }
+      
     } catch (err: any) {
       console.error("Error launching game:", err);
+      
+      // End session if it was created
+      if (options.playerId !== "demo_player") {
+        const userSessions = sessionManagerService.getUserActiveSessions(options.playerId!);
+        for (const session of userSessions) {
+          if (session.gameId === game.id) {
+            await sessionManagerService.endSession(session.id, 'launch_failed');
+          }
+        }
+      }
+      
       toast({
         title: "Error",
         description: `Failed to launch game: ${err.message || "Unknown error"}`,
