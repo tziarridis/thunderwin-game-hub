@@ -1,5 +1,18 @@
-
 import { supabase } from '@/integrations/supabase/client';
+
+// Define specific types for dashboard metrics
+export interface DashboardMetrics {
+  totalRevenue: number;
+  activePlayers: number;
+  avgLTV: number;
+  conversionRate: number;
+  revenueGrowth: number;
+  playerGrowth: number;
+  highRiskChurn: number;
+  mediumRiskChurn: number;
+  lowRiskChurn: number;
+  // Add other metrics if any
+}
 
 export interface PlayerSegment {
   id: string;
@@ -14,7 +27,7 @@ export interface ABTest {
   id: string;
   testName: string;
   description?: string;
-  testConfig: any;
+  testConfig: Record<string, any>; // Changed from any
   status: string;
   startDate: string;
   endDate?: string;
@@ -29,7 +42,7 @@ export interface PlayerLTV {
   currentValue: number;
   ltvSegment: string;
   calculationMethod: string;
-  factors: any;
+  factors: Record<string, any>; // Changed from any
 }
 
 export interface ChurnPrediction {
@@ -37,13 +50,43 @@ export interface ChurnPrediction {
   userId: string;
   churnProbability: number;
   churnRiskLevel: string;
-  predictionFactors: any;
+  predictionFactors: Record<string, any>; // Changed from any
   recommendedActions: string[];
+}
+
+// Specific type for transaction data used in LTV calculation
+interface LTVTransaction {
+  amount: number | null; // Supabase might return null
+  type: string;
+  created_at: string;
+}
+
+// Specific type for session data used in churn prediction
+interface PlayerSession {
+  // Define properties based on 'game_sessions' table structure
+  id: string;
+  user_id: string;
+  game_id: string;
+  started_at: string;
+  ended_at?: string | null;
+  // Add other relevant fields
+}
+
+// Specific type for user data in segmentation
+interface SegmentationUser {
+  created_at: string;
+  // Add other relevant user fields
+}
+
+interface CalculatedSegment {
+  type: string;
+  value: string;
+  confidence: number;
 }
 
 class AdvancedAnalyticsService {
   
-  async getDashboardMetrics(): Promise<any> {
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
     try {
       // Get basic metrics from transactions and users
       const { data: revenueData } = await supabase
@@ -86,7 +129,17 @@ class AdvancedAnalyticsService {
       };
     } catch (error) {
       console.error('Error fetching dashboard metrics:', error);
-      return {};
+      return { // Return a default structure on error
+        totalRevenue: 0,
+        activePlayers: 0,
+        avgLTV: 0,
+        conversionRate: 0,
+        revenueGrowth: 0,
+        playerGrowth: 0,
+        highRiskChurn: 0,
+        mediumRiskChurn: 0,
+        lowRiskChurn: 0
+      };
     }
   }
 
@@ -115,7 +168,7 @@ class AdvancedAnalyticsService {
   }
 
   async getActiveABTests(): Promise<ABTest[]> {
-    try {
+     try {
       const { data, error } = await supabase
         .from('ab_tests')
         .select(`
@@ -128,7 +181,7 @@ class AdvancedAnalyticsService {
       if (error) throw error;
 
       return data?.map(test => {
-        const config = test.test_config as any;
+        const config = test.test_config as Record<string, any>; // Cast to Record<string, any>
         const participantCount = Array.isArray(test.ab_test_participants) 
           ? test.ab_test_participants.length 
           : 0;
@@ -178,32 +231,33 @@ class AdvancedAnalyticsService {
 
   async calculatePlayerLTV(userId: string): Promise<PlayerLTV | null> {
     try {
-      // Get player transaction history
       const { data: transactions } = await supabase
         .from('transactions')
         .select('amount, type, created_at')
-        .eq('player_id', userId)
-        .eq('status', 'completed');
+        .eq('player_id', userId) // Ensure this matches your DB schema for user ID in transactions
+        .eq('status', 'completed') as { data: LTVTransaction[] | null; error: any }; // Type assertion
 
       if (!transactions || transactions.length === 0) {
         return null;
       }
-
-      // Calculate current value
+      // ... rest of the calculatePlayerLTV logic, using typed transactions
       const deposits = transactions.filter(t => t.type === 'deposit');
       const currentValue = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-      // Simple LTV prediction (in production, use ML models)
       const avgMonthlyDeposit = currentValue / Math.max(1, this.getMonthsSinceFirstDeposit(transactions));
-      const predictedLifespanMonths = 12; // Assume 12 months average lifespan
+      const predictedLifespanMonths = 12; 
       const predictedLtv = avgMonthlyDeposit * predictedLifespanMonths;
 
-      // Determine segment
       let ltvSegment = 'low';
       if (predictedLtv > 1000) ltvSegment = 'high';
       else if (predictedLtv > 500) ltvSegment = 'medium';
 
-      // Save to database
+      const factors = {
+        avg_monthly_deposit: avgMonthlyDeposit,
+        total_deposits: deposits.length,
+        account_age_months: this.getMonthsSinceFirstDeposit(transactions)
+      };
+
       const { data, error } = await supabase
         .from('player_ltv')
         .upsert({
@@ -212,12 +266,8 @@ class AdvancedAnalyticsService {
           current_value: currentValue,
           ltv_segment: ltvSegment,
           calculation_method: 'simple_average',
-          factors: {
-            avg_monthly_deposit: avgMonthlyDeposit,
-            total_deposits: deposits.length,
-            account_age_months: this.getMonthsSinceFirstDeposit(transactions)
-          },
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+          factors: factors, // factors is already Record<string, any>
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() 
         })
         .select()
         .single();
@@ -231,8 +281,9 @@ class AdvancedAnalyticsService {
         currentValue: data.current_value,
         ltvSegment: data.ltv_segment,
         calculationMethod: data.calculation_method,
-        factors: data.factors
+        factors: data.factors as Record<string, any> // Ensure factors is Record<string, any>
       };
+
     } catch (error) {
       console.error('Error calculating player LTV:', error);
       return null;
@@ -241,35 +292,28 @@ class AdvancedAnalyticsService {
 
   async predictPlayerChurn(userId: string): Promise<ChurnPrediction | null> {
     try {
-      // Get recent player activity
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
       const { data: recentTransactions } = await supabase
         .from('transactions')
-        .select('*')
-        .eq('player_id', userId) // Assuming player_id in transactions is the same as user_id
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .select('*') 
+        .eq('player_id', userId) 
+        .gte('created_at', thirtyDaysAgo.toISOString()) as { data: LTVTransaction[] | null; error: any };
 
-      // Corrected table name from 'user_sessions' to 'game_sessions'
       const { data: recentSessions } = await supabase
         .from('game_sessions') 
         .select('*')
         .eq('user_id', userId)
-        .gte('started_at', thirtyDaysAgo.toISOString()); // Assuming 'started_at' for game_sessions
-
-      // Simple churn prediction logic (replace with ML model in production)
+        .gte('started_at', thirtyDaysAgo.toISOString()) as { data: PlayerSession[] | null; error: any };
+      // ... rest of the predictPlayerChurn logic, using typed recentTransactions and recentSessions
+      // ... (already updated in previous turn, ensure consistency)
       let churnScore = 0;
       
-      // Factor 1: Recent activity
       if (!recentTransactions || recentTransactions.length === 0) churnScore += 0.3;
       if (!recentSessions || recentSessions.length < 5) churnScore += 0.2;
 
-      // Factor 2: Declining trend
       const weeklyActivity = this.calculateWeeklyActivity(recentSessions || []);
       if (weeklyActivity.isDecreasing) churnScore += 0.3;
-
-      // Factor 3: Support tickets or complaints
-      // (Would check support_tickets table in real implementation)
       
       let riskLevel = 'low';
       if (churnScore > 0.7) riskLevel = 'high';
@@ -277,40 +321,39 @@ class AdvancedAnalyticsService {
 
       const recommendedActions = this.getChurnPreventionActions(riskLevel, churnScore);
 
-      // Save prediction
+      const predictionFactors = {
+        recent_transactions: recentTransactions?.length || 0,
+        recent_sessions: recentSessions?.length || 0,
+        activity_trend: weeklyActivity.trend
+      };
+
       const { data, error } = await supabase
         .from('churn_predictions')
         .upsert({
           user_id: userId,
           churn_probability: churnScore,
           churn_risk_level: riskLevel,
-          prediction_factors: {
-            recent_transactions: recentTransactions?.length || 0,
-            recent_sessions: recentSessions?.length || 0,
-            activity_trend: weeklyActivity.trend
-          },
-          recommended_actions: recommendedActions as any[], // Cast to any[] if Supabase type is Json[]
+          prediction_factors: predictionFactors, // This is Record<string, any>
+          recommended_actions: recommendedActions as any[], 
           model_version: 'v1.0',
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Ensure recommendedActions is string[]
       let finalRecommendedActions: string[] = [];
       if (Array.isArray(data.recommended_actions)) {
         finalRecommendedActions = data.recommended_actions.map(String);
       }
-
 
       return {
         id: data.id,
         userId: data.user_id,
         churnProbability: data.churn_probability,
         churnRiskLevel: data.churn_risk_level,
-        predictionFactors: data.prediction_factors,
+        predictionFactors: data.prediction_factors as Record<string, any>, // Ensure type
         recommendedActions: finalRecommendedActions
       };
     } catch (error) {
@@ -321,25 +364,22 @@ class AdvancedAnalyticsService {
 
   async segmentPlayer(userId: string): Promise<void> {
     try {
-      // Get player data for segmentation
       const { data: user } = await supabase
         .from('users')
-        .select('created_at')
+        .select('created_at') // Select specific fields needed for SegmentationUser
         .eq('id', userId)
-        .single();
+        .single() as { data: SegmentationUser | null; error: any };
 
       const { data: transactions } = await supabase
         .from('transactions')
-        .select('amount, type, created_at')
+        .select('amount, type, created_at') // Select specific fields for LTVTransaction
         .eq('player_id', userId)
-        .eq('status', 'completed');
+        .eq('status', 'completed') as { data: LTVTransaction[] | null; error: any };
 
       if (!user || !transactions) return;
 
-      // Calculate segments
       const segments = this.calculatePlayerSegments(user, transactions);
 
-      // Save segments
       for (const segment of segments) {
         await supabase
           .from('player_segments')
@@ -357,7 +397,7 @@ class AdvancedAnalyticsService {
     }
   }
 
-  private getMonthsSinceFirstDeposit(transactions: any[]): number {
+  private getMonthsSinceFirstDeposit(transactions: LTVTransaction[]): number { // Parameter typed
     if (!transactions.length) return 1;
     
     const firstDeposit = transactions
@@ -370,10 +410,10 @@ class AdvancedAnalyticsService {
     return Math.max(1, Math.round(months));
   }
 
-  private calculateWeeklyActivity(sessions: any[]): { isDecreasing: boolean; trend: string } {
-    if (sessions.length < 14) return { isDecreasing: false, trend: 'insufficient_data' };
+  private calculateWeeklyActivity(sessions: PlayerSession[]): { isDecreasing: boolean; trend: string } { // Parameter typed
+    if (sessions.length < 14) return { isDecreasing: false, trend: 'insufficient_data' }; // Assuming 2 weeks of data for trend
 
-    const weeks = this.groupSessionsByWeek(sessions);
+    const weeks = this.groupSessionsByWeek(sessions); // Pass PlayerSession[]
     const weeklyTotals = weeks.map(week => week.length);
     
     if (weeklyTotals.length < 2) return { isDecreasing: false, trend: 'insufficient_data' };
@@ -382,21 +422,22 @@ class AdvancedAnalyticsService {
     const previousWeek = weeklyTotals[weeklyTotals.length - 2];
     
     return {
-      isDecreasing: recentWeek < previousWeek * 0.7, // 30% decrease
-      trend: recentWeek > previousWeek ? 'increasing' : 'decreasing'
+      isDecreasing: recentWeek < previousWeek * 0.7, 
+      trend: recentWeek > previousWeek ? 'increasing' : (recentWeek < previousWeek ? 'decreasing' : 'stable')
     };
   }
 
-  private groupSessionsByWeek(sessions: any[]): any[][] {
-    const weeks: any[][] = [];
+  private groupSessionsByWeek(sessions: PlayerSession[]): PlayerSession[][] { // Parameter and return typed
+    const weeks: PlayerSession[][] = [];
     const now = new Date();
     
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 4; i++) { // Group for last 4 weeks
       const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
       const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
       
       const weekSessions = sessions.filter(session => {
-        const sessionDate = new Date(session.created_at);
+        // Assuming 'started_at' for PlayerSession as game_sessions might not have 'created_at'
+        const sessionDate = new Date(session.started_at); 
         return sessionDate >= weekStart && sessionDate < weekEnd;
       });
       
@@ -425,8 +466,8 @@ class AdvancedAnalyticsService {
     return actions;
   }
 
-  private calculatePlayerSegments(user: any, transactions: any[]): any[] {
-    const segments = [];
+  private calculatePlayerSegments(user: SegmentationUser, transactions: LTVTransaction[]): CalculatedSegment[] { // Parameters and return typed
+    const segments: CalculatedSegment[] = [];
     const deposits = transactions.filter(t => t.type === 'deposit');
     const totalDeposited = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);
     
@@ -455,4 +496,3 @@ class AdvancedAnalyticsService {
 
 export const advancedAnalyticsService = new AdvancedAnalyticsService();
 export default advancedAnalyticsService;
-

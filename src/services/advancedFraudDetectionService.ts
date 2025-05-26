@@ -1,13 +1,40 @@
-
 import { supabase } from '@/integrations/supabase/client';
+
+// Define more specific types for device info and geolocation
+interface ScreenInfo {
+  width?: number;
+  height?: number;
+}
+
+interface DeviceInfo {
+  userAgent?: string;
+  language?: string;
+  platform?: string;
+  screen?: ScreenInfo;
+  timezone?: string;
+  plugins?: string[];
+  webglVendor?: string;
+  webglRenderer?: string;
+  // Add any other expected device info properties
+}
+
+interface GeolocationInfo {
+  country?: string;
+  region?: string;
+  city?: string;
+  coordinates?: { lat: number; lon: number };
+  vpn?: boolean;
+  proxy?: boolean;
+  // Add any other expected geolocation properties
+}
 
 export interface DeviceFingerprint {
   id: string;
   userId?: string;
   fingerprintHash: string;
-  deviceInfo: any;
+  deviceInfo: DeviceInfo; // Changed from any
   ipAddress: string;
-  geolocation?: any;
+  geolocation?: GeolocationInfo; // Changed from any
   riskScore: number;
   isSuspicious: boolean;
 }
@@ -16,7 +43,7 @@ export interface BehaviorPattern {
   id: string;
   userId: string;
   patternType: string;
-  patternData: any;
+  patternData: Record<string, any>; // Changed from any
   confidenceScore: number;
   anomalyScore: number;
 }
@@ -27,14 +54,42 @@ export interface FraudInvestigation {
   investigationType: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'open' | 'investigating' | 'resolved' | 'closed';
-  evidence: any[];
-  riskFactors: any[];
-  automatedFlags: any[];
+  evidence: Array<Record<string, any>>; // Changed from any[]
+  riskFactors: Array<Record<string, any>>; // Changed from any[]
+  automatedFlags: Array<Record<string, any>>; // Changed from any[]
+}
+
+// Specific type for bonus abuse data
+interface BonusAbuseData {
+  deviceFingerprint: string;
+  // Add other relevant bonus data fields
+}
+
+// Specific type for action data in analyzeBehaviorPattern
+interface ActionData {
+  type: string; // e.g., 'bet', 'login', 'deposit'
+  // Add other common fields or make this a union type for more specificity
+  [key: string]: any; 
+}
+
+// Specific type for betting pattern analysis result
+interface BettingPatternAnalysis {
+  confidence: number;
+  anomaly: number;
+  factors: string[];
+  // Add other relevant fields
+}
+
+interface DetectedBehaviorPattern {
+  type: string;
+  data: Record<string, any>; // Or a more specific type like BettingPatternAnalysis
+  confidence: number;
+  anomaly: number;
 }
 
 class AdvancedFraudDetectionService {
   
-  async captureDeviceFingerprint(deviceInfo: any, userId?: string): Promise<DeviceFingerprint> {
+  async captureDeviceFingerprint(deviceInfo: DeviceInfo, userId?: string): Promise<DeviceFingerprint> {
     try {
       const fingerprint = this.generateFingerprint(deviceInfo);
       const ipAddress = await this.getClientIP();
@@ -55,7 +110,6 @@ class AdvancedFraudDetectionService {
 
       if (error) throw error;
       
-      // Check for suspicious patterns
       await this.checkSuspiciousDevicePatterns(fingerprint, userId);
       
       return this.mapDeviceFingerprint(data);
@@ -65,7 +119,7 @@ class AdvancedFraudDetectionService {
     }
   }
 
-  async analyzeBehaviorPattern(userId: string, actionData: any): Promise<void> {
+  async analyzeBehaviorPattern(userId: string, actionData: ActionData): Promise<void> {
     try {
       const patterns = await this.detectBehaviorPatterns(userId, actionData);
       
@@ -82,7 +136,6 @@ class AdvancedFraudDetectionService {
 
         if (error) throw error;
 
-        // Trigger investigation if anomaly score is high
         if (pattern.anomaly > 0.8) {
           await this.createFraudInvestigation(userId, 'behavioral_anomaly', pattern);
         }
@@ -92,9 +145,8 @@ class AdvancedFraudDetectionService {
     }
   }
 
-  async detectBonusAbuse(userId: string, bonusData: any): Promise<boolean> {
+  async detectBonusAbuse(userId: string, bonusData: BonusAbuseData): Promise<boolean> {
     try {
-      // Check for multiple accounts from same device
       const { data: deviceMatches } = await supabase
         .from('device_fingerprints')
         .select('user_id')
@@ -109,7 +161,6 @@ class AdvancedFraudDetectionService {
         return true;
       }
 
-      // Check for rapid bonus claiming patterns
       const rapidClaiming = await this.checkRapidBonusClaiming(userId);
       if (rapidClaiming) {
         await this.createFraudInvestigation(userId, 'bonus_abuse', {
@@ -128,7 +179,7 @@ class AdvancedFraudDetectionService {
   async createFraudInvestigation(
     userId: string, 
     type: string, 
-    evidence: any
+    evidence: Record<string, any> // Changed from any
   ): Promise<FraudInvestigation> {
     try {
       const priority = this.calculateInvestigationPriority(evidence);
@@ -148,7 +199,6 @@ class AdvancedFraudDetectionService {
 
       if (error) throw error;
 
-      // Auto-flag high-risk accounts
       if (priority === 'critical') {
         await this.flagAccount(userId, 'auto_fraud_detection');
       }
@@ -160,7 +210,7 @@ class AdvancedFraudDetectionService {
     }
   }
 
-  private generateFingerprint(deviceInfo: any): string {
+  private generateFingerprint(deviceInfo: DeviceInfo): string {
     const components = [
       deviceInfo.userAgent,
       deviceInfo.language,
@@ -180,15 +230,17 @@ class AdvancedFraudDetectionService {
     try {
       const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
-      return data.ip;
+      return data.ip as string;
     } catch (error) {
+      console.warn('Failed to fetch client IP, defaulting to 127.0.0.1:', error);
       return '127.0.0.1';
     }
   }
 
-  private async getGeolocation(ip: string): Promise<any> {
+  private async getGeolocation(ip: string): Promise<GeolocationInfo | null> { // Return type changed
     try {
-      // In production, use a real geolocation service
+      // In production, use a real geolocation service and map to GeolocationInfo
+      // For now, returning a mock structure matching GeolocationInfo
       return {
         country: 'Unknown',
         region: 'Unknown',
@@ -200,32 +252,29 @@ class AdvancedFraudDetectionService {
     }
   }
 
-  private calculateDeviceRiskScore(deviceInfo: any, geolocation: any): number {
+  private calculateDeviceRiskScore(deviceInfo: DeviceInfo, geolocation: GeolocationInfo | null): number {
     let riskScore = 0;
     
-    // Check for common bot indicators
     if (!deviceInfo.plugins || deviceInfo.plugins.length === 0) riskScore += 20;
     if (deviceInfo.userAgent?.includes('headless')) riskScore += 50;
     if (!deviceInfo.webglVendor || !deviceInfo.webglRenderer) riskScore += 15;
     
-    // Check for VPN/Proxy indicators
     if (geolocation?.vpn) riskScore += 30;
     if (geolocation?.proxy) riskScore += 25;
     
     return Math.min(riskScore, 100);
   }
 
-  private async detectBehaviorPatterns(userId: string, actionData: any): Promise<any[]> {
-    // Mock pattern detection - in production, use ML models
-    const patterns = [];
+  private async detectBehaviorPatterns(userId: string, actionData: ActionData): Promise<DetectedBehaviorPattern[]> {
+    const patterns: DetectedBehaviorPattern[] = [];
     
-    // Betting pattern analysis
     if (actionData.type === 'bet') {
-      const bettingPattern = await this.analyzeBettingPattern(userId, actionData);
+      // Assuming actionData for 'bet' matches structure expected by analyzeBettingPattern
+      const bettingPattern = await this.analyzeBettingPattern(userId, actionData); 
       if (bettingPattern.anomaly > 0.5) {
         patterns.push({
           type: 'betting_anomaly',
-          data: bettingPattern,
+          data: bettingPattern, // bettingPattern is already BettingPatternAnalysis
           confidence: bettingPattern.confidence,
           anomaly: bettingPattern.anomaly
         });
@@ -235,8 +284,9 @@ class AdvancedFraudDetectionService {
     return patterns;
   }
 
-  private async analyzeBettingPattern(userId: string, betData: any): Promise<any> {
+  private async analyzeBettingPattern(userId: string, betData: ActionData): Promise<BettingPatternAnalysis> {
     // Mock analysis - implement real ML model in production
+    // Ensure betData has necessary fields for this analysis
     return {
       confidence: 0.85,
       anomaly: Math.random() > 0.9 ? 0.9 : 0.1,
@@ -270,14 +320,16 @@ class AdvancedFraudDetectionService {
     return recentBonuses && recentBonuses.length > 3;
   }
 
-  private calculateInvestigationPriority(evidence: any): 'low' | 'medium' | 'high' | 'critical' {
-    if (evidence.riskScore > 80) return 'critical';
-    if (evidence.riskScore > 60) return 'high';
-    if (evidence.riskScore > 40) return 'medium';
+  private calculateInvestigationPriority(evidence: Record<string, any>): 'low' | 'medium' | 'high' | 'critical' { // evidence type changed
+    // Assuming evidence contains a riskScore property
+    const riskScore = (evidence.riskScore as number) || 0;
+    if (riskScore > 80) return 'critical';
+    if (riskScore > 60) return 'high';
+    if (riskScore > 40) return 'medium';
     return 'low';
   }
 
-  private async gatherRiskFactors(userId: string): Promise<any[]> {
+  private async gatherRiskFactors(userId: string): Promise<Array<Record<string, any>>> { // Return type changed
     const factors = [];
     
     // Check account age
@@ -293,19 +345,18 @@ class AdvancedFraudDetectionService {
         factors.push({ type: 'new_account', value: accountAge });
       }
     }
-
+    // Add more factors as needed, ensuring they are Record<string, any>
     return factors;
   }
 
-  private async getAutomatedFlags(userId: string): Promise<any[]> {
-    // Return existing automated flags for user
+  private async getAutomatedFlags(userId: string): Promise<Array<Record<string, any>>> { // Return type changed
     const { data: investigations } = await supabase
       .from('fraud_investigations')
       .select('automated_flags')
       .eq('user_id', userId)
       .eq('status', 'open');
 
-    return investigations?.flatMap(i => i.automated_flags) || [];
+    return investigations?.flatMap(i => i.automated_flags as Array<Record<string, any>>) || [];
   }
 
   private async flagAccount(userId: string, reason: string): Promise<void> {
@@ -317,33 +368,32 @@ class AdvancedFraudDetectionService {
       .eq('user_id', userId);
   }
 
-  private mapDeviceFingerprint(data: any): DeviceFingerprint {
+  private mapDeviceFingerprint(data: Record<string, any>): DeviceFingerprint { // data type changed
     return {
       id: data.id,
       userId: data.user_id,
       fingerprintHash: data.fingerprint_hash,
-      deviceInfo: data.device_info,
+      deviceInfo: data.device_info as DeviceInfo, // Cast to DeviceInfo
       ipAddress: data.ip_address,
-      geolocation: data.geolocation,
+      geolocation: data.geolocation as GeolocationInfo | undefined, // Cast to GeolocationInfo
       riskScore: data.risk_score,
       isSuspicious: data.is_suspicious
     };
   }
 
-  private mapFraudInvestigation(data: any): FraudInvestigation {
+  private mapFraudInvestigation(data: Record<string, any>): FraudInvestigation { // data type changed
     return {
       id: data.id,
       userId: data.user_id,
       investigationType: data.investigation_type,
       priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
       status: data.status as 'open' | 'investigating' | 'resolved' | 'closed',
-      evidence: data.evidence,
-      riskFactors: data.risk_factors,
-      automatedFlags: data.automated_flags
+      evidence: data.evidence as Array<Record<string, any>>, // Cast
+      riskFactors: data.risk_factors as Array<Record<string, any>>, // Cast
+      automatedFlags: data.automated_flags as Array<Record<string, any>> // Cast
     };
   }
 }
 
 export const advancedFraudDetectionService = new AdvancedFraudDetectionService();
 export default advancedFraudDetectionService;
-

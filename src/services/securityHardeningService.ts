@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface RateLimitConfig {
@@ -14,8 +13,29 @@ export interface SecurityIncident {
   severity: 'low' | 'medium' | 'high' | 'critical';
   sourceIp?: string;
   userId?: string;
-  details: any;
+  details: Record<string, any>; // Changed from any to Record<string, any> for better clarity
   status: 'open' | 'investigating' | 'resolved';
+}
+
+// Define more specific types for activity data and patterns
+interface LoginActivityData {
+  type: 'login';
+  // Add other relevant login fields if any
+}
+
+interface TransactionActivityData {
+  type: 'transaction';
+  amount: number;
+  transactionId: string; // Ensure transactionId is present for 'large_transaction'
+  // Add other relevant transaction fields
+}
+
+type SuspiciousActivityData = LoginActivityData | TransactionActivityData;
+
+interface SuspiciousPattern {
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  details: Record<string, any>;
 }
 
 class SecurityHardeningService {
@@ -66,7 +86,7 @@ class SecurityHardeningService {
     }
   }
 
-  async detectSuspiciousActivity(userId: string, activityData: any): Promise<void> {
+  async detectSuspiciousActivity(userId: string, activityData: SuspiciousActivityData): Promise<void> {
     try {
       const suspiciousPatterns = await this.analyzeSuspiciousPatterns(userId, activityData);
       
@@ -135,7 +155,7 @@ class SecurityHardeningService {
     return btoa(data).slice(0, 32);
   }
 
-  async logSecurityEvent(eventType: string, details: any, userId?: string): Promise<void> {
+  async logSecurityEvent(eventType: string, details: Record<string, any>, userId?: string): Promise<void> {
     try {
       const { error } = await supabase
         .from('security_incidents')
@@ -260,8 +280,8 @@ class SecurityHardeningService {
       .eq('endpoint', endpoint);
   }
 
-  private async analyzeSuspiciousPatterns(userId: string, activityData: any): Promise<any[]> {
-    const patterns = [];
+  private async analyzeSuspiciousPatterns(userId: string, activityData: SuspiciousActivityData): Promise<SuspiciousPattern[]> {
+    const patterns: SuspiciousPattern[] = [];
 
     // Check for rapid successive logins
     if (activityData.type === 'login') {
@@ -286,18 +306,23 @@ class SecurityHardeningService {
     return patterns;
   }
 
-  private async getRecentLogins(userId: string): Promise<any[]> {
+  private async getRecentLogins(userId: string): Promise<Array<Record<string, any>>> { // Changed from any[]
     // Mock implementation - get actual login logs in production
+    // Define a proper type for login logs if available
     return [];
   }
 
-  private async detectUnusualTransactionPattern(userId: string, transactionData: any): Promise<any | null> {
+  private async detectUnusualTransactionPattern(userId: string, transactionData: TransactionActivityData): Promise<SuspiciousPattern | null> {
     // Mock pattern detection
     if (transactionData.amount > 10000) {
       return {
         type: 'large_transaction',
         severity: 'medium' as const,
-        details: { amount: transactionData.amount, threshold: 10000 }
+        details: { 
+          amount: transactionData.amount, 
+          threshold: 10000,
+          transactionId: transactionData.transactionId // Pass transactionId here
+        }
       };
     }
     return null;
@@ -306,9 +331,10 @@ class SecurityHardeningService {
   private async createSecurityIncident(
     type: string,
     severity: 'low' | 'medium' | 'high' | 'critical',
-    details: any,
+    details: Record<string, any>, // Changed from any
     userId?: string
   ): Promise<SecurityIncident> {
+    // ... keep existing code (createSecurityIncident logic, ensure mapping to SecurityIncident is correct)
     const { data, error } = await supabase
       .from('security_incidents')
       .insert({
@@ -334,14 +360,16 @@ class SecurityHardeningService {
     };
   }
 
-  private async autoRespondToIncident(pattern: any, userId: string): Promise<void> {
+  private async autoRespondToIncident(pattern: SuspiciousPattern, userId: string): Promise<void> {
     // Auto-response based on incident type
     switch (pattern.type) {
       case 'rapid_login_attempts':
         await this.temporaryAccountLock(userId, 30 * 60 * 1000); // 30 minutes
         break;
       case 'large_transaction':
-        await this.flagTransactionForReview(pattern.details.transactionId);
+        // Ensure pattern.details.transactionId is a string
+        const transactionId = String(pattern.details.transactionId);
+        await this.flagTransactionForReview(transactionId);
         break;
     }
   }
@@ -358,7 +386,7 @@ class SecurityHardeningService {
       .eq('user_id', userId);
   }
 
-  private async flagTransactionForReview(transactionId: string): Promise<void> {
+  private async flagTransactionForReview(transactionId: string): Promise<void> { // Fixed: transactionId is now string
     await supabase
       .from('transactions')
       .update({ status: 'pending_review' })
@@ -394,4 +422,3 @@ class SecurityHardeningService {
 
 export const securityHardeningService = new SecurityHardeningService();
 export default securityHardeningService;
-
