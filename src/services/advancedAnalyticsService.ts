@@ -247,14 +247,15 @@ class AdvancedAnalyticsService {
       const { data: recentTransactions } = await supabase
         .from('transactions')
         .select('*')
-        .eq('player_id', userId)
+        .eq('player_id', userId) // Assuming player_id in transactions is the same as user_id
         .gte('created_at', thirtyDaysAgo.toISOString());
 
+      // Corrected table name from 'user_sessions' to 'game_sessions'
       const { data: recentSessions } = await supabase
-        .from('user_sessions')
+        .from('game_sessions') 
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', thirtyDaysAgo.toISOString());
+        .gte('started_at', thirtyDaysAgo.toISOString()); // Assuming 'started_at' for game_sessions
 
       // Simple churn prediction logic (replace with ML model in production)
       let churnScore = 0;
@@ -288,7 +289,7 @@ class AdvancedAnalyticsService {
             recent_sessions: recentSessions?.length || 0,
             activity_trend: weeklyActivity.trend
           },
-          recommended_actions: recommendedActions,
+          recommended_actions: recommendedActions as any[], // Cast to any[] if Supabase type is Json[]
           model_version: 'v1.0',
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
         })
@@ -297,13 +298,20 @@ class AdvancedAnalyticsService {
 
       if (error) throw error;
 
+      // Ensure recommendedActions is string[]
+      let finalRecommendedActions: string[] = [];
+      if (Array.isArray(data.recommended_actions)) {
+        finalRecommendedActions = data.recommended_actions.map(String);
+      }
+
+
       return {
         id: data.id,
         userId: data.user_id,
         churnProbability: data.churn_probability,
         churnRiskLevel: data.churn_risk_level,
         predictionFactors: data.prediction_factors,
-        recommendedActions: Array.isArray(data.recommended_actions) ? data.recommended_actions : []
+        recommendedActions: finalRecommendedActions
       };
     } catch (error) {
       console.error('Error predicting churn:', error);
@@ -447,3 +455,4 @@ class AdvancedAnalyticsService {
 
 export const advancedAnalyticsService = new AdvancedAnalyticsService();
 export default advancedAnalyticsService;
+

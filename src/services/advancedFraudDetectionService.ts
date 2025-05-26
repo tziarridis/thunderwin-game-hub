@@ -313,7 +313,7 @@ class AdvancedFraudDetectionService {
       .from('wallets')
       .update({ 
         compliance_notes: `Auto-flagged: ${reason}` 
-      })
+      } as any) // Cast to any as a temporary workaround for Supabase types not yet reflecting the new column
       .eq('user_id', userId);
   }
 
@@ -346,3 +346,4 @@ class AdvancedFraudDetectionService {
 
 export const advancedFraudDetectionService = new AdvancedFraudDetectionService();
 export default advancedFraudDetectionService;
+

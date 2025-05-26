@@ -1534,6 +1534,7 @@ export type Database = {
           balance_demo: number | null
           balance_deposit_rollover: number | null
           balance_withdrawal: number | null
+          compliance_notes: string | null
           created_at: string | null
           currency: string
           deposit_limit_daily: number | null
@@ -1566,6 +1567,7 @@ export type Database = {
           balance_demo?: number | null
           balance_deposit_rollover?: number | null
           balance_withdrawal?: number | null
+          compliance_notes?: string | null
           created_at?: string | null
           currency: string
           deposit_limit_daily?: number | null
@@ -1598,6 +1600,7 @@ export type Database = {
           balance_demo?: number | null
           balance_deposit_rollover?: number | null
           balance_withdrawal?: number | null
+          compliance_notes?: string | null
           created_at?: string | null
           currency?: string
           deposit_limit_daily?: number | null

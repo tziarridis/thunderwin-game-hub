@@ -384,8 +384,9 @@ class SecurityHardeningService {
     try {
       const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
-      return data.ip;
+      return data.ip as string; // Explicitly cast to string
     } catch (error) {
+      console.warn('Failed to fetch client IP, defaulting to 127.0.0.1:', error);
       return '127.0.0.1';
     }
   }
@@ -393,3 +394,4 @@ class SecurityHardeningService {
 
 export const securityHardeningService = new SecurityHardeningService();
 export default securityHardeningService;
+
