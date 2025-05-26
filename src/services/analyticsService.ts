@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AnalyticsData, GameAnalytics, UserGrowthData } from '@/types/analytics';
+import { RealtimeStats } from '@/services/realtimeDataService'; // Import RealtimeStats for type reference
 
 export interface RealtimePlayerStats {
   totalOnline: number;
@@ -36,17 +38,72 @@ class AnalyticsService {
   
   async getRealtimePlayerStats(): Promise<RealtimePlayerStats> {
     try {
-      // In production, this would fetch real-time data
-      const mockStats: RealtimePlayerStats = {
-        totalOnline: 1247,
-        totalPlaying: 892,
-        newSignups: 34,
-        totalDeposits: 2847,
-        totalWithdrawals: 1249,
-        activeSessions: 756
-      };
+      let totalOnline = 0;
+      let totalPlaying = 0;
+      let activeSessions = 0;
+
+      // Fetch core real-time stats from system_config
+      const { data: systemConfigData, error: systemConfigError } = await supabase
+        .from('system_config')
+        .select('config_value')
+        .eq('config_key', 'realtime_player_stats')
+        .single();
+
+      if (systemConfigError && systemConfigError.code !== 'PGRST116') { // PGRST116: no rows found
+        console.error('Error fetching system_config for realtime stats:', systemConfigError);
+      } else if (systemConfigData) {
+        const stats = systemConfigData.config_value as any; // Cast to any, assuming structure { total_online, total_playing, active_sessions }
+        totalOnline = stats?.total_online || 0;
+        totalPlaying = stats?.total_playing || 0;
+        activeSessions = stats?.active_sessions || 0;
+      }
+
+      // Calculate newSignups for today
+      const todayStart = new Date();
+      todayStart.setUTCHours(0, 0, 0, 0);
+      const { count: newSignups, error: signupsError } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', todayStart.toISOString());
+
+      if (signupsError) {
+        console.error('Error fetching new signups:', signupsError);
+      }
+
+      // Calculate totalDeposits for today
+      const { data: depositsData, error: depositsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('type', 'deposit')
+        .eq('status', 'completed')
+        .gte('created_at', todayStart.toISOString());
+
+      if (depositsError) {
+        console.error('Error fetching total deposits:', depositsError);
+      }
+      const totalDeposits = depositsData?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
+
+      // Calculate totalWithdrawals for today
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('type', 'withdrawal')
+        .eq('status', 'completed')
+        .gte('created_at', todayStart.toISOString());
+
+      if (withdrawalsError) {
+        console.error('Error fetching total withdrawals:', withdrawalsError);
+      }
+      const totalWithdrawals = withdrawalsData?.reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
       
-      return mockStats;
+      return {
+        totalOnline,
+        totalPlaying,
+        newSignups: newSignups || 0,
+        totalDeposits,
+        totalWithdrawals,
+        activeSessions
+      };
     } catch (error) {
       console.error('Error fetching realtime player stats:', error);
       return {
