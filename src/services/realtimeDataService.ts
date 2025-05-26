@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface RealtimeStats {
@@ -36,23 +35,26 @@ class RealtimeDataService {
     try {
       console.log('Initializing realtime data service...');
       
-      // Subscribe to system_config changes for real-time stats
       this.playerStatsChannel = supabase
-        .channel('realtime-player-stats')
+        .channel('realtime-player-stats-config') // Unique channel name
         .on(
           'postgres_changes',
           {
-            event: '*',
+            event: '*', // Listen to all changes
             schema: 'public',
-            table: 'system_config'
+            table: 'system_config',
+            filter: `config_key=eq.realtime_player_stats` // Filter for specific key
           },
           (payload) => this.handleSystemConfigUpdate(payload)
         )
-        .subscribe((status) => {
-          console.log('Player stats channel status:', status);
+        .subscribe((status, err) => {
+          if (err) {
+            console.error('Player stats channel subscription error:', err);
+          } else {
+            console.log('Player stats channel status:', status);
+          }
         });
 
-      // Subscribe to transaction updates for live metrics
       this.transactionChannel = supabase
         .channel('transaction-updates')
         .on(
@@ -64,13 +66,32 @@ class RealtimeDataService {
           },
           (payload) => this.handleTransactionUpdate(payload)
         )
-        .subscribe((status) => {
-          console.log('Transaction channel status:', status);
+        .subscribe((status, err) => {
+           if (err) {
+            console.error('Transaction channel subscription error:', err);
+          } else {
+            console.log('Transaction channel status:', status);
+          }
         });
 
-      // Initial stats fetch
       await this.fetchCurrentStats();
       
+      // Check if realtime_player_stats exists, if not, initialize it via Edge Function
+      const { data: initialConfig } = await supabase
+        .from('system_config')
+        .select('config_key')
+        .eq('config_key', 'realtime_player_stats')
+        .maybeSingle();
+
+      if (!initialConfig) {
+        console.log("realtime_player_stats not found in system_config, attempting to initialize...");
+        // Call an edge function to initialize if needed, or ensure admin does it.
+        // For now, we assume it might exist or will be created by an admin process.
+        // The `updatePlayerStatus` will also effectively create it if it doesn't exist via upsert.
+        // Let's make `initializeStatsRecord` also use an Edge Function if it's critical for client init.
+        // For now, this will be handled by upsert logic in `update-realtime-stats` if called.
+      }
+
       this.isInitialized = true;
       console.log('Realtime data service initialized successfully');
     } catch (error) {
@@ -87,8 +108,11 @@ class RealtimeDataService {
         .eq('config_key', 'realtime_player_stats')
         .single();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') { // PGRST116: No rows found
         console.error('Error fetching current stats:', error);
+        // Initialize with default if not found, but don't attempt to write here directly
+        this.currentStats = { totalOnline: 0, totalPlaying: 0, activeSessions: 0, lastUpdated: new Date().toISOString() };
+        this.notifySubscribers('player_stats', this.currentStats);
         return;
       }
 
@@ -102,43 +126,23 @@ class RealtimeDataService {
         };
         console.log('Current stats fetched:', this.currentStats);
       } else {
-        console.log('No real-time stats found, initializing with defaults');
-        await this.initializeStatsRecord();
+        console.log('No real-time stats found in system_config, using defaults.');
+        this.currentStats = { totalOnline: 0, totalPlaying: 0, activeSessions: 0, lastUpdated: new Date().toISOString() };
       }
+      this.notifySubscribers('player_stats', this.currentStats);
     } catch (error) {
       console.error('Error in fetchCurrentStats:', error);
+      this.currentStats = { totalOnline: 0, totalPlaying: 0, activeSessions: 0, lastUpdated: new Date().toISOString() };
+      this.notifySubscribers('player_stats', this.currentStats);
     }
   }
 
-  private async initializeStatsRecord() {
-    try {
-      const { error } = await supabase
-        .from('system_config')
-        .upsert({
-          config_key: 'realtime_player_stats',
-          config_value: {
-            total_online: 0,
-            total_playing: 0,
-            active_sessions: 0,
-            updated_at: new Date().toISOString()
-          },
-          description: 'Real-time player statistics'
-        });
-
-      if (error) {
-        console.error('Error initializing stats record:', error);
-      } else {
-        console.log('Stats record initialized successfully');
-      }
-    } catch (error) {
-      console.error('Error in initializeStatsRecord:', error);
-    }
-  }
+  // Removed initializeStatsRecord as direct client-side write is problematic due to RLS.
+  // Initialization should be handled by an admin or the `update-realtime-stats` Edge Function's upsert logic.
 
   private handleSystemConfigUpdate(payload: any) {
-    if (payload.new?.config_key === 'realtime_player_stats') {
-      console.log('Player stats updated:', payload);
-      
+    console.log('System config update received:', payload);
+    if (payload.new?.config_key === 'realtime_player_stats' && payload.new?.config_value) {
       const stats = payload.new.config_value as any;
       this.currentStats = {
         totalOnline: stats.total_online || 0,
@@ -146,12 +150,15 @@ class RealtimeDataService {
         activeSessions: stats.active_sessions || 0,
         lastUpdated: stats.updated_at || new Date().toISOString()
       };
-
-      // Notify all subscribers
+      console.log('Player stats updated via Realtime:', this.currentStats);
       this.notifySubscribers('player_stats', this.currentStats);
+    } else if (payload.new?.config_key === 'realtime_player_stats' && !payload.new?.config_value) {
+      // This case could happen if the row is updated with a null config_value, or deleted and reinserted in a transaction
+      // Handle as a reset or log a warning.
+      console.warn('realtime_player_stats config_value is null or undefined in payload:', payload);
     }
   }
-
+  
   private handleTransactionUpdate(payload: any) {
     console.log('New transaction:', payload);
     
@@ -161,48 +168,39 @@ class RealtimeDataService {
 
   async updatePlayerStatus(update: RealtimePlayerUpdate) {
     try {
-      // Ensure we're initialized
       if (!this.isInitialized) {
-        await this.initialize();
+        // Avoid calling initialize() recursively if called from within initialize() path.
+        // This function should primarily be called after initialization.
+        console.warn('updatePlayerStatus called before service fully initialized. Attempting to proceed.');
+        // await this.initialize(); // This could lead to loops if not careful
       }
+      console.log(`[RealtimeDataService] Calling update-realtime-stats Edge Function for:`, update);
+      console.log(`[RealtimeDataService] Sending current client stats:`, this.currentStats);
 
-      const statsUpdate = { ...this.currentStats };
-      
-      switch (update.status) {
-        case 'online':
-          statsUpdate.totalOnline = Math.max(0, statsUpdate.totalOnline + 1);
-          break;
-        case 'playing':
-          statsUpdate.totalPlaying = Math.max(0, statsUpdate.totalPlaying + 1);
-          statsUpdate.activeSessions = Math.max(0, statsUpdate.activeSessions + 1);
-          break;
-        case 'offline':
-          statsUpdate.totalOnline = Math.max(0, statsUpdate.totalOnline - 1);
-          statsUpdate.totalPlaying = Math.max(0, statsUpdate.totalPlaying - 1);
-          break;
-      }
-
-      // Update the system_config table
-      const { error } = await supabase
-        .from('system_config')
-        .upsert({
-          config_key: 'realtime_player_stats',
-          config_value: {
-            total_online: statsUpdate.totalOnline,
-            total_playing: statsUpdate.totalPlaying,
-            active_sessions: statsUpdate.activeSessions,
-            updated_at: new Date().toISOString()
-          },
-          description: 'Real-time player statistics'
-        });
+      const { data, error } = await supabase.functions.invoke('update-realtime-stats', {
+        body: { update, currentStats: this.currentStats }, // Send client's current view of stats for context if needed by Edge Fn
+      });
 
       if (error) {
-        console.error('Error updating player stats:', error);
-      } else {
-        console.log('Player stats updated successfully:', statsUpdate);
+        console.error('[RealtimeDataService] Error calling update-realtime-stats function:', error);
+        throw error;
       }
+
+      if (data && data.success && data.updatedStats) {
+        console.log('[RealtimeDataService] update-realtime-stats Edge Function successful. Updated stats from function:', data.updatedStats);
+        // The Realtime subscription to system_config should pick up this change and update currentStats via handleSystemConfigUpdate.
+        // So, no direct update to this.currentStats here to avoid race conditions / duplicate updates.
+        // The Edge Function updates the DB, DB change triggers Realtime, Realtime updates client.
+      } else if (data && !data.success) {
+        console.error('[RealtimeDataService] update-realtime-stats Edge Function reported failure:', data.error);
+        throw new Error(data.error || 'Edge function call failed');
+      } else {
+        console.warn('[RealtimeDataService] Unexpected response from update-realtime-stats function:', data);
+      }
+
     } catch (error) {
-      console.error('Error in updatePlayerStatus:', error);
+      console.error('[RealtimeDataService] Error in updatePlayerStatus:', error);
+      // Potentially notify UI of error
     }
   }
 

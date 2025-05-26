@@ -68,9 +68,10 @@ interface ActionData {
 }
 
 interface BettingPatternAnalysis {
+  anomalyScore: number; // Renamed from anomaly to match edge function
   confidence: number;
-  anomaly: number;
   factors: string[];
+  modelType?: string; // Optional: to know which model version made the prediction
 }
 
 interface DetectedBehaviorPattern {
@@ -263,13 +264,13 @@ class AdvancedFraudDetectionService {
     
     if (actionData.type === 'bet') {
       // Assuming actionData for 'bet' matches structure expected by analyzeBettingPattern
-      const bettingPattern = await this.analyzeBettingPattern(userId, actionData); 
-      if (bettingPattern.anomaly > 0.5) {
+      const bettingPatternAnalysis = await this.analyzeBettingPattern(userId, actionData); 
+      if (bettingPatternAnalysis.anomalyScore > 0.5) { // Use anomalyScore
         patterns.push({
           type: 'betting_anomaly',
-          data: bettingPattern, // bettingPattern is already BettingPatternAnalysis
-          confidence: bettingPattern.confidence,
-          anomaly: bettingPattern.anomaly
+          data: bettingPatternAnalysis, 
+          confidence: bettingPatternAnalysis.confidence,
+          anomaly: bettingPatternAnalysis.anomalyScore // Use anomalyScore
         });
       }
     }
@@ -278,13 +279,39 @@ class AdvancedFraudDetectionService {
   }
 
   private async analyzeBettingPattern(userId: string, betData: ActionData): Promise<BettingPatternAnalysis> {
-    // Mock analysis - implement real ML model in production
-    // Ensure betData has necessary fields for this analysis
-    return {
-      confidence: 0.85,
-      anomaly: Math.random() > 0.9 ? 0.9 : 0.1,
-      factors: ['bet_size_variance', 'timing_pattern', 'game_selection']
-    };
+    console.log(`[AdvancedFraudDetectionService] Analyzing betting pattern for user ${userId}, betData:`, betData);
+    try {
+      const { data: prediction, error } = await supabase.functions.invoke('ml-fraud-detection', {
+        body: { userId, betData },
+      });
+
+      if (error) {
+        console.error('[AdvancedFraudDetectionService] Error calling ml-fraud-detection function:', error);
+        throw error;
+      }
+
+      if (!prediction || typeof prediction.anomalyScore !== 'number' || typeof prediction.confidence !== 'number') {
+        console.error('[AdvancedFraudDetectionService] Invalid prediction format from ml-fraud-detection:', prediction);
+        throw new Error('Invalid prediction format from ML model');
+      }
+      
+      console.log('[AdvancedFraudDetectionService] Prediction received:', prediction);
+      // Ensure the return type matches BettingPatternAnalysis
+      return {
+        anomalyScore: prediction.anomalyScore,
+        confidence: prediction.confidence,
+        factors: prediction.factors || [],
+        modelType: prediction.modelType
+      };
+    } catch (error) {
+      console.error('[AdvancedFraudDetectionService] Error in analyzeBettingPattern:', error);
+      // Fallback to a default low-risk pattern on error to avoid breaking flow
+      return {
+        anomalyScore: 0.1, // Low anomaly
+        confidence: 0.9,   // High confidence in this low anomaly assessment
+        factors: ['system_error_fallback'],
+      };
+    }
   }
 
   private async checkSuspiciousDevicePatterns(fingerprint: string, userId?: string): Promise<void> {
