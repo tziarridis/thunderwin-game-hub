@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database, Json } from '@/integrations/supabase/types'; // Ensure Json is available
 
 // Define specific types for dashboard metrics
 export interface DashboardMetrics {
@@ -27,7 +28,7 @@ export interface ABTest {
   id: string;
   testName: string;
   description?: string;
-  testConfig: Record<string, any>; // Changed from any
+  testConfig: Record<string, any>;
   status: string;
   startDate: string;
   endDate?: string;
@@ -42,7 +43,7 @@ export interface PlayerLTV {
   currentValue: number;
   ltvSegment: string;
   calculationMethod: string;
-  factors: Record<string, any>; // Changed from any
+  factors: Record<string, any>; 
 }
 
 export interface ChurnPrediction {
@@ -50,32 +51,29 @@ export interface ChurnPrediction {
   userId: string;
   churnProbability: number;
   churnRiskLevel: string;
-  predictionFactors: Record<string, any>; // Changed from any
+  predictionFactors: Record<string, any>;
   recommendedActions: string[];
 }
 
 // Specific type for transaction data used in LTV calculation
 interface LTVTransaction {
-  amount: number | null; // Supabase might return null
+  amount: number | null; 
   type: string;
   created_at: string;
 }
 
 // Specific type for session data used in churn prediction
 interface PlayerSession {
-  // Define properties based on 'game_sessions' table structure
   id: string;
   user_id: string;
   game_id: string;
   started_at: string;
   ended_at?: string | null;
-  // Add other relevant fields
 }
 
 // Specific type for user data in segmentation
 interface SegmentationUser {
   created_at: string;
-  // Add other relevant user fields
 }
 
 interface CalculatedSegment {
@@ -221,7 +219,7 @@ class AdvancedAnalyticsService {
         currentValue: ltv.current_value,
         ltvSegment: ltv.ltv_segment,
         calculationMethod: ltv.calculation_method,
-        factors: ltv.factors
+        factors: ltv.factors as Record<string, any> // Cast factors to Record<string, any>
       })) || [];
     } catch (error) {
       console.error('Error fetching LTV analysis:', error);
@@ -234,13 +232,12 @@ class AdvancedAnalyticsService {
       const { data: transactions } = await supabase
         .from('transactions')
         .select('amount, type, created_at')
-        .eq('player_id', userId) // Ensure this matches your DB schema for user ID in transactions
-        .eq('status', 'completed') as { data: LTVTransaction[] | null; error: any }; // Type assertion
+        .eq('player_id', userId) 
+        .eq('status', 'completed') as { data: LTVTransaction[] | null; error: any }; 
 
       if (!transactions || transactions.length === 0) {
         return null;
       }
-      // ... rest of the calculatePlayerLTV logic, using typed transactions
       const deposits = transactions.filter(t => t.type === 'deposit');
       const currentValue = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -266,7 +263,7 @@ class AdvancedAnalyticsService {
           current_value: currentValue,
           ltv_segment: ltvSegment,
           calculation_method: 'simple_average',
-          factors: factors, // factors is already Record<string, any>
+          factors: factors as unknown as Json, // Ensure factors is compatible with Json for upsert
           expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() 
         })
         .select()
@@ -281,7 +278,7 @@ class AdvancedAnalyticsService {
         currentValue: data.current_value,
         ltvSegment: data.ltv_segment,
         calculationMethod: data.calculation_method,
-        factors: data.factors as Record<string, any> // Ensure factors is Record<string, any>
+        factors: data.factors as Record<string, any> 
       };
 
     } catch (error) {
@@ -305,8 +302,7 @@ class AdvancedAnalyticsService {
         .select('*')
         .eq('user_id', userId)
         .gte('started_at', thirtyDaysAgo.toISOString()) as { data: PlayerSession[] | null; error: any };
-      // ... rest of the predictPlayerChurn logic, using typed recentTransactions and recentSessions
-      // ... (already updated in previous turn, ensure consistency)
+      
       let churnScore = 0;
       
       if (!recentTransactions || recentTransactions.length === 0) churnScore += 0.3;
@@ -333,8 +329,8 @@ class AdvancedAnalyticsService {
           user_id: userId,
           churn_probability: churnScore,
           churn_risk_level: riskLevel,
-          prediction_factors: predictionFactors, // This is Record<string, any>
-          recommended_actions: recommendedActions as any[], 
+          prediction_factors: predictionFactors as unknown as Json, 
+          recommended_actions: recommendedActions as unknown as Json, 
           model_version: 'v1.0',
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         })
@@ -346,14 +342,19 @@ class AdvancedAnalyticsService {
       let finalRecommendedActions: string[] = [];
       if (Array.isArray(data.recommended_actions)) {
         finalRecommendedActions = data.recommended_actions.map(String);
+      } else if (data.recommended_actions && typeof data.recommended_actions === 'object') {
+        // If it's an object, attempt to extract string values if appropriate
+        // This part might need adjustment based on actual data structure if not an array
+        finalRecommendedActions = Object.values(data.recommended_actions).map(String);
       }
+
 
       return {
         id: data.id,
         userId: data.user_id,
         churnProbability: data.churn_probability,
         churnRiskLevel: data.churn_risk_level,
-        predictionFactors: data.prediction_factors as Record<string, any>, // Ensure type
+        predictionFactors: data.prediction_factors as Record<string, any>, 
         recommendedActions: finalRecommendedActions
       };
     } catch (error) {
@@ -397,7 +398,7 @@ class AdvancedAnalyticsService {
     }
   }
 
-  private getMonthsSinceFirstDeposit(transactions: LTVTransaction[]): number { // Parameter typed
+  private getMonthsSinceFirstDeposit(transactions: LTVTransaction[]): number {
     if (!transactions.length) return 1;
     
     const firstDeposit = transactions
@@ -410,7 +411,7 @@ class AdvancedAnalyticsService {
     return Math.max(1, Math.round(months));
   }
 
-  private calculateWeeklyActivity(sessions: PlayerSession[]): { isDecreasing: boolean; trend: string } { // Parameter typed
+  private calculateWeeklyActivity(sessions: PlayerSession[]): { isDecreasing: boolean; trend: string } {
     if (sessions.length < 14) return { isDecreasing: false, trend: 'insufficient_data' }; // Assuming 2 weeks of data for trend
 
     const weeks = this.groupSessionsByWeek(sessions); // Pass PlayerSession[]
@@ -427,7 +428,7 @@ class AdvancedAnalyticsService {
     };
   }
 
-  private groupSessionsByWeek(sessions: PlayerSession[]): PlayerSession[][] { // Parameter and return typed
+  private groupSessionsByWeek(sessions: PlayerSession[]): PlayerSession[][] {
     const weeks: PlayerSession[][] = [];
     const now = new Date();
     
@@ -466,7 +467,7 @@ class AdvancedAnalyticsService {
     return actions;
   }
 
-  private calculatePlayerSegments(user: SegmentationUser, transactions: LTVTransaction[]): CalculatedSegment[] { // Parameters and return typed
+  private calculatePlayerSegments(user: SegmentationUser, transactions: LTVTransaction[]): CalculatedSegment[] {
     const segments: CalculatedSegment[] = [];
     const deposits = transactions.filter(t => t.type === 'deposit');
     const totalDeposited = deposits.reduce((sum, t) => sum + (t.amount || 0), 0);

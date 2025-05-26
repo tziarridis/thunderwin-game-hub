@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database, Json } from '@/integrations/supabase/types'; // Ensure Json is available
 
 export interface RateLimitConfig {
   endpoint: string;
@@ -13,21 +14,18 @@ export interface SecurityIncident {
   severity: 'low' | 'medium' | 'high' | 'critical';
   sourceIp?: string;
   userId?: string;
-  details: Record<string, any>; // Changed from any to Record<string, any> for better clarity
+  details: Record<string, any>; 
   status: 'open' | 'investigating' | 'resolved';
 }
 
-// Define more specific types for activity data and patterns
 interface LoginActivityData {
   type: 'login';
-  // Add other relevant login fields if any
 }
 
 interface TransactionActivityData {
   type: 'transaction';
   amount: number;
-  transactionId: string; // Ensure transactionId is present for 'large_transaction'
-  // Add other relevant transaction fields
+  transactionId: string; 
 }
 
 type SuspiciousActivityData = LoginActivityData | TransactionActivityData;
@@ -163,7 +161,7 @@ class SecurityHardeningService {
           incident_type: eventType,
           severity: this.calculateSeverity(eventType),
           user_id: userId,
-          details,
+          details: details as unknown as Json, // Cast details to Json for insert
           source_ip: await this.getClientIP()
         });
 
@@ -306,7 +304,7 @@ class SecurityHardeningService {
     return patterns;
   }
 
-  private async getRecentLogins(userId: string): Promise<Array<Record<string, any>>> { // Changed from any[]
+  private async getRecentLogins(userId: string): Promise<Array<Record<string, any>>> {
     // Mock implementation - get actual login logs in production
     // Define a proper type for login logs if available
     return [];
@@ -331,17 +329,16 @@ class SecurityHardeningService {
   private async createSecurityIncident(
     type: string,
     severity: 'low' | 'medium' | 'high' | 'critical',
-    details: Record<string, any>, // Changed from any
+    details: Record<string, any>, 
     userId?: string
   ): Promise<SecurityIncident> {
-    // ... keep existing code (createSecurityIncident logic, ensure mapping to SecurityIncident is correct)
     const { data, error } = await supabase
       .from('security_incidents')
       .insert({
         incident_type: type,
         severity,
         user_id: userId,
-        details,
+        details: details as unknown as Json, // Cast details to Json for insert
         source_ip: await this.getClientIP()
       })
       .select()
@@ -353,9 +350,9 @@ class SecurityHardeningService {
       id: data.id,
       incidentType: data.incident_type,
       severity: data.severity as 'low' | 'medium' | 'high' | 'critical',
-      sourceIp: data.source_ip,
+      sourceIp: data.source_ip as string | undefined, // Cast source_ip
       userId: data.user_id,
-      details: data.details,
+      details: data.details as Record<string, any>, // Cast details
       status: data.status as 'open' | 'investigating' | 'resolved'
     };
   }
@@ -386,7 +383,7 @@ class SecurityHardeningService {
       .eq('user_id', userId);
   }
 
-  private async flagTransactionForReview(transactionId: string): Promise<void> { // Fixed: transactionId is now string
+  private async flagTransactionForReview(transactionId: string): Promise<void> {
     await supabase
       .from('transactions')
       .update({ status: 'pending_review' })

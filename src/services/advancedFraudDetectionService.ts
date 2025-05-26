@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database, Json } from '@/integrations/supabase/types'; // Ensure Json is available
 
 // Define more specific types for device info and geolocation
 interface ScreenInfo {
@@ -15,7 +16,6 @@ interface DeviceInfo {
   plugins?: string[];
   webglVendor?: string;
   webglRenderer?: string;
-  // Add any other expected device info properties
 }
 
 interface GeolocationInfo {
@@ -25,16 +25,15 @@ interface GeolocationInfo {
   coordinates?: { lat: number; lon: number };
   vpn?: boolean;
   proxy?: boolean;
-  // Add any other expected geolocation properties
 }
 
 export interface DeviceFingerprint {
   id: string;
   userId?: string;
   fingerprintHash: string;
-  deviceInfo: DeviceInfo; // Changed from any
+  deviceInfo: DeviceInfo; 
   ipAddress: string;
-  geolocation?: GeolocationInfo; // Changed from any
+  geolocation?: GeolocationInfo; 
   riskScore: number;
   isSuspicious: boolean;
 }
@@ -43,7 +42,7 @@ export interface BehaviorPattern {
   id: string;
   userId: string;
   patternType: string;
-  patternData: Record<string, any>; // Changed from any
+  patternData: Record<string, any>; 
   confidenceScore: number;
   anomalyScore: number;
 }
@@ -54,35 +53,29 @@ export interface FraudInvestigation {
   investigationType: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'open' | 'investigating' | 'resolved' | 'closed';
-  evidence: Array<Record<string, any>>; // Changed from any[]
-  riskFactors: Array<Record<string, any>>; // Changed from any[]
-  automatedFlags: Array<Record<string, any>>; // Changed from any[]
+  evidence: Array<Record<string, any>>; 
+  riskFactors: Array<Record<string, any>>; 
+  automatedFlags: Array<Record<string, any>>; 
 }
 
-// Specific type for bonus abuse data
 interface BonusAbuseData {
   deviceFingerprint: string;
-  // Add other relevant bonus data fields
 }
 
-// Specific type for action data in analyzeBehaviorPattern
 interface ActionData {
-  type: string; // e.g., 'bet', 'login', 'deposit'
-  // Add other common fields or make this a union type for more specificity
+  type: string; 
   [key: string]: any; 
 }
 
-// Specific type for betting pattern analysis result
 interface BettingPatternAnalysis {
   confidence: number;
   anomaly: number;
   factors: string[];
-  // Add other relevant fields
 }
 
 interface DetectedBehaviorPattern {
   type: string;
-  data: Record<string, any>; // Or a more specific type like BettingPatternAnalysis
+  data: Record<string, any>; 
   confidence: number;
   anomaly: number;
 }
@@ -100,9 +93,9 @@ class AdvancedFraudDetectionService {
         .insert({
           user_id: userId,
           fingerprint_hash: fingerprint,
-          device_info: deviceInfo,
+          device_info: deviceInfo as unknown as Json, // Cast to Json
           ip_address: ipAddress,
-          geolocation,
+          geolocation: geolocation as unknown as Json | null, // Cast to Json or Json | null
           risk_score: this.calculateDeviceRiskScore(deviceInfo, geolocation)
         })
         .select()
@@ -179,7 +172,7 @@ class AdvancedFraudDetectionService {
   async createFraudInvestigation(
     userId: string, 
     type: string, 
-    evidence: Record<string, any> // Changed from any
+    evidence: Record<string, any> 
   ): Promise<FraudInvestigation> {
     try {
       const priority = this.calculateInvestigationPriority(evidence);
@@ -190,9 +183,9 @@ class AdvancedFraudDetectionService {
           user_id: userId,
           investigation_type: type,
           priority,
-          evidence: [evidence],
-          risk_factors: await this.gatherRiskFactors(userId),
-          automated_flags: await this.getAutomatedFlags(userId)
+          evidence: [evidence] as unknown as Json,
+          risk_factors: await this.gatherRiskFactors(userId) as unknown as Json,
+          automated_flags: await this.getAutomatedFlags(userId) as unknown as Json
         })
         .select()
         .single();
@@ -237,7 +230,7 @@ class AdvancedFraudDetectionService {
     }
   }
 
-  private async getGeolocation(ip: string): Promise<GeolocationInfo | null> { // Return type changed
+  private async getGeolocation(ip: string): Promise<GeolocationInfo | null> {
     try {
       // In production, use a real geolocation service and map to GeolocationInfo
       // For now, returning a mock structure matching GeolocationInfo
@@ -320,7 +313,7 @@ class AdvancedFraudDetectionService {
     return recentBonuses && recentBonuses.length > 3;
   }
 
-  private calculateInvestigationPriority(evidence: Record<string, any>): 'low' | 'medium' | 'high' | 'critical' { // evidence type changed
+  private calculateInvestigationPriority(evidence: Record<string, any>): 'low' | 'medium' | 'high' | 'critical' {
     // Assuming evidence contains a riskScore property
     const riskScore = (evidence.riskScore as number) || 0;
     if (riskScore > 80) return 'critical';
@@ -329,7 +322,7 @@ class AdvancedFraudDetectionService {
     return 'low';
   }
 
-  private async gatherRiskFactors(userId: string): Promise<Array<Record<string, any>>> { // Return type changed
+  private async gatherRiskFactors(userId: string): Promise<Array<Record<string, any>>> {
     const factors = [];
     
     // Check account age
@@ -349,7 +342,7 @@ class AdvancedFraudDetectionService {
     return factors;
   }
 
-  private async getAutomatedFlags(userId: string): Promise<Array<Record<string, any>>> { // Return type changed
+  private async getAutomatedFlags(userId: string): Promise<Array<Record<string, any>>> {
     const { data: investigations } = await supabase
       .from('fraud_investigations')
       .select('automated_flags')
@@ -368,29 +361,29 @@ class AdvancedFraudDetectionService {
       .eq('user_id', userId);
   }
 
-  private mapDeviceFingerprint(data: Record<string, any>): DeviceFingerprint { // data type changed
+  private mapDeviceFingerprint(data: Record<string, any>): DeviceFingerprint {
     return {
       id: data.id,
       userId: data.user_id,
       fingerprintHash: data.fingerprint_hash,
-      deviceInfo: data.device_info as DeviceInfo, // Cast to DeviceInfo
+      deviceInfo: data.device_info as DeviceInfo, 
       ipAddress: data.ip_address,
-      geolocation: data.geolocation as GeolocationInfo | undefined, // Cast to GeolocationInfo
+      geolocation: data.geolocation as GeolocationInfo | undefined, 
       riskScore: data.risk_score,
       isSuspicious: data.is_suspicious
     };
   }
 
-  private mapFraudInvestigation(data: Record<string, any>): FraudInvestigation { // data type changed
+  private mapFraudInvestigation(data: Record<string, any>): FraudInvestigation {
     return {
       id: data.id,
       userId: data.user_id,
       investigationType: data.investigation_type,
       priority: data.priority as 'low' | 'medium' | 'high' | 'critical',
       status: data.status as 'open' | 'investigating' | 'resolved' | 'closed',
-      evidence: data.evidence as Array<Record<string, any>>, // Cast
-      riskFactors: data.risk_factors as Array<Record<string, any>>, // Cast
-      automatedFlags: data.automated_flags as Array<Record<string, any>> // Cast
+      evidence: data.evidence as Array<Record<string, any>>, 
+      riskFactors: data.risk_factors as Array<Record<string, any>>, 
+      automatedFlags: data.automated_flags as Array<Record<string, any>> 
     };
   }
 }
