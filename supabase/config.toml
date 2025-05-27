@@ -32,3 +32,6 @@ project_id = "xucpujttrmcfnxalnuzr"
 [functions.refresh_analytics_views]
   verify_jwt = true # Admin action
 
+[functions.check-provider-health]
+  verify_jwt = false # Publicly accessible health check helper
+
