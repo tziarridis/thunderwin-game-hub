@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { ChevronRight, MoreHorizontal } from "lucide-react"
@@ -44,7 +45,7 @@ const BreadcrumbLink = React.forwardRef<
   React.ComponentPropsWithoutRef<"a"> & {
     asChild?: boolean
   }
->(({ asChild, className, ...props }, ref) => {
+>(({ asChild, className, children, ...props }, ref) => {
   const Comp = asChild ? Slot : "a"
 
   return (
@@ -52,7 +53,9 @@ const BreadcrumbLink = React.forwardRef<
       ref={ref}
       className={cn("transition-colors hover:text-foreground", className)}
       {...props}
-    />
+    >
+      {children as React.ReactNode}
+    </Comp>
   )
 })
 BreadcrumbLink.displayName = "BreadcrumbLink"

@@ -63,7 +63,7 @@ const GlowButton = ({
             <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent shine-animation"></span>
           </span>
         )}
-        {children}
+        {children as React.ReactNode}
       </Button>
     </motion.div>
   );
